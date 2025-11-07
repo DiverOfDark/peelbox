@@ -4,12 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## Project Overview
 
-**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis (Mistral API, local Qwen via Ollama, or LM Studio) to detect repository build systems without hardcoded heuristics.
+**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis (Mistral API, or local LLMs via OpenAI-compatible APIs like Ollama/LM Studio) to detect repository build systems without hardcoded heuristics.
 
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
 - **Build System**: Cargo
-- **AI Backends**: Mistral API, Ollama (Qwen models), LM Studio (OpenAI-compatible)
+- **AI Backends**:
+  - OpenAI-compatible (Ollama, LM Studio, any compatible service)
+  - Mistral API (cloud)
 - **HTTP Client**: reqwest (async)
 - **CLI Framework**: clap (derive macros)
 - **Error Handling**: anyhow, thiserror
@@ -86,9 +88,8 @@ aipack/
 │   ├── ai/                  # LLM integrations
 │   │   ├── mod.rs           # Module definition
 │   │   ├── backend.rs       # Backend trait and enums
-│   │   ├── mistral.rs       # Mistral API client
-│   │   ├── ollama.rs        # Ollama client
-│   │   └── lm_studio.rs     # LM Studio (OpenAI-compatible) client
+│   │   ├── openai_compatible.rs  # Unified OpenAI-compatible client (Ollama, LM Studio, etc.)
+│   │   └── mistral.rs       # Mistral API client (TODO)
 │   ├── detection/           # Build command detection
 │   │   ├── mod.rs
 │   │   ├── analyzer.rs      # Repository analyzer

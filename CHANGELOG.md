@@ -7,15 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Refactored Backend Architecture**: Unified Ollama and LM Studio into single OpenAI-compatible client
+  - Removed 700+ lines of duplicate client code
+  - New `OpenAICompatibleClient` works with both Ollama and LM Studio
+  - Both services use standardized `/v1/chat/completions` endpoint
+  - Service detection preserved: `is_ollama_available()` and `is_lm_studio_available()` still work
+  - Auto-selection order maintained: Ollama → LM Studio → Mistral
+  - Simplified architecture: single client implementation for any OpenAI-compatible API
+  - Reduced maintenance burden and improved code clarity
+
 ### Added
-- **LM Studio Backend**: Support for local LLM inference via LM Studio's OpenAI-compatible API
-  - New `LMStudioClient` implementing `LLMBackend` trait
-  - OpenAI-compatible message format support
-  - Health check and timeout handling
-  - Automatic backend selection: Ollama → LM Studio → Mistral
+- **LM Studio Support**: Now fully integrated with unified OpenAI-compatible backend
+  - Works seamlessly with Ollama through standardized API
   - Configurable endpoint (default: `http://localhost:8000`)
   - Environment variable: `AIPACK_LM_STUDIO_ENDPOINT`
-  - Comprehensive unit and integration tests
+  - Comprehensive service detection and health checking
 
 ### Planned for Phase 2
 - Claude API backend integration
