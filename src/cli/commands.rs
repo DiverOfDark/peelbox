@@ -235,6 +235,9 @@ pub enum BackendArg {
     Auto,
     /// Use Ollama (local) backend
     Ollama,
+    /// Use LM Studio (local OpenAI-compatible) backend
+    #[value(name = "lm-studio")]
+    LMStudio,
     /// Use Mistral API backend
     Mistral,
 }
@@ -244,6 +247,7 @@ impl std::fmt::Display for BackendArg {
         match self {
             BackendArg::Auto => write!(f, "auto"),
             BackendArg::Ollama => write!(f, "ollama"),
+            BackendArg::LMStudio => write!(f, "lm-studio"),
             BackendArg::Mistral => write!(f, "mistral"),
         }
     }

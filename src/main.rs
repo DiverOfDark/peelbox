@@ -309,6 +309,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
     // Determine which backends to check
     let check_all = args.backend.is_none();
     let check_ollama = check_all || args.backend == Some(BackendArg::Ollama);
+    let check_lm_studio = check_all || args.backend == Some(BackendArg::LMStudio);
     let check_mistral = check_all || args.backend == Some(BackendArg::Mistral);
 
     // Check Ollama
@@ -335,6 +336,37 @@ async fn handle_health(args: &HealthArgs) -> i32 {
             }
         };
         health_results.insert("Ollama".to_string(), status);
+    }
+
+    // Check LM Studio
+    if check_lm_studio {
+        debug!("Checking LM Studio at {}", config.lm_studio_endpoint);
+
+        // Check availability using async reqwest client
+        let url = format!("{}/v1/models", config.lm_studio_endpoint);
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let status = match client.get(&url).send().await {
+            Ok(response) if response.status().is_success() => {
+                info!("LM Studio is available at {}", config.lm_studio_endpoint);
+                HealthStatus::available(format!("Connected to {}", config.lm_studio_endpoint))
+            }
+            _ => {
+                warn!(
+                    "LM Studio is not available at {}",
+                    config.lm_studio_endpoint
+                );
+                HealthStatus::unavailable(format!(
+                    "Cannot connect to {}",
+                    config.lm_studio_endpoint
+                ))
+                .with_details("Ensure LM Studio is running on the configured endpoint".to_string())
+            }
+        };
+        health_results.insert("LM Studio".to_string(), status);
     }
 
     // Check Mistral

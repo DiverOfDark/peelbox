@@ -451,6 +451,11 @@ impl AipackConfig {
             self.request_timeout_secs.to_string(),
         );
 
+        map.insert(
+            "lm_studio_endpoint".to_string(),
+            self.lm_studio_endpoint.clone(),
+        );
+
         if show_secrets {
             map.insert(
                 "mistral_api_key".to_string(),

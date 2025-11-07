@@ -300,6 +300,12 @@ impl OutputFormatter {
             output.push_str(&format!("  Timeout: {}s\n", timeout));
         }
 
+        // LM Studio section
+        output.push_str("\nLM Studio Configuration:\n");
+        if let Some(endpoint) = config_map.get("lm_studio_endpoint") {
+            output.push_str(&format!("  Endpoint: {}\n", endpoint));
+        }
+
         // Mistral section
         output.push_str("\nMistral Configuration:\n");
         if let Some(api_key) = config_map.get("mistral_api_key") {
