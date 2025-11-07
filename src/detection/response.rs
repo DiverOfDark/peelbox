@@ -19,7 +19,9 @@
 //!   "build_system": "cargo",
 //!   "build_command": "cargo build --release",
 //!   "test_command": "cargo test",
-//!   "deploy_command": "cargo publish",
+//!   "runtime": "rust:1.75",
+//!   "dependencies": [],
+//!   "entry_point": "/app",
 //!   "confidence": 0.95,
 //!   "reasoning": "Standard Rust project with Cargo.toml",
 //!   "warnings": []
@@ -80,9 +82,15 @@ struct LlmResponse {
     /// Command to run tests
     test_command: String,
 
-    /// Command to deploy or release (optional, may be null from LLM)
+    /// Docker runtime/base image required
+    runtime: String,
+
+    /// System dependencies/packages needed in Docker image
     #[serde(default)]
-    deploy_command: Option<String>,
+    dependencies: Vec<String>,
+
+    /// Command to start the application (ENTRYPOINT for Docker)
+    entry_point: String,
 
     /// Optional development/watch command
     #[serde(default)]
@@ -132,7 +140,9 @@ struct LlmResponse {
 ///   "build_system": "npm",
 ///   "build_command": "npm run build",
 ///   "test_command": "npm test",
-///   "deploy_command": "npm publish",
+///   "runtime": "node:20",
+///   "dependencies": [],
+///   "entry_point": "node index.js",
 ///   "confidence": 0.9,
 ///   "reasoning": "Detected package.json with standard npm scripts",
 ///   "warnings": ["No package-lock.json found"]
@@ -256,7 +266,9 @@ fn convert_to_detection_result(llm: LlmResponse) -> Result<DetectionResult, Pars
         language: llm.language,
         build_command: llm.build_command,
         test_command: llm.test_command,
-        deploy_command: llm.deploy_command,
+        runtime: llm.runtime,
+        dependencies: llm.dependencies,
+        entry_point: llm.entry_point,
         dev_command: llm.dev_command,
         confidence,
         reasoning: llm.reasoning,
@@ -301,11 +313,14 @@ pub fn validate_detection_result(result: &DetectionResult) -> Result<(), ParseEr
         return Err(ParseError::InvalidCommand("test_command".to_string()));
     }
 
-    // Validate deploy_command if present
-    if let Some(ref cmd) = result.deploy_command {
-        if cmd.trim().is_empty() {
-            return Err(ParseError::InvalidCommand("deploy_command".to_string()));
-        }
+    // Validate Docker runtime
+    if result.runtime.trim().is_empty() {
+        return Err(ParseError::MissingField("runtime".to_string()));
+    }
+
+    // Validate Docker entry point
+    if result.entry_point.trim().is_empty() {
+        return Err(ParseError::MissingField("entry_point".to_string()));
     }
 
     // Validate confidence range
@@ -337,7 +352,9 @@ mod tests {
             "build_system": "cargo",
             "build_command": "cargo build --release",
             "test_command": "cargo test",
-            "deploy_command": "cargo publish",
+            "runtime": "rust:1.75",
+            "dependencies": [],
+            "entry_point": "/app",
             "confidence": 0.95,
             "reasoning": "Standard Rust project",
             "warnings": []
@@ -348,7 +365,8 @@ mod tests {
         assert_eq!(result.build_system, "cargo");
         assert_eq!(result.build_command, "cargo build --release");
         assert_eq!(result.test_command, "cargo test");
-        assert_eq!(result.deploy_command, Some("cargo publish".to_string()));
+        assert_eq!(result.runtime, "rust:1.75");
+        assert_eq!(result.entry_point, "/app");
         assert_eq!(result.confidence, 0.95);
         assert_eq!(result.reasoning, "Standard Rust project");
         assert_eq!(result.warnings.len(), 0);
@@ -361,7 +379,9 @@ mod tests {
             "build_system": "npm",
             "build_command": "npm run build",
             "test_command": "npm test",
-            "deploy_command": "npm publish",
+            "runtime": "rust:1.75",
+            "dependencies": [],
+            "entry_point": "/app",
             "dev_command": "npm run dev",
             "confidence": 0.9,
             "reasoning": "Node.js project with package.json",
@@ -382,7 +402,9 @@ mod tests {
             "build_system": "pip",
             "build_command": "pip install -e .",
             "test_command": "pytest",
-            "deploy_command": "python setup.py sdist bdist_wheel",
+            "runtime": "rust:1.75",
+            "dependencies": [],
+            "entry_point": "/app",
             "dev_command": null,
             "confidence": 0.85,
             "reasoning": "Python project with setup.py",
@@ -472,7 +494,9 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec![],
+            entry_point: "/app".to_string(),
             dev_command: None,
             confidence: 0.9,
             reasoning: "Test".to_string(),
@@ -491,7 +515,9 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec![],
+            entry_point: "/app".to_string(),
             dev_command: None,
             confidence: 0.9,
             reasoning: "Test".to_string(),
@@ -511,7 +537,9 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec![],
+            entry_point: "/app".to_string(),
             dev_command: None,
             confidence: 0.9,
             reasoning: "Test".to_string(),
@@ -531,7 +559,9 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec![],
+            entry_point: "/app".to_string(),
             dev_command: None,
             confidence: 1.5,
             reasoning: "Test".to_string(),
@@ -551,7 +581,9 @@ Let me know if you need more details."#;
             "build_system": "cargo",
             "build_command": "cargo build",
             "test_command": "cargo test",
-            "deploy_command": "cargo publish",
+            "runtime": "rust:1.75",
+            "dependencies": [],
+            "entry_point": "/app",
             "confidence": 1.5,
             "reasoning": "Test",
             "warnings": []
@@ -567,7 +599,9 @@ Let me know if you need more details."#;
             "language": "Rust",
             "build_command": "cargo build",
             "test_command": "cargo test",
-            "deploy_command": "cargo publish",
+            "runtime": "rust:1.75",
+            "dependencies": [],
+            "entry_point": "/app",
             "confidence": 0.9,
             "reasoning": "Test",
             "warnings": []
@@ -584,7 +618,9 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec![],
+            entry_point: "/app".to_string(),
             dev_command: None,
             confidence: 0.95,
             reasoning: "Test".to_string(),

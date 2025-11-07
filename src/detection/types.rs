@@ -209,11 +209,23 @@ pub struct DetectionResult {
     /// Example: "cargo test"
     pub test_command: String,
 
-    /// Command to deploy or publish the project
+    /// Docker runtime/base image required
     ///
-    /// Example: Some("cargo publish") or Some("npm publish")
-    /// Some projects may not have a standard deploy command, so this is optional
-    pub deploy_command: Option<String>,
+    /// The runtime environment needed to run the application
+    /// Examples: "rust:1.75", "python:3.11", "node:20-alpine", "openjdk:21-slim"
+    pub runtime: String,
+
+    /// System dependencies/packages needed in Docker image
+    ///
+    /// Minimal list of system packages needed for the application to run
+    /// Examples: ["ca-certificates", "curl", "openssl"]
+    pub dependencies: Vec<String>,
+
+    /// Command to start the application (ENTRYPOINT for Docker)
+    ///
+    /// The main command that runs when the Docker container starts
+    /// Examples: "java -jar app.jar", "python main.py", "nginx -g daemon off;"
+    pub entry_point: String,
 
     /// Optional development/watch command
     ///
@@ -253,20 +265,23 @@ pub struct DetectionResult {
 }
 
 impl DetectionResult {
-    /// Creates a new DetectionResult with default values for optional fields
+    /// Creates a new DetectionResult with Docker containerization focus
     pub fn new(
         build_system: String,
         language: String,
         build_command: String,
         test_command: String,
-        deploy_command: Option<String>,
+        runtime: String,
+        entry_point: String,
     ) -> Self {
         Self {
             build_system,
             language,
             build_command,
             test_command,
-            deploy_command,
+            runtime,
+            dependencies: Vec::new(),
+            entry_point,
             dev_command: None,
             confidence: 0.8,
             reasoning: String::new(),
@@ -315,10 +330,10 @@ impl DetectionResult {
 
 impl fmt::Display for DetectionResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Build System Detection Result")?;
+        writeln!(f, "Docker Build Detection Result")?;
         writeln!(f, "==============================")?;
-        writeln!(f, "Build System: {}", self.build_system)?;
         writeln!(f, "Language: {}", self.language)?;
+        writeln!(f, "Build System: {}", self.build_system)?;
         writeln!(
             f,
             "Confidence: {:.1}% ({})",
@@ -326,14 +341,21 @@ impl fmt::Display for DetectionResult {
             self.confidence_level()
         )?;
         writeln!(f)?;
-        writeln!(f, "Commands:")?;
-        writeln!(f, "  Build:  {}", self.build_command)?;
-        writeln!(f, "  Test:   {}", self.test_command)?;
-        if let Some(ref deploy_cmd) = self.deploy_command {
-            writeln!(f, "  Deploy: {}", deploy_cmd)?;
-        }
+        writeln!(f, "Build Information:")?;
+        writeln!(f, "  Build:   {}", self.build_command)?;
+        writeln!(f, "  Test:    {}", self.test_command)?;
         if let Some(ref dev_cmd) = self.dev_command {
-            writeln!(f, "  Dev:    {}", dev_cmd)?;
+            writeln!(f, "  Dev:     {}", dev_cmd)?;
+        }
+        writeln!(f)?;
+        writeln!(f, "Docker Information:")?;
+        writeln!(f, "  Runtime:     {}", self.runtime)?;
+        writeln!(f, "  Entry Point: {}", self.entry_point)?;
+        if !self.dependencies.is_empty() {
+            writeln!(f, "  Dependencies:")?;
+            for dep in &self.dependencies {
+                writeln!(f, "    - {}", dep)?;
+            }
         }
         writeln!(f)?;
         writeln!(f, "Reasoning:")?;
@@ -393,7 +415,8 @@ mod tests {
             "Rust".to_string(),
             "cargo build".to_string(),
             "cargo test".to_string(),
-            Some("cargo publish".to_string()),
+            "rust:1.75".to_string(),
+            "/app/target/release/myapp".to_string(),
         );
 
         result.set_confidence(0.95);
@@ -429,7 +452,8 @@ mod tests {
             "JavaScript".to_string(),
             "npm run build".to_string(),
             "npm test".to_string(),
-            Some("npm publish".to_string()),
+            "node:20".to_string(),
+            "node index.js".to_string(),
         );
 
         assert!(!result.has_warnings());
@@ -445,7 +469,9 @@ mod tests {
             language: "Rust".to_string(),
             build_command: "cargo build --release".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec!["ca-certificates".to_string()],
+            entry_point: "/app/target/release/myapp".to_string(),
             dev_command: Some("cargo watch -x run".to_string()),
             confidence: 0.95,
             reasoning: "Standard Rust project with Cargo.toml".to_string(),

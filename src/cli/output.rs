@@ -174,36 +174,43 @@ impl OutputFormatter {
         output.push_str(&format!("Build System:  {}\n", result.build_system));
         output.push_str(&format!("Language:      {}\n\n", result.language));
 
-        // Commands section
-        output.push_str("Commands:\n");
+        // Build commands section
+        output.push_str("Build Information:\n");
         output.push_str(&format!(
-            "\u{251C}\u{2500} Build:  {}\n",
+            "\u{251C}\u{2500} Build:   {}\n",
             result.build_command
         ));
         output.push_str(&format!(
-            "\u{251C}\u{2500} Test:   {}\n",
+            "\u{251C}\u{2500} Test:    {}\n",
             result.test_command
         ));
-
         if let Some(ref dev_cmd) = result.dev_command {
-            output.push_str(&format!("\u{251C}\u{2500} Dev:    {}\n", dev_cmd));
-            if let Some(ref deploy_cmd) = result.deploy_command {
-                output.push_str(&format!(
-                    "\u{2514}\u{2500} Deploy: {}\n\n",
-                    deploy_cmd
-                ));
-            } else {
-                output.push_str("\u{2514}\u{2500} Deploy: (not specified)\n\n");
-            }
+            output.push_str(&format!("\u{2514}\u{2500} Dev:     {}\n", dev_cmd));
         } else {
-            if let Some(ref deploy_cmd) = result.deploy_command {
-                output.push_str(&format!(
-                    "\u{2514}\u{2500} Deploy: {}\n\n",
-                    deploy_cmd
-                ));
-            } else {
-                output.push_str("\u{2514}\u{2500} Deploy: (not specified)\n\n");
+            output.push_str("\u{2514}\u{2500} Dev:     (not specified)\n");
+        }
+        output.push_str("\n");
+
+        // Docker information section
+        output.push_str("Docker Information:\n");
+        output.push_str(&format!(
+            "\u{251C}\u{2500} Runtime:      {}\n",
+            result.runtime
+        ));
+        output.push_str(&format!(
+            "\u{251C}\u{2500} Entry Point:  {}\n",
+            result.entry_point
+        ));
+        if !result.dependencies.is_empty() {
+            output.push_str("\u{251C}\u{2500} Dependencies:\n");
+            for (i, dep) in result.dependencies.iter().enumerate() {
+                let is_last = i == result.dependencies.len() - 1;
+                let connector = if is_last { "\u{2514}" } else { "\u{251C}" };
+                output.push_str(&format!("{}  \u{2500} {}\n", connector, dep));
             }
+            output.push_str("\n");
+        } else {
+            output.push_str("\u{2514}\u{2500} Dependencies: (none specified)\n\n");
         }
 
         // Confidence bar
@@ -424,7 +431,9 @@ mod tests {
             language: "Rust".to_string(),
             build_command: "cargo build --release".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: Some("cargo publish".to_string()),
+            runtime: "rust:1.75".to_string(),
+            dependencies: vec![],
+            entry_point: "/app".to_string(),
             dev_command: Some("cargo watch -x run".to_string()),
             confidence: 0.95,
             reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
@@ -471,7 +480,10 @@ mod tests {
         assert!(output.contains("Build System"));
         assert!(output.contains("cargo"));
         assert!(output.contains("Rust"));
-        assert!(output.contains("Commands:"));
+        assert!(output.contains("Build Information:"));  // Docker-focused output
+        assert!(output.contains("Docker Information:"));  // Docker-focused output
+        assert!(output.contains("Runtime:"));  // Docker runtime
+        assert!(output.contains("Entry Point:"));  // Container entry point
         assert!(output.contains("Confidence:"));
         assert!(output.contains("95%"));
         assert!(output.contains("Warnings:"));

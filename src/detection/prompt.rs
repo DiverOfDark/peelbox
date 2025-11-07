@@ -93,9 +93,9 @@ impl PromptBuilder {
         let readme = Self::format_readme(&context.readme_content);
 
         format!(
-            r#"You are an expert software engineer specializing in build systems, package managers, and project configurations.
+            r#"You are an expert software engineer specializing in containerization and Docker image building.
 
-Analyze the following repository information and determine the correct build, test, and deployment commands.
+Analyze the following repository information and determine what's needed to build an optimized Docker image for this project.
 
 REPOSITORY INFORMATION:
 Path: {repo_path}
@@ -113,12 +113,14 @@ TASK:
 Based on the above repository information, identify:
 1. The primary programming language
 2. The build system/package manager being used
-3. The command to build/compile the project
-4. The command to run tests
-5. The command to deploy or release the project
-6. Your confidence level (0.0-1.0) that these commands are correct
-7. Brief explanation of why you chose these commands
-8. Any potential issues or warnings
+3. The command to build/compile the project (for Docker RUN)
+4. The command to run tests (for Docker RUN during build)
+5. The Docker runtime/base image to use (e.g., 'python:3.11', 'node:20', 'rust:latest')
+6. System dependencies/packages needed in the Docker image (e.g., ['curl', 'ca-certificates'])
+7. The entry point command - what runs when the container starts (e.g., 'java -jar app.jar')
+8. Your confidence level (0.0-1.0) that this configuration is correct
+9. Brief explanation of why you chose these options
+10. Any potential issues or warnings
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only (no markdown, no code blocks).
@@ -127,12 +129,14 @@ No preamble, no explanation before the JSON.
 {{
   "language": "string (e.g., 'Rust', 'JavaScript', 'Python')",
   "build_system": "string (e.g., 'cargo', 'npm', 'gradle')",
-  "build_command": "string (complete command to build)",
+  "build_command": "string (complete command to build the application)",
   "test_command": "string (complete command to run tests)",
-  "deploy_command": "string (complete command to deploy/release)",
+  "runtime": "string (Docker runtime, e.g., 'python:3.11-slim', 'node:20', 'rust:1.75')",
+  "dependencies": ["list of system packages needed (e.g., 'curl', 'openssl')"],
+  "entry_point": "string (command to start the application in container, e.g., 'java -jar app.jar')",
   "dev_command": "string or null (optional: command for development/watch mode)",
   "confidence": 0.85,
-  "reasoning": "string (1-2 sentences explaining the detection)",
+  "reasoning": "string (1-2 sentences explaining the Docker configuration)",
   "warnings": ["list of", "potential issues"]
 }}
 
@@ -140,10 +144,13 @@ IMPORTANT:
 - Return ONLY the JSON object, nothing else
 - Do not wrap the JSON in markdown code blocks
 - Ensure all JSON is properly escaped
-- Commands should be complete and ready to execute
+- Focus on minimal dependencies suitable for distroless/minimal base images (security first)
+- Runtime should be a specific base image string that can be used in FROM instruction
+- Entry point should be the exact command to start the application
 - Confidence should reflect certainty (0.9+ = very confident, 0.7-0.9 = confident, 0.5-0.7 = moderate, <0.5 = uncertain)
 - If multiple build systems are detected, choose the primary one
-- Include common flags/options in commands (e.g., --release for production builds)
+- Include optimization flags in build commands (e.g., --release for production builds)
+- Include only essential dependencies - prefer minimal/distroless images where possible
 "#,
             repo_path = repo_path,
             file_tree = file_tree,
@@ -521,12 +528,14 @@ mod tests {
 
         let prompt = PromptBuilder::build_detection_prompt(&context);
 
-        // Check that the JSON schema includes all required fields
+        // Check that the JSON schema includes all required Docker fields
         assert!(prompt.contains("\"language\""));
         assert!(prompt.contains("\"build_system\""));
         assert!(prompt.contains("\"build_command\""));
         assert!(prompt.contains("\"test_command\""));
-        assert!(prompt.contains("\"deploy_command\""));
+        assert!(prompt.contains("\"runtime\""));  // Docker runtime
+        assert!(prompt.contains("\"dependencies\""));  // System packages
+        assert!(prompt.contains("\"entry_point\""));  // Container entry point
         assert!(prompt.contains("\"dev_command\""));
         assert!(prompt.contains("\"confidence\""));
         assert!(prompt.contains("\"reasoning\""));

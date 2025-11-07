@@ -202,8 +202,10 @@ impl OpenAICompatibleClient {
         // Combine system prompt and user message into single user message for compatibility
         // with models that don't support system role (e.g., some LM Studio models)
         let combined_message = format!(
-            "You are an expert at analyzing repository structure and detecting build systems. \
-            Respond with valid JSON only.\n\n{}",
+            "You are an expert at analyzing repository structure for Docker containerization. \
+            Your goal is to determine how to build an optimized Docker image for the project. \
+            Focus on: runtime environment (language/framework), system dependencies needed, \
+            and the entry point command for the container. Respond with valid JSON only.\n\n{}",
             prompt
         );
 
