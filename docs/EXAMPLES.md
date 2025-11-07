@@ -178,6 +178,26 @@ export AIPACK_BACKEND=ollama
 aipack detect
 ```
 
+### Using LM Studio (Local, OpenAI-compatible)
+
+Use LM Studio for a user-friendly interface with local models:
+
+```bash
+# Start LM Studio application or server
+# The server runs at http://localhost:8000 by default
+
+# Use LM Studio backend explicitly
+aipack detect --backend lm-studio
+
+# Or via environment variable
+export AIPACK_BACKEND=lm-studio
+aipack detect
+
+# Configure custom endpoint if needed
+export AIPACK_LM_STUDIO_ENDPOINT=http://localhost:8000
+aipack detect --backend lm-studio
+```
+
 ### Using Mistral API
 
 Use cloud API for faster inference:
@@ -200,11 +220,15 @@ aipack detect
 Let aipack choose the best available backend:
 
 ```bash
-# Tries Ollama first, falls back to Mistral if configured
+# Tries backends in order: Ollama → LM Studio → Mistral (if configured)
 aipack detect --backend auto
 
 # Or just omit the flag (auto is default)
 aipack detect
+
+# Example: If Ollama is running, it will be used automatically
+# If Ollama is not running, LM Studio is tried next
+# If both are unavailable, Mistral API is used (if MISTRAL_API_KEY is set)
 ```
 
 ## Advanced Options

@@ -47,6 +47,10 @@ This guide helps contributors set up their development environment, understand t
   curl -fsSL https://ollama.ai/install.sh | sh
   ```
 
+- **LM Studio**: For local testing with LM Studio backend (OpenAI-compatible)
+  - Download from [lmstudio.ai](https://lmstudio.ai)
+  - Run the desktop application or headless server
+
 - **Just**: Command runner for common tasks
   ```bash
   cargo install just
@@ -168,6 +172,25 @@ ollama pull qwen2.5-coder:7b
 
 # Verify it works
 curl http://localhost:11434/api/tags
+```
+
+### 4b. Set Up LM Studio (Optional Alternative to Ollama)
+
+```bash
+# Install LM Studio from https://lmstudio.ai
+# Download and run the LM Studio application
+
+# OR run LM Studio server in headless mode
+lm-studio-server
+
+# The server runs at http://localhost:8000 by default
+
+# Verify it works
+curl http://localhost:8000/v1/models
+
+# To use LM Studio with aipack, set environment variable:
+export AIPACK_BACKEND=lm-studio
+# Or rely on auto-detection (tries Ollama first, then LM Studio)
 ```
 
 ### 5. Verify Setup

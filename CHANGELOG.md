@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **LM Studio Backend**: Support for local LLM inference via LM Studio's OpenAI-compatible API
+  - New `LMStudioClient` implementing `LLMBackend` trait
+  - OpenAI-compatible message format support
+  - Health check and timeout handling
+  - Automatic backend selection: Ollama → LM Studio → Mistral
+  - Configurable endpoint (default: `http://localhost:8000`)
+  - Environment variable: `AIPACK_LM_STUDIO_ENDPOINT`
+  - Comprehensive unit and integration tests
+
 ### Planned for Phase 2
 - Claude API backend integration
 - OpenAI GPT backend integration

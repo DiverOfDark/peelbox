@@ -2,7 +2,7 @@
 
 AI-powered buildkit frontend for intelligent build command detection.
 
-Automatically detects build systems and generates correct build commands using LLM analysis (Mistral API or local Qwen via Ollama).
+Automatically detects build systems and generates correct build commands using LLM analysis (Mistral API, local Qwen via Ollama, or LM Studio).
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 
@@ -123,6 +123,7 @@ That's it! aipack automatically detected the build system and provided the corre
 
 - **Rust 1.70+**: Install from [rustup.rs](https://rustup.rs/)
 - **Ollama** (optional, for local backend): Install from [ollama.ai](https://ollama.ai/)
+- **LM Studio** (optional, for local backend): Install from [lmstudio.ai](https://lmstudio.ai/)
 - **Mistral API Key** (optional, for cloud backend): Get from [console.mistral.ai](https://console.mistral.ai/)
 
 ### From Crates.io
@@ -175,6 +176,22 @@ ollama pull qwen2.5-coder:7b
 aipack detect
 ```
 
+### Using LM Studio (Local)
+
+```bash
+# Start LM Studio application
+# (Launch the LM Studio desktop app or run server)
+
+# Verify LM Studio is running at default port
+curl http://localhost:8000/v1/models
+
+# Detect (uses LM Studio automatically if available)
+aipack detect
+
+# Or explicitly use LM Studio backend
+aipack detect --backend lm-studio
+```
+
 ### Using Mistral API (Cloud)
 
 ```bash
@@ -187,10 +204,13 @@ aipack detect --backend mistral
 
 ### Auto Backend Selection
 
-aipack automatically chooses the best available backend:
+aipack automatically chooses the best available backend in this order:
+1. Ollama (fastest for local models)
+2. LM Studio (alternative local backend)
+3. Mistral API (cloud fallback if configured)
 
 ```bash
-# Tries Ollama first, falls back to Mistral if configured
+# Automatically selects the best available backend
 aipack detect
 ```
 
@@ -202,11 +222,14 @@ Configure aipack using environment variables:
 
 ```bash
 # Backend Selection
-export AIPACK_BACKEND=ollama              # "ollama", "mistral", or "auto" (default)
+export AIPACK_BACKEND=auto                # "ollama", "lm-studio", "mistral", or "auto" (default)
 
 # Ollama Configuration
 export AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
 export AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b        # or qwen:14b, qwen:32b
+
+# LM Studio Configuration
+export AIPACK_LM_STUDIO_ENDPOINT=http://localhost:8000
 
 # Mistral Configuration
 export MISTRAL_API_KEY=your-api-key

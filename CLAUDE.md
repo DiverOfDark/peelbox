@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## Project Overview
 
-**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis (Mistral API or local Qwen via Ollama) to detect repository build systems without hardcoded heuristics.
+**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis (Mistral API, local Qwen via Ollama, or LM Studio) to detect repository build systems without hardcoded heuristics.
 
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
 - **Build System**: Cargo
-- **AI Backends**: Mistral API, Ollama (Qwen models)
+- **AI Backends**: Mistral API, Ollama (Qwen models), LM Studio (OpenAI-compatible)
 - **HTTP Client**: reqwest (async)
 - **CLI Framework**: clap (derive macros)
 - **Error Handling**: anyhow, thiserror
@@ -87,7 +87,8 @@ aipack/
 │   │   ├── mod.rs           # Module definition
 │   │   ├── backend.rs       # Backend trait and enums
 │   │   ├── mistral.rs       # Mistral API client
-│   │   └── ollama.rs        # Ollama client
+│   │   ├── ollama.rs        # Ollama client
+│   │   └── lm_studio.rs     # LM Studio (OpenAI-compatible) client
 │   ├── detection/           # Build command detection
 │   │   ├── mod.rs
 │   │   ├── analyzer.rs      # Repository analyzer
@@ -221,11 +222,14 @@ async fn test_ollama_detection() {
 
 ```bash
 # Backend selection
-AIPACK_BACKEND=ollama              # or "mistral", "auto"
+AIPACK_BACKEND=auto                # "ollama", "lm-studio", "mistral", or "auto" (default)
 AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
 AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
 
-# Mistral configuration
+# LM Studio configuration (OpenAI-compatible local inference)
+AIPACK_LM_STUDIO_ENDPOINT=http://localhost:8000
+
+# Mistral configuration (cloud API)
 MISTRAL_API_KEY=your-api-key
 AIPACK_MISTRAL_MODEL=mistral-small
 
@@ -241,11 +245,14 @@ RUST_LOG=aipack=debug,info         # Structured logging
 Can add support for `aipack.toml`:
 ```toml
 [ai]
-backend = "ollama"
-model = "qwen:14b"
+backend = "auto"                    # or "ollama", "lm-studio", "mistral"
 
 [ollama]
 endpoint = "http://localhost:11434"
+model = "qwen2.5-coder:7b"
+
+[lm_studio]
+endpoint = "http://localhost:8000"
 
 [mistral]
 api_key = "${MISTRAL_API_KEY}"

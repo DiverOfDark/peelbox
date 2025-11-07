@@ -47,6 +47,7 @@ use thiserror::Error;
 const DEFAULT_BACKEND: &str = "auto";
 const DEFAULT_OLLAMA_ENDPOINT: &str = "http://localhost:11434";
 const DEFAULT_OLLAMA_MODEL: &str = "qwen2.5-coder:7b";
+const DEFAULT_LM_STUDIO_ENDPOINT: &str = "http://localhost:8000";
 const DEFAULT_MISTRAL_MODEL: &str = "mistral-small";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_CACHE_ENABLED: bool = true;
@@ -57,7 +58,7 @@ const DEFAULT_MAX_CONTEXT_SIZE: usize = 512_000; // 500KB
 #[derive(Debug, Error)]
 pub enum ConfigError {
     /// Invalid backend name provided
-    #[error("Invalid backend: {0}. Valid options are: auto, ollama, mistral")]
+    #[error("Invalid backend: {0}. Valid options are: auto, ollama, lm-studio, mistral")]
     InvalidBackend(String),
 
     /// Mistral API key not found when using Mistral backend
@@ -97,6 +98,9 @@ pub struct AipackConfig {
     /// Ollama model to use for inference
     pub ollama_model: String,
 
+    /// LM Studio service endpoint URL
+    pub lm_studio_endpoint: String,
+
     /// Mistral API key (optional, required for Mistral backend)
     pub mistral_api_key: Option<String>,
 
@@ -135,6 +139,10 @@ impl Default for AipackConfig {
             .unwrap_or_else(|_| DEFAULT_OLLAMA_ENDPOINT.to_string());
         let ollama_model =
             env::var("AIPACK_OLLAMA_MODEL").unwrap_or_else(|_| DEFAULT_OLLAMA_MODEL.to_string());
+
+        // LM Studio configuration
+        let lm_studio_endpoint = env::var("AIPACK_LM_STUDIO_ENDPOINT")
+            .unwrap_or_else(|_| DEFAULT_LM_STUDIO_ENDPOINT.to_string());
 
         // Mistral configuration
         let mistral_api_key = env::var("MISTRAL_API_KEY").ok();
@@ -178,6 +186,7 @@ impl Default for AipackConfig {
             backend,
             ollama_endpoint,
             ollama_model,
+            lm_studio_endpoint,
             mistral_api_key,
             mistral_model,
             cache_enabled,
@@ -283,6 +292,27 @@ impl AipackConfig {
         client.get(&url).send().is_ok()
     }
 
+    /// Checks if LM Studio server is available
+    ///
+    /// # Returns
+    ///
+    /// `true` if LM Studio is reachable, `false` otherwise
+    pub fn is_lm_studio_available(&self) -> bool {
+        // Use a simple HTTP check - we'll use std lib to avoid async complexity here
+        let url = format!("{}/v1/models", self.lm_studio_endpoint);
+
+        // Try to make a blocking request with a short timeout
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+        {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+
+        client.get(&url).send().is_ok()
+    }
+
     /// Checks if Mistral API key is configured
     ///
     /// # Returns
@@ -308,6 +338,12 @@ impl AipackConfig {
             "ollama" => Ok(BackendConfig::Local {
                 endpoint: self.ollama_endpoint.clone(),
                 model: self.ollama_model.clone(),
+                timeout_seconds: Some(self.request_timeout_secs),
+                max_tokens: None,
+            }),
+            "lm-studio" => Ok(BackendConfig::Local {
+                endpoint: self.lm_studio_endpoint.clone(),
+                model: "local-model".to_string(), // LM Studio uses currently loaded model
                 timeout_seconds: Some(self.request_timeout_secs),
                 max_tokens: None,
             }),
@@ -338,6 +374,16 @@ impl AipackConfig {
                     });
                 }
 
+                // Try LM Studio second if available
+                if self.is_lm_studio_available() {
+                    return Ok(BackendConfig::Local {
+                        endpoint: self.lm_studio_endpoint.clone(),
+                        model: "local-model".to_string(),
+                        timeout_seconds: Some(self.request_timeout_secs),
+                        max_tokens: None,
+                    });
+                }
+
                 // Fall back to Mistral if API key is available
                 if let Some(api_key) = &self.mistral_api_key {
                     return Ok(BackendConfig::OpenAI {
@@ -352,7 +398,7 @@ impl AipackConfig {
 
                 // No backend available
                 Err(ConfigError::ValidationFailed(
-                    "Auto mode: No backend available. Ollama is not reachable and Mistral API key is not set"
+                    "Auto mode: No backend available. Ollama, LM Studio, and Mistral are all unavailable"
                         .to_string(),
                 ))
             }
@@ -556,6 +602,7 @@ mod tests {
             backend: "ollama".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
             ollama_model: "qwen:7b".to_string(),
+            lm_studio_endpoint: "http://localhost:8000".to_string(),
             mistral_api_key: None,
             mistral_model: "mistral-small".to_string(),
             cache_enabled: true,
@@ -643,6 +690,7 @@ mod tests {
             backend: "ollama".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
             ollama_model: "qwen:7b".to_string(),
+            lm_studio_endpoint: "http://localhost:8000".to_string(),
             mistral_api_key: None,
             mistral_model: "mistral-small".to_string(),
             cache_enabled: true,
@@ -670,6 +718,7 @@ mod tests {
             backend: "mistral".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
             ollama_model: "qwen:7b".to_string(),
+            lm_studio_endpoint: "http://localhost:8000".to_string(),
             mistral_api_key: Some("test-key".to_string()),
             mistral_model: "mistral-small".to_string(),
             cache_enabled: true,
@@ -695,6 +744,7 @@ mod tests {
             backend: "mistral".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
             ollama_model: "qwen:7b".to_string(),
+            lm_studio_endpoint: "http://localhost:8000".to_string(),
             mistral_api_key: None,
             mistral_model: "mistral-small".to_string(),
             cache_enabled: true,
@@ -718,6 +768,7 @@ mod tests {
             backend: "ollama".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
             ollama_model: "qwen:7b".to_string(),
+            lm_studio_endpoint: "http://localhost:8000".to_string(),
             mistral_api_key: None,
             mistral_model: "mistral-small".to_string(),
             cache_enabled: true,
@@ -737,6 +788,7 @@ mod tests {
             backend: "ollama".to_string(),
             ollama_endpoint: "http://localhost:11434".to_string(),
             ollama_model: "qwen:7b".to_string(),
+            lm_studio_endpoint: "http://localhost:8000".to_string(),
             mistral_api_key: None,
             mistral_model: "mistral-small".to_string(),
             cache_enabled: true,

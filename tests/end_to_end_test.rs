@@ -252,7 +252,7 @@ fn test_configuration_loading_defaults() {
 
     assert_eq!(config.backend, "auto");
     assert_eq!(config.ollama_endpoint, "http://localhost:11434");
-    assert_eq!(config.ollama_model, "qwen:7b");
+    assert_eq!(config.ollama_model, "qwen2.5-coder:7b");
     assert!(config.cache_enabled);
 }
 
@@ -262,6 +262,7 @@ fn test_configuration_validation_valid() {
         backend: "ollama".to_string(),
         ollama_endpoint: "http://localhost:11434".to_string(),
         ollama_model: "qwen:7b".to_string(),
+        lm_studio_endpoint: "http://localhost:8000".to_string(),
         mistral_api_key: None,
         mistral_model: "mistral-small".to_string(),
         cache_enabled: true,
@@ -482,6 +483,7 @@ fn test_config_display_map() {
         backend: "ollama".to_string(),
         ollama_endpoint: "http://localhost:11434".to_string(),
         ollama_model: "qwen:7b".to_string(),
+        lm_studio_endpoint: "http://localhost:8000".to_string(),
         mistral_api_key: Some("secret-key".to_string()),
         mistral_model: "mistral-small".to_string(),
         cache_enabled: true,

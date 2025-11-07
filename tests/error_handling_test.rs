@@ -218,6 +218,7 @@ async fn test_service_error_path_not_found() {
         backend: "ollama".to_string(),
         ollama_endpoint: "http://localhost:11434".to_string(),
         ollama_model: "qwen:7b".to_string(),
+        lm_studio_endpoint: "http://localhost:8000".to_string(),
         mistral_api_key: None,
         mistral_model: "mistral-small".to_string(),
         cache_enabled: false,
