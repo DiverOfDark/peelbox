@@ -3,17 +3,17 @@
 //! Tests backend availability checking, configuration validation,
 //! and health status reporting.
 
-use aipack::ai::ollama::OllamaClient;
+use aipack::ai::openai_compatible::OpenAICompatibleClient;
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
 use std::time::Duration;
 
 #[tokio::test]
-async fn test_ollama_health_check_unavailable() {
+async fn test_service_health_check_unavailable() {
     // Test with non-existent endpoint
-    let client = OllamaClient::with_timeout(
+    let client = OpenAICompatibleClient::with_timeout(
         "http://localhost:59999".to_string(),
-        "qwen:7b".to_string(),
+        "qwen2.5-coder:7b".to_string(),
         Duration::from_millis(500),
     );
 
@@ -25,11 +25,11 @@ async fn test_ollama_health_check_unavailable() {
 }
 
 #[tokio::test]
-async fn test_ollama_client_timeout() {
+async fn test_service_client_timeout() {
     // Test with very short timeout
-    let client = OllamaClient::with_timeout(
+    let client = OpenAICompatibleClient::with_timeout(
         "http://localhost:11434".to_string(),
-        "qwen:7b".to_string(),
+        "qwen2.5-coder:7b".to_string(),
         Duration::from_millis(1), // Very short timeout
     );
 
@@ -158,22 +158,22 @@ fn test_config_backend_selection_auto_no_backends() {
 }
 
 #[test]
-fn test_ollama_client_name_and_info() {
-    let client = OllamaClient::new("http://localhost:11434".to_string(), "qwen:7b".to_string());
+fn test_service_client_name_and_info() {
+    let client = OpenAICompatibleClient::new("http://localhost:11434".to_string(), "qwen2.5-coder:7b".to_string());
 
     use aipack::ai::backend::LLMBackend;
 
-    assert_eq!(client.name(), "ollama");
+    assert_eq!(client.name(), "openai-compatible");
     assert!(client.model_info().is_some());
-    assert!(client.model_info().unwrap().contains("qwen:7b"));
+    assert!(client.model_info().unwrap().contains("qwen2.5-coder:7b"));
     assert!(client.model_info().unwrap().contains("localhost:11434"));
 }
 
 #[test]
-fn test_ollama_client_custom_timeout() {
-    let client = OllamaClient::with_timeout(
+fn test_service_client_custom_timeout() {
+    let client = OpenAICompatibleClient::with_timeout(
         "http://localhost:11434".to_string(),
-        "qwen:7b".to_string(),
+        "qwen2.5-coder:7b".to_string(),
         Duration::from_secs(120),
     );
 
@@ -325,9 +325,9 @@ async fn test_health_check_with_multiple_endpoints() {
     ];
 
     for endpoint in endpoints {
-        let client = OllamaClient::with_timeout(
+        let client = OpenAICompatibleClient::with_timeout(
             endpoint.clone(),
-            "qwen:7b".to_string(),
+            "qwen2.5-coder:7b".to_string(),
             Duration::from_millis(100),
         );
 

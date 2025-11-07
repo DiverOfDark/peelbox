@@ -1,25 +1,26 @@
-//! LM Studio HTTP client for local LLM inference
+//! OpenAI-compatible HTTP client for local LLM inference
 //!
-//! This module provides an HTTP client for the LM Studio API, enabling local
-//! LLM inference using the OpenAI-compatible API. LM Studio supports various models
-//! and provides enhanced statistics and model information.
+//! This module provides an HTTP client compatible with OpenAI's API format,
+//! supporting multiple local LLM services like Ollama and LM Studio that expose
+//! OpenAI-compatible endpoints. This unified approach reduces code duplication
+//! while supporting multiple backends.
 //!
 //! # Example
 //!
 //! ```no_run
 //! use aipack::ai::backend::LLMBackend;
-//! use aipack::ai::lm_studio::LMStudioClient;
+//! use aipack::ai::openai_compatible::OpenAICompatibleClient;
 //! use aipack::detection::types::RepositoryContext;
 //! use std::path::PathBuf;
 //! use std::time::Duration;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let client = LMStudioClient::with_timeout(
-//!     "http://localhost:8000".to_string(),
-//!     Duration::from_secs(60),
+//! let client = OpenAICompatibleClient::new(
+//!     "http://localhost:11434".to_string(),
+//!     "qwen2.5-coder:7b".to_string(),
 //! );
 //!
-//! // Check if LM Studio is available
+//! // Check if service is available
 //! if client.health_check().await? {
 //!     let context = RepositoryContext::minimal(
 //!         PathBuf::from("/path/to/repo"),
@@ -44,26 +45,30 @@ use std::fmt;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
 
-/// Default request timeout for LM Studio API calls
+/// Default request timeout for API calls
 const DEFAULT_TIMEOUT_SECS: u64 = 60;
 
-/// LM Studio client for local LLM inference via OpenAI-compatible API
+/// OpenAI-compatible client for local and remote LLM inference
 ///
-/// This client communicates with a local LM Studio server using the OpenAI-compatible
-/// API endpoint. LM Studio provides a user-friendly interface for running LLMs locally
-/// with enhanced statistics and model management.
+/// This client communicates with OpenAI-compatible API endpoints, including
+/// local services like Ollama and LM Studio. It implements the `LLMBackend` trait
+/// to provide a consistent interface with other backends.
 ///
 /// # Configuration
 ///
-/// - **endpoint**: LM Studio API endpoint (e.g., "http://localhost:8000")
+/// - **endpoint**: API endpoint (e.g., "http://localhost:11434" for Ollama, "http://localhost:8000" for LM Studio)
+/// - **model**: Model name (e.g., "qwen2.5-coder:7b")
 /// - **timeout**: Request timeout duration
 ///
 /// # Thread Safety
 ///
 /// This client is thread-safe and can be shared across threads using `Arc`.
-pub struct LMStudioClient {
-    /// LM Studio API endpoint URL
+pub struct OpenAICompatibleClient {
+    /// API endpoint URL
     endpoint: String,
+
+    /// Model name to use for inference
+    model: String,
 
     /// Shared HTTP client with connection pooling
     http_client: Client,
@@ -72,43 +77,49 @@ pub struct LMStudioClient {
     timeout: Duration,
 }
 
-impl LMStudioClient {
-    /// Creates a new LM Studio client with default timeout
+impl OpenAICompatibleClient {
+    /// Creates a new OpenAI-compatible client with default timeout
     ///
     /// # Arguments
     ///
-    /// * `endpoint` - LM Studio API endpoint (e.g., "http://localhost:8000")
+    /// * `endpoint` - API endpoint (e.g., "http://localhost:11434" for Ollama)
+    /// * `model` - Model name (e.g., "qwen2.5-coder:7b")
     ///
     /// # Example
     ///
     /// ```
-    /// use aipack::ai::lm_studio::LMStudioClient;
+    /// use aipack::ai::openai_compatible::OpenAICompatibleClient;
     ///
-    /// let client = LMStudioClient::new("http://localhost:8000".to_string());
+    /// let client = OpenAICompatibleClient::new(
+    ///     "http://localhost:11434".to_string(),
+    ///     "qwen2.5-coder:7b".to_string(),
+    /// );
     /// ```
-    pub fn new(endpoint: String) -> Self {
-        Self::with_timeout(endpoint, Duration::from_secs(DEFAULT_TIMEOUT_SECS))
+    pub fn new(endpoint: String, model: String) -> Self {
+        Self::with_timeout(endpoint, model, Duration::from_secs(DEFAULT_TIMEOUT_SECS))
     }
 
-    /// Creates a new LM Studio client with custom timeout
+    /// Creates a new OpenAI-compatible client with custom timeout
     ///
     /// # Arguments
     ///
-    /// * `endpoint` - LM Studio API endpoint
+    /// * `endpoint` - API endpoint
+    /// * `model` - Model name
     /// * `timeout` - Request timeout duration
     ///
     /// # Example
     ///
     /// ```
-    /// use aipack::ai::lm_studio::LMStudioClient;
+    /// use aipack::ai::openai_compatible::OpenAICompatibleClient;
     /// use std::time::Duration;
     ///
-    /// let client = LMStudioClient::with_timeout(
-    ///     "http://localhost:8000".to_string(),
+    /// let client = OpenAICompatibleClient::with_timeout(
+    ///     "http://localhost:11434".to_string(),
+    ///     "qwen2.5-coder:7b".to_string(),
     ///     Duration::from_secs(60),
     /// );
     /// ```
-    pub fn with_timeout(endpoint: String, timeout: Duration) -> Self {
+    pub fn with_timeout(endpoint: String, model: String, timeout: Duration) -> Self {
         let http_client = Client::builder()
             .timeout(timeout)
             .build()
@@ -116,33 +127,37 @@ impl LMStudioClient {
 
         Self {
             endpoint,
+            model,
             http_client,
             timeout,
         }
     }
 
-    /// Checks if the LM Studio server is available and healthy
+    /// Checks if the OpenAI-compatible server is available and healthy
     ///
     /// This method makes a lightweight request to the `/v1/models` endpoint
-    /// to verify that LM Studio is running and accessible.
+    /// to verify that the service is running and accessible.
     ///
     /// # Returns
     ///
-    /// `Ok(true)` if LM Studio is healthy, `Ok(false)` if unreachable,
+    /// `Ok(true)` if server is healthy, `Ok(false)` if unreachable,
     /// or `Err` if there's a connection error.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use aipack::ai::lm_studio::LMStudioClient;
+    /// use aipack::ai::openai_compatible::OpenAICompatibleClient;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = LMStudioClient::new("http://localhost:8000".to_string());
+    /// let client = OpenAICompatibleClient::new(
+    ///     "http://localhost:11434".to_string(),
+    ///     "qwen2.5-coder:7b".to_string(),
+    /// );
     ///
     /// if client.health_check().await? {
-    ///     println!("LM Studio is available");
+    ///     println!("Service is available");
     /// } else {
-    ///     println!("LM Studio is not responding");
+    ///     println!("Service is not responding");
     /// }
     /// # Ok(())
     /// # }
@@ -150,30 +165,27 @@ impl LMStudioClient {
     pub async fn health_check(&self) -> Result<bool, BackendError> {
         let url = format!("{}/v1/models", self.endpoint);
 
-        debug!("Checking LM Studio health at {}", url);
+        debug!("Checking service health at {}", url);
 
         match self.http_client.get(&url).send().await {
             Ok(response) => {
                 let is_healthy = response.status().is_success();
                 if is_healthy {
-                    info!("LM Studio health check successful");
+                    info!("Service health check successful");
                 } else {
-                    warn!(
-                        "LM Studio health check failed with status: {}",
-                        response.status()
-                    );
+                    warn!("Service health check failed with status: {}", response.status());
                 }
                 Ok(is_healthy)
             }
             Err(e) => {
                 if e.is_timeout() {
-                    warn!("LM Studio health check timed out");
+                    warn!("Service health check timed out");
                     Ok(false)
                 } else if e.is_connect() {
-                    warn!("Cannot connect to LM Studio at {}", self.endpoint);
+                    warn!("Cannot connect to service at {}", self.endpoint);
                     Ok(false)
                 } else {
-                    error!("LM Studio health check error: {}", e);
+                    error!("Service health check error: {}", e);
                     Err(BackendError::NetworkError {
                         message: format!("Health check failed: {}", e),
                     })
@@ -182,18 +194,19 @@ impl LMStudioClient {
         }
     }
 
-    /// Internal method to call the LM Studio chat completions API
+    /// Internal method to call the OpenAI-compatible API
     async fn generate(&self, prompt: String) -> Result<String, BackendError> {
         let url = format!("{}/v1/chat/completions", self.endpoint);
 
         // Build OpenAI-compatible message format
-        let request = LMStudioRequest {
-            model: "local-model".to_string(), // LM Studio uses whatever model is currently loaded
+        let request = OpenAIRequest {
+            model: self.model.clone(),
             messages: vec![
                 Message {
                     role: "system".to_string(),
                     content: "You are an expert at analyzing repository structure and detecting build systems. \
-                        Respond with valid JSON only.".to_string(),
+                        Respond with valid JSON only."
+                        .to_string(),
                 },
                 Message {
                     role: "user".to_string(),
@@ -207,7 +220,7 @@ impl LMStudioClient {
         };
 
         debug!(
-            "Sending request to LM Studio: prompt_length={}",
+            "Sending request to service: prompt_length={}",
             request.messages[1].content.len()
         );
 
@@ -222,17 +235,17 @@ impl LMStudioClient {
             .await
             .map_err(|e| {
                 if e.is_timeout() {
-                    error!("LM Studio request timed out after {:?}", self.timeout);
+                    error!("Service request timed out after {:?}", self.timeout);
                     BackendError::TimeoutError {
                         seconds: self.timeout.as_secs(),
                     }
                 } else if e.is_connect() {
-                    error!("Cannot connect to LM Studio at {}", self.endpoint);
+                    error!("Cannot connect to service at {}", self.endpoint);
                     BackendError::NetworkError {
                         message: format!("Connection failed: {}", e),
                     }
                 } else {
-                    error!("LM Studio request error: {}", e);
+                    error!("Service request error: {}", e);
                     BackendError::NetworkError {
                         message: format!("Request failed: {}", e),
                     }
@@ -245,7 +258,7 @@ impl LMStudioClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
 
-            error!("LM Studio API returned error status {}: {}", status, body);
+            error!("Service API returned error status {}: {}", status, body);
 
             return Err(BackendError::ApiError {
                 message: format!("HTTP {}: {}", status, body),
@@ -253,8 +266,8 @@ impl LMStudioClient {
             });
         }
 
-        let lm_studio_response: LMStudioResponse = response.json().await.map_err(|e| {
-            error!("Failed to parse LM Studio response: {}", e);
+        let api_response: OpenAIResponse = response.json().await.map_err(|e| {
+            error!("Failed to parse service response: {}", e);
             BackendError::InvalidResponse {
                 message: format!("JSON parse error: {}", e),
                 raw_response: None,
@@ -262,18 +275,18 @@ impl LMStudioClient {
         })?;
 
         info!(
-            "LM Studio generation completed in {:.2}s",
+            "Service generation completed in {:.2}s",
             elapsed.as_secs_f64()
         );
 
         debug!(
-            "LM Studio stats: prompt_tokens={}, completion_tokens={}",
-            lm_studio_response
+            "Service stats: prompt_tokens={}, completion_tokens={}",
+            api_response
                 .usage
                 .as_ref()
                 .map(|u| u.prompt_tokens)
                 .unwrap_or(0),
-            lm_studio_response
+            api_response
                 .usage
                 .as_ref()
                 .map(|u| u.completion_tokens)
@@ -281,13 +294,13 @@ impl LMStudioClient {
         );
 
         // Extract the assistant's response
-        let content = lm_studio_response
+        let content = api_response
             .choices
             .first()
             .and_then(|choice| choice.message.as_ref())
             .map(|message| message.content.clone())
             .ok_or_else(|| BackendError::InvalidResponse {
-                message: "No content in LM Studio response".to_string(),
+                message: "No content in service response".to_string(),
                 raw_response: None,
             })?;
 
@@ -296,11 +309,11 @@ impl LMStudioClient {
 }
 
 #[async_trait]
-impl LLMBackend for LMStudioClient {
+impl LLMBackend for OpenAICompatibleClient {
     /// Detects build system and generates commands from repository context
     ///
     /// This method constructs a prompt from the repository context, sends it to
-    /// the LM Studio API via the OpenAI-compatible endpoint, and parses the response.
+    /// the OpenAI-compatible API, and parses the response.
     async fn detect(&self, context: RepositoryContext) -> Result<DetectionResult, BackendError> {
         info!(
             "Starting detection for repository: {}",
@@ -311,13 +324,13 @@ impl LLMBackend for LMStudioClient {
         let prompt = PromptBuilder::build_detection_prompt(&context);
         debug!("Built prompt with {} characters", prompt.len());
 
-        // Call LM Studio API
+        // Call API
         let response_text = self.generate(prompt).await?;
         debug!("Received response with {} characters", response_text.len());
 
-        // Parse the response (using same parser as Ollama)
+        // Parse the response
         let mut result = parse_ollama_response(&response_text).map_err(|e| {
-            error!("Failed to parse LM Studio response: {}", e);
+            error!("Failed to parse service response: {}", e);
             BackendError::ParseError {
                 message: e.to_string(),
                 context: response_text.chars().take(200).collect(),
@@ -340,18 +353,19 @@ impl LLMBackend for LMStudioClient {
     }
 
     fn name(&self) -> &str {
-        "lm-studio"
+        "openai-compatible"
     }
 
     fn model_info(&self) -> Option<String> {
-        Some(format!("LM Studio @ {}", self.endpoint))
+        Some(format!("{} @ {}", self.model, self.endpoint))
     }
 }
 
-impl fmt::Debug for LMStudioClient {
+impl fmt::Debug for OpenAICompatibleClient {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LMStudioClient")
+        f.debug_struct("OpenAICompatibleClient")
             .field("endpoint", &self.endpoint)
+            .field("model", &self.model)
             .field("timeout", &self.timeout)
             .finish()
     }
@@ -366,10 +380,10 @@ struct Message {
     content: String,
 }
 
-/// Request structure for LM Studio chat completions API
+/// Request structure for OpenAI-compatible chat completions API
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct LMStudioRequest {
-    /// Model identifier (LM Studio uses currently loaded model)
+struct OpenAIRequest {
+    /// Model identifier
     model: String,
     /// Array of messages in conversation
     messages: Vec<Message>,
@@ -387,9 +401,9 @@ struct LMStudioRequest {
     stream: Option<bool>,
 }
 
-/// Response structure from LM Studio chat completions API
+/// Response structure from OpenAI-compatible chat completions API
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct LMStudioResponse {
+struct OpenAIResponse {
     /// Response ID
     id: Option<String>,
     /// Object type
@@ -404,7 +418,7 @@ struct LMStudioResponse {
     usage: Option<Usage>,
 }
 
-/// Completion choice from LM Studio response
+/// Completion choice from API response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Choice {
     /// Choice index
@@ -431,24 +445,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_lm_studio_client_creation() {
-        let client = LMStudioClient::new("http://localhost:8000".to_string());
-        assert_eq!(client.name(), "lm-studio");
+    fn test_client_creation() {
+        let client = OpenAICompatibleClient::new(
+            "http://localhost:11434".to_string(),
+            "qwen2.5-coder:7b".to_string(),
+        );
+        assert_eq!(client.name(), "openai-compatible");
         assert!(client.model_info().is_some());
     }
 
     #[test]
-    fn test_lm_studio_client_with_custom_timeout() {
+    fn test_client_with_custom_timeout() {
         let timeout = Duration::from_secs(120);
-        let client =
-            LMStudioClient::with_timeout("http://localhost:8000".to_string(), timeout);
+        let client = OpenAICompatibleClient::with_timeout(
+            "http://localhost:11434".to_string(),
+            "qwen2.5-coder:7b".to_string(),
+            timeout,
+        );
         assert_eq!(client.timeout, timeout);
     }
 
     #[test]
-    fn test_lm_studio_request_serialization() {
-        let request = LMStudioRequest {
-            model: "local-model".to_string(),
+    fn test_request_serialization() {
+        let request = OpenAIRequest {
+            model: "test-model".to_string(),
             messages: vec![
                 Message {
                     role: "system".to_string(),
@@ -472,7 +492,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lm_studio_response_parsing() {
+    fn test_response_parsing() {
         let response_json = r#"{
             "id": "test-id",
             "object": "chat.completion",
@@ -493,7 +513,7 @@ mod tests {
             }
         }"#;
 
-        let response: LMStudioResponse = serde_json::from_str(response_json).unwrap();
+        let response: OpenAIResponse = serde_json::from_str(response_json).unwrap();
         assert_eq!(response.choices.len(), 1);
         assert_eq!(
             response.choices[0]
@@ -507,20 +527,26 @@ mod tests {
     }
 
     #[test]
-    fn test_lm_studio_backend_trait_methods() {
-        let client = LMStudioClient::new("http://localhost:8000".to_string());
-        assert_eq!(client.name(), "lm-studio");
+    fn test_backend_trait_methods() {
+        let client = OpenAICompatibleClient::new(
+            "http://localhost:11434".to_string(),
+            "qwen2.5-coder:7b".to_string(),
+        );
+        assert_eq!(client.name(), "openai-compatible");
 
         let model_info = client.model_info().unwrap();
-        assert!(model_info.contains("LM Studio"));
-        assert!(model_info.contains("localhost:8000"));
+        assert!(model_info.contains("qwen2.5-coder:7b"));
+        assert!(model_info.contains("localhost:11434"));
     }
 
     #[test]
-    fn test_lm_studio_debug_impl() {
-        let client = LMStudioClient::new("http://localhost:8000".to_string());
+    fn test_debug_impl() {
+        let client = OpenAICompatibleClient::new(
+            "http://localhost:11434".to_string(),
+            "qwen2.5-coder:7b".to_string(),
+        );
         let debug_str = format!("{:?}", client);
-        assert!(debug_str.contains("LMStudioClient"));
-        assert!(debug_str.contains("localhost:8000"));
+        assert!(debug_str.contains("OpenAICompatibleClient"));
+        assert!(debug_str.contains("localhost:11434"));
     }
 }

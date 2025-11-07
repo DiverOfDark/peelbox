@@ -1,17 +1,17 @@
-//! Integration tests for Ollama backend
+//! Integration tests for OpenAI-compatible backends (Ollama, LM Studio)
 //!
-//! These tests require a running Ollama server and will be skipped if
-//! Ollama is not available. To run these tests:
+//! These tests require a running OpenAI-compatible service (Ollama or LM Studio)
+//! and will be skipped if not available. To run these tests:
 //!
-//! 1. Start Ollama: `ollama serve`
+//! 1. Start Ollama: `ollama serve` OR Start LM Studio
 //! 2. Pull a model: `ollama pull qwen:7b`
 //! 3. Run tests: `cargo test --test ollama_integration`
 //!
-//! Tests can be run against different models by setting environment variables:
+//! Tests can be run against different endpoints by setting environment variables:
 //! - `AIPACK_OLLAMA_ENDPOINT`: Ollama endpoint (default: http://localhost:11434)
-//! - `AIPACK_OLLAMA_MODEL`: Model name (default: qwen:7b)
+//! - `AIPACK_OLLAMA_MODEL`: Model name (default: qwen2.5-coder:7b)
 
-use aipack::ai::ollama::OllamaClient;
+use aipack::ai::openai_compatible::OpenAICompatibleClient;
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
 use aipack::detection::types::RepositoryContext;
@@ -22,59 +22,60 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
 
-/// Check if Ollama is available for testing
-async fn is_ollama_available() -> bool {
+/// Check if a compatible service (Ollama or LM Studio) is available for testing
+async fn is_service_available() -> bool {
     let endpoint =
         env::var("AIPACK_OLLAMA_ENDPOINT").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    let client = OllamaClient::new(endpoint, "qwen:7b".to_string());
+    let client = OpenAICompatibleClient::new(endpoint, "qwen2.5-coder:7b".to_string());
 
     client.health_check().await.unwrap_or(false)
 }
 
-/// Skip test if Ollama is not available
-macro_rules! skip_if_no_ollama {
+/// Skip test if service is not available
+macro_rules! skip_if_no_service {
     () => {
-        if !is_ollama_available().await {
-            eprintln!("⚠️  Skipping test: Ollama is not available");
+        if !is_service_available().await {
+            eprintln!("⚠️  Skipping test: No compatible service available");
             eprintln!("   To run this test:");
             eprintln!("   1. Start Ollama: ollama serve");
-            eprintln!("   2. Pull a model: ollama pull qwen:7b");
+            eprintln!("   2. Pull a model: ollama pull qwen2.5-coder:7b");
+            eprintln!("   OR Start LM Studio");
             return;
         }
     };
 }
 
-/// Creates a test Ollama client with configured endpoint and model
-fn create_test_client() -> OllamaClient {
+/// Creates a test client with configured endpoint and model
+fn create_test_client() -> OpenAICompatibleClient {
     let endpoint =
         env::var("AIPACK_OLLAMA_ENDPOINT").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    let model = env::var("AIPACK_OLLAMA_MODEL").unwrap_or_else(|_| "qwen:7b".to_string());
+    let model = env::var("AIPACK_OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
 
-    OllamaClient::with_timeout(endpoint, model, Duration::from_secs(60))
+    OpenAICompatibleClient::with_timeout(endpoint, model, Duration::from_secs(60))
 }
 
 #[tokio::test]
-async fn test_ollama_health_check() {
+async fn test_service_health_check() {
     let client = create_test_client();
 
     match client.health_check().await {
         Ok(true) => {
-            println!("✅ Ollama is available and healthy");
+            println!("✅ Service is available and healthy");
         }
         Ok(false) => {
-            println!("⚠️  Ollama endpoint exists but is not healthy");
+            println!("⚠️  Service endpoint exists but is not healthy");
         }
         Err(e) => {
-            println!("❌ Ollama health check error: {}", e);
+            println!("❌ Service health check error: {}", e);
         }
     }
 }
 
 #[tokio::test]
-async fn test_ollama_detect_rust_project() {
-    skip_if_no_ollama!();
+async fn test_detect_rust_project() {
+    skip_if_no_service!();
 
     let temp_dir = TempDir::new().unwrap();
     let repo_path = temp_dir.path();
@@ -161,7 +162,7 @@ Run `cargo build` to build the project.
 
 #[tokio::test]
 async fn test_ollama_detect_nodejs_project() {
-    skip_if_no_ollama!();
+    skip_if_no_service!();
 
     let temp_dir = TempDir::new().unwrap();
     let repo_path = temp_dir.path();
@@ -249,7 +250,7 @@ async fn test_ollama_detect_nodejs_project() {
 
 #[tokio::test]
 async fn test_detection_service_end_to_end() {
-    skip_if_no_ollama!();
+    skip_if_no_service!();
 
     // Set up configuration
     env::set_var("AIPACK_BACKEND", "ollama");
@@ -316,7 +317,7 @@ edition = "2021"
 
 #[tokio::test]
 async fn test_ollama_backend_trait() {
-    skip_if_no_ollama!();
+    skip_if_no_service!();
 
     let client = create_test_client();
 
@@ -330,13 +331,13 @@ async fn test_ollama_backend_trait() {
 
 #[tokio::test]
 async fn test_ollama_error_handling_invalid_model() {
-    skip_if_no_ollama!();
+    skip_if_no_service!();
 
     let endpoint =
         env::var("AIPACK_OLLAMA_ENDPOINT").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     // Use a non-existent model
-    let client = OllamaClient::with_timeout(
+    let client = OpenAICompatibleClient::with_timeout(
         endpoint,
         "nonexistent-model:latest".to_string(),
         Duration::from_secs(10),
@@ -357,15 +358,15 @@ async fn test_ollama_error_handling_invalid_model() {
 
 #[tokio::test]
 async fn test_ollama_timeout_handling() {
-    skip_if_no_ollama!();
+    skip_if_no_service!();
 
     let endpoint =
         env::var("AIPACK_OLLAMA_ENDPOINT").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
-    let model = env::var("AIPACK_OLLAMA_MODEL").unwrap_or_else(|_| "qwen:7b".to_string());
+    let model = env::var("AIPACK_OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
 
     // Use a very short timeout
-    let client = OllamaClient::with_timeout(endpoint, model, Duration::from_millis(1));
+    let client = OpenAICompatibleClient::with_timeout(endpoint, model, Duration::from_millis(1));
 
     let context =
         RepositoryContext::minimal(PathBuf::from("/test"), "test/\n└── file.txt".to_string())
@@ -386,7 +387,7 @@ async fn test_ollama_timeout_handling() {
 
 #[tokio::test]
 async fn test_detection_service_path_validation() {
-    skip_if_no_ollama!();
+    skip_if_no_service!();
 
     env::set_var("AIPACK_BACKEND", "ollama");
     let config = AipackConfig::default();

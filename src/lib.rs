@@ -59,7 +59,7 @@ pub mod util;
 
 // Re-export key types for convenient access
 pub use ai::backend::{BackendConfig, BackendError, LLMBackend};
-pub use ai::ollama::OllamaClient;
+pub use ai::openai_compatible::OpenAICompatibleClient;
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};

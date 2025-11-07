@@ -28,7 +28,7 @@
 //! ```
 
 use crate::ai::backend::{BackendConfig, BackendError, LLMBackend};
-use crate::ai::ollama::OllamaClient;
+use crate::ai::openai_compatible::OpenAICompatibleClient;
 use crate::config::AipackConfig;
 use crate::detection::analyzer::{AnalysisError, RepositoryAnalyzer};
 use crate::detection::types::{DetectionResult, RepositoryContext};
@@ -371,26 +371,26 @@ impl DetectionService {
                 ..
             } => {
                 let timeout = Duration::from_secs(timeout_seconds.unwrap_or(60));
-                let client = OllamaClient::with_timeout(endpoint.clone(), model.clone(), timeout);
+                let client = OpenAICompatibleClient::with_timeout(endpoint.clone(), model.clone(), timeout);
 
-                // Verify Ollama is available
+                // Verify backend is available
                 match client.health_check().await {
                     Ok(true) => {
-                        info!("Ollama backend is healthy at {}", endpoint);
+                        info!("OpenAI-compatible backend is healthy at {}", endpoint);
                         Ok(Arc::new(client) as Arc<dyn LLMBackend>)
                     }
                     Ok(false) => {
-                        warn!("Ollama backend at {} is not responding", endpoint);
+                        warn!("OpenAI-compatible backend at {} is not responding", endpoint);
                         Err(ServiceError::BackendInitError(format!(
-                            "Ollama is not available at {}. Please ensure Ollama is running with: ollama serve",
+                            "Backend is not available at {}. Please ensure a compatible service (Ollama or LM Studio) is running",
                             endpoint
                         )))
                     }
                     Err(e) => {
-                        warn!("Ollama health check failed: {}", e);
+                        warn!("Backend health check failed: {}", e);
                         Err(ServiceError::BackendInitError(format!(
-                            "Failed to connect to Ollama: {}",
-                            e
+                            "Failed to connect to backend at {}: {}",
+                            endpoint, e
                         )))
                     }
                 }
@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_validate_repo_path_not_exists() {
-        let backend = Arc::new(OllamaClient::new(
+        let backend = Arc::new(OpenAICompatibleClient::new(
             "http://localhost:11434".to_string(),
             "qwen2.5-coder:7b".to_string(),
         )) as Arc<dyn LLMBackend>;
@@ -656,7 +656,7 @@ mod tests {
         let file_path = temp_dir.path().join("file.txt");
         std::fs::write(&file_path, "content").unwrap();
 
-        let backend = Arc::new(OllamaClient::new(
+        let backend = Arc::new(OpenAICompatibleClient::new(
             "http://localhost:11434".to_string(),
             "qwen2.5-coder:7b".to_string(),
         )) as Arc<dyn LLMBackend>;
@@ -672,7 +672,7 @@ mod tests {
     fn test_validate_repo_path_success() {
         let temp_dir = TempDir::new().unwrap();
 
-        let backend = Arc::new(OllamaClient::new(
+        let backend = Arc::new(OpenAICompatibleClient::new(
             "http://localhost:11434".to_string(),
             "qwen2.5-coder:7b".to_string(),
         )) as Arc<dyn LLMBackend>;
