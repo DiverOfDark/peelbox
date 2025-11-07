@@ -187,15 +187,23 @@ impl OutputFormatter {
 
         if let Some(ref dev_cmd) = result.dev_command {
             output.push_str(&format!("\u{251C}\u{2500} Dev:    {}\n", dev_cmd));
-            output.push_str(&format!(
-                "\u{2514}\u{2500} Deploy: {}\n\n",
-                result.deploy_command
-            ));
+            if let Some(ref deploy_cmd) = result.deploy_command {
+                output.push_str(&format!(
+                    "\u{2514}\u{2500} Deploy: {}\n\n",
+                    deploy_cmd
+                ));
+            } else {
+                output.push_str("\u{2514}\u{2500} Deploy: (not specified)\n\n");
+            }
         } else {
-            output.push_str(&format!(
-                "\u{2514}\u{2500} Deploy: {}\n\n",
-                result.deploy_command
-            ));
+            if let Some(ref deploy_cmd) = result.deploy_command {
+                output.push_str(&format!(
+                    "\u{2514}\u{2500} Deploy: {}\n\n",
+                    deploy_cmd
+                ));
+            } else {
+                output.push_str("\u{2514}\u{2500} Deploy: (not specified)\n\n");
+            }
         }
 
         // Confidence bar
@@ -416,7 +424,7 @@ mod tests {
             language: "Rust".to_string(),
             build_command: "cargo build --release".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: Some("cargo watch -x run".to_string()),
             confidence: 0.95,
             reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),

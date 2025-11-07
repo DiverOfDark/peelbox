@@ -18,7 +18,7 @@ fn create_sample_detection_result() -> DetectionResult {
         language: "Rust".to_string(),
         build_command: "cargo build --release".to_string(),
         test_command: "cargo test".to_string(),
-        deploy_command: "cargo publish".to_string(),
+        deploy_command: Some("cargo publish".to_string()),
         dev_command: Some("cargo watch -x run".to_string()),
         confidence: 0.95,
         reasoning: "Found Cargo.toml with standard Rust project structure".to_string(),

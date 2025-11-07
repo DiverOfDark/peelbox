@@ -199,20 +199,20 @@ impl OpenAICompatibleClient {
         let url = format!("{}/v1/chat/completions", self.endpoint);
 
         // Build OpenAI-compatible message format
+        // Combine system prompt and user message into single user message for compatibility
+        // with models that don't support system role (e.g., some LM Studio models)
+        let combined_message = format!(
+            "You are an expert at analyzing repository structure and detecting build systems. \
+            Respond with valid JSON only.\n\n{}",
+            prompt
+        );
+
         let request = OpenAIRequest {
             model: self.model.clone(),
-            messages: vec![
-                Message {
-                    role: "system".to_string(),
-                    content: "You are an expert at analyzing repository structure and detecting build systems. \
-                        Respond with valid JSON only."
-                        .to_string(),
-                },
-                Message {
-                    role: "user".to_string(),
-                    content: prompt,
-                },
-            ],
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: combined_message,
+            }],
             temperature: Some(0.3),
             top_p: Some(0.9),
             max_tokens: Some(512),
@@ -221,7 +221,7 @@ impl OpenAICompatibleClient {
 
         debug!(
             "Sending request to service: prompt_length={}",
-            request.messages[1].content.len()
+            request.messages[0].content.len()
         );
 
         let start = Instant::now();
@@ -467,18 +467,14 @@ mod tests {
 
     #[test]
     fn test_request_serialization() {
+        // Messages now use only "user" role for compatibility with models
+        // that don't support "system" role (e.g., some LM Studio models)
         let request = OpenAIRequest {
             model: "test-model".to_string(),
-            messages: vec![
-                Message {
-                    role: "system".to_string(),
-                    content: "You are helpful.".to_string(),
-                },
-                Message {
-                    role: "user".to_string(),
-                    content: "Hello".to_string(),
-                },
-            ],
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: "You are helpful.\n\nHello".to_string(),
+            }],
             temperature: Some(0.3),
             top_p: Some(0.9),
             max_tokens: Some(512),
@@ -486,9 +482,11 @@ mod tests {
         };
 
         let json = serde_json::to_string(&request).unwrap();
-        assert!(json.contains("\"role\":\"system\""));
+        // Should only have user role now, no system role
         assert!(json.contains("\"role\":\"user\""));
+        assert!(!json.contains("\"role\":\"system\""));
         assert!(json.contains("\"temperature\":0.3"));
+        assert!(json.contains("You are helpful"));
     }
 
     #[test]

@@ -80,8 +80,9 @@ struct LlmResponse {
     /// Command to run tests
     test_command: String,
 
-    /// Command to deploy or release
-    deploy_command: String,
+    /// Command to deploy or release (optional, may be null from LLM)
+    #[serde(default)]
+    deploy_command: Option<String>,
 
     /// Optional development/watch command
     #[serde(default)]
@@ -300,9 +301,11 @@ pub fn validate_detection_result(result: &DetectionResult) -> Result<(), ParseEr
         return Err(ParseError::InvalidCommand("test_command".to_string()));
     }
 
-    // Validate deploy_command
-    if result.deploy_command.trim().is_empty() {
-        return Err(ParseError::InvalidCommand("deploy_command".to_string()));
+    // Validate deploy_command if present
+    if let Some(ref cmd) = result.deploy_command {
+        if cmd.trim().is_empty() {
+            return Err(ParseError::InvalidCommand("deploy_command".to_string()));
+        }
     }
 
     // Validate confidence range
@@ -345,7 +348,7 @@ mod tests {
         assert_eq!(result.build_system, "cargo");
         assert_eq!(result.build_command, "cargo build --release");
         assert_eq!(result.test_command, "cargo test");
-        assert_eq!(result.deploy_command, "cargo publish");
+        assert_eq!(result.deploy_command, Some("cargo publish".to_string()));
         assert_eq!(result.confidence, 0.95);
         assert_eq!(result.reasoning, "Standard Rust project");
         assert_eq!(result.warnings.len(), 0);
@@ -469,7 +472,7 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: None,
             confidence: 0.9,
             reasoning: "Test".to_string(),
@@ -488,7 +491,7 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: None,
             confidence: 0.9,
             reasoning: "Test".to_string(),
@@ -508,7 +511,7 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: None,
             confidence: 0.9,
             reasoning: "Test".to_string(),
@@ -528,7 +531,7 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: None,
             confidence: 1.5,
             reasoning: "Test".to_string(),
@@ -581,7 +584,7 @@ Let me know if you need more details."#;
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: None,
             confidence: 0.95,
             reasoning: "Test".to_string(),

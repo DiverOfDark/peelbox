@@ -175,7 +175,7 @@ impl fmt::Display for RepositoryContext {
 ///     language: "Rust".to_string(),
 ///     build_command: "cargo build --release".to_string(),
 ///     test_command: "cargo test".to_string(),
-///     deploy_command: "cargo publish".to_string(),
+///     deploy_command: Some("cargo publish".to_string()),
 ///     dev_command: Some("cargo watch -x run".to_string()),
 ///     confidence: 0.95,
 ///     reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
@@ -211,8 +211,9 @@ pub struct DetectionResult {
 
     /// Command to deploy or publish the project
     ///
-    /// Example: "cargo publish" or "npm publish"
-    pub deploy_command: String,
+    /// Example: Some("cargo publish") or Some("npm publish")
+    /// Some projects may not have a standard deploy command, so this is optional
+    pub deploy_command: Option<String>,
 
     /// Optional development/watch command
     ///
@@ -258,7 +259,7 @@ impl DetectionResult {
         language: String,
         build_command: String,
         test_command: String,
-        deploy_command: String,
+        deploy_command: Option<String>,
     ) -> Self {
         Self {
             build_system,
@@ -328,7 +329,9 @@ impl fmt::Display for DetectionResult {
         writeln!(f, "Commands:")?;
         writeln!(f, "  Build:  {}", self.build_command)?;
         writeln!(f, "  Test:   {}", self.test_command)?;
-        writeln!(f, "  Deploy: {}", self.deploy_command)?;
+        if let Some(ref deploy_cmd) = self.deploy_command {
+            writeln!(f, "  Deploy: {}", deploy_cmd)?;
+        }
         if let Some(ref dev_cmd) = self.dev_command {
             writeln!(f, "  Dev:    {}", dev_cmd)?;
         }
@@ -390,7 +393,7 @@ mod tests {
             "Rust".to_string(),
             "cargo build".to_string(),
             "cargo test".to_string(),
-            "cargo publish".to_string(),
+            Some("cargo publish".to_string()),
         );
 
         result.set_confidence(0.95);
@@ -426,7 +429,7 @@ mod tests {
             "JavaScript".to_string(),
             "npm run build".to_string(),
             "npm test".to_string(),
-            "npm publish".to_string(),
+            Some("npm publish".to_string()),
         );
 
         assert!(!result.has_warnings());
@@ -442,7 +445,7 @@ mod tests {
             language: "Rust".to_string(),
             build_command: "cargo build --release".to_string(),
             test_command: "cargo test".to_string(),
-            deploy_command: "cargo publish".to_string(),
+            deploy_command: Some("cargo publish".to_string()),
             dev_command: Some("cargo watch -x run".to_string()),
             confidence: 0.95,
             reasoning: "Standard Rust project with Cargo.toml".to_string(),
