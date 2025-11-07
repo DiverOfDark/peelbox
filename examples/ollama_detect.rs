@@ -11,10 +11,10 @@
 //! # Prerequisites
 //!
 //! 1. Start Ollama: `ollama serve`
-//! 2. Pull a model: `ollama pull qwen:7b`
+//! 2. Pull a model: `ollama pull qwen2.5-coder:7b`
 //! 3. Set environment variables (optional):
 //!    - `AIPACK_OLLAMA_ENDPOINT`: Ollama endpoint (default: http://localhost:11434)
-//!    - `AIPACK_OLLAMA_MODEL`: Model name (default: qwen:7b)
+//!    - `AIPACK_OLLAMA_MODEL`: Model name (default: qwen2.5-coder:7b)
 //!
 //! # Usage
 //!

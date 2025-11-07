@@ -14,7 +14,7 @@
 //!
 //! Prerequisites:
 //! - Ollama running locally (or MISTRAL_API_KEY set)
-//! - qwen:7b model pulled in Ollama
+//! - qwen2.5-coder:7b model pulled in Ollama
 
 use aipack::{AipackConfig, DetectionService};
 use std::env;

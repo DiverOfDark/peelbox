@@ -38,7 +38,7 @@ let backend = config.selected_backend_config()?;
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AIPACK_OLLAMA_ENDPOINT` | `http://localhost:11434` | Ollama service URL |
-| `AIPACK_OLLAMA_MODEL` | `qwen:7b` | Model name to use |
+| `AIPACK_OLLAMA_MODEL` | `qwen2.5-coder:7b` | Model name to use |
 
 **Example:**
 ```bash
@@ -121,7 +121,7 @@ let config = AipackConfig::default();
 let config = AipackConfig {
     backend: "ollama".to_string(),
     ollama_endpoint: "http://localhost:11434".to_string(),
-    ollama_model: "qwen:7b".to_string(),
+    ollama_model: "qwen2.5-coder:7b".to_string(),
     mistral_api_key: None,
     mistral_model: "mistral-small".to_string(),
     cache_enabled: true,
@@ -287,7 +287,7 @@ match config.validate() {
 ```bash
 # Use local Ollama with debug logging
 export AIPACK_BACKEND=ollama
-export AIPACK_OLLAMA_MODEL=qwen:7b
+export AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
 export AIPACK_LOG_LEVEL=debug
 export AIPACK_CACHE_ENABLED=true
 ```

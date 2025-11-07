@@ -102,7 +102,7 @@ aipack eliminates this friction through intelligent LLM-based analysis.
 #### 2. Local Ollama (Qwen)
 - **Endpoint**: `http://localhost:11434` (configurable)
 - **Models**:
-  - `qwen:7b` (small, fast)
+  - `qwen2.5-coder:7b` (small, fast)
   - `qwen:14b` (larger, more accurate)
   - Any Ollama-compatible model
 - **Authentication**: None (local)

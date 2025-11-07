@@ -72,7 +72,7 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ollama serve &
 
 # Pull a model
-ollama pull qwen:7b
+ollama pull qwen2.5-coder:7b
 ```
 
 ### 2. Install aipack
@@ -169,7 +169,7 @@ aipack detect /path/to/repository
 ollama serve &
 
 # Pull model if needed
-ollama pull qwen:7b
+ollama pull qwen2.5-coder:7b
 
 # Detect
 aipack detect
@@ -206,7 +206,7 @@ export AIPACK_BACKEND=ollama              # "ollama", "mistral", or "auto" (defa
 
 # Ollama Configuration
 export AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
-export AIPACK_OLLAMA_MODEL=qwen:7b        # or qwen:14b, qwen:32b
+export AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b        # or qwen:14b, qwen:32b
 
 # Mistral Configuration
 export MISTRAL_API_KEY=your-api-key
@@ -223,7 +223,7 @@ Create `.env` file in your project:
 ```bash
 # .env
 AIPACK_BACKEND=ollama
-AIPACK_OLLAMA_MODEL=qwen:7b
+AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
 RUST_LOG=aipack=info
 ```
 
@@ -455,7 +455,7 @@ For detailed development instructions, see [docs/DEVELOPMENT.md](docs/DEVELOPMEN
 
 | Backend          | Typical Time | Notes                    |
 |------------------|--------------|--------------------------|
-| Ollama (qwen:7b) | 1-3 seconds  | Local inference, no network |
+| Ollama (qwen2.5-coder:7b) | 1-3 seconds  | Local inference, no network |
 | Ollama (qwen:14b)| 3-8 seconds  | Better accuracy, slower  |
 | Mistral API      | 2-5 seconds  | Includes network latency |
 
@@ -463,13 +463,13 @@ For detailed development instructions, see [docs/DEVELOPMENT.md](docs/DEVELOPMEN
 
 | Model      | RAM Usage | Disk Space | CPU        |
 |------------|-----------|------------|------------|
-| qwen:7b    | ~4-6 GB   | ~4 GB      | Medium     |
+| qwen2.5-coder:7b    | ~4-6 GB   | ~4 GB      | Medium     |
 | qwen:14b   | ~8-12 GB  | ~8 GB      | High       |
 | qwen:32b   | ~20-24 GB | ~18 GB     | Very High  |
 
 ### Optimization Tips
 
-- Use `qwen:7b` for fast detection
+- Use `qwen2.5-coder:7b` for fast detection
 - Use `qwen:14b` for better accuracy
 - Enable caching for repeated queries (future feature)
 - Use JSON output for scripting (faster parsing)
@@ -490,7 +490,7 @@ curl http://localhost:11434/api/tags
 **Model not found**
 ```bash
 # Pull the model
-ollama pull qwen:7b
+ollama pull qwen2.5-coder:7b
 
 # List available models
 ollama list
@@ -502,7 +502,7 @@ ollama list
 - Check if repository structure is non-standard
 
 **Detection is slow**
-- Use smaller model (`qwen:7b`)
+- Use smaller model (`qwen2.5-coder:7b`)
 - Check system resources (RAM, CPU)
 - Verify Ollama is not swapping
 
@@ -566,7 +566,7 @@ Quick contribution workflow:
 A: Yes! Use Ollama backend with pre-downloaded models for completely offline operation.
 
 **Q: How much RAM do I need?**
-A: Minimum 8GB for qwen:7b, 16GB recommended for qwen:14b.
+A: Minimum 8GB for qwen2.5-coder:7b, 16GB recommended for qwen:14b.
 
 **Q: Does aipack send my code to external servers?**
 A: Only if using Mistral API backend. Ollama runs 100% locally with no external communication.

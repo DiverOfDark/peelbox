@@ -143,7 +143,7 @@ Create a `.env` file for local development:
 # .env (add to .gitignore)
 AIPACK_BACKEND=ollama
 AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
-AIPACK_OLLAMA_MODEL=qwen:7b
+AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
 RUST_LOG=aipack=debug,info
 ```
 
@@ -164,7 +164,7 @@ direnv allow
 ollama serve
 
 # In another terminal, pull model
-ollama pull qwen:7b
+ollama pull qwen2.5-coder:7b
 
 # Verify it works
 curl http://localhost:11434/api/tags

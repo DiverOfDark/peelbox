@@ -223,7 +223,7 @@ async fn test_ollama_detection() {
 # Backend selection
 AIPACK_BACKEND=ollama              # or "mistral", "auto"
 AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
-AIPACK_OLLAMA_MODEL=qwen:7b
+AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
 
 # Mistral configuration
 MISTRAL_API_KEY=your-api-key

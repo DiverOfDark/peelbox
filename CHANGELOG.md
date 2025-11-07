@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LLM Backend System**:
   - Abstract `LLMBackend` trait for pluggable AI providers
   - Ollama client implementation with health checks and timeout support
-  - Support for multiple Qwen models (qwen:7b, qwen:14b, qwen:32b)
+  - Support for multiple Qwen models (qwen2.5-coder:7b, qwen:14b, qwen:32b)
   - Auto backend selection (tries Ollama first, falls back to configured alternatives)
 
 - **Repository Analysis**:
@@ -194,7 +194,7 @@ This is the first release, no migration needed.
 - Large repositories (>500 files) may exceed context limits
 
 ### Workarounds
-- **Slow detection**: Use qwen:7b instead of qwen:14b
+- **Slow detection**: Use qwen2.5-coder:7b instead of qwen:14b
 - **Low confidence**: Try more powerful model or verify results manually
 - **Ollama not available**: Install and start Ollama, or use Mistral API
 - **Large repositories**: Analyze subdirectories separately

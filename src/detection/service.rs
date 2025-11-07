@@ -99,10 +99,10 @@ impl ServiceError {
                         Help: Cannot connect to Ollama. Try:\n\
                         1. Install Ollama: https://ollama.ai/\n\
                         2. Start Ollama: ollama serve\n\
-                        3. Pull a model: ollama pull qwen:7b\n\n\
+                        3. Pull a model: ollama pull qwen2.5-coder:7b\n\n\
                         Configuration:\n\
                         - AIPACK_OLLAMA_ENDPOINT (default: http://localhost:11434)\n\
-                        - AIPACK_OLLAMA_MODEL (default: qwen:7b)\n\n\
+                        - AIPACK_OLLAMA_MODEL (default: qwen2.5-coder:7b)\n\n\
                         Details: {}",
                         msg
                     )
@@ -640,7 +640,7 @@ mod tests {
     fn test_validate_repo_path_not_exists() {
         let backend = Arc::new(OllamaClient::new(
             "http://localhost:11434".to_string(),
-            "qwen:7b".to_string(),
+            "qwen2.5-coder:7b".to_string(),
         )) as Arc<dyn LLMBackend>;
 
         let service = DetectionService { backend };
@@ -658,7 +658,7 @@ mod tests {
 
         let backend = Arc::new(OllamaClient::new(
             "http://localhost:11434".to_string(),
-            "qwen:7b".to_string(),
+            "qwen2.5-coder:7b".to_string(),
         )) as Arc<dyn LLMBackend>;
 
         let service = DetectionService { backend };
@@ -674,7 +674,7 @@ mod tests {
 
         let backend = Arc::new(OllamaClient::new(
             "http://localhost:11434".to_string(),
-            "qwen:7b".to_string(),
+            "qwen2.5-coder:7b".to_string(),
         )) as Arc<dyn LLMBackend>;
 
         let service = DetectionService { backend };

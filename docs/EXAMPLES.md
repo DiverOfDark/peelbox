@@ -168,7 +168,7 @@ Use local Ollama for privacy and offline operation:
 ollama serve &
 
 # Pull a model
-ollama pull qwen:7b
+ollama pull qwen2.5-coder:7b
 
 # Use Ollama backend explicitly
 aipack detect --backend ollama
@@ -401,7 +401,7 @@ jobs:
         run: |
           curl -fsSL https://ollama.ai/install.sh | sh
           ollama serve &
-          ollama pull qwen:7b
+          ollama pull qwen2.5-coder:7b
 
       - name: Detect and build
         run: |

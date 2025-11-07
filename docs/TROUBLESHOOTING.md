@@ -187,14 +187,14 @@ Details: Connection refused at http://localhost:11434
 
 **Symptoms**:
 ```
-Error: Model 'qwen:7b' not found
+Error: Model 'qwen2.5-coder:7b' not found
 ```
 
 **Solutions**:
 
 1. **Pull the model**:
    ```bash
-   ollama pull qwen:7b
+   ollama pull qwen2.5-coder:7b
 
    # Or use a different model
    ollama pull qwen:14b
@@ -267,7 +267,7 @@ Help: The LLM request took too long
 2. **Use faster model**:
    ```bash
    # Switch to smaller/faster model
-   export AIPACK_OLLAMA_MODEL=qwen:7b  # Instead of qwen:14b
+   export AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b  # Instead of qwen:14b
    aipack detect
    ```
 
@@ -419,7 +419,7 @@ Build System: npm
 1. **Use faster model**:
    ```bash
    # Switch to smaller model
-   export AIPACK_OLLAMA_MODEL=qwen:7b
+   export AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
    ```
 
 2. **Check system resources**:
@@ -457,7 +457,7 @@ Out of memory error
 
 1. **Use smaller model**:
    ```bash
-   ollama pull qwen:7b  # ~4GB RAM
+   ollama pull qwen2.5-coder:7b  # ~4GB RAM
    # Instead of qwen:14b (~8GB RAM)
    ```
 
@@ -532,7 +532,7 @@ Using default configuration instead of env vars
    # Create .env file
    cat > .env <<EOF
    AIPACK_BACKEND=ollama
-   AIPACK_OLLAMA_MODEL=qwen:7b
+   AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
    RUST_LOG=aipack=info
    EOF
 
@@ -546,7 +546,7 @@ Using default configuration instead of env vars
    # Correct names
    AIPACK_BACKEND=ollama
    AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
-   AIPACK_OLLAMA_MODEL=qwen:7b
+   AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
 
    # Not: OLLAMA_ENDPOINT (missing AIPACK_ prefix)
    ```
@@ -572,7 +572,7 @@ Details: Invalid backend: xyz
 2. **Check model name format**:
    ```bash
    # For Ollama, use format: model:tag
-   export AIPACK_OLLAMA_MODEL=qwen:7b
+   export AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
    # Not: qwen-7b or qwen7b
    ```
 
@@ -828,7 +828,7 @@ When filing an issue, include:
 A: Yes, when using Ollama backend with models already downloaded.
 
 **Q: How much RAM do I need?**
-A: Minimum 8GB for qwen:7b, 16GB recommended for qwen:14b.
+A: Minimum 8GB for qwen2.5-coder:7b, 16GB recommended for qwen:14b.
 
 **Q: Can I use my own LLM?**
 A: Yes, implement the `LLMBackend` trait (see docs/DEVELOPMENT.md).

@@ -16,7 +16,7 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = OllamaClient::with_timeout(
 //!     "http://localhost:11434".to_string(),
-//!     "qwen:7b".to_string(),
+//!     "qwen2.5-coder:7b".to_string(),
 //!     Duration::from_secs(60),
 //! );
 //!
@@ -57,7 +57,7 @@ const DEFAULT_TIMEOUT_SECS: u64 = 30;
 /// # Configuration
 ///
 /// - **endpoint**: Ollama API endpoint (e.g., "http://localhost:11434")
-/// - **model**: Model name (e.g., "qwen:7b", "llama2", "mistral")
+/// - **model**: Model name (e.g., "qwen2.5-coder:7b", "llama2", "mistral")
 /// - **timeout**: Request timeout duration
 ///
 /// # Thread Safety
@@ -83,7 +83,7 @@ impl OllamaClient {
     /// # Arguments
     ///
     /// * `endpoint` - Ollama API endpoint (e.g., "http://localhost:11434")
-    /// * `model` - Model name (e.g., "qwen:7b")
+    /// * `model` - Model name (e.g., "qwen2.5-coder:7b")
     ///
     /// # Example
     ///
@@ -92,7 +92,7 @@ impl OllamaClient {
     ///
     /// let client = OllamaClient::new(
     ///     "http://localhost:11434".to_string(),
-    ///     "qwen:7b".to_string(),
+    ///     "qwen2.5-coder:7b".to_string(),
     /// );
     /// ```
     pub fn new(endpoint: String, model: String) -> Self {
@@ -115,7 +115,7 @@ impl OllamaClient {
     ///
     /// let client = OllamaClient::with_timeout(
     ///     "http://localhost:11434".to_string(),
-    ///     "qwen:7b".to_string(),
+    ///     "qwen2.5-coder:7b".to_string(),
     ///     Duration::from_secs(60),
     /// );
     /// ```
@@ -151,7 +151,7 @@ impl OllamaClient {
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let client = OllamaClient::new(
     ///     "http://localhost:11434".to_string(),
-    ///     "qwen:7b".to_string(),
+    ///     "qwen2.5-coder:7b".to_string(),
     /// );
     ///
     /// if client.health_check().await? {
@@ -442,10 +442,10 @@ mod tests {
 
     #[test]
     fn test_ollama_client_creation() {
-        let client = OllamaClient::new("http://localhost:11434".to_string(), "qwen:7b".to_string());
+        let client = OllamaClient::new("http://localhost:11434".to_string(), "qwen2.5-coder:7b".to_string());
 
         assert_eq!(client.endpoint, "http://localhost:11434");
-        assert_eq!(client.model, "qwen:7b");
+        assert_eq!(client.model, "qwen2.5-coder:7b");
         assert_eq!(client.timeout, Duration::from_secs(DEFAULT_TIMEOUT_SECS));
     }
 
@@ -453,7 +453,7 @@ mod tests {
     fn test_ollama_client_with_custom_timeout() {
         let client = OllamaClient::with_timeout(
             "http://localhost:11434".to_string(),
-            "qwen:7b".to_string(),
+            "qwen2.5-coder:7b".to_string(),
             Duration::from_secs(60),
         );
 
@@ -462,20 +462,20 @@ mod tests {
 
     #[test]
     fn test_backend_trait_methods() {
-        let client = OllamaClient::new("http://localhost:11434".to_string(), "qwen:7b".to_string());
+        let client = OllamaClient::new("http://localhost:11434".to_string(), "qwen2.5-coder:7b".to_string());
 
         assert_eq!(client.name(), "ollama");
         assert!(client.model_info().is_some());
         assert!(client
             .model_info()
             .unwrap()
-            .contains("qwen:7b @ http://localhost:11434"));
+            .contains("qwen2.5-coder:7b @ http://localhost:11434"));
     }
 
     #[test]
     fn test_ollama_request_serialization() {
         let request = OllamaRequest {
-            model: "qwen:7b".to_string(),
+            model: "qwen2.5-coder:7b".to_string(),
             prompt: "test prompt".to_string(),
             stream: false,
             temperature: Some(0.3),
@@ -484,7 +484,7 @@ mod tests {
         };
 
         let json = serde_json::to_string(&request).unwrap();
-        assert!(json.contains("\"model\":\"qwen:7b\""));
+        assert!(json.contains("\"model\":\"qwen2.5-coder:7b\""));
         assert!(json.contains("\"prompt\":\"test prompt\""));
         assert!(json.contains("\"stream\":false"));
         assert!(json.contains("\"temperature\":0.3"));
@@ -493,7 +493,7 @@ mod tests {
     #[test]
     fn test_ollama_response_deserialization() {
         let json = r#"{
-            "model": "qwen:7b",
+            "model": "qwen2.5-coder:7b",
             "created_at": "2024-01-01T00:00:00Z",
             "response": "test response",
             "done": true,
@@ -503,7 +503,7 @@ mod tests {
         }"#;
 
         let response: OllamaResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(response.model, "qwen:7b");
+        assert_eq!(response.model, "qwen2.5-coder:7b");
         assert_eq!(response.response, "test response");
         assert!(response.done);
         assert_eq!(response.prompt_eval_count, Some(10));
@@ -513,14 +513,14 @@ mod tests {
     #[test]
     fn test_ollama_response_minimal() {
         let json = r#"{
-            "model": "qwen:7b",
+            "model": "qwen2.5-coder:7b",
             "created_at": "2024-01-01T00:00:00Z",
             "response": "test",
             "done": true
         }"#;
 
         let response: OllamaResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(response.model, "qwen:7b");
+        assert_eq!(response.model, "qwen2.5-coder:7b");
         assert!(response.total_duration.is_none());
         assert!(response.prompt_eval_count.is_none());
     }
@@ -530,7 +530,7 @@ mod tests {
         // Use a non-existent endpoint
         let client = OllamaClient::with_timeout(
             "http://localhost:59999".to_string(),
-            "qwen:7b".to_string(),
+            "qwen2.5-coder:7b".to_string(),
             Duration::from_millis(100),
         );
 

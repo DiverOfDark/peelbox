@@ -46,7 +46,7 @@ use thiserror::Error;
 /// Default values for configuration
 const DEFAULT_BACKEND: &str = "auto";
 const DEFAULT_OLLAMA_ENDPOINT: &str = "http://localhost:11434";
-const DEFAULT_OLLAMA_MODEL: &str = "qwen:7b";
+const DEFAULT_OLLAMA_MODEL: &str = "qwen2.5-coder:7b";
 const DEFAULT_MISTRAL_MODEL: &str = "mistral-small";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_CACHE_ENABLED: bool = true;
