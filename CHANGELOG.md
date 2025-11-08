@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Prevent LLM self-reasoning loops with max_tokens limits and stop sequences
+- Add per-call timeout enforcement for individual LLM API calls
+- Improve system prompt to discourage verbose reasoning patterns
+- Add `max_tokens` configuration parameter (default: 8192, min: 512, max: 128000)
+- Add stop sequences: `</thinking>`, `In summary:`, `To reiterate:`, `Let me repeat:`
+- Add `AIPACK_MAX_TOKENS` environment variable for customization
+
 ### Added
 - **Phase 1: Jumpstart Analysis** (NEW):
   - Pre-scans repositories for manifest files before LLM analysis

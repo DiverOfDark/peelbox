@@ -589,6 +589,7 @@ AIPACK_CACHE_DIR=/tmp/aipack-cache
 # Request configuration
 AIPACK_REQUEST_TIMEOUT=60          # Request timeout in seconds
 AIPACK_MAX_CONTEXT_SIZE=512000     # Maximum context size in tokens
+AIPACK_MAX_TOKENS=8192             # Max tokens per LLM response (default: 8192, min: 512, max: 128000)
 
 # Tool execution configuration
 AIPACK_MAX_TOOL_ITERATIONS=10      # Max conversation iterations (default: 10, max: 50)
@@ -599,6 +600,19 @@ AIPACK_MAX_FILE_SIZE=1048576       # Max file size to read in bytes (default: 1M
 AIPACK_LOG_LEVEL=info              # "trace", "debug", "info", "warn", or "error"
 RUST_LOG=aipack=debug,info         # Structured logging (overrides AIPACK_LOG_LEVEL)
 ```
+
+### LLM Self-Reasoning Loop Prevention
+
+aipack includes safeguards to prevent LLMs from getting stuck in self-reasoning loops:
+
+1. **Token Limits**: `AIPACK_MAX_TOKENS` (default: 8192) prevents runaway generation
+2. **Stop Sequences**: Automatically applied to catch repetitive patterns:
+   - `</thinking>`
+   - `In summary:`
+   - `To reiterate:`
+   - `Let me repeat:`
+3. **Per-Call Timeouts**: Each LLM API call enforces the configured timeout
+4. **Concise Prompt**: System prompt discourages verbose reasoning
 
 ### Provider-Specific Environment Variables
 

@@ -17,9 +17,9 @@ fn create_sample_detection_result() -> DetectionResult {
         language: "Rust".to_string(),
         build_command: "cargo build --release".to_string(),
         test_command: Some("cargo test".to_string()),
-            runtime: "rust:1.75".to_string(),
-            dependencies: vec![],
-            entry_point: "/app".to_string(),
+        runtime: "rust:1.75".to_string(),
+        dependencies: vec![],
+        entry_point: "/app".to_string(),
         dev_command: Some("cargo watch -x run".to_string()),
         confidence: 0.95,
         reasoning: "Found Cargo.toml with standard Rust project structure".to_string(),
@@ -56,7 +56,7 @@ fn test_json_format_detection_result() {
     assert_eq!(parsed["language"], "Rust");
     assert_eq!(parsed["build_command"], "cargo build --release");
     assert_eq!(parsed["test_command"], "cargo test");
-    assert_eq!(parsed["deploy_command"], "cargo publish");
+    // deploy_command field removed from DetectionResult
     assert_eq!(parsed["dev_command"], "cargo watch -x run");
     assert_eq!(parsed["confidence"], 0.95);
     assert_eq!(parsed["processing_time_ms"], 1234);
@@ -115,7 +115,7 @@ fn test_human_format_detection_result() {
     assert!(output.contains("Very High")); // Confidence level
     assert!(output.contains("cargo build --release"));
     assert!(output.contains("cargo test"));
-    assert!(output.contains("cargo publish"));
+    // deploy_command field removed from DetectionResult
     assert!(output.contains("cargo watch -x run"));
     assert!(output.contains("1234ms")); // Processing time
     assert!(output.contains("Consider adding CI/CD")); // Warning
@@ -367,7 +367,7 @@ fn test_detection_result_display() {
     let display = format!("{}", result);
 
     // Verify Display implementation
-    assert!(display.contains("Build System Detection Result"));
+    assert!(display.contains("Docker Build Detection Result"));
     assert!(display.contains("cargo"));
     assert!(display.contains("Rust"));
     assert!(display.contains("95.0%"));

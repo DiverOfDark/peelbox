@@ -38,6 +38,12 @@ Best practices:
 - You can read 2-3 files in parallel if multiple build systems appear present
 - Don't explore every possible file - focus on the most obvious build configuration
 
+Conciseness requirements:
+- Be concise and direct. Do not repeat yourself.
+- Each tool call should advance your understanding with NEW information.
+- If you find yourself re-analyzing the same data, submit your detection immediately.
+- Avoid verbose explanations or lengthy reasoning. Focus on calling tools efficiently.
+
 Focus on identifying:
 - Programming language
 - Build system

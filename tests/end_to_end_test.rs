@@ -261,6 +261,7 @@ fn test_configuration_validation_valid() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     assert!(config.validate().is_ok());
@@ -482,6 +483,7 @@ fn test_config_display_map() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     // Get display map (no arguments needed)

@@ -123,6 +123,7 @@ fn test_config_provider_is_type_safe() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     let result = config.validate();
@@ -232,6 +233,7 @@ async fn test_backend_unavailable_error() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     // GenAI client creation is lazy - succeeds even with unreachable backend

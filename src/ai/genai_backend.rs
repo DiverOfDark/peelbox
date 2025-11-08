@@ -18,7 +18,7 @@
 //! ).await?;
 //!
 //! // Detect build system
-//! let result = client.detect(PathBuf::from("/path/to/repo")).await?;
+//! let result = client.detect(PathBuf::from("/path/to/repo"), None).await?;
 //! println!("Detected: {}", result.build_system);
 //! # Ok(())
 //! # }
@@ -674,24 +674,40 @@ impl GenAIBackend {
             // Create chat request with tools
             let request = ChatRequest::new(messages.clone()).with_tools(tools.clone());
 
-            // Build options
+            // Build options with max_tokens and stop sequences
             let mut options = ChatOptions::default().with_temperature(0.3);
             if let Some(max_tokens) = self.max_tokens {
                 options = options.with_max_tokens(max_tokens);
             }
 
-            // Execute LLM request
-            let response = self
-                .client
-                .exec_chat(&self.model, request, Some(&options))
-                .await
-                .map_err(|e| {
+            // Add stop sequences to prevent repetitive reasoning
+            options = options.with_stop_sequences(vec![
+                "</thinking>".to_string(),
+                "In summary:".to_string(),
+                "To reiterate:".to_string(),
+                "Let me repeat:".to_string(),
+            ]);
+
+            // Execute LLM request with per-call timeout
+            let response = match tokio::time::timeout(
+                self.timeout,
+                self.client.exec_chat(&self.model, request, Some(&options))
+            ).await {
+                Ok(Ok(resp)) => resp,
+                Ok(Err(e)) => {
                     error!("{} API error: {}", self.provider.name(), e);
-                    BackendError::ApiError {
+                    return Err(BackendError::ApiError {
                         message: format!("{} request failed: {}", self.provider.name(), e),
                         status_code: None,
-                    }
-                })?;
+                    });
+                }
+                Err(_) => {
+                    error!("{} request timed out after {}s", self.provider.name(), self.timeout.as_secs());
+                    return Err(BackendError::TimeoutError {
+                        seconds: self.timeout.as_secs(),
+                    });
+                }
+            };
 
             debug!(
                 "{} responded with {} tool calls",

@@ -14,6 +14,7 @@ const DEFAULT_MAX_CONTEXT_SIZE: usize = 512_000;
 const DEFAULT_MAX_TOOL_ITERATIONS: usize = 10;
 const DEFAULT_TOOL_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_MAX_FILE_SIZE_BYTES: usize = 1_048_576; // 1MB
+const DEFAULT_MAX_TOKENS: usize = 8192;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -45,6 +46,7 @@ pub struct AipackConfig {
     pub max_tool_iterations: usize,
     pub tool_timeout_secs: u64,
     pub max_file_size_bytes: usize,
+    pub max_tokens: usize,
 }
 
 impl Default for AipackConfig {
@@ -114,6 +116,11 @@ impl Default for AipackConfig {
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
 
+        let max_tokens = env::var("AIPACK_MAX_TOKENS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_MAX_TOKENS);
+
         Self {
             provider,
             model,
@@ -125,6 +132,7 @@ impl Default for AipackConfig {
             max_tool_iterations,
             tool_timeout_secs,
             max_file_size_bytes,
+            max_tokens,
         }
     }
 }
@@ -196,6 +204,17 @@ impl AipackConfig {
             ));
         }
 
+        if self.max_tokens < 512 {
+            return Err(ConfigError::ValidationFailed(
+                "Max tokens must be at least 512".to_string(),
+            ));
+        }
+        if self.max_tokens > 128_000 {
+            return Err(ConfigError::ValidationFailed(
+                "Max tokens cannot exceed 128000".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -206,7 +225,7 @@ impl AipackConfig {
             self.provider,
             model,
             Some(timeout),
-            None,
+            Some(self.max_tokens as u32),
             Some(self.max_tool_iterations),
         )
         .await?;
@@ -253,6 +272,7 @@ impl AipackConfig {
             "max_file_size_bytes".to_string(),
             self.max_file_size_bytes.to_string(),
         );
+        map.insert("max_tokens".to_string(), self.max_tokens.to_string());
 
         map
     }
@@ -277,6 +297,7 @@ impl fmt::Display for AipackConfig {
             "  Max File Size: {} bytes",
             self.max_file_size_bytes
         )?;
+        writeln!(f, "  Max Tokens: {}", self.max_tokens)?;
         Ok(())
     }
 }
@@ -329,6 +350,7 @@ mod tests {
         assert_eq!(config.max_tool_iterations, DEFAULT_MAX_TOOL_ITERATIONS);
         assert_eq!(config.tool_timeout_secs, DEFAULT_TOOL_TIMEOUT_SECS);
         assert_eq!(config.max_file_size_bytes, DEFAULT_MAX_FILE_SIZE_BYTES);
+        assert_eq!(config.max_tokens, DEFAULT_MAX_TOKENS);
     }
 
     #[test]
@@ -340,6 +362,7 @@ mod tests {
             EnvGuard::set("AIPACK_CACHE_ENABLED", "false"),
             EnvGuard::set("AIPACK_REQUEST_TIMEOUT", "60"),
             EnvGuard::set("AIPACK_MAX_CONTEXT_SIZE", "1024000"),
+            EnvGuard::set("AIPACK_MAX_TOKENS", "4096"),
         ];
 
         let config = AipackConfig::default();
@@ -350,6 +373,7 @@ mod tests {
         assert!(!config.cache_enabled);
         assert_eq!(config.request_timeout_secs, 60);
         assert_eq!(config.max_context_size, 1_024_000);
+        assert_eq!(config.max_tokens, 4096);
     }
 
     #[test]
@@ -365,6 +389,7 @@ mod tests {
             max_tool_iterations: 10,
             tool_timeout_secs: 30,
             max_file_size_bytes: 1_048_576,
+            max_tokens: 8192,
         };
 
         assert!(config.validate().is_ok());
@@ -389,6 +414,26 @@ mod tests {
     }
 
     #[test]
+    fn test_configuration_validation_invalid_max_tokens_too_low() {
+        let mut config = AipackConfig::default();
+        config.max_tokens = 256;
+
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("512"));
+    }
+
+    #[test]
+    fn test_configuration_validation_invalid_max_tokens_too_high() {
+        let mut config = AipackConfig::default();
+        config.max_tokens = 200_000;
+
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("128000"));
+    }
+
+    #[test]
     fn test_cache_path() {
         let config = AipackConfig {
             provider: Provider::Ollama,
@@ -401,6 +446,7 @@ mod tests {
             max_tool_iterations: 10,
             tool_timeout_secs: 30,
             max_file_size_bytes: 1_048_576,
+            max_tokens: 8192,
         };
 
         let path = config.cache_path("myrepo");
@@ -420,6 +466,7 @@ mod tests {
             max_tool_iterations: 10,
             tool_timeout_secs: 30,
             max_file_size_bytes: 1_048_576,
+            max_tokens: 8192,
         };
 
         let path = config.cache_path("user/repo:branch");

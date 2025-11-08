@@ -62,6 +62,7 @@ fn test_config_provider_set() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     // Should have provider set to Ollama
@@ -96,6 +97,7 @@ async fn test_service_creation_with_unreachable_backend() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     let result = DetectionService::new(&config).await;
@@ -150,6 +152,7 @@ fn test_config_validation_all_fields() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     assert!(config.validate().is_ok());
@@ -205,6 +208,7 @@ fn test_config_cache_path_generation() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     let path = config.cache_path("my-repo");
@@ -252,6 +256,7 @@ fn test_config_display_formatting() {
         max_tool_iterations: 10,
         tool_timeout_secs: 30,
         max_file_size_bytes: 1_048_576,
+        max_tokens: 8192,
     };
 
     let display = format!("{}", config);
