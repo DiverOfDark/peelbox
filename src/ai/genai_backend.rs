@@ -66,18 +66,6 @@ pub enum Provider {
 }
 
 impl Provider {
-    /// Returns the provider prefix for genai model strings
-    fn prefix(&self) -> &'static str {
-        match self {
-            Provider::Ollama => "ollama",
-            Provider::Claude => "claude",
-            Provider::OpenAI => "openai",
-            Provider::Gemini => "gemini",
-            Provider::Grok => "grok",
-            Provider::Groq => "groq",
-        }
-    }
-
     /// Returns the provider name for logging
     fn name(&self) -> &'static str {
         match self {
@@ -206,7 +194,7 @@ pub struct GenAIBackend {
     /// GenAI client instance
     client: Client,
 
-    /// Full model identifier (e.g., "ollama:qwen2.5-coder:7b")
+    /// Model name (without provider prefix)
     model: String,
 
     /// Provider type
@@ -337,9 +325,6 @@ impl GenAIBackend {
             Client::default()
         };
 
-        // Build full model string (e.g., "ollama:qwen2.5-coder:7b")
-        let full_model = format!("{}:{}", provider.prefix(), model);
-
         debug!(
             "Creating GenAI backend: provider={}, model={}",
             provider.name(),
@@ -348,7 +333,7 @@ impl GenAIBackend {
 
         let backend = Self {
             client,
-            model: full_model,
+            model: model.clone(),
             provider,
             timeout: timeout.unwrap_or(Duration::from_secs(60)),
             max_tokens,
@@ -647,14 +632,6 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_provider_prefix() {
-        assert_eq!(Provider::Ollama.prefix(), "ollama");
-        assert_eq!(Provider::Claude.prefix(), "claude");
-        assert_eq!(Provider::OpenAI.prefix(), "openai");
-        assert_eq!(Provider::Gemini.prefix(), "gemini");
-    }
-
-    #[tokio::test]
     async fn test_provider_name() {
         assert_eq!(Provider::Ollama.name(), "Ollama");
         assert_eq!(Provider::Claude.name(), "Claude");
@@ -671,7 +648,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(backend.name(), "Ollama");
-        assert_eq!(backend.model, "ollama:qwen2.5-coder:7b");
+        assert_eq!(backend.model, "qwen2.5-coder:7b");
         assert!(backend.model_info().is_some());
     }
 
