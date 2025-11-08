@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tool-Based Detection Architecture**:
+  - Implemented LLM function calling with 6 specialized tools
+  - Tools: `list_files`, `read_file`, `search_files`, `get_file_tree`, `grep_content`, `submit_detection`
+  - Iterative repository exploration instead of upfront context loading
+  - Scales to large repositories without exceeding context windows
+  - LLM requests only files it needs for accurate detection
+
+- **Tool Execution Configuration**:
+  - `max_tool_iterations`: Maximum conversation iterations (default: 10, max: 50)
+  - `tool_timeout_secs`: Tool execution timeout (default: 30s, max: 5 minutes)
+  - `max_file_size_bytes`: Maximum file size for read_file (default: 1MB, max: 10MB)
+  - Environment variables: `AIPACK_MAX_TOOL_ITERATIONS`, `AIPACK_TOOL_TIMEOUT`, `AIPACK_MAX_FILE_SIZE`
+
+- **Unified LLMBackend Trait**: New `src/ai/backend.rs` with consistent interface for all providers
+
+- **Security Features**:
+  - Path traversal protection in file tools
+  - File size limits to prevent memory exhaustion
+  - Binary file detection to avoid parsing errors
+
 ### Changed
+- **Breaking Change**: `LLMBackend::detect()` now takes `PathBuf` instead of `RepositoryContext`
+  - Tools handle file exploration on-demand
+  - Removed upfront repository analysis from detection path
+  - Simplified service layer to ~27 lines of core logic
+
 - **Breaking Change**: All `LlmResponse` fields are now `Option<T>` to prevent deserialization failures
   - LLMs can return `null` for any field without causing parsing errors
   - Explicit validation after deserialization provides clear error messages for missing required fields
@@ -15,6 +41,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional fields: `test_command`, `dev_command`
   - This prevents edge cases where AI responses are incomplete or malformed from breaking the application
   - Validation happens after successful deserialization with helpful error messages
+
+- **Simplified Prompt System**: Replaced context-heavy `PromptBuilder` with simple `SYSTEM_PROMPT` constant
+  - System prompt explains available tools to LLM
+  - No longer constructs prompts with full file trees and file contents
+
+- **Architecture**: Moved from single-shot LLM requests to conversation loops with tool calls
+
+### Removed
+- `PromptBuilder` struct and all context-heavy prompt building logic
+- Upfront repository context collection in main detection path
+- `RepositoryAnalyzer` from detection service (moved to legacy/testing)
 
 ## [0.2.0] - 2025-11-08
 

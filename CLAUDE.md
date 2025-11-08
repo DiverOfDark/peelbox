@@ -12,7 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 ## Project Overview
 
-**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis to detect repository build systems without hardcoded heuristics.
+**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM function calling with iterative tool execution to analyze repositories on-demand, avoiding context window limitations.
+
+**Architecture**: Tool-based detection using LLM function calling
+- LLM explores repositories iteratively using 6 specialized tools
+- Avoids passing full repository context upfront
+- Scales to large repositories without exceeding context windows
+- LLM requests only the files it needs for accurate detection
 
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
@@ -99,27 +105,35 @@ aipack/
 │   ├── lib.rs               # Library root
 │   ├── ai/                  # LLM integrations
 │   │   ├── mod.rs           # Module definition
-│   │   ├── backend.rs       # Backend trait and enums
-│   │   ├── openai_compatible.rs  # Unified OpenAI-compatible client (Ollama, LM Studio, etc.)
-│   │   └── mistral.rs       # Mistral API client (TODO)
+│   │   ├── backend.rs       # Unified LLMBackend trait
+│   │   └── genai_backend.rs # GenAI multi-provider client
 │   ├── detection/           # Build command detection
 │   │   ├── mod.rs
-│   │   ├── analyzer.rs      # Repository analyzer
-│   │   ├── prompt.rs        # Prompt construction
-│   │   └── response.rs      # Response parsing
+│   │   ├── analyzer.rs      # Repository analyzer (legacy)
+│   │   ├── prompt.rs        # System prompts
+│   │   ├── response.rs      # Response parsing
+│   │   ├── service.rs       # Detection orchestration
+│   │   ├── types.rs         # Data structures
+│   │   └── tools/           # Tool execution framework
+│   │       ├── definitions.rs  # Tool name constants
+│   │       ├── executor.rs  # Tool implementation (6 tools)
+│   │       └── registry.rs  # JSON schemas for tools
 │   ├── cli/                 # Command-line interface
 │   │   ├── mod.rs
-│   │   └── commands.rs      # CLI command definitions
+│   │   ├── commands.rs      # CLI command definitions
+│   │   └── output.rs        # Output formatting
+│   ├── config.rs            # Configuration management
 │   └── util/                # Utilities
 │       ├── mod.rs
 │       ├── fs.rs            # File system utilities
 │       ├── cache.rs         # Result caching
 │       └── logging.rs       # Structured logging
 ├── tests/                   # Integration tests
-│   ├── end_to_end.rs       # Full workflow tests
-│   └── fixtures/            # Test repositories
+│   ├── end_to_end_test.rs  # Full workflow tests
+│   ├── ollama_integration.rs # Ollama backend tests
+│   └── ...                  # Other integration tests
 ├── examples/                # Usage examples
-│   └── basic_detection.rs
+│   └── genai_detection.rs  # Multi-provider example
 ├── Cargo.toml               # Project manifest
 ├── Cargo.lock               # Dependency lock
 ├── PRD.md                   # Product requirements
@@ -127,6 +141,35 @@ aipack/
 ├── README.md                # User documentation
 └── CLAUDE.md                # This file
 ```
+
+## Tool-Based Detection Architecture
+
+aipack uses LLM function calling to analyze repositories iteratively instead of passing all context upfront.
+
+### How It Works
+
+1. **LLM receives system prompt** explaining available tools
+2. **Iterative exploration**: LLM calls tools to explore the repository
+3. **On-demand file reading**: Only requested files are read and sent to LLM
+4. **Final submission**: LLM calls `submit_detection` with the result
+
+### Available Tools
+
+| Tool | Purpose | Example Use |
+|------|---------|-------------|
+| `list_files` | List directory contents with optional glob filtering | Find all `package.json` files |
+| `read_file` | Read file contents with size limits | Read `Cargo.toml` to confirm Rust project |
+| `search_files` | Search for files by name pattern | Find all `*.gradle` files |
+| `get_file_tree` | Get tree view of directory structure | Understand repository layout |
+| `grep_content` | Search file contents with regex | Find `"scripts"` in package.json files |
+| `submit_detection` | Submit final detection result | Return detected build system |
+
+### Benefits
+
+- **Scalability**: Works with large repositories without exceeding context windows
+- **Efficiency**: LLM only requests files it needs
+- **Accuracy**: Can explore deeply when needed
+- **Flexibility**: Adapts to any project structure
 
 ## Using the GenAI Backend
 
@@ -137,6 +180,7 @@ The GenAI backend provides a unified interface to multiple LLM providers through
 ```rust
 use aipack::ai::backend::LLMBackend;
 use aipack::ai::genai_backend::{GenAIBackend, Provider};
+use std::path::PathBuf;
 
 // Create an Ollama client (default local endpoint)
 let client = GenAIBackend::new(
@@ -144,8 +188,9 @@ let client = GenAIBackend::new(
     "qwen2.5-coder:7b".to_string(),
 ).await?;
 
-// Use it for detection
-let result = client.detect(context).await?;
+// Detect build system (LLM will use tools to explore)
+let result = client.detect(PathBuf::from("/path/to/repo")).await?;
+println!("Build system: {}", result.build_system);
 ```
 
 ### Supported Providers
@@ -534,8 +579,8 @@ async fn test_detection() {
 # Provider selection (defaults to "ollama")
 AIPACK_PROVIDER=ollama             # "ollama", "openai", "claude", "gemini", "grok", or "groq"
 
-# Ollama-specific configuration
-AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
+# Model configuration
+AIPACK_MODEL=qwen2.5-coder:7b      # Model name for selected provider
 
 # Caching
 AIPACK_CACHE_ENABLED=true
@@ -544,6 +589,11 @@ AIPACK_CACHE_DIR=/tmp/aipack-cache
 # Request configuration
 AIPACK_REQUEST_TIMEOUT=60          # Request timeout in seconds
 AIPACK_MAX_CONTEXT_SIZE=512000     # Maximum context size in tokens
+
+# Tool execution configuration
+AIPACK_MAX_TOOL_ITERATIONS=10      # Max conversation iterations (default: 10, max: 50)
+AIPACK_TOOL_TIMEOUT=30             # Tool execution timeout in seconds (default: 30, max: 300)
+AIPACK_MAX_FILE_SIZE=1048576       # Max file size to read in bytes (default: 1MB, max: 10MB)
 
 # Logging
 AIPACK_LOG_LEVEL=info              # "trace", "debug", "info", "warn", or "error"
@@ -582,12 +632,15 @@ The configuration is primarily driven by environment variables. The `AipackConfi
 ```rust
 pub struct AipackConfig {
     pub provider: Provider,              // Ollama, OpenAI, Claude, Gemini, Grok, Groq
-    pub ollama_model: String,            // Model name for Ollama
+    pub model: String,                   // Model name for selected provider
     pub cache_enabled: bool,
     pub cache_dir: Option<PathBuf>,
     pub request_timeout_secs: u64,
     pub max_context_size: usize,
     pub log_level: String,
+    pub max_tool_iterations: usize,      // Max iterations for tool-based detection
+    pub tool_timeout_secs: u64,          // Timeout for individual tool executions
+    pub max_file_size_bytes: usize,      // Max file size for read_file tool
 }
 ```
 
