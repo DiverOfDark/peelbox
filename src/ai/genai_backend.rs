@@ -612,6 +612,9 @@ impl GenAIBackend {
         let mut iteration = 0;
         let start = std::time::Instant::now();
 
+        // Track which tools have been called to enforce validation
+        let mut has_read_file = false;
+
         loop {
             iteration += 1;
             if iteration > MAX_ITERATIONS {
@@ -665,6 +668,19 @@ impl GenAIBackend {
                 });
             }
 
+            // Validate: submit_detection cannot be called alongside other tools
+            let has_submit_detection = tool_calls.iter().any(|tc| tc.fn_name == "submit_detection");
+            if has_submit_detection && tool_calls.len() > 1 {
+                warn!(
+                    "LLM attempted to call submit_detection alongside {} other tools - rejecting",
+                    tool_calls.len() - 1
+                );
+                return Err(BackendError::InvalidResponse {
+                    message: "submit_detection cannot be called alongside other tools. Call ONE tool at a time and wait for results.".to_string(),
+                    raw_response: response.first_text().map(|s| s.to_string()),
+                });
+            }
+
             // Execute each tool call
             for tool_call in tool_calls {
                 debug!(
@@ -674,12 +690,26 @@ impl GenAIBackend {
 
                 // Check if this is submit_detection
                 if tool_call.fn_name == "submit_detection" {
+                    // Validate that at least one read_file was called
+                    if !has_read_file {
+                        warn!("LLM attempted submit_detection without reading any files - rejecting");
+                        return Err(BackendError::InvalidResponse {
+                            message: "You must call read_file on at least one build configuration file before submitting detection. Do not guess - verify by reading actual files.".to_string(),
+                            raw_response: response.first_text().map(|s| s.to_string()),
+                        });
+                    }
+
                     info!(
                         "Detection submitted after {} iterations in {:.2}s",
                         iteration,
                         start.elapsed().as_secs_f64()
                     );
                     return parse_detection_from_tool_call(&tool_call.fn_arguments);
+                }
+
+                // Track read_file calls
+                if tool_call.fn_name == "read_file" {
+                    has_read_file = true;
                 }
 
                 // Execute the tool
