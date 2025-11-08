@@ -85,6 +85,19 @@ impl OutputFormatter {
         }
     }
 
+    /// Formats health check results with environment variable information
+    pub fn format_health_with_env_vars(
+        &self,
+        health_results: &HashMap<String, HealthStatus>,
+        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
+    ) -> Result<String> {
+        match self.format {
+            OutputFormat::Json => self.format_health_with_env_vars_json(health_results, env_vars),
+            OutputFormat::Yaml => self.format_health_with_env_vars_yaml(health_results, env_vars),
+            OutputFormat::Human => self.format_health_with_env_vars_human(health_results, env_vars),
+        }
+    }
+
     // JSON formatting methods
 
     fn format_json(&self, result: &DetectionResult) -> Result<String> {
@@ -122,6 +135,19 @@ impl OutputFormatter {
             .context("Failed to serialize health status to JSON")
     }
 
+    fn format_health_with_env_vars_json(
+        &self,
+        health_results: &HashMap<String, HealthStatus>,
+        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
+    ) -> Result<String> {
+        let output = serde_json::json!({
+            "health_status": health_results,
+            "environment_variables": env_vars,
+        });
+        serde_json::to_string_pretty(&output)
+            .context("Failed to serialize health status with env vars to JSON")
+    }
+
     // YAML formatting methods
 
     fn format_yaml(&self, result: &DetectionResult) -> Result<String> {
@@ -155,6 +181,19 @@ impl OutputFormatter {
 
     fn format_health_yaml(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
         serde_yaml::to_string(health_results).context("Failed to serialize health status to YAML")
+    }
+
+    fn format_health_with_env_vars_yaml(
+        &self,
+        health_results: &HashMap<String, HealthStatus>,
+        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
+    ) -> Result<String> {
+        let output = serde_json::json!({
+            "health_status": health_results,
+            "environment_variables": env_vars,
+        });
+        serde_yaml::to_string(&output)
+            .context("Failed to serialize health status with env vars to YAML")
     }
 
     // Human-readable formatting methods
@@ -377,6 +416,52 @@ impl OutputFormatter {
 
         Ok(output)
     }
+
+    fn format_health_with_env_vars_human(
+        &self,
+        health_results: &HashMap<String, HealthStatus>,
+        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
+    ) -> Result<String> {
+        let mut output = self.format_health_human(health_results)?;
+
+        // Add environment variables section
+        output.push_str("Environment Variables\n");
+        output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
+
+        // Sort backends for consistent output
+        let mut backends: Vec<_> = env_vars.keys().collect();
+        backends.sort();
+
+        for backend in backends {
+            if let Some(vars) = env_vars.get(backend) {
+                output.push_str(&format!("{}:\n", backend));
+                for var in vars {
+                    let required_marker = if var.required { "*" } else { " " };
+                    output.push_str(&format!("  {} {}\n", required_marker, var.name));
+
+                    // Show current value
+                    if let Some(ref value) = var.value {
+                        output.push_str(&format!("    Current: {}\n", value));
+                    } else {
+                        output.push_str("    Current: not set\n");
+                    }
+
+                    // Show default if available
+                    if let Some(ref default) = var.default {
+                        output.push_str(&format!("    Default: {}\n", default));
+                    }
+
+                    // Show description
+                    output.push_str(&format!("    Info: {}\n", var.description));
+                }
+                output.push('\n');
+            }
+        }
+
+        output.push_str("* = required\n");
+
+        Ok(output)
+    }
 }
 
 /// Health status for a backend
@@ -388,6 +473,21 @@ pub struct HealthStatus {
     pub message: String,
     /// Optional additional details
     pub details: Option<String>,
+}
+
+/// Environment variable information
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EnvVarInfo {
+    /// Variable name
+    pub name: String,
+    /// Current value (masked for secrets)
+    pub value: Option<String>,
+    /// Default value if not set
+    pub default: Option<String>,
+    /// Whether this is a required variable
+    pub required: bool,
+    /// Description of what this variable does
+    pub description: String,
 }
 
 impl HealthStatus {

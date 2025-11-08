@@ -23,7 +23,7 @@
 
 use aipack::ai::genai_backend::Provider;
 use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
-use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
+use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
 use aipack::detection::service::DetectionService;
@@ -335,6 +335,110 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     }
 }
 
+/// Masks API keys for display
+fn mask_api_key(value: &str) -> String {
+    if value.len() <= 8 {
+        "*".repeat(value.len())
+    } else {
+        format!("{}...{}", &value[..4], &value[value.len() - 4..])
+    }
+}
+
+/// Collects environment variable information for all backends
+fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
+    let mut env_vars = HashMap::new();
+
+    // Ollama
+    let ollama_host = env::var("OLLAMA_HOST");
+    env_vars.insert(
+        "Ollama".to_string(),
+        vec![EnvVarInfo {
+            name: "OLLAMA_HOST".to_string(),
+            value: Some(ollama_host.clone().unwrap_or_else(|_| "http://localhost:11434 (default)".to_string())),
+            default: Some("http://localhost:11434".to_string()),
+            required: false,
+            description: "Ollama server endpoint".to_string(),
+        }],
+    );
+
+    // OpenAI
+    let openai_key = env::var("OPENAI_API_KEY");
+    let openai_base = env::var("OPENAI_API_BASE");
+    env_vars.insert(
+        "OpenAI".to_string(),
+        vec![
+            EnvVarInfo {
+                name: "OPENAI_API_KEY".to_string(),
+                value: openai_key.ok().map(|k| mask_api_key(&k)),
+                default: None,
+                required: true,
+                description: "OpenAI API key for authentication".to_string(),
+            },
+            EnvVarInfo {
+                name: "OPENAI_API_BASE".to_string(),
+                value: Some(openai_base.clone().unwrap_or_else(|_| "https://api.openai.com/v1 (default)".to_string())),
+                default: Some("https://api.openai.com/v1".to_string()),
+                required: false,
+                description: "Custom API endpoint (e.g., for Azure OpenAI)".to_string(),
+            },
+        ],
+    );
+
+    // Claude (Anthropic)
+    let anthropic_key = env::var("ANTHROPIC_API_KEY");
+    env_vars.insert(
+        "Claude".to_string(),
+        vec![EnvVarInfo {
+            name: "ANTHROPIC_API_KEY".to_string(),
+            value: anthropic_key.ok().map(|k| mask_api_key(&k)),
+            default: None,
+            required: true,
+            description: "Anthropic API key for Claude access".to_string(),
+        }],
+    );
+
+    // Gemini (Google)
+    let google_key = env::var("GOOGLE_API_KEY");
+    env_vars.insert(
+        "Gemini".to_string(),
+        vec![EnvVarInfo {
+            name: "GOOGLE_API_KEY".to_string(),
+            value: google_key.ok().map(|k| mask_api_key(&k)),
+            default: None,
+            required: true,
+            description: "Google AI API key for Gemini access".to_string(),
+        }],
+    );
+
+    // Grok (xAI)
+    let xai_key = env::var("XAI_API_KEY");
+    env_vars.insert(
+        "Grok".to_string(),
+        vec![EnvVarInfo {
+            name: "XAI_API_KEY".to_string(),
+            value: xai_key.ok().map(|k| mask_api_key(&k)),
+            default: None,
+            required: true,
+            description: "xAI API key for Grok access".to_string(),
+        }],
+    );
+
+    // Groq
+    let groq_key = env::var("GROQ_API_KEY");
+    env_vars.insert(
+        "Groq".to_string(),
+        vec![EnvVarInfo {
+            name: "GROQ_API_KEY".to_string(),
+            value: groq_key.ok().map(|k| mask_api_key(&k)),
+            default: None,
+            required: true,
+            description: "Groq API key for fast inference".to_string(),
+        }],
+    );
+
+    env_vars
+}
+
 /// Handles the health command
 ///
 /// Checks availability of configured backends and displays status.
@@ -461,11 +565,14 @@ async fn handle_health(args: &HealthArgs) -> i32 {
         health_results.insert(provider_name, status);
     }
 
-    // Format and display results
+    // Collect environment variable information
+    let env_vars = collect_env_var_info();
+
+    // Format and display results with environment variables
     let format: OutputFormat = args.format.into();
     let formatter = OutputFormatter::new(format);
 
-    let output = match formatter.format_health(&health_results) {
+    let output = match formatter.format_health_with_env_vars(&health_results, &env_vars) {
         Ok(out) => out,
         Err(e) => {
             error!("Failed to format health output: {}", e);
