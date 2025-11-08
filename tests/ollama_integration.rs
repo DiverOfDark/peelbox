@@ -14,7 +14,6 @@
 use aipack::ai::genai_backend::{GenAIBackend, Provider};
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
-use aipack::detection::types::RepositoryContext;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -127,26 +126,10 @@ Run `cargo build` to build the project.
     )
     .unwrap();
 
-    // Create context
-    let context = RepositoryContext::minimal(
-        repo_path.to_path_buf(),
-        r#"test-project/
-├── Cargo.toml
-├── README.md
-└── src/
-    └── main.rs
-"#
-        .to_string(),
-    )
-    .with_key_file(
-        "Cargo.toml".to_string(),
-        fs::read_to_string(repo_path.join("Cargo.toml")).unwrap(),
-    )
-    .with_readme(fs::read_to_string(repo_path.join("README.md")).unwrap());
-
-    // Detect
+    // Detect using the repository path directly
+    // The backend will use tools to analyze files on-demand
     let client = create_test_client().await;
-    let result = client.detect(context).await;
+    let result = client.detect(repo_path.to_path_buf()).await;
 
     match result {
         Ok(detection) => {
@@ -217,27 +200,10 @@ async fn test_ollama_detect_nodejs_project() {
     )
     .unwrap();
 
-    let context = RepositoryContext::minimal(
-        repo_path.to_path_buf(),
-        r#"test-project/
-├── package.json
-├── tsconfig.json
-└── src/
-    └── index.ts
-"#
-        .to_string(),
-    )
-    .with_key_file(
-        "package.json".to_string(),
-        fs::read_to_string(repo_path.join("package.json")).unwrap(),
-    )
-    .with_key_file(
-        "tsconfig.json".to_string(),
-        fs::read_to_string(repo_path.join("tsconfig.json")).unwrap(),
-    );
-
+    // Detect using the repository path directly
+    // The backend will use tools to analyze files on-demand
     let client = create_test_client().await;
-    let result = client.detect(context).await;
+    let result = client.detect(repo_path.to_path_buf()).await;
 
     match result {
         Ok(detection) => {
@@ -363,10 +329,8 @@ async fn test_ollama_error_handling_invalid_model() {
     .await
     .expect("Failed to create client");
 
-    let context =
-        RepositoryContext::minimal(PathBuf::from("/test"), "test/\n└── file.txt".to_string());
-
-    let result = client.detect(context).await;
+    // Test with a path that doesn't exist - should fail during detection
+    let result = client.detect(PathBuf::from("/test")).await;
 
     // The error might occur either during client creation or during detection
     if result.is_err() {
@@ -399,11 +363,12 @@ async fn test_ollama_timeout_handling() {
     .await
     .expect("Failed to create client");
 
-    let context =
-        RepositoryContext::minimal(PathBuf::from("/test"), "test/\n└── file.txt".to_string())
-            .with_key_file("test.txt".to_string(), "content".repeat(1000));
+    // Create a test directory with a large file to trigger timeout
+    let temp_dir = TempDir::new().unwrap();
+    let repo_path = temp_dir.path();
+    fs::write(repo_path.join("test.txt"), "content".repeat(1000)).unwrap();
 
-    let result = client.detect(context).await;
+    let result = client.detect(repo_path.to_path_buf()).await;
 
     // This might timeout or succeed depending on system speed
     match result {

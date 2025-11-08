@@ -120,6 +120,9 @@ fn test_config_provider_is_type_safe() {
         request_timeout_secs: 30,
         max_context_size: 512_000,
         log_level: "info".to_string(),
+        max_tool_iterations: 10,
+        tool_timeout_secs: 30,
+        max_file_size_bytes: 1_048_576,
     };
 
     let result = config.validate();
@@ -226,6 +229,9 @@ async fn test_backend_unavailable_error() {
         request_timeout_secs: 30,
         max_context_size: 512_000,
         log_level: "error".to_string(),
+        max_tool_iterations: 10,
+        tool_timeout_secs: 30,
+        max_file_size_bytes: 1_048_576,
     };
 
     // GenAI client creation is lazy - succeeds even with unreachable backend
@@ -357,14 +363,8 @@ fn test_error_chain_propagation() {
         _ => panic!("Expected BackendError variant"),
     }
 
-    // Test that AnalysisError converts to ServiceError
-    let analysis_error = AnalysisError::PathNotFound(PathBuf::from("/test"));
-    let service_error: ServiceError = analysis_error.into();
-
-    match service_error {
-        ServiceError::AnalysisError(_) => {}
-        _ => panic!("Expected AnalysisError variant"),
-    }
+    // AnalysisError is no longer part of ServiceError in the simplified architecture
+    // The service validates paths directly and delegates to the backend
 }
 
 // Removed test_config_auto_mode_no_backends - auto mode is no longer a feature

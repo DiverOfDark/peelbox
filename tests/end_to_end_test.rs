@@ -258,6 +258,9 @@ fn test_configuration_validation_valid() {
         request_timeout_secs: 30,
         max_context_size: 512_000,
         log_level: "info".to_string(),
+        max_tool_iterations: 10,
+        tool_timeout_secs: 30,
+        max_file_size_bytes: 1_048_576,
     };
 
     assert!(config.validate().is_ok());
@@ -476,6 +479,9 @@ fn test_config_display_map() {
         request_timeout_secs: 30,
         max_context_size: 512_000,
         log_level: "info".to_string(),
+        max_tool_iterations: 10,
+        tool_timeout_secs: 30,
+        max_file_size_bytes: 1_048_576,
     };
 
     // Get display map (no arguments needed)
