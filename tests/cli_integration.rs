@@ -55,36 +55,6 @@ tokio = "1.0"
     repo_path
 }
 
-/// Helper to create a test Node.js repository
-fn create_nodejs_repo(dir: &TempDir) -> PathBuf {
-    let repo_path = dir.path().to_path_buf();
-
-    // Create package.json
-    let package_json = r#"{
-  "name": "test-project",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "tsc",
-    "test": "jest",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "express": "^4.18.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  }
-}
-"#;
-    fs::write(repo_path.join("package.json"), package_json).expect("Failed to write package.json");
-
-    // Create index.ts
-    fs::write(repo_path.join("index.ts"), "console.log('Hello');\n")
-        .expect("Failed to write index.ts");
-
-    repo_path
-}
-
 #[test]
 fn test_cli_help() {
     let output = Command::new(aipack_bin())

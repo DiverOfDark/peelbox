@@ -546,6 +546,4 @@ mod tests {
         let result = service.validate_repo_path(&temp_dir.path().to_path_buf());
         assert!(result.is_ok());
     }
-
-    // Integration tests with actual Ollama server are in tests/ollama_integration.rs
 }

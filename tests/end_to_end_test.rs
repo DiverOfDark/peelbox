@@ -509,6 +509,3 @@ fn test_version_output() {
     assert!(!VERSION.is_empty());
     assert!(VERSION.contains('.'));
 }
-
-// Tests requiring Ollama are in ollama_integration.rs
-// This file focuses on unit and integration tests that don't require external services
