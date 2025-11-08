@@ -1,52 +1,3 @@
-//! Configuration management for aipack
-//!
-//! This module provides a comprehensive configuration system that loads settings from
-//! environment variables with sensible defaults. Configuration includes backend selection,
-//! API credentials, caching options, and runtime parameters.
-//!
-//! # Environment Variables
-//!
-//! ## Aipack Configuration
-//! - `AIPACK_PROVIDER`: Provider selection (ollama|openai|claude|gemini|grok|groq) - **required**
-//! - `AIPACK_OLLAMA_MODEL`: Ollama model name - default: "qwen2.5-coder:7b"
-//! - `AIPACK_LOG_LEVEL`: Logging level - default: "info"
-//! - `AIPACK_CACHE_ENABLED`: Enable caching (true|false) - default: "true"
-//! - `AIPACK_CACHE_DIR`: Cache directory path - default: system temp dir + "aipack-cache"
-//! - `AIPACK_REQUEST_TIMEOUT`: Timeout in seconds - default: "30"
-//! - `AIPACK_MAX_CONTEXT_SIZE`: Max context bytes - default: "512000" (500KB)
-//!
-//! ## GenAI Provider Configuration
-//! These environment variables are read directly by the genai library:
-//! - **Ollama**: `OLLAMA_HOST` (default: http://localhost:11434)
-//! - **OpenAI**: `OPENAI_API_KEY` (required), `OPENAI_API_BASE` (optional)
-//! - **Claude**: `ANTHROPIC_API_KEY` (required), `ANTHROPIC_BASE_URL` (optional)
-//! - **Gemini**: `GOOGLE_API_KEY` (required)
-//! - **Grok**: `XAI_API_KEY` (required)
-//! - **Groq**: `GROQ_API_KEY` (required)
-//!
-//! # Example
-//!
-//! ```no_run
-//! use aipack::AipackConfig;
-//! use std::env;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Set required environment variables
-//! env::set_var("AIPACK_PROVIDER", "ollama");
-//! env::set_var("OLLAMA_HOST", "http://localhost:11434"); // Optional, has default
-//!
-//! // Load configuration from environment with defaults
-//! let config = AipackConfig::default();
-//!
-//! // Validate configuration
-//! config.validate().expect("Invalid configuration");
-//!
-//! // Create backend directly from configuration
-//! let backend = config.create_backend().await?;
-//! # Ok(())
-//! # }
-//! ```
-
 use crate::ai::genai_backend::{BackendError, GenAIBackend, Provider};
 use std::env;
 use std::fmt;
@@ -55,74 +6,43 @@ use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 
-/// Default values for configuration
 const DEFAULT_OLLAMA_MODEL: &str = "qwen2.5-coder:7b";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_CACHE_ENABLED: bool = true;
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
-const DEFAULT_MAX_CONTEXT_SIZE: usize = 512_000; // 500KB
+const DEFAULT_MAX_CONTEXT_SIZE: usize = 512_000;
 
-/// Configuration errors
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    /// Provider not specified
     #[error("Provider not specified. Set AIPACK_PROVIDER environment variable (ollama|openai|claude|gemini|grok|groq)")]
     MissingProvider,
 
-    /// Invalid provider name
     #[error("Invalid provider: {0}. Valid options: ollama, openai, claude, gemini, grok, groq")]
     InvalidProvider(String),
 
-    /// Configuration validation failed
     #[error("Configuration validation failed: {0}")]
     ValidationFailed(String),
 
-    /// Failed to parse configuration value
     #[error("Failed to parse {field}: {error}")]
     ParseError { field: String, error: String },
 
-    /// Backend initialization failed
     #[error("Backend initialization failed: {0}")]
     BackendInitError(#[from] BackendError),
 }
 
-/// Main configuration structure for aipack
-///
-/// This struct holds all configuration parameters needed for aipack to operate.
-/// It can be constructed using `Default::default()` which loads from environment
-/// variables with sensible fallback defaults.
 #[derive(Debug, Clone)]
 pub struct AipackConfig {
-    /// LLM provider (from genai)
     pub provider: Provider,
-
-    /// Model name to use for inference (provider-specific)
     pub model: String,
-
-    /// Enable result caching
     pub cache_enabled: bool,
-
-    /// Cache directory path
     pub cache_dir: Option<PathBuf>,
-
-    /// Request timeout in seconds
     pub request_timeout_secs: u64,
-
-    /// Maximum context size in bytes
     pub max_context_size: usize,
-
-    /// Logging level (trace, debug, info, warn, error)
     pub log_level: String,
 }
 
 impl Default for AipackConfig {
-    /// Creates a new configuration by loading from environment variables with defaults
-    ///
-    /// This will read AIPACK_* environment variables and fall back to sensible defaults
-    /// for any missing values. Provider-specific configuration (API keys, endpoints) should
-    /// be set via standard genai environment variables (OLLAMA_HOST, OPENAI_API_KEY, etc.).
     fn default() -> Self {
-        // Read provider selection (required)
         let provider = env::var("AIPACK_PROVIDER")
             .ok()
             .and_then(|s| match s.to_lowercase().as_str() {
@@ -134,9 +54,8 @@ impl Default for AipackConfig {
                 "groq" => Some(Provider::Groq),
                 _ => None,
             })
-            .unwrap_or(Provider::Ollama); // Default to Ollama if not specified
+            .unwrap_or(Provider::Ollama);
 
-        // Model configuration - provider-specific defaults
         let model = env::var("AIPACK_MODEL")
             .ok()
             .unwrap_or_else(|| match provider {
@@ -144,7 +63,6 @@ impl Default for AipackConfig {
                 _ => "default-model".to_string(),
             });
 
-        // Caching configuration
         let cache_enabled = env::var("AIPACK_CACHE_ENABLED")
             .ok()
             .and_then(|v| v.parse::<bool>().ok())
@@ -161,7 +79,6 @@ impl Default for AipackConfig {
                 }
             });
 
-        // Runtime parameters
         let request_timeout_secs = env::var("AIPACK_REQUEST_TIMEOUT")
             .ok()
             .and_then(|v| v.parse::<u64>().ok())
@@ -172,7 +89,6 @@ impl Default for AipackConfig {
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_MAX_CONTEXT_SIZE);
 
-        // Logging configuration
         let log_level = env::var("AIPACK_LOG_LEVEL")
             .unwrap_or_else(|_| DEFAULT_LOG_LEVEL.to_string())
             .to_lowercase();
@@ -190,20 +106,7 @@ impl Default for AipackConfig {
 }
 
 impl AipackConfig {
-    /// Validates the configuration
-    ///
-    /// Checks that:
-    /// - Numeric values are in valid ranges
-    /// - Log level is valid
-    ///
-    /// Provider-specific validation (API keys, endpoints) is handled by genai
-    /// when the backend is initialized.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ConfigError` if any validation fails
     pub fn validate(&self) -> Result<(), ConfigError> {
-        // Validate timeout is reasonable (at least 1 second, max 10 minutes)
         if self.request_timeout_secs == 0 {
             return Err(ConfigError::ValidationFailed(
                 "Request timeout must be at least 1 second".to_string(),
@@ -215,7 +118,6 @@ impl AipackConfig {
             ));
         }
 
-        // Validate max context size is reasonable (at least 1KB, max 10MB)
         if self.max_context_size < 1024 {
             return Err(ConfigError::ValidationFailed(
                 "Max context size must be at least 1KB".to_string(),
@@ -227,7 +129,6 @@ impl AipackConfig {
             ));
         }
 
-        // Validate log level
         match self.log_level.as_str() {
             "trace" | "debug" | "info" | "warn" | "error" => {}
             _ => {
@@ -241,78 +142,23 @@ impl AipackConfig {
         Ok(())
     }
 
-    /// Creates an LLM backend based on the configured provider
-    ///
-    /// This method directly instantiates a GenAI backend using the configured provider.
-    /// Provider-specific configuration (API keys, endpoints) should be set via standard
-    /// genai environment variables (OLLAMA_HOST, OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).
-    ///
-    /// # Returns
-    ///
-    /// An `Arc<GenAIBackend>` ready for detection operations
-    ///
-    /// # Errors
-    ///
-    /// Returns `ConfigError` if backend initialization fails (missing API keys,
-    /// unreachable endpoints, etc.).
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::AipackConfig;
-    /// use std::env;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// // Set provider-specific env vars
-    /// env::set_var("AIPACK_PROVIDER", "ollama");
-    /// env::set_var("OLLAMA_HOST", "http://localhost:11434");
-    ///
-    /// let config = AipackConfig::default();
-    /// let backend = config.create_backend().await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn create_backend(&self) -> Result<Arc<GenAIBackend>, ConfigError> {
         let timeout = Duration::from_secs(self.request_timeout_secs);
-
-        // Use the configured model for all providers
         let model = self.model.clone();
-
         let client = GenAIBackend::with_config(self.provider, model, Some(timeout), None).await?;
-
         Ok(Arc::new(client))
     }
 
-    /// Computes the cache file path for a given repository
-    ///
-    /// # Arguments
-    ///
-    /// * `repo_name` - Name or identifier of the repository
-    ///
-    /// # Returns
-    ///
-    /// Path to the cache file for this repository
-    ///
-    /// # Panics
-    ///
-    /// Panics if cache_dir is None (should only be called when caching is enabled)
     pub fn cache_path(&self, repo_name: &str) -> PathBuf {
         let cache_dir = self
             .cache_dir
             .as_ref()
             .expect("cache_path called when caching is disabled");
 
-        // Sanitize repo name to be filesystem-safe
         let safe_name = repo_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
-
         cache_dir.join(format!("{}.json", safe_name))
     }
 
-    /// Converts configuration to a display map for output formatting
-    ///
-    /// # Returns
-    ///
-    /// A HashMap suitable for JSON/YAML serialization or display
     pub fn to_display_map(&self) -> std::collections::HashMap<String, String> {
         let mut map = std::collections::HashMap::new();
 
@@ -357,7 +203,6 @@ mod tests {
     use super::*;
     use std::env;
 
-    /// Helper to temporarily set environment variables for testing
     struct EnvGuard {
         key: String,
         old_value: Option<String>,
@@ -385,7 +230,6 @@ mod tests {
 
     #[test]
     fn test_default_configuration() {
-        // Clear relevant env vars
         let _guards = vec![
             EnvGuard::set("AIPACK_PROVIDER", "ollama"),
             EnvGuard::set("AIPACK_LOG_LEVEL", DEFAULT_LOG_LEVEL),

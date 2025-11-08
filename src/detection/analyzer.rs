@@ -1,29 +1,3 @@
-//! Repository analyzer for build system detection
-//!
-//! This module implements comprehensive repository analysis, including:
-//! - File system walking with configurable depth and ignore patterns
-//! - Key configuration file detection across multiple ecosystems
-//! - README extraction for additional context
-//! - Aggregation into structured RepositoryContext
-//!
-//! # Example
-//!
-//! ```ignore
-//! use aipack::detection::analyzer::RepositoryAnalyzer;
-//! use std::path::PathBuf;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let analyzer = RepositoryAnalyzer::new(PathBuf::from("/path/to/repo"));
-//!     let context = analyzer.analyze().await?;
-//!
-//!     println!("Detected {} key files", context.key_file_count());
-//!     println!("File tree:\n{}", context.file_tree);
-//!
-//!     Ok(())
-//! }
-//! ```
-
 use crate::detection::types::RepositoryContext;
 use regex::Regex;
 use std::collections::HashMap;
@@ -34,46 +8,25 @@ use std::time::Instant;
 use thiserror::Error;
 use walkdir::WalkDir;
 
-/// Maximum file size to read (50KB)
 const DEFAULT_MAX_FILE_SIZE: usize = 50 * 1024;
-
-/// Maximum directory depth to traverse
 const DEFAULT_MAX_DEPTH: usize = 3;
-
-/// Maximum entries in file tree
 const DEFAULT_FILE_TREE_LIMIT: usize = 100;
-
-/// Maximum README size to read (5KB)
 const MAX_README_SIZE: usize = 5 * 1024;
 
-/// Error types for repository analysis
 #[derive(Error, Debug)]
 pub enum AnalysisError {
-    /// Repository path does not exist
     #[error("Path does not exist: {0}")]
     PathNotFound(PathBuf),
-
-    /// Path is not a directory
     #[error("Path is not a directory: {0}")]
     NotADirectory(PathBuf),
-
-    /// Permission denied when accessing directory
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
-
-    /// Error reading a specific file
     #[error("Failed to read file {path}: {source}")]
     FileReadError { path: PathBuf, source: io::Error },
-
-    /// Repository is too large to analyze
     #[error("Repository too large: exceeded file tree limit of {0} entries")]
     TooLarge(usize),
-
-    /// Regex compilation error
     #[error("Invalid regex pattern: {0}")]
     InvalidRegex(String),
-
-    /// Other errors
     #[error("Analysis error: {0}")]
     Other(String),
 }
@@ -84,33 +37,11 @@ impl From<regex::Error> for AnalysisError {
     }
 }
 
-/// Configuration for repository analysis
-///
-/// Controls how the analyzer traverses the filesystem, what to ignore,
-/// and resource limits for large repositories.
-///
-/// # Example
-///
-/// ```
-/// use aipack::detection::analyzer::AnalyzerConfig;
-///
-/// let mut config = AnalyzerConfig::default();
-/// config.max_depth = 5;
-/// config.add_ignore_pattern("*.log".to_string());
-/// config.file_tree_limit = 200;
-/// ```
 #[derive(Debug, Clone)]
 pub struct AnalyzerConfig {
-    /// Maximum directory depth to traverse (default: 3)
     pub max_depth: usize,
-
-    /// Regex patterns to ignore during traversal
     pub ignore_patterns: Vec<String>,
-
-    /// Maximum file size to read in bytes (default: 50KB)
     pub max_file_size: usize,
-
-    /// Maximum entries in file tree before stopping (default: 100)
     pub file_tree_limit: usize,
 }
 
@@ -126,14 +57,6 @@ impl Default for AnalyzerConfig {
 }
 
 impl AnalyzerConfig {
-    /// Returns common ignore patterns for development
-    ///
-    /// Includes patterns for:
-    /// - Version control: .git, .hg, .svn
-    /// - Build outputs: target, dist, build, out
-    /// - Dependencies: node_modules, venv, vendor
-    /// - IDE files: .vscode, .idea, .DS_Store
-    /// - Temporary files: *.tmp, *.log
     pub fn default_ignores() -> Vec<String> {
         vec![
             r"^\.git$".to_string(),
@@ -160,24 +83,10 @@ impl AnalyzerConfig {
         ]
     }
 
-    /// Adds a custom ignore pattern
-    ///
-    /// The pattern should be a valid regex. It will be matched against
-    /// file and directory names (not full paths).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use aipack::detection::analyzer::AnalyzerConfig;
-    ///
-    /// let mut config = AnalyzerConfig::default();
-    /// config.add_ignore_pattern(r"^test_.*\.txt$".to_string());
-    /// ```
     pub fn add_ignore_pattern(&mut self, pattern: String) {
         self.ignore_patterns.push(pattern);
     }
 
-    /// Checks if a path should be ignored based on patterns
     fn should_ignore(&self, path: &Path) -> Result<bool, AnalysisError> {
         let file_name = match path.file_name() {
             Some(name) => name.to_string_lossy(),
@@ -195,59 +104,12 @@ impl AnalyzerConfig {
     }
 }
 
-/// Repository analyzer for build system detection
-///
-/// Walks the filesystem, detects key configuration files, reads READMEs,
-/// and aggregates everything into a structured context for LLM analysis.
-///
-/// # Example
-///
-/// ```ignore
-/// use aipack::detection::analyzer::{RepositoryAnalyzer, AnalyzerConfig};
-/// use std::path::PathBuf;
-///
-/// #[tokio::main]
-/// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Create analyzer with custom config
-///     let mut config = AnalyzerConfig::default();
-///     config.max_depth = 5;
-///
-///     let analyzer = RepositoryAnalyzer::with_config(
-///         PathBuf::from("/path/to/repo"),
-///         config
-///     );
-///
-///     // Analyze repository
-///     let context = analyzer.analyze().await?;
-///
-///     // Use the context
-///     println!("Found {} key files", context.key_file_count());
-///     for (file, content) in &context.key_files {
-///         println!("{}: {} bytes", file, content.len());
-///     }
-///
-///     Ok(())
-/// }
-/// ```
 pub struct RepositoryAnalyzer {
-    /// Root path of the repository
     repo_path: PathBuf,
-
-    /// Configuration for analysis
     config: AnalyzerConfig,
 }
 
 impl RepositoryAnalyzer {
-    /// Creates a new repository analyzer with default configuration
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use aipack::detection::analyzer::RepositoryAnalyzer;
-    /// use std::path::PathBuf;
-    ///
-    /// let analyzer = RepositoryAnalyzer::new(PathBuf::from("/path/to/repo"));
-    /// ```
     pub fn new(repo_path: PathBuf) -> Self {
         Self {
             repo_path,
@@ -255,76 +117,16 @@ impl RepositoryAnalyzer {
         }
     }
 
-    /// Creates a new repository analyzer with custom configuration
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use aipack::detection::analyzer::{RepositoryAnalyzer, AnalyzerConfig};
-    /// use std::path::PathBuf;
-    ///
-    /// let mut config = AnalyzerConfig::default();
-    /// config.max_depth = 5;
-    /// config.file_tree_limit = 200;
-    ///
-    /// let analyzer = RepositoryAnalyzer::with_config(
-    ///     PathBuf::from("/path/to/repo"),
-    ///     config
-    /// );
-    /// ```
     pub fn with_config(repo_path: PathBuf, config: AnalyzerConfig) -> Self {
         Self { repo_path, config }
     }
 
-    /// Performs comprehensive repository analysis
-    ///
-    /// This is the main entry point that orchestrates all analysis steps:
-    /// 1. Validates the repository path
-    /// 2. Walks the filesystem and builds a file tree
-    /// 3. Detects and reads key configuration files
-    /// 4. Finds and reads README
-    /// 5. Aggregates everything into RepositoryContext
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// - The repository path doesn't exist or isn't a directory
-    /// - Permission is denied when reading files
-    /// - The repository exceeds size limits
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// use aipack::detection::analyzer::RepositoryAnalyzer;
-    /// use std::path::PathBuf;
-    ///
-    /// #[tokio::main]
-    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    ///     let analyzer = RepositoryAnalyzer::new(PathBuf::from("."));
-    ///     let context = analyzer.analyze().await?;
-    ///
-    ///     println!("Analysis complete!");
-    ///     println!("File tree:\n{}", context.file_tree);
-    ///
-    ///     Ok(())
-    /// }
-    /// ```
     pub async fn analyze(&self) -> Result<RepositoryContext, AnalysisError> {
         let start_time = Instant::now();
-
-        // Step 1: Validate repository path
         self.validate_repo_path()?;
-
-        // Step 2: Walk filesystem and build file tree + detect files
         let (file_tree, detected_files) = self.walk_filesystem().await?;
-
-        // Step 3: Read key configuration files
         let key_files = self.read_key_files(&detected_files).await?;
-
-        // Step 4: Find and read README
         let readme_content = self.find_and_read_readme().await?;
-
-        // Step 5: Build and return context
         let context = self.build_context(
             file_tree,
             key_files,
@@ -332,11 +134,9 @@ impl RepositoryAnalyzer {
             detected_files,
             start_time,
         )?;
-
         Ok(context)
     }
 
-    /// Validates that the repository path exists and is a directory
     fn validate_repo_path(&self) -> Result<(), AnalysisError> {
         if !self.repo_path.exists() {
             return Err(AnalysisError::PathNotFound(self.repo_path.clone()));
@@ -349,15 +149,11 @@ impl RepositoryAnalyzer {
         Ok(())
     }
 
-    /// Walks the filesystem and builds a visual tree + list of detected files
-    ///
-    /// Returns a tuple of (file_tree_string, detected_file_paths)
     async fn walk_filesystem(&self) -> Result<(String, Vec<PathBuf>), AnalysisError> {
         let mut tree_lines = Vec::new();
         let mut detected_files = Vec::new();
         let mut entry_count = 0;
 
-        // Add root directory name
         let root_name = self
             .repo_path
             .file_name()
@@ -365,24 +161,20 @@ impl RepositoryAnalyzer {
             .unwrap_or("repository");
         tree_lines.push(format!("{}/", root_name));
 
-        // Walk directory tree
         for entry in WalkDir::new(&self.repo_path)
             .max_depth(self.config.max_depth)
             .follow_links(false)
             .into_iter()
             .filter_entry(|e| {
-                // Skip root path itself
                 if e.path() == self.repo_path {
                     return true;
                 }
-                // Check ignore patterns
                 match self.config.should_ignore(e.path()) {
                     Ok(should_ignore) => !should_ignore,
-                    Err(_) => true, // If regex fails, include the file
+                    Err(_) => true,
                 }
             })
         {
-            // Check file tree limit
             if entry_count >= self.config.file_tree_limit {
                 tree_lines.push(format!(
                     "... (truncated at {} entries)",
@@ -394,7 +186,6 @@ impl RepositoryAnalyzer {
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
-                    // Handle permission errors gracefully
                     if let Some(io_err) = e.io_error() {
                         if io_err.kind() == io::ErrorKind::PermissionDenied {
                             return Err(AnalysisError::PermissionDenied(
@@ -409,14 +200,12 @@ impl RepositoryAnalyzer {
                 }
             };
 
-            // Skip root directory itself
             if entry.path() == self.repo_path {
                 continue;
             }
 
             entry_count += 1;
 
-            // Calculate relative path and depth for tree formatting
             let relative_path = entry
                 .path()
                 .strip_prefix(&self.repo_path)
@@ -426,7 +215,6 @@ impl RepositoryAnalyzer {
             let is_dir = entry.file_type().is_dir();
             let file_name = entry.file_name().to_string_lossy();
 
-            // Build tree line with proper indentation
             let indent = "  ".repeat(depth.saturating_sub(1));
             let prefix = if depth > 0 { "├── " } else { "" };
 
@@ -438,7 +226,6 @@ impl RepositoryAnalyzer {
 
             tree_lines.push(format!("{}{}{}", indent, prefix, display_name));
 
-            // Track files (not directories) for key file detection
             if !is_dir {
                 detected_files.push(relative_path.to_path_buf());
             }
@@ -448,42 +235,28 @@ impl RepositoryAnalyzer {
         Ok((file_tree, detected_files))
     }
 
-    /// Checks if a file is a key configuration file
     fn is_key_file(path: &Path) -> bool {
         let file_name = match path.file_name() {
             Some(name) => name.to_string_lossy(),
             None => return false,
         };
 
-        // List of key configuration files to detect
         matches!(
             file_name.as_ref(),
-            // Node.js
             "package.json" | "package-lock.json" | "yarn.lock" | "pnpm-lock.yaml" |
             ".npmrc" | ".yarnrc" | "tsconfig.json" |
-            // Rust
             "Cargo.toml" | "Cargo.lock" | "rust-toolchain.toml" | "rust-toolchain" |
-            // Python
             "pyproject.toml" | "setup.py" | "setup.cfg" | "requirements.txt" |
             "Pipfile" | "Pipfile.lock" | "poetry.lock" | "tox.ini" |
-            // JVM (Java/Kotlin/Scala)
             "build.gradle" | "build.gradle.kts" | "pom.xml" | "settings.gradle" |
             "settings.gradle.kts" | "build.sbt" | "project/build.properties" |
-            // Go
             "go.mod" | "go.sum" | "go.work" |
-            // Ruby
             "Gemfile" | "Gemfile.lock" | "Rakefile" | ".ruby-version" |
-            // PHP
             "composer.json" | "composer.lock" |
-            // .NET
             "*.csproj" | "*.fsproj" | "*.vbproj" | "*.sln" | "global.json" | "nuget.config" |
-            // Docker
             "Dockerfile" | "docker-compose.yml" | "docker-compose.yaml" | ".dockerignore" |
-            // Make
             "Makefile" | "makefile" | "GNUmakefile" |
-            // CI/CD
             ".gitlab-ci.yml" | ".travis.yml" | "circle.yml" | "appveyor.yml" |
-            // Other
             "CMakeLists.txt" | "meson.build" | "BUILD" | "BUILD.bazel" | "WORKSPACE"
         ) || file_name.ends_with(".csproj")
             || file_name.ends_with(".fsproj")
@@ -498,7 +271,6 @@ impl RepositoryAnalyzer {
                 || file_name.ends_with(".yaml"))
     }
 
-    /// Reads contents of key configuration files
     async fn read_key_files(
         &self,
         detected_files: &[PathBuf],
@@ -512,31 +284,26 @@ impl RepositoryAnalyzer {
 
             let full_path = self.repo_path.join(relative_path);
 
-            // Check file size before reading
             match fs::metadata(&full_path) {
                 Ok(metadata) => {
                     if metadata.len() > self.config.max_file_size as u64 {
-                        // Skip files that are too large
                         continue;
                     }
                 }
-                Err(_) => continue, // Skip files we can't read metadata for
+                Err(_) => continue,
             }
 
-            // Read file contents
             match fs::read_to_string(&full_path) {
                 Ok(contents) => {
                     let key = relative_path.to_string_lossy().to_string();
                     key_files.insert(key, contents);
                 }
                 Err(e) => {
-                    // For key files, we want to surface read errors
                     if e.kind() == io::ErrorKind::PermissionDenied {
                         return Err(AnalysisError::PermissionDenied(
                             full_path.display().to_string(),
                         ));
                     }
-                    // For other errors, just skip the file
                     continue;
                 }
             }
@@ -545,10 +312,6 @@ impl RepositoryAnalyzer {
         Ok(key_files)
     }
 
-    /// Finds and reads README file
-    ///
-    /// Looks for common README filenames in the repository root.
-    /// Returns None if no README is found or if it can't be read.
     async fn find_and_read_readme(&self) -> Result<Option<String>, AnalysisError> {
         let readme_names = [
             "README.md",
@@ -569,11 +332,9 @@ impl RepositoryAnalyzer {
                 continue;
             }
 
-            // Check file size
             match fs::metadata(&readme_path) {
                 Ok(metadata) => {
                     if metadata.len() > MAX_README_SIZE as u64 {
-                        // Read only first MAX_README_SIZE bytes
                         match fs::read(&readme_path) {
                             Ok(bytes) => {
                                 let truncated = &bytes[..MAX_README_SIZE.min(bytes.len())];
@@ -584,7 +345,6 @@ impl RepositoryAnalyzer {
                             Err(_) => continue,
                         }
                     } else {
-                        // Read entire file
                         match fs::read_to_string(&readme_path) {
                             Ok(content) => return Ok(Some(content)),
                             Err(_) => continue,
@@ -598,7 +358,6 @@ impl RepositoryAnalyzer {
         Ok(None)
     }
 
-    /// Builds the final RepositoryContext from gathered information
     fn build_context(
         &self,
         file_tree: String,
@@ -619,7 +378,7 @@ impl RepositoryAnalyzer {
             readme_content,
             detected_files: detected_file_names,
             repo_path: self.repo_path.clone(),
-            git_info: None, // Git info extraction can be added later
+            git_info: None,
         };
 
         Ok(context)

@@ -1,20 +1,3 @@
-//! Output formatting for multiple formats
-//!
-//! This module provides formatters for different output formats including JSON, YAML,
-//! and human-readable text. Each formatter implements consistent styling and structure.
-//!
-//! # Example
-//!
-//! ```ignore
-//! use aipack::cli::output::{OutputFormat, OutputFormatter};
-//! use aipack::detection::types::DetectionResult;
-//!
-//! let result = DetectionResult::new(/* ... */);
-//! let formatter = OutputFormatter::new(OutputFormat::Json);
-//! let output = formatter.format(&result)?;
-//! println!("{}", output);
-//! ```
-
 use anyhow::{Context, Result};
 use serde_json;
 use serde_yaml;
@@ -22,29 +5,22 @@ use std::collections::HashMap;
 
 use crate::detection::types::{DetectionResult, RepositoryContext};
 
-/// Output format enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
-    /// JSON format (machine-readable)
     Json,
-    /// YAML format (human-friendly, version-control friendly)
     Yaml,
-    /// Human-readable formatted text
     Human,
 }
 
-/// Output formatter for detection results
 pub struct OutputFormatter {
     format: OutputFormat,
 }
 
 impl OutputFormatter {
-    /// Creates a new output formatter with the specified format
     pub fn new(format: OutputFormat) -> Self {
         Self { format }
     }
 
-    /// Formats a detection result according to the configured format
     pub fn format(&self, result: &DetectionResult) -> Result<String> {
         match self.format {
             OutputFormat::Json => self.format_json(result),
@@ -53,7 +29,6 @@ impl OutputFormatter {
         }
     }
 
-    /// Formats a detection result with repository context (verbose mode)
     pub fn format_with_context(
         &self,
         result: &DetectionResult,
@@ -66,7 +41,6 @@ impl OutputFormatter {
         }
     }
 
-    /// Formats health check results
     pub fn format_health(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
         match self.format {
             OutputFormat::Json => self.format_health_json(health_results),
@@ -75,7 +49,6 @@ impl OutputFormatter {
         }
     }
 
-    /// Formats health check results with environment variable information
     pub fn format_health_with_env_vars(
         &self,
         health_results: &HashMap<String, HealthStatus>,
@@ -87,8 +60,6 @@ impl OutputFormatter {
             OutputFormat::Human => self.format_health_with_env_vars_human(health_results, env_vars),
         }
     }
-
-    // JSON formatting methods
 
     fn format_json(&self, result: &DetectionResult) -> Result<String> {
         serde_json::to_string_pretty(result).context("Failed to serialize detection result to JSON")
@@ -133,8 +104,6 @@ impl OutputFormatter {
             .context("Failed to serialize health status with env vars to JSON")
     }
 
-    // YAML formatting methods
-
     fn format_yaml(&self, result: &DetectionResult) -> Result<String> {
         serde_yaml::to_string(result).context("Failed to serialize detection result to YAML")
     }
@@ -175,8 +144,6 @@ impl OutputFormatter {
         serde_yaml::to_string(&output)
             .context("Failed to serialize health status with env vars to YAML")
     }
-
-    // Human-readable formatting methods
 
     fn format_human(&self, result: &DetectionResult) -> Result<String> {
         let mut output = String::new();
@@ -391,34 +358,23 @@ impl OutputFormatter {
     }
 }
 
-/// Health status for a backend
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HealthStatus {
-    /// Whether the backend is available
     pub available: bool,
-    /// Status message
     pub message: String,
-    /// Optional additional details
     pub details: Option<String>,
 }
 
-/// Environment variable information
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EnvVarInfo {
-    /// Variable name
     pub name: String,
-    /// Current value (masked for secrets)
     pub value: Option<String>,
-    /// Default value if not set
     pub default: Option<String>,
-    /// Whether this is a required variable
     pub required: bool,
-    /// Description of what this variable does
     pub description: String,
 }
 
 impl HealthStatus {
-    /// Creates a new health status indicating availability
     pub fn available(message: String) -> Self {
         Self {
             available: true,
@@ -427,7 +383,6 @@ impl HealthStatus {
         }
     }
 
-    /// Creates a new health status indicating unavailability
     pub fn unavailable(message: String) -> Self {
         Self {
             available: false,
@@ -436,7 +391,6 @@ impl HealthStatus {
         }
     }
 
-    /// Adds additional details to the health status
     pub fn with_details(mut self, details: String) -> Self {
         self.details = Some(details);
         self

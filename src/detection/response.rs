@@ -1,37 +1,3 @@
-//! Response parsing for LLM outputs
-//!
-//! This module handles parsing and validation of LLM responses, converting
-//! raw text responses into structured `DetectionResult` objects. It includes
-//! robust error handling for common issues like:
-//!
-//! - Markdown code blocks wrapping JSON
-//! - Extraneous text before/after JSON
-//! - Missing or invalid fields
-//! - Out-of-range confidence values
-//!
-//! # Example
-//!
-//! ```
-//! use aipack::detection::response::parse_ollama_response;
-//!
-//! let response = r#"{
-//!   "language": "Rust",
-//!   "build_system": "cargo",
-//!   "build_command": "cargo build --release",
-//!   "test_command": "cargo test",
-//!   "runtime": "rust:1.75",
-//!   "dependencies": [],
-//!   "entry_point": "/app",
-//!   "confidence": 0.95,
-//!   "reasoning": "Standard Rust project with Cargo.toml",
-//!   "warnings": []
-//! }"#;
-//!
-//! let result = parse_ollama_response(response).unwrap();
-//! assert_eq!(result.build_system, "cargo");
-//! assert_eq!(result.confidence, 0.95);
-//! ```
-
 use crate::detection::types::DetectionResult;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -40,127 +6,45 @@ use std::time::Instant;
 use thiserror::Error;
 use tracing::{debug, warn};
 
-/// Errors that can occur during response parsing
 #[derive(Debug, Error)]
 pub enum ParseError {
-    /// JSON parsing failed
     #[error("Invalid JSON: {0}")]
     InvalidJson(String),
-
-    /// Required field is missing from the response
     #[error("Missing required field: {0}")]
     MissingField(String),
-
-    /// Confidence value is out of valid range (0.0-1.0)
     #[error("Invalid confidence value: {0} (must be between 0.0 and 1.0)")]
     InvalidConfidence(f32),
-
-    /// Command field is empty or invalid
     #[error("Invalid command for {0}: command cannot be empty")]
     InvalidCommand(String),
-
-    /// Generic parsing error
     #[error("Parse error: {0}")]
     Other(String),
 }
 
-/// Internal structure matching the LLM's JSON response format
-///
-/// This structure is used for deserializing the raw JSON response before
-/// converting it to a `DetectionResult`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LlmResponse {
-    /// Detected programming language
     language: String,
-
-    /// Build system or package manager
     build_system: String,
-
-    /// Command to build the project
     build_command: String,
-
-    /// Command to run tests
     test_command: String,
-
-    /// Docker runtime/base image required
     runtime: String,
-
-    /// System dependencies/packages needed in Docker image
     #[serde(default)]
     dependencies: Vec<String>,
-
-    /// Command to start the application (ENTRYPOINT for Docker)
     entry_point: String,
-
-    /// Optional development/watch command
     #[serde(default)]
     dev_command: Option<String>,
-
-    /// Confidence score (0.0-1.0)
     confidence: f32,
-
-    /// Explanation of the detection
     reasoning: String,
-
-    /// List of warnings or potential issues
     #[serde(default)]
     warnings: Vec<String>,
 }
 
-/// Parses an Ollama API response into a DetectionResult
-///
-/// This is the main entry point for response parsing. It handles:
-/// - Extracting JSON from various formats (plain, markdown-wrapped, etc.)
-/// - Deserializing the JSON into structured data
-/// - Validating all fields
-/// - Converting to `DetectionResult`
-///
-/// # Arguments
-///
-/// * `response` - Raw response text from Ollama API
-///
-/// # Returns
-///
-/// A validated `DetectionResult`
-///
-/// # Errors
-///
-/// Returns `ParseError` if:
-/// - JSON cannot be extracted or parsed
-/// - Required fields are missing
-/// - Field values are invalid (empty commands, confidence out of range)
-///
-/// # Example
-///
-/// ```
-/// use aipack::detection::response::parse_ollama_response;
-///
-/// let response = r#"{
-///   "language": "JavaScript",
-///   "build_system": "npm",
-///   "build_command": "npm run build",
-///   "test_command": "npm test",
-///   "runtime": "node:20",
-///   "dependencies": [],
-///   "entry_point": "node index.js",
-///   "confidence": 0.9,
-///   "reasoning": "Detected package.json with standard npm scripts",
-///   "warnings": ["No package-lock.json found"]
-/// }"#;
-///
-/// let result = parse_ollama_response(response).unwrap();
-/// assert_eq!(result.language, "JavaScript");
-/// assert_eq!(result.warnings.len(), 1);
-/// ```
 pub fn parse_ollama_response(response: &str) -> Result<DetectionResult, ParseError> {
     let start = Instant::now();
 
     debug!("Parsing response ({} chars)", response.len());
 
-    // Extract JSON from the response
     let json_str = extract_json_from_response(response)?;
 
-    // Parse JSON into LlmResponse
     let llm_response: LlmResponse = serde_json::from_str(&json_str).map_err(|e| {
         warn!("JSON parse error: {}", e);
         ParseError::InvalidJson(format!(
@@ -170,13 +54,8 @@ pub fn parse_ollama_response(response: &str) -> Result<DetectionResult, ParseErr
         ))
     })?;
 
-    // Convert to DetectionResult
     let mut result = convert_to_detection_result(llm_response)?;
-
-    // Validate the result
     validate_detection_result(&result)?;
-
-    // Set processing time (this will be overwritten by the actual time from the API)
     result.processing_time_ms = start.elapsed().as_millis() as u64;
 
     debug!("Successfully parsed response in {:?}", start.elapsed());
@@ -184,38 +63,17 @@ pub fn parse_ollama_response(response: &str) -> Result<DetectionResult, ParseErr
     Ok(result)
 }
 
-/// Extracts JSON from a response that may contain extraneous text
-///
-/// Handles several common formats:
-/// - Plain JSON: `{"key": "value"}`
-/// - Markdown code blocks: ` ```json\n{"key": "value"}\n``` `
-/// - Text with JSON embedded: `Here is the result: {"key": "value"}`
-///
-/// # Arguments
-///
-/// * `response` - Raw response text
-///
-/// # Returns
-///
-/// Extracted JSON string
-///
-/// # Errors
-///
-/// Returns `ParseError::InvalidJson` if no valid JSON can be found
 pub fn extract_json_from_response(response: &str) -> Result<String, ParseError> {
     let trimmed = response.trim();
 
-    // Case 1: Response is already clean JSON
     if trimmed.starts_with('{') && trimmed.ends_with('}') {
         return Ok(trimmed.to_string());
     }
 
-    // Case 2: Response is wrapped in markdown code block
     if trimmed.contains("```") {
         return extract_from_markdown_block(trimmed);
     }
 
-    // Case 3: JSON is embedded in text - find the first { and last }
     if let Some(start) = trimmed.find('{') {
         if let Some(end) = trimmed.rfind('}') {
             if start < end {
@@ -224,15 +82,12 @@ pub fn extract_json_from_response(response: &str) -> Result<String, ParseError> 
         }
     }
 
-    // No JSON found
     Err(ParseError::InvalidJson(
         "No JSON object found in response".to_string(),
     ))
 }
 
-/// Extracts JSON from a markdown code block
 fn extract_from_markdown_block(text: &str) -> Result<String, ParseError> {
-    // Pattern: ```json\n{...}\n``` or ```\n{...}\n```
     let re = Regex::new(r"```(?:json)?\s*\n?([\s\S]*?)\n?```").unwrap();
 
     if let Some(captures) = re.captures(text) {
@@ -249,9 +104,7 @@ fn extract_from_markdown_block(text: &str) -> Result<String, ParseError> {
     ))
 }
 
-/// Converts an LlmResponse to a DetectionResult
 fn convert_to_detection_result(llm: LlmResponse) -> Result<DetectionResult, ParseError> {
-    // Clamp confidence to valid range
     let confidence = llm.confidence.clamp(0.0, 1.0);
 
     if confidence != llm.confidence {
@@ -273,57 +126,36 @@ fn convert_to_detection_result(llm: LlmResponse) -> Result<DetectionResult, Pars
         confidence,
         reasoning: llm.reasoning,
         warnings: llm.warnings,
-        detected_files: Vec::new(), // Will be populated by caller
-        processing_time_ms: 0,      // Will be set by caller
+        detected_files: Vec::new(),
+        processing_time_ms: 0,
     })
 }
 
-/// Validates a DetectionResult to ensure all fields are valid
-///
-/// Checks:
-/// - Required commands are not empty
-/// - Language is not empty
-/// - Confidence is in valid range
-///
-/// # Arguments
-///
-/// * `result` - Detection result to validate
-///
-/// # Errors
-///
-/// Returns `ParseError` if validation fails
 pub fn validate_detection_result(result: &DetectionResult) -> Result<(), ParseError> {
-    // Validate language
     if result.language.trim().is_empty() {
         return Err(ParseError::MissingField("language".to_string()));
     }
 
-    // Validate build_system
     if result.build_system.trim().is_empty() {
         return Err(ParseError::MissingField("build_system".to_string()));
     }
 
-    // Validate build_command
     if result.build_command.trim().is_empty() {
         return Err(ParseError::InvalidCommand("build_command".to_string()));
     }
 
-    // Validate test_command
     if result.test_command.trim().is_empty() {
         return Err(ParseError::InvalidCommand("test_command".to_string()));
     }
 
-    // Validate Docker runtime
     if result.runtime.trim().is_empty() {
         return Err(ParseError::MissingField("runtime".to_string()));
     }
 
-    // Validate Docker entry point
     if result.entry_point.trim().is_empty() {
         return Err(ParseError::MissingField("entry_point".to_string()));
     }
 
-    // Validate confidence range
     if !(0.0..=1.0).contains(&result.confidence) {
         return Err(ParseError::InvalidConfidence(result.confidence));
     }

@@ -1,26 +1,3 @@
-//! Main CLI entry point for aipack
-//!
-//! This binary provides the command-line interface for aipack, orchestrating
-//! repository detection, backend health checks, and configuration management.
-//!
-//! # Commands
-//!
-//! - `detect` - Detect build commands in a repository
-//! - `health` - Check backend availability
-//!
-//! # Example Usage
-//!
-//! ```bash
-//! # Detect build system in current directory
-//! aipack detect
-//!
-//! # Detect with JSON output
-//! aipack detect --format json
-//!
-//! # Check backend health
-//! aipack health
-//! ```
-
 use aipack::ai::genai_backend::Provider;
 use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
@@ -58,14 +35,6 @@ async fn main() {
     process::exit(exit_code);
 }
 
-/// Initializes logging based on CLI arguments
-///
-/// Respects the following priority (highest to lowest):
-/// 1. --log-level flag
-/// 2. --verbose flag
-/// 3. --quiet flag
-/// 4. AIPACK_LOG_LEVEL environment variable
-/// 5. Default (INFO)
 fn init_logging_from_args(args: &CliArgs) {
     use std::sync::Once;
     static INIT: Once = Once::new();
@@ -103,7 +72,6 @@ fn init_logging_from_args(args: &CliArgs) {
     });
 }
 
-/// Parses a log level from a string
 fn parse_level(level_str: &str) -> Level {
     match level_str.to_lowercase().as_str() {
         "trace" => Level::TRACE,
@@ -121,14 +89,6 @@ fn parse_level(level_str: &str) -> Level {
     }
 }
 
-/// Handles the detect command
-///
-/// This function:
-/// 1. Loads configuration
-/// 2. Validates repository path
-/// 3. Creates detection service
-/// 4. Performs detection
-/// 5. Formats and outputs results
 async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     info!("Starting build system detection");
 
@@ -331,7 +291,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     }
 }
 
-/// Masks API keys for display
 fn mask_api_key(value: &str) -> String {
     if value.len() <= 8 {
         "*".repeat(value.len())
@@ -340,7 +299,6 @@ fn mask_api_key(value: &str) -> String {
     }
 }
 
-/// Collects environment variable information for all backends
 fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
     let mut env_vars = HashMap::new();
 
@@ -435,9 +393,6 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
     env_vars
 }
 
-/// Handles the health command
-///
-/// Checks availability of configured backends and displays status.
 async fn handle_health(args: &HealthArgs) -> i32 {
     info!("Checking backend health");
 

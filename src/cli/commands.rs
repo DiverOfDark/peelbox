@@ -1,23 +1,3 @@
-//! CLI command definitions using clap derive macros
-//!
-//! This module defines all CLI commands, arguments, and options for the aipack tool.
-//! It uses clap's derive API for automatic help generation and argument parsing.
-//!
-//! # Commands
-//!
-//! - `detect` - Detect build commands in a repository
-//! - `health` - Check backend availability and configuration
-//!
-//! # Example
-//!
-//! ```ignore
-//! use aipack::cli::CliArgs;
-//! use clap::Parser;
-//!
-//! let args = CliArgs::parse();
-//! println!("Command: {:?}", args.command);
-//! ```
-
 use crate::ai::genai_backend::Provider;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
