@@ -721,27 +721,33 @@ impl GenAIBackend {
                     has_read_file = true;
                 }
 
-                // Execute the tool
+                // Execute the tool and convert errors to tool responses
                 let result = executor
                     .execute(&tool_call.fn_name, tool_call.fn_arguments.clone())
-                    .await
-                    .map_err(|e| {
-                        warn!("Tool {} failed: {}", tool_call.fn_name, e);
-                        BackendError::Other {
-                            message: format!("Tool {} failed: {}", tool_call.fn_name, e),
-                        }
-                    })?;
+                    .await;
 
-                debug!(
-                    "Tool {} returned {} bytes",
-                    tool_call.fn_name,
-                    result.len()
-                );
+                let content = match result {
+                    Ok(output) => {
+                        debug!(
+                            "Tool {} returned {} bytes",
+                            tool_call.fn_name,
+                            output.len()
+                        );
+                        output
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Tool {} failed, returning error to LLM: {}",
+                            tool_call.fn_name, e
+                        );
+                        format!("Error: {}", e)
+                    }
+                };
 
                 // Add tool response to conversation
                 let tool_response = ToolResponse {
                     call_id: tool_call.call_id.clone(),
-                    content: result,
+                    content,
                 };
                 messages.push(tool_response.into());
             }
