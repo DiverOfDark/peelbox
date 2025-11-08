@@ -2,7 +2,6 @@ use aipack::ai::genai_backend::Provider;
 use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
-use aipack::detection::analyzer::RepositoryAnalyzer;
 use aipack::detection::service::DetectionService;
 use aipack::VERSION;
 
@@ -164,7 +163,9 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
                 Provider::Ollama => {
                     eprintln!("  - Ensure Ollama is running: ollama serve");
                     eprintln!("  - Check OLLAMA_HOST environment variable (default: http://localhost:11434)");
-                    eprintln!("  - Try a different provider: --backend openai, --backend claude, etc.");
+                    eprintln!(
+                        "  - Try a different provider: --backend openai, --backend claude, etc."
+                    );
                 }
                 Provider::OpenAI => {
                     eprintln!("  - Set OPENAI_API_KEY environment variable");
@@ -209,50 +210,21 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
 
     info!(
         "Detection complete: {} ({}) with {:.1}% confidence",
-        result.build_system,
-        result.language,
-        result.confidence * 100.0
+        result.metadata.build_system,
+        result.metadata.language,
+        result.metadata.confidence * 100.0
     );
 
     // Format output
     let format: OutputFormat = args.format.into();
     let formatter = OutputFormatter::new(format);
 
-    let output = if args.verbose_output {
-        // Include repository context in verbose mode
-        let analyzer = RepositoryAnalyzer::new(repo_path.clone());
-        match analyzer.analyze().await {
-            Ok(context) => match formatter.format_with_context(&result, &context) {
-                Ok(out) => out,
-                Err(e) => {
-                    error!("Failed to format output: {}", e);
-                    eprintln!("Error: Failed to format output: {}", e);
-                    return 1;
-                }
-            },
-            Err(e) => {
-                error!("Failed to analyze repository for verbose output: {}", e);
-                eprintln!("Warning: Failed to gather verbose context: {}", e);
-                eprintln!("Falling back to regular output format");
-                // Fall back to regular output
-                match formatter.format(&result) {
-                    Ok(out) => out,
-                    Err(e) => {
-                        error!("Failed to format output: {}", e);
-                        eprintln!("Error: Failed to format output: {}", e);
-                        return 1;
-                    }
-                }
-            }
-        }
-    } else {
-        match formatter.format(&result) {
-            Ok(out) => out,
-            Err(e) => {
-                error!("Failed to format output: {}", e);
-                eprintln!("Error: Failed to format output: {}", e);
-                return 1;
-            }
+    let output = match formatter.format(&result) {
+        Ok(out) => out,
+        Err(e) => {
+            error!("Failed to format output: {}", e);
+            eprintln!("Error: Failed to format output: {}", e);
+            return 1;
         }
     };
 
@@ -280,10 +252,10 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     }
 
     // Exit with warning code if confidence is low
-    if result.is_low_confidence() {
+    if result.metadata.confidence < 0.7 {
         warn!(
             "Detection confidence is low ({:.1}%)",
-            result.confidence * 100.0
+            result.metadata.confidence * 100.0
         );
         2 // Exit code 2 for low confidence
     } else {
@@ -308,7 +280,11 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
         "Ollama".to_string(),
         vec![EnvVarInfo {
             name: "OLLAMA_HOST".to_string(),
-            value: Some(ollama_host.clone().unwrap_or_else(|_| "http://localhost:11434 (default)".to_string())),
+            value: Some(
+                ollama_host
+                    .clone()
+                    .unwrap_or_else(|_| "http://localhost:11434 (default)".to_string()),
+            ),
             default: Some("http://localhost:11434".to_string()),
             required: false,
             description: "Ollama server endpoint".to_string(),
@@ -330,7 +306,11 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
             },
             EnvVarInfo {
                 name: "OPENAI_API_BASE".to_string(),
-                value: Some(openai_base.clone().unwrap_or_else(|_| "https://api.openai.com/v1 (default)".to_string())),
+                value: Some(
+                    openai_base
+                        .clone()
+                        .unwrap_or_else(|_| "https://api.openai.com/v1 (default)".to_string()),
+                ),
                 default: Some("https://api.openai.com/v1".to_string()),
                 required: false,
                 description: "Custom API endpoint (e.g., for Azure OpenAI)".to_string(),
@@ -421,7 +401,8 @@ async fn handle_health(args: &HealthArgs) -> i32 {
         let status = match provider {
             Provider::Ollama => {
                 // Check Ollama availability by attempting to connect
-                let ollama_host = env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://localhost:11434".to_string());
+                let ollama_host = env::var("OLLAMA_HOST")
+                    .unwrap_or_else(|_| "http://localhost:11434".to_string());
                 let url = format!("{}/api/tags", ollama_host);
                 let client = reqwest::Client::builder()
                     .timeout(std::time::Duration::from_secs(2))
@@ -542,4 +523,3 @@ async fn handle_health(args: &HealthArgs) -> i32 {
         1
     }
 }
-

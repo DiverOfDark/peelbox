@@ -45,10 +45,10 @@ Conciseness requirements:
 - Avoid verbose explanations or lengthy reasoning. Focus on calling tools efficiently.
 
 Focus on identifying:
-- Programming language
-- Build system
-- Build and test commands from the build file
-- Runtime environment
-- Main entry point
+- Programming language and build system
+- Build stage: base image, build commands, artifacts produced
+- Runtime stage: runtime image, how to run the application, exposed ports
+- Whether a multi-stage build is beneficial (separate build vs runtime images)
+- Test commands and development commands if applicable
 
 Submit when you have reasonable confidence (>70%) based on reading the primary build configuration file."#;

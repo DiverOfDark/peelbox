@@ -3,8 +3,8 @@
 //! This module defines the core trait that all LLM backends must implement
 //! to provide build system detection capabilities.
 
-use crate::detection::types::DetectionResult;
 use crate::detection::JumpstartContext;
+use crate::output::UniversalBuild;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
@@ -41,7 +41,7 @@ pub use super::genai_backend::BackendError;
 /// ).await?;
 ///
 /// let result = backend.detect(PathBuf::from("/path/to/repo"), None).await?;
-/// println!("Detected: {}", result.build_system);
+/// println!("Detected: {}", result.metadata.build_system);
 /// # Ok(())
 /// # }
 /// ```
@@ -61,8 +61,8 @@ pub trait LLMBackend: Send + Sync {
     ///
     /// # Returns
     ///
-    /// A `DetectionResult` containing build system information, commands,
-    /// confidence score, and reasoning.
+    /// A `UniversalBuild` containing the complete container build specification,
+    /// including build stage, runtime stage, metadata, and confidence score.
     ///
     /// # Errors
     ///
@@ -75,7 +75,7 @@ pub trait LLMBackend: Send + Sync {
         &self,
         repo_path: PathBuf,
         jumpstart_context: Option<JumpstartContext>,
-    ) -> Result<DetectionResult, BackendError>;
+    ) -> Result<UniversalBuild, BackendError>;
 
     /// Returns the human-readable name of this backend
     ///

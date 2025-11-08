@@ -243,21 +243,63 @@ impl RepositoryAnalyzer {
 
         matches!(
             file_name.as_ref(),
-            "package.json" | "package-lock.json" | "yarn.lock" | "pnpm-lock.yaml" |
-            ".npmrc" | ".yarnrc" | "tsconfig.json" |
-            "Cargo.toml" | "Cargo.lock" | "rust-toolchain.toml" | "rust-toolchain" |
-            "pyproject.toml" | "setup.py" | "setup.cfg" | "requirements.txt" |
-            "Pipfile" | "Pipfile.lock" | "poetry.lock" | "tox.ini" |
-            "build.gradle" | "build.gradle.kts" | "pom.xml" | "settings.gradle" |
-            "settings.gradle.kts" | "build.sbt" | "project/build.properties" |
-            "go.mod" | "go.sum" | "go.work" |
-            "Gemfile" | "Gemfile.lock" | "Rakefile" | ".ruby-version" |
-            "composer.json" | "composer.lock" |
-            "*.csproj" | "*.fsproj" | "*.vbproj" | "*.sln" | "global.json" | "nuget.config" |
-            "Dockerfile" | "docker-compose.yml" | "docker-compose.yaml" | ".dockerignore" |
-            "Makefile" | "makefile" | "GNUmakefile" |
-            ".gitlab-ci.yml" | ".travis.yml" | "circle.yml" | "appveyor.yml" |
-            "CMakeLists.txt" | "meson.build" | "BUILD" | "BUILD.bazel" | "WORKSPACE"
+            "package.json"
+                | "package-lock.json"
+                | "yarn.lock"
+                | "pnpm-lock.yaml"
+                | ".npmrc"
+                | ".yarnrc"
+                | "tsconfig.json"
+                | "Cargo.toml"
+                | "Cargo.lock"
+                | "rust-toolchain.toml"
+                | "rust-toolchain"
+                | "pyproject.toml"
+                | "setup.py"
+                | "setup.cfg"
+                | "requirements.txt"
+                | "Pipfile"
+                | "Pipfile.lock"
+                | "poetry.lock"
+                | "tox.ini"
+                | "build.gradle"
+                | "build.gradle.kts"
+                | "pom.xml"
+                | "settings.gradle"
+                | "settings.gradle.kts"
+                | "build.sbt"
+                | "project/build.properties"
+                | "go.mod"
+                | "go.sum"
+                | "go.work"
+                | "Gemfile"
+                | "Gemfile.lock"
+                | "Rakefile"
+                | ".ruby-version"
+                | "composer.json"
+                | "composer.lock"
+                | "*.csproj"
+                | "*.fsproj"
+                | "*.vbproj"
+                | "*.sln"
+                | "global.json"
+                | "nuget.config"
+                | "Dockerfile"
+                | "docker-compose.yml"
+                | "docker-compose.yaml"
+                | ".dockerignore"
+                | "Makefile"
+                | "makefile"
+                | "GNUmakefile"
+                | ".gitlab-ci.yml"
+                | ".travis.yml"
+                | "circle.yml"
+                | "appveyor.yml"
+                | "CMakeLists.txt"
+                | "meson.build"
+                | "BUILD"
+                | "BUILD.bazel"
+                | "WORKSPACE"
         ) || file_name.ends_with(".csproj")
             || file_name.ends_with(".fsproj")
             || file_name.ends_with(".vbproj")

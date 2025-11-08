@@ -75,7 +75,15 @@ fn test_config_default_provider() {
     let config = AipackConfig::default();
 
     // Default should be Ollama (or whatever is set in env)
-    assert!(matches!(config.provider, Provider::Ollama | Provider::OpenAI | Provider::Claude | Provider::Gemini | Provider::Grok | Provider::Groq));
+    assert!(matches!(
+        config.provider,
+        Provider::Ollama
+            | Provider::OpenAI
+            | Provider::Claude
+            | Provider::Gemini
+            | Provider::Grok
+            | Provider::Groq
+    ));
 }
 
 #[tokio::test]
@@ -112,10 +120,7 @@ async fn test_service_creation_with_unreachable_backend() {
 #[tokio::test]
 async fn test_service_client_name_and_info() {
     std::env::set_var("OPENAI_API_BASE", "http://localhost:11434");
-    let client = GenAIBackend::new(
-        Provider::OpenAI,
-        "qwen2.5-coder:7b".to_string(),
-    ).await;
+    let client = GenAIBackend::new(Provider::OpenAI, "qwen2.5-coder:7b".to_string()).await;
 
     if let Ok(client) = client {
         assert_eq!(client.name(), "OpenAI");
@@ -132,7 +137,8 @@ async fn test_service_client_custom_timeout() {
         Some(Duration::from_secs(120)),
         None,
         None,
-    ).await;
+    )
+    .await;
 
     if let Ok(client) = client {
         assert_eq!(format!("{:?}", client).contains("120"), true);
@@ -236,10 +242,15 @@ async fn test_health_check_with_multiple_endpoints() {
             Some(Duration::from_millis(100)),
             None,
             None,
-        ).await;
+        )
+        .await;
 
         // GenAI may fail client creation or succeed - either is acceptable
-        println!("Endpoint {} creation result: {:?}", endpoint, result.is_ok());
+        println!(
+            "Endpoint {} creation result: {:?}",
+            endpoint,
+            result.is_ok()
+        );
     }
 }
 

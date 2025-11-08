@@ -67,69 +67,7 @@ Add offline fallback with embedded LLM for zero-dependency operation.
 
 ---
 
-## Phase 2: universalbuild.yaml Output Format
-
-**Priority**: HIGH
-**Duration**: 4-6 days
-**Owner**: TBD
-
-### Objective
-Transform detection results into the new declarative build format for container builds.
-
-### Tasks
-1. Create `src/output/universalbuild.rs` module
-2. Define data structures:
-   ```rust
-   pub struct UniversalBuild {
-       version: String,
-       build: BuildStage,
-       runtime: RuntimeStage,
-   }
-
-   pub struct BuildStage {
-       base: String,
-       packages: Vec<String>,
-       env: HashMap<String, String>,
-       command: Vec<String>,
-       context: Vec<String>,
-       cache: Vec<String>,
-       artifacts: Vec<String>,
-   }
-
-   pub struct RuntimeStage {
-       base: String,
-       packages: Vec<String>,
-       env: HashMap<String, String>,
-       copy: Vec<CopySpec>,
-       command: Vec<String>,
-       ports: Vec<u16>,
-       healthcheck: Option<Healthcheck>,
-   }
-   ```
-3. Implement conversion from `DetectionResult` to `UniversalBuild`
-4. Add YAML serialization with schema validation
-5. Support multi-file output for monorepos (jumpstart detects structure)
-6. Update CLI to generate universalbuild.yaml files
-7. Add examples for common languages/frameworks:
-   - Node.js (npm, yarn, pnpm)
-   - Rust (Cargo)
-   - Go (go mod)
-   - Java (Maven, Gradle)
-   - Python (pip, poetry)
-
-### Expected Outcomes
-- Declarative build format for all detected projects
-- Direct integration with Appbahn platform
-- Container build without Dockerfile
-
-### Success Criteria
-- Valid YAML output for 100% of detections
-- Schema matches PRD-2.0 specification
-- Successfully builds containers using generated specs
-
----
-
-## Phase 3: External Memory System
+## Phase 2: External Memory System
 
 **Priority**: HIGH
 **Duration**: 3-5 days
@@ -183,7 +121,7 @@ Implement persistent state tracking for large repository exploration.
 
 ---
 
-## Phase 4: Hierarchical Exploration Strategy
+## Phase 3: Hierarchical Exploration Strategy
 
 **Priority**: MEDIUM
 **Duration**: 3-4 days
@@ -218,7 +156,7 @@ Optimize large repository analysis with progressive depth levels.
 
 ---
 
-## Phase 5: Monorepo Multi-Agent System
+## Phase 4: Monorepo Multi-Agent System
 
 **Priority**: MEDIUM
 **Duration**: 4-5 days
@@ -254,7 +192,7 @@ Enable parallel analysis of monorepo sub-projects.
 
 ---
 
-## Phase 6: Enhanced Tool Features
+## Phase 5: Enhanced Tool Features
 
 **Priority**: MEDIUM
 **Duration**: 2-3 days
@@ -289,7 +227,7 @@ Add smart filtering, caching, and truncation to existing tools.
 
 ---
 
-## Phase 7: Context Size Tracking & Optimization
+## Phase 6: Context Size Tracking & Optimization
 
 **Priority**: MEDIUM
 **Duration**: 3-4 days
@@ -381,7 +319,7 @@ Compress messages while preserving key information:
 
 ---
 
-## Phase 8: Testing & Integration
+## Phase 7: Testing & Integration
 
 **Priority**: HIGH
 **Duration**: 5-7 days
@@ -421,7 +359,7 @@ Comprehensive testing and documentation updates.
 
 ---
 
-## Phase 9: E2E Automated Tests with Railpack Projects (OPTIONAL)
+## Phase 8: E2E Automated Tests with Railpack Projects (OPTIONAL)
 
 **Priority**: LOWEST
 **Duration**: 2-3 days

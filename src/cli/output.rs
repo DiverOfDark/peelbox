@@ -3,7 +3,7 @@ use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 
-use crate::detection::types::{DetectionResult, RepositoryContext};
+use crate::output::schema::UniversalBuild;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
@@ -21,30 +21,21 @@ impl OutputFormatter {
         Self { format }
     }
 
-    pub fn format(&self, result: &DetectionResult) -> Result<String> {
+    pub fn format(&self, result: &UniversalBuild) -> Result<String> {
         match self.format {
-            OutputFormat::Json => self.format_json(result),
-            OutputFormat::Yaml => self.format_yaml(result),
-            OutputFormat::Human => self.format_human(result),
-        }
-    }
-
-    pub fn format_with_context(
-        &self,
-        result: &DetectionResult,
-        context: &RepositoryContext,
-    ) -> Result<String> {
-        match self.format {
-            OutputFormat::Json => self.format_json_with_context(result, context),
-            OutputFormat::Yaml => self.format_yaml_with_context(result, context),
-            OutputFormat::Human => self.format_human_with_context(result, context),
+            OutputFormat::Json => serde_json::to_string_pretty(result).context("Failed to serialize UniversalBuild to JSON"),
+            OutputFormat::Yaml => result.to_yaml(),
+            OutputFormat::Human => Ok(format!("{}", result)),
         }
     }
 
     pub fn format_health(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
         match self.format {
-            OutputFormat::Json => self.format_health_json(health_results),
-            OutputFormat::Yaml => self.format_health_yaml(health_results),
+            OutputFormat::Json => {
+                serde_json::to_string_pretty(health_results)
+                    .context("Failed to serialize health status to JSON")
+            }
+            OutputFormat::Yaml => serde_yaml::to_string(health_results).context("Failed to serialize health status to YAML"),
             OutputFormat::Human => self.format_health_human(health_results),
         }
     }
@@ -61,36 +52,6 @@ impl OutputFormatter {
         }
     }
 
-    fn format_json(&self, result: &DetectionResult) -> Result<String> {
-        serde_json::to_string_pretty(result).context("Failed to serialize detection result to JSON")
-    }
-
-    fn format_json_with_context(
-        &self,
-        result: &DetectionResult,
-        context: &RepositoryContext,
-    ) -> Result<String> {
-        let output = serde_json::json!({
-            "detection_result": result,
-            "context": {
-                "repository_path": context.repo_path,
-                "file_tree": context.file_tree,
-                "key_files": context.key_files,
-                "readme_content": context.readme_content,
-                "detected_files": context.detected_files,
-                "git_info": context.git_info,
-            }
-        });
-
-        serde_json::to_string_pretty(&output)
-            .context("Failed to serialize result with context to JSON")
-    }
-
-    fn format_health_json(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
-        serde_json::to_string_pretty(health_results)
-            .context("Failed to serialize health status to JSON")
-    }
-
     fn format_health_with_env_vars_json(
         &self,
         health_results: &HashMap<String, HealthStatus>,
@@ -104,34 +65,6 @@ impl OutputFormatter {
             .context("Failed to serialize health status with env vars to JSON")
     }
 
-    fn format_yaml(&self, result: &DetectionResult) -> Result<String> {
-        serde_yaml::to_string(result).context("Failed to serialize detection result to YAML")
-    }
-
-    fn format_yaml_with_context(
-        &self,
-        result: &DetectionResult,
-        context: &RepositoryContext,
-    ) -> Result<String> {
-        let output = serde_json::json!({
-            "detection_result": result,
-            "context": {
-                "repository_path": context.repo_path,
-                "file_tree": context.file_tree,
-                "key_files": context.key_files,
-                "readme_content": context.readme_content,
-                "detected_files": context.detected_files,
-                "git_info": context.git_info,
-            }
-        });
-
-        serde_yaml::to_string(&output).context("Failed to serialize result with context to YAML")
-    }
-
-    fn format_health_yaml(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
-        serde_yaml::to_string(health_results).context("Failed to serialize health status to YAML")
-    }
-
     fn format_health_with_env_vars_yaml(
         &self,
         health_results: &HashMap<String, HealthStatus>,
@@ -143,137 +76,6 @@ impl OutputFormatter {
         });
         serde_yaml::to_string(&output)
             .context("Failed to serialize health status with env vars to YAML")
-    }
-
-    fn format_human(&self, result: &DetectionResult) -> Result<String> {
-        let mut output = String::new();
-
-        // Header with check mark or warning
-        if result.is_high_confidence() {
-            output.push_str("\u{2713} Build Detection Result\n");
-        } else {
-            output.push_str("\u{26A0} Build Detection Result (Low Confidence)\n");
-        }
-        output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
-
-        // Build system and language
-        output.push_str(&format!("Build System:  {}\n", result.build_system));
-        output.push_str(&format!("Language:      {}\n\n", result.language));
-
-        // Build commands section
-        output.push_str("Build Information:\n");
-        output.push_str(&format!(
-            "\u{251C}\u{2500} Build:   {}\n",
-            result.build_command
-        ));
-        if let Some(ref test_cmd) = result.test_command {
-            output.push_str(&format!("\u{251C}\u{2500} Test:    {}\n", test_cmd));
-        } else {
-            output.push_str("\u{251C}\u{2500} Test:    (not specified)\n");
-        }
-        if let Some(ref dev_cmd) = result.dev_command {
-            output.push_str(&format!("\u{2514}\u{2500} Dev:     {}\n", dev_cmd));
-        } else {
-            output.push_str("\u{2514}\u{2500} Dev:     (not specified)\n");
-        }
-        output.push_str("\n");
-
-        // Docker information section
-        output.push_str("Docker Information:\n");
-        output.push_str(&format!(
-            "\u{251C}\u{2500} Runtime:      {}\n",
-            result.runtime
-        ));
-        output.push_str(&format!(
-            "\u{251C}\u{2500} Entry Point:  {}\n",
-            result.entry_point
-        ));
-        if !result.dependencies.is_empty() {
-            output.push_str("\u{251C}\u{2500} Dependencies:\n");
-            for (i, dep) in result.dependencies.iter().enumerate() {
-                let is_last = i == result.dependencies.len() - 1;
-                let connector = if is_last { "\u{2514}" } else { "\u{251C}" };
-                output.push_str(&format!("{}  \u{2500} {}\n", connector, dep));
-            }
-            output.push_str("\n");
-        } else {
-            output.push_str("\u{2514}\u{2500} Dependencies: (none specified)\n\n");
-        }
-
-        // Confidence bar
-        let confidence_pct = (result.confidence * 100.0) as u8;
-        let filled_blocks = (result.confidence * 10.0) as usize;
-        let empty_blocks = 10 - filled_blocks;
-        let confidence_bar = "\u{2588}".repeat(filled_blocks) + &"\u{2591}".repeat(empty_blocks);
-
-        output.push_str(&format!(
-            "Confidence: {} {}% ({})\n\n",
-            confidence_bar,
-            confidence_pct,
-            result.confidence_level()
-        ));
-
-        // Detection summary
-        output.push_str("Detection Summary:\n");
-        if !result.detected_files.is_empty() {
-            output.push_str(&format!("Files: {}\n", result.detected_files.join(", ")));
-        }
-        output.push_str(&format!("Reasoning: {}\n", result.reasoning));
-
-        // Warnings if any
-        if !result.warnings.is_empty() {
-            output.push_str("\n\u{26A0} Warnings:\n");
-            for warning in &result.warnings {
-                output.push_str(&format!("  - {}\n", warning));
-            }
-        }
-
-        // Processing time
-        output.push_str(&format!("\nProcessed in {}ms\n", result.processing_time_ms));
-
-        Ok(output)
-    }
-
-    fn format_human_with_context(
-        &self,
-        result: &DetectionResult,
-        context: &RepositoryContext,
-    ) -> Result<String> {
-        let mut output = self.format_human(result)?;
-
-        // Add context information
-        output.push_str("\n\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n");
-        output.push_str("Repository Context (Verbose)\n");
-        output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
-
-        output.push_str(&format!("Repository: {}\n\n", context.repo_path.display()));
-
-        if let Some(ref git_info) = context.git_info {
-            output.push_str(&format!(
-                "Git: {} ({})\n\n",
-                git_info.branch, git_info.commit_hash
-            ));
-        }
-
-        output.push_str("File Tree:\n");
-        output.push_str(&context.file_tree);
-        output.push_str("\n\n");
-
-        if !context.key_files.is_empty() {
-            output.push_str("Key Files:\n");
-            for (path, content) in &context.key_files {
-                output.push_str(&format!("\n--- {} ---\n", path));
-                let preview = if content.len() > 500 {
-                    format!("{}... (truncated)", &content[..500])
-                } else {
-                    content.clone()
-                };
-                output.push_str(&preview);
-                output.push('\n');
-            }
-        }
-
-        Ok(output)
     }
 
     fn format_health_human(
@@ -401,23 +203,39 @@ impl HealthStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::detection::types::DetectionResult;
+    use crate::output::schema::{UniversalBuild, BuildMetadata, BuildStage, RuntimeStage, CopySpec};
 
-    fn create_test_result() -> DetectionResult {
-        DetectionResult {
-            build_system: "cargo".to_string(),
-            language: "Rust".to_string(),
-            build_command: "cargo build --release".to_string(),
-            test_command: Some("cargo test".to_string()),
-            runtime: "rust:1.75".to_string(),
-            dependencies: vec![],
-            entry_point: "/app".to_string(),
-            dev_command: Some("cargo watch -x run".to_string()),
-            confidence: 0.95,
-            reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
-            warnings: vec!["Consider adding CI/CD".to_string()],
-            detected_files: vec!["Cargo.toml".to_string(), "Cargo.lock".to_string()],
-            processing_time_ms: 1234,
+    fn create_test_result() -> UniversalBuild {
+        UniversalBuild {
+            version: "1.0".to_string(),
+            metadata: BuildMetadata {
+                project_name: Some("test-app".to_string()),
+                language: "rust".to_string(),
+                build_system: "cargo".to_string(),
+                confidence: 0.95,
+                reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
+            },
+            build: BuildStage {
+                base: "rust:1.75".to_string(),
+                packages: vec![],
+                env: HashMap::new(),
+                commands: vec!["cargo build --release".to_string()],
+                context: vec![".".to_string(), "/app".to_string()],
+                cache: vec![],
+                artifacts: vec!["target/release/app".to_string()],
+            },
+            runtime: RuntimeStage {
+                base: "debian:bookworm-slim".to_string(),
+                packages: vec![],
+                env: HashMap::new(),
+                copy: vec![CopySpec {
+                    from: "target/release/app".to_string(),
+                    to: "/usr/local/bin/app".to_string(),
+                }],
+                command: vec!["/usr/local/bin/app".to_string()],
+                ports: vec![],
+                healthcheck: None,
+            },
         }
     }
 
@@ -428,11 +246,11 @@ mod tests {
         let output = formatter.format(&result).unwrap();
 
         assert!(output.contains("cargo"));
-        assert!(output.contains("Rust"));
+        assert!(output.contains("rust"));
         assert!(output.contains("0.95"));
 
         // Verify it's valid JSON
-        let _parsed: DetectionResult = serde_json::from_str(&output).unwrap();
+        let _parsed: UniversalBuild = serde_json::from_str(&output).unwrap();
     }
 
     #[test]
@@ -442,11 +260,11 @@ mod tests {
         let output = formatter.format(&result).unwrap();
 
         assert!(output.contains("cargo"));
-        assert!(output.contains("Rust"));
+        assert!(output.contains("rust"));
         assert!(output.contains("0.95"));
 
         // Verify it's valid YAML
-        let _parsed: DetectionResult = serde_yaml::from_str(&output).unwrap();
+        let _parsed: UniversalBuild = serde_yaml::from_str(&output).unwrap();
     }
 
     #[test]
@@ -457,15 +275,9 @@ mod tests {
 
         assert!(output.contains("Build System"));
         assert!(output.contains("cargo"));
-        assert!(output.contains("Rust"));
-        assert!(output.contains("Build Information:"));  // Docker-focused output
-        assert!(output.contains("Docker Information:"));  // Docker-focused output
-        assert!(output.contains("Runtime:"));  // Docker runtime
-        assert!(output.contains("Entry Point:"));  // Container entry point
-        assert!(output.contains("Confidence:"));
-        assert!(output.contains("95%"));
-        assert!(output.contains("Warnings:"));
-        assert!(output.contains("1234ms"));
+        assert!(output.contains("rust"));
+        assert!(output.contains("Confidence"));
+        assert!(output.contains("95"));
     }
 
     #[test]

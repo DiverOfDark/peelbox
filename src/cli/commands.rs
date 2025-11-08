@@ -179,7 +179,6 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,7 +272,6 @@ mod tests {
             _ => panic!("Expected Health command"),
         }
     }
-
 
     #[test]
     fn test_global_verbose_flag() {

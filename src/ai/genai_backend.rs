@@ -19,15 +19,14 @@
 //!
 //! // Detect build system
 //! let result = client.detect(PathBuf::from("/path/to/repo"), None).await?;
-//! println!("Detected: {}", result.build_system);
+//! println!("Detected: {}", result.metadata.build_system);
 //! # Ok(())
 //! # }
 //! ```
 
 use crate::ai::backend::LLMBackend;
 use crate::detection::prompt::SYSTEM_PROMPT;
-use crate::detection::response::parse_ollama_response;
-use crate::detection::types::DetectionResult;
+use crate::output::UniversalBuild;
 use async_trait::async_trait;
 use clap::ValueEnum;
 use genai::adapter::AdapterKind;
@@ -71,7 +70,7 @@ pub enum BackendError {
     /// Network-related error
     NetworkError { message: String },
 
-    /// The LLM response could not be parsed into a DetectionResult
+    /// The LLM response could not be parsed into a UniversalBuild
     ParseError { message: String, context: String },
 
     /// Generic error for other cases
@@ -324,10 +323,7 @@ impl GenAIBackend {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn new(
-        provider: Provider,
-        model: String,
-    ) -> Result<Self, BackendError> {
+    pub async fn new(provider: Provider, model: String) -> Result<Self, BackendError> {
         Self::with_config(provider, model, None, None, None).await
     }
 
@@ -491,7 +487,8 @@ impl GenAIBackend {
         let api_key_var = self.provider.api_key_env_var();
         if !api_key_var.is_empty() {
             if let Ok(api_key) = std::env::var(api_key_var) {
-                request_builder = request_builder.header("Authorization", format!("Bearer {}", api_key));
+                request_builder =
+                    request_builder.header("Authorization", format!("Bearer {}", api_key));
             }
         }
 
@@ -576,7 +573,6 @@ impl GenAIBackend {
 
         Ok(())
     }
-
 }
 
 impl GenAIBackend {
@@ -594,7 +590,7 @@ impl GenAIBackend {
         &self,
         repo_path: PathBuf,
         jumpstart_context: Option<crate::detection::JumpstartContext>,
-    ) -> Result<DetectionResult, BackendError> {
+    ) -> Result<UniversalBuild, BackendError> {
         use crate::detection::tools::{ToolExecutor, ToolRegistry};
 
         info!(
@@ -604,10 +600,8 @@ impl GenAIBackend {
         );
 
         // Create tool executor
-        let executor = ToolExecutor::new(repo_path.clone()).map_err(|e| {
-            BackendError::Other {
-                message: format!("Failed to create tool executor: {}", e),
-            }
+        let executor = ToolExecutor::new(repo_path.clone()).map_err(|e| BackendError::Other {
+            message: format!("Failed to create tool executor: {}", e),
         })?;
 
         // Get all tools
@@ -691,8 +685,10 @@ impl GenAIBackend {
             // Execute LLM request with per-call timeout
             let response = match tokio::time::timeout(
                 self.timeout,
-                self.client.exec_chat(&self.model, request, Some(&options))
-            ).await {
+                self.client.exec_chat(&self.model, request, Some(&options)),
+            )
+            .await
+            {
                 Ok(Ok(resp)) => resp,
                 Ok(Err(e)) => {
                     error!("{} API error: {}", self.provider.name(), e);
@@ -702,7 +698,11 @@ impl GenAIBackend {
                     });
                 }
                 Err(_) => {
-                    error!("{} request timed out after {}s", self.provider.name(), self.timeout.as_secs());
+                    error!(
+                        "{} request timed out after {}s",
+                        self.provider.name(),
+                        self.timeout.as_secs()
+                    );
                     return Err(BackendError::TimeoutError {
                         seconds: self.timeout.as_secs(),
                     });
@@ -761,7 +761,8 @@ impl GenAIBackend {
             let is_only_tool_call = tool_calls.len() == 1;
 
             // Determine if we should process submit_detection
-            let should_accept_submit_detection = has_submit_detection && (is_only_tool_call || is_last_iteration);
+            let should_accept_submit_detection =
+                has_submit_detection && (is_only_tool_call || is_last_iteration);
 
             // Execute each tool call
             for tool_call in &tool_calls {
@@ -815,11 +816,7 @@ impl GenAIBackend {
 
                 let content = match result {
                     Ok(output) => {
-                        debug!(
-                            "Tool {} returned {} bytes",
-                            tool_call.fn_name,
-                            output.len()
-                        );
+                        debug!("Tool {} returned {} bytes", tool_call.fn_name, output.len());
                         output
                     }
                     Err(e) => {
@@ -852,28 +849,37 @@ impl GenAIBackend {
     }
 }
 
-/// Parses the detection result from submit_detection tool call arguments
+/// Parses the UniversalBuild from submit_detection tool call arguments
 fn parse_detection_from_tool_call(
     arguments: &serde_json::Value,
-) -> Result<DetectionResult, BackendError> {
-    debug!("Parsing detection from tool call arguments");
+) -> Result<UniversalBuild, BackendError> {
+    debug!("Parsing UniversalBuild from tool call arguments");
 
-    // Convert arguments to JSON string
-    let json_str = serde_json::to_string(arguments).map_err(|e| BackendError::ParseError {
-        message: format!("Failed to serialize detection: {}", e),
-        context: format!("{:?}", arguments),
+    // Deserialize directly into UniversalBuild
+    let universal_build: UniversalBuild =
+        serde_json::from_value(arguments.clone()).map_err(|e| {
+            error!("Failed to parse UniversalBuild: {}", e);
+            BackendError::ParseError {
+                message: format!("Failed to parse UniversalBuild: {}", e),
+                context: format!("{:?}", arguments),
+            }
+        })?;
+
+    debug!(
+        "Parsed UniversalBuild: {} ({})",
+        universal_build.metadata.build_system, universal_build.metadata.language
+    );
+
+    // Validate the UniversalBuild
+    universal_build.validate().map_err(|e| {
+        error!("UniversalBuild validation failed: {}", e);
+        BackendError::ParseError {
+            message: format!("UniversalBuild validation failed: {}", e),
+            context: format!("{:?}", arguments),
+        }
     })?;
 
-    debug!("Detection JSON: {}", json_str);
-
-    // Use existing parser
-    parse_ollama_response(&json_str).map_err(|e| {
-        error!("Failed to parse detection result: {}", e);
-        BackendError::ParseError {
-            message: format!("Failed to parse detection result: {}", e),
-            context: json_str,
-        }
-    })
+    Ok(universal_build)
 }
 
 impl std::fmt::Debug for GenAIBackend {
@@ -893,7 +899,7 @@ impl LLMBackend for GenAIBackend {
         &self,
         repo_path: PathBuf,
         jumpstart_context: Option<crate::detection::JumpstartContext>,
-    ) -> Result<DetectionResult, BackendError> {
+    ) -> Result<UniversalBuild, BackendError> {
         self.detect(repo_path, jumpstart_context).await
     }
 
@@ -919,12 +925,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_backend_creation() {
-        let backend = GenAIBackend::new(
-            Provider::Ollama,
-            "qwen2.5-coder:7b".to_string(),
-        )
-        .await
-        .unwrap();
+        let backend = GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
+            .await
+            .unwrap();
 
         assert_eq!(backend.name(), "Ollama");
         assert_eq!(backend.model, "qwen2.5-coder:7b");
@@ -951,12 +954,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_debug_impl() {
-        let backend = GenAIBackend::new(
-            Provider::Ollama,
-            "qwen2.5-coder:7b".to_string(),
-        )
-        .await
-        .unwrap();
+        let backend = GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
+            .await
+            .unwrap();
 
         let debug_str = format!("{:?}", backend);
         assert!(debug_str.contains("GenAIBackend"));

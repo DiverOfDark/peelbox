@@ -118,7 +118,6 @@ fn test_health_command() {
     );
 }
 
-
 #[test]
 fn test_detect_nonexistent_path() {
     let output = Command::new(aipack_bin())

@@ -47,8 +47,7 @@ impl JumpstartContext {
     pub fn from_manifests(manifests: Vec<ManifestFile>, scan_time_ms: u64) -> Self {
         info!(
             manifest_count = manifests.len(),
-            scan_time_ms,
-            "Generating jumpstart context"
+            scan_time_ms, "Generating jumpstart context"
         );
 
         let project_hints = Self::analyze_project_hints(&manifests);
@@ -86,9 +85,7 @@ impl JumpstartContext {
             detected_languages.push("JavaScript/TypeScript".to_string());
         }
         if manifest_counts.contains_key("pom.xml")
-            || manifest_counts
-                .keys()
-                .any(|k| k.contains("gradle"))
+            || manifest_counts.keys().any(|k| k.contains("gradle"))
         {
             detected_languages.push("Java".to_string());
         }
@@ -137,10 +134,7 @@ impl JumpstartContext {
             Some("npm/yarn/pnpm".to_string())
         } else if manifest_counts.contains_key("pom.xml") {
             Some("Maven".to_string())
-        } else if manifest_counts
-            .keys()
-            .any(|k| k.contains("gradle"))
-        {
+        } else if manifest_counts.keys().any(|k| k.contains("gradle")) {
             Some("Gradle".to_string())
         } else if manifest_counts.contains_key("go.mod") {
             Some("Go modules".to_string())
@@ -162,7 +156,10 @@ impl JumpstartContext {
     }
 
     /// Detects if this is a monorepo/workspace
-    fn detect_monorepo(manifests: &[ManifestFile], manifest_counts: &HashMap<String, usize>) -> bool {
+    fn detect_monorepo(
+        manifests: &[ManifestFile],
+        manifest_counts: &HashMap<String, usize>,
+    ) -> bool {
         // Check for workspace configuration files
         let has_workspace_config = manifest_counts.contains_key("pnpm-workspace.yaml")
             || manifest_counts.contains_key("lerna.json")

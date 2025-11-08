@@ -27,9 +27,9 @@
 //!
 //! let result = service.detect(PathBuf::from("/path/to/repo")).await?;
 //!
-//! println!("Build system: {}", result.build_system);
-//! println!("Build command: {}", result.build_command);
-//! println!("Confidence: {:.1}%", result.confidence * 100.0);
+//! println!("Build system: {}", result.metadata.build_system);
+//! println!("Build commands: {:?}", result.build.commands);
+//! println!("Confidence: {:.1}%", result.metadata.confidence * 100.0);
 //! # Ok(())
 //! # }
 //! ```
@@ -37,7 +37,7 @@
 use crate::ai::backend::BackendError;
 use crate::ai::genai_backend::GenAIBackend;
 use crate::config::AipackConfig;
-use crate::detection::types::DetectionResult;
+use crate::output::UniversalBuild;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -333,8 +333,8 @@ impl DetectionService {
     ///
     /// # Returns
     ///
-    /// A `DetectionResult` containing build system information, commands,
-    /// confidence score, and reasoning.
+    /// A `UniversalBuild` containing the complete container build specification,
+    /// including build stage, runtime stage, metadata, and confidence score.
     ///
     /// # Errors
     ///
@@ -357,13 +357,13 @@ impl DetectionService {
     ///
     /// let result = service.detect(PathBuf::from("/path/to/my-project")).await?;
     ///
-    /// println!("Build: {}", result.build_command);
-    /// println!("Test: {:?}", result.test_command);
-    /// println!("Confidence: {:.1}%", result.confidence * 100.0);
+    /// println!("Build commands: {:?}", result.build.commands);
+    /// println!("Runtime command: {:?}", result.runtime.command);
+    /// println!("Confidence: {:.1}%", result.metadata.confidence * 100.0);
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn detect(&self, repo_path: PathBuf) -> Result<DetectionResult, ServiceError> {
+    pub async fn detect(&self, repo_path: PathBuf) -> Result<UniversalBuild, ServiceError> {
         let start = Instant::now();
 
         // Validate repository path
@@ -391,35 +391,35 @@ impl DetectionService {
         };
 
         // Delegate to backend for tool-based detection
-        let mut result = self.backend.detect(repo_path, jumpstart_context).await?;
+        let result = self.backend.detect(repo_path, jumpstart_context).await?;
 
-        // Set processing time
-        result.processing_time_ms = start.elapsed().as_millis() as u64;
+        let elapsed = start.elapsed();
 
         info!(
             "Detection completed in {:.2}s: {} ({}) with {:.1}% confidence",
-            start.elapsed().as_secs_f64(),
-            result.build_system,
-            result.language,
-            result.confidence * 100.0
+            elapsed.as_secs_f64(),
+            result.metadata.build_system,
+            result.metadata.language,
+            result.metadata.confidence * 100.0
         );
-
-        if result.has_warnings() {
-            warn!("Detection warnings: {:?}", result.warnings);
-        }
 
         Ok(result)
     }
 
     /// Runs jumpstart scan to pre-discover manifest files
-    fn run_jumpstart_scan(&self, repo_path: &Path) -> Result<crate::detection::JumpstartContext, ServiceError> {
+    fn run_jumpstart_scan(
+        &self,
+        repo_path: &Path,
+    ) -> Result<crate::detection::JumpstartContext, ServiceError> {
         use crate::detection::jumpstart::{JumpstartContext, JumpstartScanner};
 
-        let scanner = JumpstartScanner::new(repo_path.to_path_buf())
-            .map_err(|e| ServiceError::DetectionFailed(format!("Jumpstart scan setup failed: {}", e)))?;
+        let scanner = JumpstartScanner::new(repo_path.to_path_buf()).map_err(|e| {
+            ServiceError::DetectionFailed(format!("Jumpstart scan setup failed: {}", e))
+        })?;
 
         let scan_start = Instant::now();
-        let manifests = scanner.scan()
+        let manifests = scanner
+            .scan()
             .map_err(|e| ServiceError::DetectionFailed(format!("Jumpstart scan failed: {}", e)))?;
         let scan_time_ms = scan_start.elapsed().as_millis() as u64;
 
@@ -444,7 +444,7 @@ impl DetectionService {
     ///
     /// # Returns
     ///
-    /// A `DetectionResult` containing build system information and commands
+    /// A `UniversalBuild` containing the complete container build specification
     ///
     /// # Errors
     ///
@@ -453,7 +453,7 @@ impl DetectionService {
     pub async fn detect_with_context(
         &self,
         context: crate::detection::types::RepositoryContext,
-    ) -> Result<DetectionResult, ServiceError> {
+    ) -> Result<UniversalBuild, ServiceError> {
         self.detect(context.repo_path).await
     }
 
@@ -536,10 +536,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_not_exists() {
-        let backend = Arc::new(GenAIBackend::new(
-            Provider::Ollama,
-            "qwen2.5-coder:7b".to_string(),
-        ).await.unwrap());
+        let backend = Arc::new(
+            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
+                .await
+                .unwrap(),
+        );
 
         let service = DetectionService { backend };
 
@@ -554,10 +555,11 @@ mod tests {
         let file_path = temp_dir.path().join("file.txt");
         std::fs::write(&file_path, "content").unwrap();
 
-        let backend = Arc::new(GenAIBackend::new(
-            Provider::Ollama,
-            "qwen2.5-coder:7b".to_string(),
-        ).await.unwrap());
+        let backend = Arc::new(
+            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
+                .await
+                .unwrap(),
+        );
 
         let service = DetectionService { backend };
 
@@ -570,10 +572,11 @@ mod tests {
     async fn test_validate_repo_path_success() {
         let temp_dir = TempDir::new().unwrap();
 
-        let backend = Arc::new(GenAIBackend::new(
-            Provider::Ollama,
-            "qwen2.5-coder:7b".to_string(),
-        ).await.unwrap());
+        let backend = Arc::new(
+            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
+                .await
+                .unwrap(),
+        );
 
         let service = DetectionService { backend };
 

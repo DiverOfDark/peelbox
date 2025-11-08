@@ -6,7 +6,6 @@
 pub mod analyzer;
 pub mod jumpstart;
 pub mod prompt;
-pub mod response;
 pub mod service;
 pub mod tools;
 pub mod types;
@@ -15,6 +14,5 @@ pub mod types;
 pub use analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use jumpstart::{JumpstartContext, JumpstartScanner};
 pub use prompt::SYSTEM_PROMPT;
-pub use response::{parse_ollama_response, validate_detection_result, ParseError};
 pub use service::{DetectionService, ServiceError};
-pub use types::{DetectionResult, GitInfo, RepositoryContext};
+pub use types::{GitInfo, RepositoryContext};

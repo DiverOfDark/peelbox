@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-11-09
+
+### Changed
+- **BREAKING:** Replaced `DetectionResult` with `UniversalBuild` format
+  - New format supports multi-stage container builds (build + runtime stages)
+  - Metadata includes: project name, language, build system, confidence, reasoning
+  - Build stage includes: base image, packages, environment variables, commands, context, cache paths, artifacts
+  - Runtime stage includes: base image, packages, environment variables, copy specifications, command, ports, healthcheck
+  - LLM now directly outputs UniversalBuild format via `submit_detection` tool
+  - Schema version tracking with validation
+- Updated system prompts to guide LLM towards multi-stage build thinking
+- Removed old `DetectionResult` structure and all references
+
+### Migration Notes
+- API change: `detect()` now returns `UniversalBuild` instead of `DetectionResult`
+- Field access changes:
+  - `result.build_system` → `result.metadata.build_system`
+  - `result.language` → `result.metadata.language`
+  - `result.confidence` → `result.metadata.confidence`
+  - `result.reasoning` → `result.metadata.reasoning`
+  - `result.build_command` → `result.build.commands` (now a Vec)
+  - Build and runtime stages are now separate with different base images
+- Output format: `UniversalBuild` serializes to YAML/JSON with nested structure
+- Display format: Human-readable output shows both build and runtime stages
+
 ### Fixed
 - Prevent LLM self-reasoning loops with max_tokens limits and stop sequences
 - Add per-call timeout enforcement for individual LLM API calls

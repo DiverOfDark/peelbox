@@ -193,7 +193,10 @@ fn test_context_generation_monorepo() {
         context.project_hints.is_monorepo,
         "Should detect monorepo structure"
     );
-    assert!(manifest_count >= 3, "Should find multiple package.json files");
+    assert!(
+        manifest_count >= 3,
+        "Should find multiple package.json files"
+    );
 }
 
 #[test]

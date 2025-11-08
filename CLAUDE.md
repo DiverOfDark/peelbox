@@ -162,7 +162,7 @@ aipack uses LLM function calling to analyze repositories iteratively instead of 
 | `search_files` | Search for files by name pattern | Find all `*.gradle` files |
 | `get_file_tree` | Get tree view of directory structure | Understand repository layout |
 | `grep_content` | Search file contents with regex | Find `"scripts"` in package.json files |
-| `submit_detection` | Submit final detection result | Return detected build system |
+| `submit_detection` | Submit final UniversalBuild result | Return complete build specification |
 
 ### Benefits
 
@@ -463,7 +463,7 @@ ANTHROPIC_API_KEY=sk-... cargo run -- detect /path/to/repo
 ```rust
 #[async_trait]
 pub trait LLMBackend: Send + Sync {
-    async fn detect(&self, context: RepositoryContext) -> Result<DetectionResult>;
+    async fn detect(&self, repo_path: PathBuf) -> Result<UniversalBuild>;
     fn name(&self) -> &str;
 }
 ```
@@ -478,13 +478,12 @@ Structure containing all information about a repository:
 - Detected file types
 - Git information (optional)
 
-#### 3. Detection Result
-Structured output containing:
-- Build system identified
-- Build/test/deploy commands
-- Confidence score
-- Reasoning/explanation
-- List of detected files
+#### 3. UniversalBuild Output
+Multi-stage container build specification containing:
+- **Metadata**: project name, language, build system, confidence, reasoning
+- **Build Stage**: base image, packages, environment variables, build commands, context, cache paths, artifacts
+- **Runtime Stage**: base image, packages, environment variables, copy specifications, command, ports, healthcheck
+- Schema version with validation
 
 ### Async Design
 - Use `tokio::main` for async runtime
@@ -561,13 +560,14 @@ cargo test test_prompt_generation
 ```rust
 #[tokio::test]
 async fn test_detection() {
-    let context = create_test_context();
+    let repo_path = PathBuf::from("/path/to/repo");
     let client = GenAIBackend::new(
         Provider::Ollama,
         "qwen2.5-coder:7b".to_string(),
     ).await.unwrap();
-    let result = client.detect(context).await.unwrap();
-    assert_eq!(result.build_command, "cargo build");
+    let result = client.detect(repo_path).await.unwrap();
+    assert_eq!(result.metadata.build_system, "cargo");
+    assert!(!result.build.commands.is_empty());
 }
 ```
 

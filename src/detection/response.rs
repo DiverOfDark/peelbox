@@ -105,14 +105,28 @@ fn extract_from_markdown_block(text: &str) -> Result<String, ParseError> {
 }
 
 fn convert_to_detection_result(llm: LlmResponse) -> Result<DetectionResult, ParseError> {
-    let language = llm.language.ok_or_else(|| ParseError::MissingField("language".to_string()))?;
-    let build_system = llm.build_system.ok_or_else(|| ParseError::MissingField("build_system".to_string()))?;
-    let build_command = llm.build_command.ok_or_else(|| ParseError::MissingField("build_command".to_string()))?;
-    let runtime = llm.runtime.ok_or_else(|| ParseError::MissingField("runtime".to_string()))?;
-    let entry_point = llm.entry_point.ok_or_else(|| ParseError::MissingField("entry_point".to_string()))?;
-    let reasoning = llm.reasoning.ok_or_else(|| ParseError::MissingField("reasoning".to_string()))?;
+    let language = llm
+        .language
+        .ok_or_else(|| ParseError::MissingField("language".to_string()))?;
+    let build_system = llm
+        .build_system
+        .ok_or_else(|| ParseError::MissingField("build_system".to_string()))?;
+    let build_command = llm
+        .build_command
+        .ok_or_else(|| ParseError::MissingField("build_command".to_string()))?;
+    let runtime = llm
+        .runtime
+        .ok_or_else(|| ParseError::MissingField("runtime".to_string()))?;
+    let entry_point = llm
+        .entry_point
+        .ok_or_else(|| ParseError::MissingField("entry_point".to_string()))?;
+    let reasoning = llm
+        .reasoning
+        .ok_or_else(|| ParseError::MissingField("reasoning".to_string()))?;
 
-    let confidence_raw = llm.confidence.ok_or_else(|| ParseError::MissingField("confidence".to_string()))?;
+    let confidence_raw = llm
+        .confidence
+        .ok_or_else(|| ParseError::MissingField("confidence".to_string()))?;
     let confidence = confidence_raw.clamp(0.0, 1.0);
 
     if confidence != confidence_raw {

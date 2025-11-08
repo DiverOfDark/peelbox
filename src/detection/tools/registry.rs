@@ -161,75 +161,259 @@ impl ToolRegistry {
         Tool {
             name: TOOL_SUBMIT_DETECTION.to_string(),
             description: Some(
-                "Submit the final build system detection result. Call this once you have gathered enough information about the repository.".to_string(),
+                r#"Submit the final UniversalBuild specification. This is a declarative container build format that describes how to build and run the application.
+
+IMPORTANT: UniversalBuild uses a multi-stage container build approach:
+1. Build Stage: Compiles/builds the application with all necessary tools
+2. Runtime Stage: Runs the application in a minimal container with only runtime dependencies
+
+Common Language Examples:
+
+Rust (Cargo):
+- Build base: "rust:1.75" or "rust:1.75-slim"
+- Build commands: ["cargo build --release"]
+- Build artifacts: ["target/release/myapp"]
+- Runtime base: "debian:bookworm-slim" or "alpine:3.19"
+- Runtime copy: [{"from": "target/release/myapp", "to": "/usr/local/bin/myapp"}]
+- Runtime command: ["/usr/local/bin/myapp"]
+
+Node.js (npm/yarn/pnpm):
+- Build base: "node:20" or "node:20-alpine"
+- Build commands: ["npm install", "npm run build"] or ["yarn install", "yarn build"]
+- Build artifacts: ["dist", "node_modules"] or ["build"]
+- Runtime base: "node:20-slim" or "node:20-alpine"
+- Runtime copy: [{"from": "dist", "to": "/app/dist"}, {"from": "node_modules", "to": "/app/node_modules"}]
+- Runtime command: ["node", "dist/index.js"]
+
+Python (pip/poetry):
+- Build base: "python:3.11" or "python:3.11-slim"
+- Build commands: ["pip install -r requirements.txt"] or ["poetry install --no-dev"]
+- Build artifacts: ["/usr/local/lib/python3.11/site-packages", "app"]
+- Runtime base: "python:3.11-slim" or "python:3.11-alpine"
+- Runtime copy: [{"from": "/usr/local/lib/python3.11/site-packages", "to": "/usr/local/lib/python3.11/site-packages"}]
+- Runtime command: ["python", "app/main.py"]
+
+Java (Maven/Gradle):
+- Build base: "maven:3.9-eclipse-temurin-21" or "gradle:8.5-jdk21"
+- Build commands: ["mvn package -DskipTests"] or ["gradle build"]
+- Build artifacts: ["target/myapp.jar"] or ["build/libs/myapp.jar"]
+- Runtime base: "eclipse-temurin:21-jre-alpine"
+- Runtime copy: [{"from": "target/myapp.jar", "to": "/app/app.jar"}]
+- Runtime command: ["java", "-jar", "/app/app.jar"]
+
+Go:
+- Build base: "golang:1.21" or "golang:1.21-alpine"
+- Build commands: ["go build -o myapp ."]
+- Build artifacts: ["myapp"]
+- Runtime base: "alpine:3.19" or "scratch"
+- Runtime copy: [{"from": "myapp", "to": "/myapp"}]
+- Runtime command: ["/myapp"]
+
+Key Guidelines:
+- version: Always use "1.0"
+- confidence: 0.0-1.0 (0.9+ for strong evidence, 0.7-0.9 for good evidence, <0.7 for uncertain)
+- build.base: Full image with build tools (compilers, build systems)
+- build.context: Source files to copy - pairs of [source, destination], e.g., [".", "/app", "src", "/build/src"]
+- build.cache: Directories to cache between builds (e.g., ["/root/.cargo/registry", "/usr/local/cargo/git"])
+- build.artifacts: Output files from build stage to preserve
+- runtime.base: Minimal image for running the application
+- runtime.copy: Copy artifacts from build stage, using {"from": "...", "to": "..."} objects
+- runtime.command: Array of strings for entrypoint (e.g., ["./myapp"] or ["python", "main.py"])
+- runtime.ports: Expose ports if this is a service (e.g., [8080, 8443])
+- runtime.healthcheck: Optional health check for services
+
+Call this tool once you have analyzed the repository and determined the build approach."#.to_string(),
             ),
             schema: Some(json!({
                 "type": "object",
                 "properties": {
-                    "language": {
+                    "version": {
                         "type": "string",
-                        "description": "Primary programming language name"
+                        "description": "Schema version (always '1.0')",
+                        "enum": ["1.0"]
                     },
-                    "build_system": {
-                        "type": "string",
-                        "description": "Detected build system name"
+                    "metadata": {
+                        "type": "object",
+                        "description": "Project metadata and detection information",
+                        "properties": {
+                            "project_name": {
+                                "type": "string",
+                                "description": "Optional project name (if detected from config files)"
+                            },
+                            "language": {
+                                "type": "string",
+                                "description": "Primary programming language (e.g., 'rust', 'nodejs', 'python', 'java', 'go')"
+                            },
+                            "build_system": {
+                                "type": "string",
+                                "description": "Build system name (e.g., 'cargo', 'npm', 'maven', 'gradle', 'go')"
+                            },
+                            "confidence": {
+                                "type": "number",
+                                "description": "Confidence score from 0.0 to 1.0",
+                                "minimum": 0.0,
+                                "maximum": 1.0
+                            },
+                            "reasoning": {
+                                "type": "string",
+                                "description": "Explanation of detection reasoning and key evidence"
+                            }
+                        },
+                        "required": ["language", "build_system", "confidence", "reasoning"]
                     },
-                    "build_command": {
-                        "type": "string",
-                        "description": "Command to build the project"
-                    },
-                    "test_command": {
-                        "type": "string",
-                        "description": "Command to run tests. Optional."
+                    "build": {
+                        "type": "object",
+                        "description": "Build stage configuration - defines how to compile/build the application",
+                        "properties": {
+                            "base": {
+                                "type": "string",
+                                "description": "Base Docker image for build stage with build tools (e.g., 'rust:1.75', 'node:20', 'python:3.11')"
+                            },
+                            "packages": {
+                                "type": "array",
+                                "description": "System packages to install (e.g., ['build-essential', 'pkg-config', 'libssl-dev'])",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "default": []
+                            },
+                            "env": {
+                                "type": "object",
+                                "description": "Environment variables for build stage (e.g., {'CARGO_INCREMENTAL': '0'})",
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "default": {}
+                            },
+                            "commands": {
+                                "type": "array",
+                                "description": "Build commands to execute in order (e.g., ['cargo build --release'])",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 1
+                            },
+                            "context": {
+                                "type": "array",
+                                "description": "Files/directories to copy from source as pairs [source, destination] (e.g., ['.', '/app'] means copy current dir to /app)",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 2
+                            },
+                            "cache": {
+                                "type": "array",
+                                "description": "Directories to cache between builds (e.g., ['/root/.cargo/registry', '/usr/local/cargo/git'])",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "default": []
+                            },
+                            "artifacts": {
+                                "type": "array",
+                                "description": "Build artifacts to preserve (e.g., ['target/release/myapp'])",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 1
+                            }
+                        },
+                        "required": ["base", "commands", "context", "artifacts"]
                     },
                     "runtime": {
-                        "type": "string",
-                        "description": "Runtime environment or execution platform"
-                    },
-                    "dependencies": {
-                        "type": "array",
-                        "description": "List of key dependencies or packages detected",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-                    "entry_point": {
-                        "type": "string",
-                        "description": "Main entry point file or command (e.g., 'directory/entrypoint.ext')"
-                    },
-                    "dev_command": {
-                        "type": "string",
-                        "description": "Command to run in development mode. Optional."
-                    },
-                    "confidence": {
-                        "type": "number",
-                        "description": "Confidence score from 0.0 to 1.0 indicating how certain the detection is",
-                        "minimum": 0.0,
-                        "maximum": 1.0
-                    },
-                    "reasoning": {
-                        "type": "string",
-                        "description": "Brief explanation of how the build system was detected and key evidence found"
-                    },
-                    "warnings": {
-                        "type": "array",
-                        "description": "Any warnings or potential issues detected",
-                        "items": {
-                            "type": "string"
-                        }
+                        "type": "object",
+                        "description": "Runtime stage configuration - defines the final container environment",
+                        "properties": {
+                            "base": {
+                                "type": "string",
+                                "description": "Base Docker image for runtime (minimal, e.g., 'debian:bookworm-slim', 'alpine:3.19', 'scratch')"
+                            },
+                            "packages": {
+                                "type": "array",
+                                "description": "Runtime system packages (e.g., ['ca-certificates', 'libssl3'])",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "default": []
+                            },
+                            "env": {
+                                "type": "object",
+                                "description": "Runtime environment variables (e.g., {'PORT': '8080', 'NODE_ENV': 'production'})",
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "default": {}
+                            },
+                            "copy": {
+                                "type": "array",
+                                "description": "Files to copy from build stage as objects with 'from' and 'to' fields",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "from": {
+                                            "type": "string",
+                                            "description": "Source path in build stage"
+                                        },
+                                        "to": {
+                                            "type": "string",
+                                            "description": "Destination path in runtime stage"
+                                        }
+                                    },
+                                    "required": ["from", "to"]
+                                },
+                                "minItems": 1
+                            },
+                            "command": {
+                                "type": "array",
+                                "description": "Container entrypoint command as array (e.g., ['/usr/local/bin/myapp'] or ['python', 'main.py'])",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "minItems": 1
+                            },
+                            "ports": {
+                                "type": "array",
+                                "description": "Ports to expose (e.g., [8080, 8443])",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                },
+                                "default": []
+                            },
+                            "healthcheck": {
+                                "type": "object",
+                                "description": "Optional health check configuration for services",
+                                "properties": {
+                                    "test": {
+                                        "type": "array",
+                                        "description": "Health check command (e.g., ['CMD', 'curl', '-f', 'http://localhost/health'])",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "minItems": 1
+                                    },
+                                    "interval": {
+                                        "type": "string",
+                                        "description": "Interval between checks (e.g., '30s')"
+                                    },
+                                    "timeout": {
+                                        "type": "string",
+                                        "description": "Timeout for each check (e.g., '3s')"
+                                    },
+                                    "retries": {
+                                        "type": "integer",
+                                        "description": "Number of consecutive failures before unhealthy",
+                                        "minimum": 1
+                                    }
+                                },
+                                "required": ["test"]
+                            }
+                        },
+                        "required": ["base", "copy", "command"]
                     }
                 },
-                "required": [
-                    "language",
-                    "build_system",
-                    "build_command",
-                    "runtime",
-                    "dependencies",
-                    "entry_point",
-                    "confidence",
-                    "reasoning",
-                    "warnings"
-                ]
+                "required": ["version", "metadata", "build", "runtime"]
             })),
             config: None,
         }
@@ -280,11 +464,7 @@ mod tests {
     fn test_all_tools_have_schemas() {
         let tools = ToolRegistry::create_all_tools();
         for tool in tools {
-            assert!(
-                tool.schema.is_some(),
-                "Tool {} missing schema",
-                tool.name
-            );
+            assert!(tool.schema.is_some(), "Tool {} missing schema", tool.name);
         }
     }
 
@@ -352,34 +532,22 @@ mod tests {
 
         assert_eq!(schema["type"], "object");
 
-        // Verify all required fields are present in schema
-        let required_fields = [
-            "language",
-            "build_system",
-            "build_command",
-            "runtime",
-            "dependencies",
-            "entry_point",
-            "confidence",
-            "reasoning",
-            "warnings",
-        ];
-
-        for field in &required_fields {
+        let required_top_level = ["version", "metadata", "build", "runtime"];
+        for field in &required_top_level {
             assert!(
                 schema["properties"][field].is_object(),
-                "Missing property: {}",
+                "Missing top-level property: {}",
                 field
             );
         }
 
-        // Verify optional fields
-        assert!(schema["properties"]["test_command"].is_object());
-        assert!(schema["properties"]["dev_command"].is_object());
-
-        // Verify required array
         let required_array = schema["required"].as_array().unwrap();
-        assert_eq!(required_array.len(), 9);
+        assert_eq!(required_array.len(), 4);
+
+        assert_eq!(schema["properties"]["version"]["type"], "string");
+        assert_eq!(schema["properties"]["metadata"]["type"], "object");
+        assert_eq!(schema["properties"]["build"]["type"], "object");
+        assert_eq!(schema["properties"]["runtime"]["type"], "object");
     }
 
     #[test]
@@ -387,10 +555,22 @@ mod tests {
         let tool = ToolRegistry::create_submit_detection_tool();
         let schema = tool.schema.unwrap();
 
-        assert_eq!(schema["properties"]["language"]["type"], "string");
-        assert_eq!(schema["properties"]["confidence"]["type"], "number");
-        assert_eq!(schema["properties"]["dependencies"]["type"], "array");
-        assert_eq!(schema["properties"]["warnings"]["type"], "array");
+        let metadata = &schema["properties"]["metadata"];
+        assert_eq!(metadata["properties"]["language"]["type"], "string");
+        assert_eq!(metadata["properties"]["build_system"]["type"], "string");
+        assert_eq!(metadata["properties"]["confidence"]["type"], "number");
+        assert_eq!(metadata["properties"]["reasoning"]["type"], "string");
+
+        let build = &schema["properties"]["build"];
+        assert_eq!(build["properties"]["base"]["type"], "string");
+        assert_eq!(build["properties"]["commands"]["type"], "array");
+        assert_eq!(build["properties"]["context"]["type"], "array");
+        assert_eq!(build["properties"]["artifacts"]["type"], "array");
+
+        let runtime = &schema["properties"]["runtime"];
+        assert_eq!(runtime["properties"]["base"]["type"], "string");
+        assert_eq!(runtime["properties"]["copy"]["type"], "array");
+        assert_eq!(runtime["properties"]["command"]["type"], "array");
     }
 
     #[test]
@@ -398,7 +578,7 @@ mod tests {
         let tool = ToolRegistry::create_submit_detection_tool();
         let schema = tool.schema.unwrap();
 
-        let confidence_schema = &schema["properties"]["confidence"];
+        let confidence_schema = &schema["properties"]["metadata"]["properties"]["confidence"];
         assert_eq!(confidence_schema["minimum"], 0.0);
         assert_eq!(confidence_schema["maximum"], 1.0);
     }

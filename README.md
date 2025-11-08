@@ -45,10 +45,12 @@ No hardcoded detection rules. AI-driven analysis of repository structure and con
 ## Features
 
 - **AI-Powered Detection**: Uses LLM analysis instead of hardcoded pattern matching
-- **Multiple Backends**: Support for Mistral API and local Ollama (Qwen models)
+- **Multi-Stage Build Support**: Generates complete container build specifications with separate build and runtime stages
+- **Multiple Backends**: Support for Ollama, Claude, OpenAI, Gemini, and more via unified GenAI interface
 - **Fast Local Inference**: Run completely offline with local Ollama installation
 - **Language Agnostic**: Detect build commands for any project type (Rust, Node.js, Java, Python, Go, and more)
 - **Flexible Output**: JSON, YAML, and human-readable formats
+- **Container-Ready**: Output includes base images, packages, environment variables, ports, and health checks
 - **Confidence Scoring**: Know how reliable each detection is
 - **Detailed Reasoning**: Understand why aipack chose specific commands
 - **Configurable**: Extensive environment variable configuration
@@ -97,22 +99,30 @@ aipack detect
 
 Example output:
 ```
-Build System: cargo
+UniversalBuild Detection Result
+================================
 Language: Rust
-Build Command: cargo build --release
-Test Command: cargo test
-Deploy Command: cargo build --release
-Confidence: 98%
+Build System: cargo
+Project: my-app
+Confidence: 98.0% (Very High)
 
-Detected Files:
-  - Cargo.toml
-  - Cargo.lock
-  - src/main.rs
+Build Stage:
+  Base Image: rust:1.75
+  Packages:   pkg-config, libssl-dev
+  Commands:
+    - cargo build --release
+  Artifacts:
+    - target/release/my-app
 
-Reasoning: Repository contains Cargo.toml with standard Rust project structure.
-Binary crate with tests configured.
+Runtime Stage:
+  Base Image: debian:bookworm-slim
+  Packages:   ca-certificates, libssl3
+  Command:    /usr/local/bin/my-app
+  Ports:      8080
 
-Processing Time: 2.3s
+Reasoning:
+  Repository contains Cargo.toml with standard Rust project structure.
+  Binary crate with dependencies requiring SSL support.
 ```
 
 That's it! aipack automatically detected the build system and provided the correct commands.
@@ -282,16 +292,37 @@ aipack detect --format json
 
 ```json
 {
-  "buildSystem": "cargo",
-  "language": "Rust",
-  "buildCommand": "cargo build --release",
-  "testCommand": "cargo test",
-  "deployCommand": "cargo build --release",
-  "confidence": 0.98,
-  "reasoning": "Repository contains Cargo.toml...",
-  "detectedFiles": ["Cargo.toml", "src/main.rs"],
-  "warnings": [],
-  "processingTimeMs": 2340
+  "version": "1.0",
+  "metadata": {
+    "project_name": "my-app",
+    "language": "Rust",
+    "build_system": "cargo",
+    "confidence": 0.98,
+    "reasoning": "Repository contains Cargo.toml with standard Rust project structure"
+  },
+  "build": {
+    "base": "rust:1.75",
+    "packages": ["pkg-config", "libssl-dev"],
+    "env": {},
+    "commands": ["cargo build --release"],
+    "context": [".", "/app"],
+    "cache": ["/usr/local/cargo/registry"],
+    "artifacts": ["target/release/my-app"]
+  },
+  "runtime": {
+    "base": "debian:bookworm-slim",
+    "packages": ["ca-certificates", "libssl3"],
+    "env": {},
+    "copy": [{"from": "target/release/my-app", "to": "/usr/local/bin/my-app"}],
+    "command": ["/usr/local/bin/my-app"],
+    "ports": [8080],
+    "healthcheck": {
+      "test": ["CMD", "curl", "-f", "http://localhost:8080/health"],
+      "interval": "30s",
+      "timeout": "3s",
+      "retries": 3
+    }
+  }
 }
 ```
 
@@ -302,24 +333,56 @@ aipack detect --format yaml
 ```
 
 ```yaml
-buildSystem: cargo
-language: Rust
-buildCommand: cargo build --release
-confidence: 0.98
-...
+version: "1.0"
+metadata:
+  project_name: my-app
+  language: Rust
+  build_system: cargo
+  confidence: 0.98
+  reasoning: Repository contains Cargo.toml with standard Rust project structure
+build:
+  base: rust:1.75
+  packages:
+    - pkg-config
+    - libssl-dev
+  commands:
+    - cargo build --release
+  context:
+    - "."
+    - /app
+  artifacts:
+    - target/release/my-app
+runtime:
+  base: debian:bookworm-slim
+  packages:
+    - ca-certificates
+    - libssl3
+  copy:
+    - from: target/release/my-app
+      to: /usr/local/bin/my-app
+  command:
+    - /usr/local/bin/my-app
+  ports:
+    - 8080
 ```
 
 ### Parsing with jq
 
 ```bash
-# Extract just the build command
-aipack detect --format json | jq -r '.buildCommand'
+# Extract the build commands
+aipack detect --format json | jq -r '.build.commands[]'
 
 # Get confidence as percentage
-aipack detect --format json | jq '.confidence * 100'
+aipack detect --format json | jq '.metadata.confidence * 100'
+
+# Extract runtime command
+aipack detect --format json | jq -r '.runtime.command | join(" ")'
+
+# Get exposed ports
+aipack detect --format json | jq '.runtime.ports[]'
 
 # Check if confidence is high
-if [ $(aipack detect --format json | jq '.confidence') > 0.9 ]; then
+if [ $(aipack detect --format json | jq '.metadata.confidence') > 0.9 ]; then
     echo "High confidence detection"
 fi
 ```
@@ -330,8 +393,10 @@ fi
 
 ```bash
 # Detect and build automatically
-BUILD_CMD=$(aipack detect --format json | jq -r '.buildCommand')
-eval "$BUILD_CMD"
+BUILD_CMDS=$(aipack detect --format json | jq -r '.build.commands[]')
+echo "$BUILD_CMDS" | while read -r cmd; do
+    eval "$cmd"
+done
 ```
 
 ### Scripting
@@ -341,21 +406,22 @@ eval "$BUILD_CMD"
 # auto-build.sh - Universal build script
 
 DETECTION=$(aipack detect --format json)
-CONFIDENCE=$(echo "$DETECTION" | jq '.confidence')
+CONFIDENCE=$(echo "$DETECTION" | jq '.metadata.confidence')
 
 if (( $(echo "$CONFIDENCE < 0.8" | bc -l) )); then
     echo "Low confidence, manual review needed"
     exit 1
 fi
 
-BUILD_CMD=$(echo "$DETECTION" | jq -r '.buildCommand')
-TEST_CMD=$(echo "$DETECTION" | jq -r '.testCommand')
+BUILD_CMDS=$(echo "$DETECTION" | jq -r '.build.commands[]')
 
 echo "Building..."
-eval "$BUILD_CMD"
+echo "$BUILD_CMDS" | while read -r cmd; do
+    echo "Executing: $cmd"
+    eval "$cmd"
+done
 
-echo "Testing..."
-eval "$TEST_CMD"
+echo "Build complete!"
 ```
 
 ### Batch Analysis
@@ -377,8 +443,8 @@ GitHub Actions:
 - name: Detect and build
   run: |
     DETECTION=$(aipack detect --format json)
-    BUILD_CMD=$(echo "$DETECTION" | jq -r '.buildCommand')
-    eval "$BUILD_CMD"
+    BUILD_CMDS=$(echo "$DETECTION" | jq -r '.build.commands[]')
+    echo "$BUILD_CMDS" | while read -r cmd; do eval "$cmd"; done
 ```
 
 For more examples, see:

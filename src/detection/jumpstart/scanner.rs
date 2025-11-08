@@ -235,9 +235,7 @@ mod tests {
         let manifests = scanner.scan().unwrap();
 
         let manifest_paths: Vec<&str> = manifests.iter().map(|m| m.path.as_str()).collect();
-        assert!(!manifest_paths
-            .iter()
-            .any(|p| p.contains("node_modules")));
+        assert!(!manifest_paths.iter().any(|p| p.contains("node_modules")));
     }
 
     #[test]
@@ -263,7 +261,8 @@ mod tests {
     #[test]
     fn test_scan_respects_max_depth() {
         let temp_dir = create_test_repo();
-        let scanner = JumpstartScanner::with_limits(temp_dir.path().to_path_buf(), 0, 1000).unwrap();
+        let scanner =
+            JumpstartScanner::with_limits(temp_dir.path().to_path_buf(), 0, 1000).unwrap();
 
         let manifests = scanner.scan().unwrap();
 

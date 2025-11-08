@@ -1,13 +1,15 @@
 use anyhow::{anyhow, Context, Result};
 use glob::Pattern;
 use regex::Regex;
-use serde::{Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
+
+use crate::output::UniversalBuild;
 
 #[derive(Serialize)]
 struct TreeNode {
@@ -34,7 +36,10 @@ impl ToolExecutor {
             return Err(anyhow!("Repository path does not exist: {:?}", repo_path));
         }
         if !repo_path.is_dir() {
-            return Err(anyhow!("Repository path is not a directory: {:?}", repo_path));
+            return Err(anyhow!(
+                "Repository path is not a directory: {:?}",
+                repo_path
+            ));
         }
 
         // Canonicalize the repo path to ensure consistent path comparisons
@@ -67,7 +72,11 @@ impl ToolExecutor {
             Ok(output) => {
                 let output_len = output.len();
                 info!(tool = tool_name, output_len, "Tool execution completed");
-                debug!(tool = tool_name, output_preview = &output[..output.len().min(200)], "Tool output preview");
+                debug!(
+                    tool = tool_name,
+                    output_preview = &output[..output.len().min(200)],
+                    "Tool output preview"
+                );
             }
             Err(e) => {
                 warn!(tool = tool_name, error = %e, "Tool execution failed");
@@ -78,10 +87,7 @@ impl ToolExecutor {
     }
 
     async fn list_files(&self, args: Value) -> Result<String> {
-        let path = args["path"]
-            .as_str()
-            .unwrap_or(".")
-            .trim_start_matches('/');
+        let path = args["path"].as_str().unwrap_or(".").trim_start_matches('/');
         let pattern = args["pattern"].as_str();
         let max_depth = args["max_depth"].as_u64().map(|d| d as usize);
 
@@ -95,7 +101,10 @@ impl ToolExecutor {
         }
 
         let mut files = Vec::new();
-        for entry in walker.into_iter().filter_entry(|e| !self.is_ignored(e.path())) {
+        for entry in walker
+            .into_iter()
+            .filter_entry(|e| !self.is_ignored(e.path()))
+        {
             let entry = entry.context("Failed to read directory entry")?;
             let path = entry.path();
 
@@ -141,7 +150,12 @@ impl ToolExecutor {
             .context(format!("Failed to read file metadata: {:?}", file_path))?;
 
         if metadata.len() > MAX_FILE_SIZE {
-            warn!(path, file_size = metadata.len(), max_size = MAX_FILE_SIZE, "File too large to read");
+            warn!(
+                path,
+                file_size = metadata.len(),
+                max_size = MAX_FILE_SIZE,
+                "File too large to read"
+            );
             return Err(anyhow!(
                 "File too large: {} bytes (max {} bytes)",
                 metadata.len(),
@@ -164,7 +178,12 @@ impl ToolExecutor {
 
         let mut result = truncated_lines.join("\n");
         if lines.len() > max_lines {
-            debug!(path, total_lines = lines.len(), returned_lines = max_lines, "File content truncated");
+            debug!(
+                path,
+                total_lines = lines.len(),
+                returned_lines = max_lines,
+                "File content truncated"
+            );
             result.push_str(&format!(
                 "\n... (truncated {} lines)",
                 lines.len() - max_lines
@@ -188,7 +207,10 @@ impl ToolExecutor {
         let glob_pattern = Pattern::new(pattern).context("Invalid glob pattern")?;
         let mut matches = Vec::new();
 
-        for entry in WalkDir::new(&self.repo_path).into_iter().filter_entry(|e| !self.is_ignored(e.path())) {
+        for entry in WalkDir::new(&self.repo_path)
+            .into_iter()
+            .filter_entry(|e| !self.is_ignored(e.path()))
+        {
             let entry = entry.context("Failed to read directory entry")?;
             let path = entry.path();
 
@@ -218,10 +240,7 @@ impl ToolExecutor {
     }
 
     async fn get_file_tree(&self, args: Value) -> Result<String> {
-        let path = args["path"]
-            .as_str()
-            .unwrap_or(".")
-            .trim_start_matches('/');
+        let path = args["path"].as_str().unwrap_or(".").trim_start_matches('/');
         let depth = args["depth"]
             .as_u64()
             .map(|d| d as usize)
@@ -233,8 +252,7 @@ impl ToolExecutor {
 
         let tree_json = self.build_tree_json(&target_path, 0, depth)?;
 
-        serde_json::to_string_pretty(&tree_json)
-            .context("Failed to serialize file tree to JSON")
+        serde_json::to_string_pretty(&tree_json).context("Failed to serialize file tree to JSON")
     }
 
     async fn grep_content(&self, args: Value) -> Result<String> {
@@ -247,7 +265,10 @@ impl ToolExecutor {
             .map(|m| m as usize)
             .unwrap_or(DEFAULT_MAX_MATCHES);
 
-        debug!(pattern, file_pattern, max_matches, "grep_content parameters");
+        debug!(
+            pattern,
+            file_pattern, max_matches, "grep_content parameters"
+        );
 
         let regex = Regex::new(pattern).context("Invalid regex pattern")?;
         let file_glob = file_pattern.map(Pattern::new).transpose()?;
@@ -255,7 +276,10 @@ impl ToolExecutor {
         let mut matches = Vec::new();
         let mut match_count = 0;
 
-        for entry in WalkDir::new(&self.repo_path).into_iter().filter_entry(|e| !self.is_ignored(e.path())) {
+        for entry in WalkDir::new(&self.repo_path)
+            .into_iter()
+            .filter_entry(|e| !self.is_ignored(e.path()))
+        {
             let entry = entry.context("Failed to read directory entry")?;
             let path = entry.path();
 
@@ -304,7 +328,11 @@ impl ToolExecutor {
             }
         }
 
-        debug!(matches_found = matches.len(), files_searched = match_count, "grep_content completed");
+        debug!(
+            matches_found = matches.len(),
+            files_searched = match_count,
+            "grep_content completed"
+        );
 
         if matches.is_empty() {
             Ok(format!("No matches found for pattern: {}", pattern))
@@ -314,9 +342,25 @@ impl ToolExecutor {
     }
 
     async fn submit_detection(&self, args: Value) -> Result<String> {
-        info!("LLM submitting final detection result");
-        debug!(result = ?args, "Detection result details");
-        serde_json::to_string_pretty(&args).context("Failed to serialize detection result")
+        info!("LLM submitting final UniversalBuild detection result");
+        debug!(universal_build = ?args, "UniversalBuild submission");
+
+        let universal_build: UniversalBuild = serde_json::from_value(args)
+            .context("Failed to parse UniversalBuild from LLM response")?;
+
+        universal_build
+            .validate()
+            .context("UniversalBuild validation failed")?;
+
+        info!(
+            language = %universal_build.metadata.language,
+            build_system = %universal_build.metadata.build_system,
+            confidence = %universal_build.metadata.confidence,
+            "UniversalBuild validated successfully"
+        );
+
+        serde_json::to_string_pretty(&universal_build)
+            .context("Failed to serialize UniversalBuild")
     }
 
     fn validate_path(&self, path: &str) -> Result<PathBuf> {
@@ -632,17 +676,49 @@ mod tests {
         let temp_dir = create_test_repo();
         let executor = ToolExecutor::new(temp_dir.path().to_path_buf()).unwrap();
 
-        let detection = json!({
-            "build_system": "cargo",
-            "language": "Rust",
-            "build_command": "cargo build"
+        let universal_build = json!({
+            "version": "1.0",
+            "metadata": {
+                "project_name": "test",
+                "language": "rust",
+                "build_system": "cargo",
+                "confidence": 0.95,
+                "reasoning": "Detected Cargo.toml with standard Rust project structure"
+            },
+            "build": {
+                "base": "rust:1.75",
+                "packages": [],
+                "env": {},
+                "commands": ["cargo build --release"],
+                "context": [".", "/app"],
+                "cache": ["/usr/local/cargo/registry"],
+                "artifacts": ["target/release/test"]
+            },
+            "runtime": {
+                "base": "debian:bookworm-slim",
+                "packages": ["ca-certificates"],
+                "env": {},
+                "copy": [
+                    {
+                        "from": "target/release/test",
+                        "to": "/usr/local/bin/test"
+                    }
+                ],
+                "command": ["/usr/local/bin/test"],
+                "ports": [],
+                "healthcheck": null
+            }
         });
 
-        let result = executor.submit_detection(detection.clone()).await.unwrap();
+        let result = executor.submit_detection(universal_build.clone()).await.unwrap();
 
         let parsed: Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["build_system"], "cargo");
-        assert_eq!(parsed["language"], "Rust");
+        assert_eq!(parsed["version"], "1.0");
+        assert_eq!(parsed["metadata"]["language"], "rust");
+        assert_eq!(parsed["metadata"]["build_system"], "cargo");
+        assert_eq!(parsed["metadata"]["confidence"], 0.95);
+        assert_eq!(parsed["build"]["base"], "rust:1.75");
+        assert_eq!(parsed["runtime"]["base"], "debian:bookworm-slim");
     }
 
     #[tokio::test]

@@ -13,8 +13,10 @@ use aipack::cli::commands::{CliArgs, Commands, OutputFormatArg};
 use aipack::cli::output::{OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
-use aipack::detection::types::{DetectionResult, RepositoryContext};
+use aipack::detection::types::RepositoryContext;
+use aipack::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild};
 use clap::Parser;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -227,7 +229,6 @@ fn test_cli_parsing_health() {
     }
 }
 
-
 #[test]
 fn test_cli_parsing_invalid_command() {
     let result = CliArgs::try_parse_from(&["aipack", "invalid"]);
@@ -243,7 +244,15 @@ fn test_configuration_loading_defaults() {
     let config = AipackConfig::default();
 
     // Provider is set via AIPACK_PROVIDER env var, defaults to Ollama
-    assert!(matches!(config.provider, aipack::ai::genai_backend::Provider::Ollama | aipack::ai::genai_backend::Provider::OpenAI | aipack::ai::genai_backend::Provider::Claude | aipack::ai::genai_backend::Provider::Gemini | aipack::ai::genai_backend::Provider::Grok | aipack::ai::genai_backend::Provider::Groq));
+    assert!(matches!(
+        config.provider,
+        aipack::ai::genai_backend::Provider::Ollama
+            | aipack::ai::genai_backend::Provider::OpenAI
+            | aipack::ai::genai_backend::Provider::Claude
+            | aipack::ai::genai_backend::Provider::Gemini
+            | aipack::ai::genai_backend::Provider::Grok
+            | aipack::ai::genai_backend::Provider::Groq
+    ));
     assert_eq!(config.model, "qwen2.5-coder:7b");
     assert!(config.cache_enabled);
 }
@@ -311,20 +320,36 @@ async fn test_repository_analysis_nodejs_project() {
 
 #[test]
 fn test_output_format_json() {
-    let result = DetectionResult {
-        build_system: "cargo".to_string(),
-        language: "Rust".to_string(),
-        build_command: "cargo build --release".to_string(),
-        test_command: Some("cargo test".to_string()),
-            runtime: "rust:1.75".to_string(),
-            dependencies: vec![],
-            entry_point: "/app".to_string(),
-        dev_command: Some("cargo watch -x run".to_string()),
-        confidence: 0.95,
-        reasoning: "Found Cargo.toml with standard structure".to_string(),
-        warnings: vec![],
-        detected_files: vec!["Cargo.toml".to_string()],
-        processing_time_ms: 1000,
+    let result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("test-project".to_string()),
+            language: "Rust".to_string(),
+            build_system: "cargo".to_string(),
+            confidence: 0.95,
+            reasoning: "Found Cargo.toml with standard structure".to_string(),
+        },
+        build: BuildStage {
+            base: "rust:1.75".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["cargo build --release".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["target/release/app".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "debian:bookworm-slim".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "target/release/app".to_string(),
+                to: "/usr/local/bin/app".to_string(),
+            }],
+            command: vec!["/usr/local/bin/app".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
     };
 
     let formatter = OutputFormatter::new(OutputFormat::Json);
@@ -332,27 +357,43 @@ fn test_output_format_json() {
 
     // Verify JSON is valid
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-    assert_eq!(parsed["build_system"], "cargo");
-    assert_eq!(parsed["language"], "Rust");
-    assert_eq!(parsed["confidence"], 0.95);
+    assert_eq!(parsed["metadata"]["build_system"], "cargo");
+    assert_eq!(parsed["metadata"]["language"], "Rust");
+    assert_eq!(parsed["metadata"]["confidence"], 0.95);
 }
 
 #[test]
 fn test_output_format_yaml() {
-    let result = DetectionResult {
-        build_system: "npm".to_string(),
-        language: "JavaScript".to_string(),
-        build_command: "npm run build".to_string(),
-        test_command: Some("npm test".to_string()),
-            runtime: "rust:1.75".to_string(),
-            dependencies: vec![],
-            entry_point: "/app".to_string(),
-        dev_command: None,
-        confidence: 0.85,
-        reasoning: "Found package.json".to_string(),
-        warnings: vec!["No lock file found".to_string()],
-        detected_files: vec!["package.json".to_string()],
-        processing_time_ms: 800,
+    let result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("test-app".to_string()),
+            language: "JavaScript".to_string(),
+            build_system: "npm".to_string(),
+            confidence: 0.85,
+            reasoning: "Found package.json".to_string(),
+        },
+        build: BuildStage {
+            base: "node:18".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["npm run build".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["dist/".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "node:18-alpine".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "dist/".to_string(),
+                to: "/app/dist/".to_string(),
+            }],
+            command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
     };
 
     let formatter = OutputFormatter::new(OutputFormat::Yaml);
@@ -360,26 +401,42 @@ fn test_output_format_yaml() {
 
     // Verify YAML is valid
     let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
-    assert_eq!(parsed["build_system"], "npm");
-    assert_eq!(parsed["language"], "JavaScript");
+    assert_eq!(parsed["metadata"]["build_system"], "npm");
+    assert_eq!(parsed["metadata"]["language"], "JavaScript");
 }
 
 #[test]
 fn test_output_format_human_readable() {
-    let result = DetectionResult {
-        build_system: "cargo".to_string(),
-        language: "Rust".to_string(),
-        build_command: "cargo build --release".to_string(),
-        test_command: Some("cargo test".to_string()),
-            runtime: "rust:1.75".to_string(),
-            dependencies: vec![],
-            entry_point: "/app".to_string(),
-        dev_command: None,
-        confidence: 0.9,
-        reasoning: "Standard Rust project".to_string(),
-        warnings: vec![],
-        detected_files: vec!["Cargo.toml".to_string()],
-        processing_time_ms: 1200,
+    let result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("rust-app".to_string()),
+            language: "Rust".to_string(),
+            build_system: "cargo".to_string(),
+            confidence: 0.9,
+            reasoning: "Standard Rust project".to_string(),
+        },
+        build: BuildStage {
+            base: "rust:1.75".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["cargo build --release".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["target/release/app".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "debian:bookworm-slim".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "target/release/app".to_string(),
+                to: "/usr/local/bin/app".to_string(),
+            }],
+            command: vec!["/usr/local/bin/app".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
     };
 
     let formatter = OutputFormatter::new(OutputFormat::Human);
@@ -388,49 +445,97 @@ fn test_output_format_human_readable() {
     // Verify output contains key information
     assert!(output.contains("cargo"));
     assert!(output.contains("Rust"));
-    assert!(output.contains("90%")); // No decimal in human format
+    assert!(output.contains("90.0%")); // Decimal in human format
     assert!(output.contains("cargo build --release"));
 }
 
 #[test]
 fn test_detection_result_confidence_levels() {
-    let mut result = DetectionResult::new(
-        "cargo".to_string(),
-        "Rust".to_string(),
-        "cargo build".to_string(),
-        Some("cargo test".to_string()),
-        "rust:1.75".to_string(),
-        "/app".to_string(),
-    );
+    let mut result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("test-app".to_string()),
+            language: "Rust".to_string(),
+            build_system: "cargo".to_string(),
+            confidence: 0.95,
+            reasoning: "Found Cargo.toml".to_string(),
+        },
+        build: BuildStage {
+            base: "rust:1.75".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["cargo build".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["target/release/app".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "debian:bookworm-slim".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "target/release/app".to_string(),
+                to: "/usr/local/bin/app".to_string(),
+            }],
+            command: vec!["/usr/local/bin/app".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
+    };
 
-    result.set_confidence(0.95);
-    assert_eq!(result.confidence_level(), "Very High");
-    assert!(result.is_high_confidence());
+    // Confidence levels are now validated in the Display trait implementation
+    // Test different confidence levels
+    result.metadata.confidence = 0.95;
+    let display = format!("{}", result);
+    assert!(display.contains("Very High"));
 
-    result.set_confidence(0.85);
-    assert_eq!(result.confidence_level(), "High");
+    result.metadata.confidence = 0.85;
+    let display = format!("{}", result);
+    assert!(display.contains("High"));
 
-    result.set_confidence(0.5);
-    assert_eq!(result.confidence_level(), "Very Low");
-    assert!(result.is_low_confidence());
+    result.metadata.confidence = 0.5;
+    let display = format!("{}", result);
+    assert!(display.contains("Very Low"));
 }
 
 #[test]
 fn test_detection_result_warnings() {
-    let mut result = DetectionResult::new(
-        "npm".to_string(),
-        "JavaScript".to_string(),
-        "npm run build".to_string(),
-        Some("npm test".to_string()),
-        "node:18".to_string(),
-        "/app".to_string(),
-    );
+    // UniversalBuild doesn't have a warnings field
+    // Warnings are now part of the reasoning text
+    let result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("test-app".to_string()),
+            language: "JavaScript".to_string(),
+            build_system: "npm".to_string(),
+            confidence: 0.75,
+            reasoning: "Found package.json. Warning: No lock file found.".to_string(),
+        },
+        build: BuildStage {
+            base: "node:18".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["npm run build".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["dist/".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "node:18-alpine".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "dist/".to_string(),
+                to: "/app/dist/".to_string(),
+            }],
+            command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
+    };
 
-    assert!(!result.has_warnings());
-
-    result.add_warning("No lock file found".to_string());
-    assert!(result.has_warnings());
-    assert_eq!(result.warnings.len(), 1);
+    let display = format!("{}", result);
+    assert!(display.contains("Warning: No lock file found"));
 }
 
 #[test]

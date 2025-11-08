@@ -292,11 +292,7 @@ impl fmt::Display for AipackConfig {
         writeln!(f, "  Log Level: {}", self.log_level)?;
         writeln!(f, "  Max Tool Iterations: {}", self.max_tool_iterations)?;
         writeln!(f, "  Tool Timeout: {}s", self.tool_timeout_secs)?;
-        writeln!(
-            f,
-            "  Max File Size: {} bytes",
-            self.max_file_size_bytes
-        )?;
+        writeln!(f, "  Max File Size: {} bytes", self.max_file_size_bytes)?;
         writeln!(f, "  Max Tokens: {}", self.max_tokens)?;
         Ok(())
     }

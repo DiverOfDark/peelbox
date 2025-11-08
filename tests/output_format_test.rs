@@ -7,25 +7,42 @@
 //! - Error messages
 
 use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
-use aipack::detection::types::{DetectionResult, RepositoryContext};
+use aipack::detection::types::RepositoryContext;
+use aipack::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-fn create_sample_detection_result() -> DetectionResult {
-    DetectionResult {
-        build_system: "cargo".to_string(),
-        language: "Rust".to_string(),
-        build_command: "cargo build --release".to_string(),
-        test_command: Some("cargo test".to_string()),
-        runtime: "rust:1.75".to_string(),
-        dependencies: vec![],
-        entry_point: "/app".to_string(),
-        dev_command: Some("cargo watch -x run".to_string()),
-        confidence: 0.95,
-        reasoning: "Found Cargo.toml with standard Rust project structure".to_string(),
-        warnings: vec!["Consider adding CI/CD configuration".to_string()],
-        detected_files: vec!["Cargo.toml".to_string(), "Cargo.lock".to_string()],
-        processing_time_ms: 1234,
+fn create_sample_detection_result() -> UniversalBuild {
+    UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("test-project".to_string()),
+            language: "Rust".to_string(),
+            build_system: "cargo".to_string(),
+            confidence: 0.95,
+            reasoning: "Found Cargo.toml with standard Rust project structure".to_string(),
+        },
+        build: BuildStage {
+            base: "rust:1.75".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["cargo build --release".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["target/release/app".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "debian:bookworm-slim".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "target/release/app".to_string(),
+                to: "/usr/local/bin/app".to_string(),
+            }],
+            command: vec!["/usr/local/bin/app".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
     }
 }
 
@@ -51,21 +68,20 @@ fn test_json_format_detection_result() {
     // Verify it's valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
-    // Verify all fields are present
-    assert_eq!(parsed["build_system"], "cargo");
-    assert_eq!(parsed["language"], "Rust");
-    assert_eq!(parsed["build_command"], "cargo build --release");
-    assert_eq!(parsed["test_command"], "cargo test");
-    // deploy_command field removed from DetectionResult
-    assert_eq!(parsed["dev_command"], "cargo watch -x run");
-    assert_eq!(parsed["confidence"], 0.95);
-    assert_eq!(parsed["processing_time_ms"], 1234);
+    // Verify metadata fields
+    assert_eq!(parsed["metadata"]["build_system"], "cargo");
+    assert_eq!(parsed["metadata"]["language"], "Rust");
+    assert_eq!(parsed["metadata"]["confidence"], 0.95);
 
-    // Verify arrays
-    assert!(parsed["warnings"].is_array());
-    assert_eq!(parsed["warnings"].as_array().unwrap().len(), 1);
-    assert!(parsed["detected_files"].is_array());
-    assert_eq!(parsed["detected_files"].as_array().unwrap().len(), 2);
+    // Verify build stage
+    assert_eq!(parsed["build"]["base"], "rust:1.75");
+    assert!(parsed["build"]["commands"].is_array());
+    assert_eq!(parsed["build"]["commands"][0], "cargo build --release");
+
+    // Verify runtime stage
+    assert_eq!(parsed["runtime"]["base"], "debian:bookworm-slim");
+    assert!(parsed["runtime"]["copy"].is_array());
+    assert!(parsed["runtime"]["command"].is_array());
 }
 
 #[test]
@@ -91,9 +107,9 @@ fn test_yaml_format_detection_result() {
     let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
 
     // Verify key fields
-    assert_eq!(parsed["build_system"], "cargo");
-    assert_eq!(parsed["language"], "Rust");
-    assert_eq!(parsed["confidence"], 0.95);
+    assert_eq!(parsed["metadata"]["build_system"], "cargo");
+    assert_eq!(parsed["metadata"]["language"], "Rust");
+    assert_eq!(parsed["metadata"]["confidence"], 0.95);
 
     // Verify YAML format characteristics
     assert!(output.contains("build_system: cargo"));
@@ -108,68 +124,60 @@ fn test_human_format_detection_result() {
     let output = formatter.format(&result).unwrap();
 
     // Verify human-readable output contains key information
-    assert!(output.contains("Build Detection Result"));
+    assert!(output.contains("UniversalBuild Detection Result"));
     assert!(output.contains("cargo"));
     assert!(output.contains("Rust"));
-    assert!(output.contains("95%")); // Confidence as percentage (no decimal)
+    assert!(output.contains("95.0%")); // Confidence as percentage with decimal
     assert!(output.contains("Very High")); // Confidence level
     assert!(output.contains("cargo build --release"));
-    assert!(output.contains("cargo test"));
-    // deploy_command field removed from DetectionResult
-    assert!(output.contains("cargo watch -x run"));
-    assert!(output.contains("1234ms")); // Processing time
-    assert!(output.contains("Consider adding CI/CD")); // Warning
+    assert!(output.contains("Build Stage:"));
+    assert!(output.contains("Runtime Stage:"));
 }
 
 #[test]
-fn test_json_format_with_context() {
+fn test_json_format_complete() {
     let result = create_sample_detection_result();
-    let context = create_sample_context();
     let formatter = OutputFormatter::new(OutputFormat::Json);
 
-    let output = formatter.format_with_context(&result, &context).unwrap();
+    let output = formatter.format(&result).unwrap();
 
     // Verify it's valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
-    // Verify result fields
-    assert_eq!(parsed["detection_result"]["build_system"], "cargo");
-
-    // Verify context fields
-    assert!(parsed["context"]["file_tree"].is_string());
-    assert!(parsed["context"]["key_files"].is_object());
-    assert!(parsed["context"]["readme_content"].is_string());
+    // Verify all major sections are present
+    assert!(parsed["metadata"].is_object());
+    assert!(parsed["build"].is_object());
+    assert!(parsed["runtime"].is_object());
 }
 
 #[test]
-fn test_yaml_format_with_context() {
+fn test_yaml_format_complete() {
     let result = create_sample_detection_result();
-    let context = create_sample_context();
     let formatter = OutputFormatter::new(OutputFormat::Yaml);
 
-    let output = formatter.format_with_context(&result, &context).unwrap();
+    let output = formatter.format(&result).unwrap();
 
     // Verify it's valid YAML
     let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
 
     // Verify structure
-    assert!(parsed["detection_result"].is_mapping());
-    assert!(parsed["context"].is_mapping());
+    assert!(parsed["metadata"].is_mapping());
+    assert!(parsed["build"].is_mapping());
+    assert!(parsed["runtime"].is_mapping());
 }
 
 #[test]
-fn test_human_format_with_context() {
+fn test_human_format_complete() {
     let result = create_sample_detection_result();
-    let context = create_sample_context();
     let formatter = OutputFormatter::new(OutputFormat::Human);
 
-    let output = formatter.format_with_context(&result, &context).unwrap();
+    let output = formatter.format(&result).unwrap();
 
-    // Verify verbose output includes context information
-    assert!(output.contains("Build Detection Result"));
-    assert!(output.contains("Repository Context"));
-    assert!(output.contains("File Tree"));
-    assert!(output.contains("Key Files"));
+    // Verify output includes all sections
+    assert!(output.contains("UniversalBuild Detection Result"));
+    assert!(output.contains("Build Stage:"));
+    assert!(output.contains("Runtime Stage:"));
+    assert!(output.contains("Reasoning:"));
 }
 
 #[test]
@@ -238,46 +246,88 @@ fn test_health_status_format_human() {
 
 #[test]
 fn test_detection_result_minimal() {
-    let result = DetectionResult::new(
-        "make".to_string(),
-        "C".to_string(),
-        "make".to_string(),
-        Some("make test".to_string()),
-        "gcc:latest".to_string(),
-        "/app".to_string(),
-    );
+    let result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: None,
+            language: "C".to_string(),
+            build_system: "make".to_string(),
+            confidence: 0.8,
+            reasoning: "Found Makefile".to_string(),
+        },
+        build: BuildStage {
+            base: "gcc:latest".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["make".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["./app".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "debian:bookworm-slim".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "./app".to_string(),
+                to: "/usr/local/bin/app".to_string(),
+            }],
+            command: vec!["/usr/local/bin/app".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
+    };
 
     let formatter = OutputFormatter::new(OutputFormat::Json);
     let output = formatter.format(&result).unwrap();
 
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
-    assert_eq!(parsed["build_system"], "make");
-    assert_eq!(parsed["language"], "C");
-    assert!(parsed["dev_command"].is_null()); // Optional field
-    assert!(parsed["warnings"].as_array().unwrap().is_empty());
+    assert_eq!(parsed["metadata"]["build_system"], "make");
+    assert_eq!(parsed["metadata"]["language"], "C");
+    assert!(parsed["metadata"]["project_name"].is_null());
 }
 
 #[test]
 fn test_detection_result_with_warnings() {
-    let mut result = DetectionResult::new(
-        "npm".to_string(),
-        "JavaScript".to_string(),
-        "npm run build".to_string(),
-        Some("npm test".to_string()),
-        "node:18".to_string(),
-        "/app".to_string(),
-    );
-
-    result.add_warning("No lock file found".to_string());
-    result.add_warning("Missing build script".to_string());
+    let result = UniversalBuild {
+        version: "1.0".to_string(),
+        metadata: BuildMetadata {
+            project_name: Some("test-app".to_string()),
+            language: "JavaScript".to_string(),
+            build_system: "npm".to_string(),
+            confidence: 0.75,
+            reasoning: "Found package.json but no lock file".to_string(),
+        },
+        build: BuildStage {
+            base: "node:18".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            commands: vec!["npm run build".to_string()],
+            context: vec![".".to_string(), "/app".to_string()],
+            cache: vec![],
+            artifacts: vec!["dist/".to_string()],
+        },
+        runtime: RuntimeStage {
+            base: "node:18-alpine".to_string(),
+            packages: vec![],
+            env: HashMap::new(),
+            copy: vec![CopySpec {
+                from: "dist/".to_string(),
+                to: "/app/dist/".to_string(),
+            }],
+            command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
+            ports: vec![],
+            healthcheck: None,
+        },
+    };
 
     let formatter = OutputFormatter::new(OutputFormat::Human);
     let output = formatter.format(&result).unwrap();
 
-    assert!(output.contains("Warnings:"));
-    assert!(output.contains("No lock file found"));
-    assert!(output.contains("Missing build script"));
+    // UniversalBuild doesn't have warnings field - reasoning contains detection explanation
+    assert!(output.contains("Reasoning:"));
+    assert!(output.contains("Found package.json"));
 }
 
 #[test]
@@ -292,7 +342,7 @@ fn test_detection_result_confidence_levels_in_output() {
 
     for (confidence, expected_level) in confidence_levels {
         let mut result = create_sample_detection_result();
-        result.set_confidence(confidence);
+        result.metadata.confidence = confidence;
 
         let formatter = OutputFormatter::new(OutputFormat::Human);
         let output = formatter.format(&result).unwrap();
@@ -367,7 +417,7 @@ fn test_detection_result_display() {
     let display = format!("{}", result);
 
     // Verify Display implementation
-    assert!(display.contains("Docker Build Detection Result"));
+    assert!(display.contains("UniversalBuild Detection Result"));
     assert!(display.contains("cargo"));
     assert!(display.contains("Rust"));
     assert!(display.contains("95.0%"));
@@ -377,28 +427,28 @@ fn test_detection_result_display() {
 #[test]
 fn test_json_special_characters_escaped() {
     let mut result = create_sample_detection_result();
-    result.reasoning = "Found \"quoted\" string and \\ backslash".to_string();
+    result.metadata.reasoning = "Found \"quoted\" string and \\ backslash".to_string();
 
     let formatter = OutputFormatter::new(OutputFormat::Json);
     let output = formatter.format(&result).unwrap();
 
     // Should be valid JSON with escaped characters
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-    assert!(parsed["reasoning"].as_str().unwrap().contains("quoted"));
-    assert!(parsed["reasoning"].as_str().unwrap().contains("backslash"));
+    assert!(parsed["metadata"]["reasoning"].as_str().unwrap().contains("quoted"));
+    assert!(parsed["metadata"]["reasoning"].as_str().unwrap().contains("backslash"));
 }
 
 #[test]
 fn test_yaml_special_characters() {
     let mut result = create_sample_detection_result();
-    result.reasoning = "Multi-line\nstring with:\n- items".to_string();
+    result.metadata.reasoning = "Multi-line\nstring with:\n- items".to_string();
 
     let formatter = OutputFormatter::new(OutputFormat::Yaml);
     let output = formatter.format(&result).unwrap();
 
     // Should be valid YAML
     let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
-    assert!(parsed["reasoning"].as_str().unwrap().contains("Multi-line"));
+    assert!(parsed["metadata"]["reasoning"].as_str().unwrap().contains("Multi-line"));
 }
 
 #[test]
