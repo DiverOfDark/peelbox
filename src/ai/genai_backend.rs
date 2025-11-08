@@ -294,6 +294,12 @@ impl GenAIBackend {
 
             let resolver = ServiceTargetResolver::from_resolver_fn(
                 move |_service_target: ServiceTarget| -> Result<ServiceTarget, genai::resolver::Error> {
+                    debug!(
+                        "ServiceTargetResolver: creating custom endpoint for {} at {}",
+                        provider_clone.name(),
+                        endpoint_clone
+                    );
+
                     // Create endpoint from the custom URL
                     let endpoint = Endpoint::from_owned(endpoint_clone.clone());
 
@@ -308,6 +314,13 @@ impl GenAIBackend {
 
                     // Build model identifier
                     let model_iden = ModelIden::new(provider_clone.adapter_kind(), &model_clone);
+
+                    debug!(
+                        "ServiceTargetResolver: returning endpoint URL={}, adapter={:?}, model={}",
+                        endpoint_clone,
+                        provider_clone.adapter_kind(),
+                        model_clone
+                    );
 
                     Ok(ServiceTarget {
                         endpoint,
@@ -360,7 +373,18 @@ impl GenAIBackend {
         };
 
         let base_url = self.provider.base_url();
-        let models_url = format!("{}{}", base_url, endpoint_path);
+
+        // Use proper URL joining to handle trailing/leading slashes correctly
+        let models_url = reqwest::Url::parse(&base_url)
+            .and_then(|base| {
+                // Remove leading slash from endpoint_path if present for proper joining
+                let path = endpoint_path.trim_start_matches('/');
+                base.join(path)
+            })
+            .map_err(|e| BackendError::ConfigurationError {
+                message: format!("Failed to construct models URL: {}", e),
+            })?
+            .to_string();
 
         debug!(
             "Validating model '{}' against {} endpoint: {}",
