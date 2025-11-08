@@ -347,7 +347,7 @@ impl OutputFormatter {
         if let Some(endpoint) = config_map.get("ollama_endpoint") {
             output.push_str(&format!("  Endpoint: {}\n", endpoint));
         }
-        if let Some(model) = config_map.get("ollama_model") {
+        if let Some(model) = config_map.get("model") {
             output.push_str(&format!("  Model: {}\n", model));
         }
         if let Some(timeout) = config_map.get("ollama_timeout") {

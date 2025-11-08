@@ -97,8 +97,8 @@ pub struct AipackConfig {
     /// LLM provider (from genai)
     pub provider: Provider,
 
-    /// Ollama model to use for inference (only used when provider is Ollama)
-    pub ollama_model: String,
+    /// Model name to use for inference (provider-specific)
+    pub model: String,
 
     /// Enable result caching
     pub cache_enabled: bool,
@@ -137,9 +137,13 @@ impl Default for AipackConfig {
             })
             .unwrap_or(Provider::Ollama); // Default to Ollama if not specified
 
-        // Ollama model configuration
-        let ollama_model =
-            env::var("AIPACK_OLLAMA_MODEL").unwrap_or_else(|_| DEFAULT_OLLAMA_MODEL.to_string());
+        // Model configuration - provider-specific defaults
+        let model = env::var("AIPACK_MODEL")
+            .ok()
+            .unwrap_or_else(|| match provider {
+                Provider::Ollama => DEFAULT_OLLAMA_MODEL.to_string(),
+                _ => "default-model".to_string(),
+            });
 
         // Caching configuration
         let cache_enabled = env::var("AIPACK_CACHE_ENABLED")
@@ -176,7 +180,7 @@ impl Default for AipackConfig {
 
         Self {
             provider,
-            ollama_model,
+            model,
             cache_enabled,
             cache_dir,
             request_timeout_secs,
@@ -272,12 +276,8 @@ impl AipackConfig {
     pub async fn create_backend(&self) -> Result<Arc<dyn LLMBackend>, ConfigError> {
         let timeout = Duration::from_secs(self.request_timeout_secs);
 
-        // For Ollama, use the configured model; for others, use a generic placeholder
-        // (model selection happens via provider-specific env vars or defaults)
-        let model = match self.provider {
-            Provider::Ollama => self.ollama_model.clone(),
-            _ => "default-model".to_string(), // Placeholder, actual model from env/provider
-        };
+        // Use the configured model for all providers
+        let model = self.model.clone();
 
         let client = GenAIBackend::with_config(self.provider, model, Some(timeout), None).await?;
 
@@ -318,7 +318,7 @@ impl AipackConfig {
         let mut map = std::collections::HashMap::new();
 
         map.insert("provider".to_string(), format!("{:?}", self.provider));
-        map.insert("ollama_model".to_string(), self.ollama_model.clone());
+        map.insert("model".to_string(), self.model.clone());
         map.insert("cache_enabled".to_string(), self.cache_enabled.to_string());
         if let Some(ref dir) = self.cache_dir {
             map.insert("cache_dir".to_string(), dir.display().to_string());
@@ -341,7 +341,7 @@ impl fmt::Display for AipackConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Aipack Configuration:")?;
         writeln!(f, "  Provider: {:?}", self.provider)?;
-        writeln!(f, "  Ollama Model: {}", self.ollama_model)?;
+        writeln!(f, "  Model: {}", self.model)?;
         writeln!(f, "  Cache Enabled: {}", self.cache_enabled)?;
         if let Some(ref dir) = self.cache_dir {
             writeln!(f, "  Cache Dir: {}", dir.display())?;
@@ -395,7 +395,7 @@ mod tests {
         let config = AipackConfig::default();
 
         assert!(matches!(config.provider, Provider::Ollama));
-        assert_eq!(config.ollama_model, DEFAULT_OLLAMA_MODEL);
+        assert_eq!(config.model, DEFAULT_OLLAMA_MODEL);
         assert_eq!(config.cache_enabled, DEFAULT_CACHE_ENABLED);
         assert_eq!(config.request_timeout_secs, DEFAULT_REQUEST_TIMEOUT_SECS);
         assert_eq!(config.max_context_size, DEFAULT_MAX_CONTEXT_SIZE);
@@ -416,7 +416,7 @@ mod tests {
         let config = AipackConfig::default();
 
         assert!(matches!(config.provider, Provider::Claude));
-        assert_eq!(config.ollama_model, "custom-model");
+        assert_eq!(config.model, "custom-model");
         assert_eq!(config.log_level, "debug");
         assert!(!config.cache_enabled);
         assert_eq!(config.request_timeout_secs, 60);
@@ -427,7 +427,7 @@ mod tests {
     fn test_configuration_validation_valid() {
         let config = AipackConfig {
             provider: Provider::Ollama,
-            ollama_model: "qwen:7b".to_string(),
+            model: "qwen:7b".to_string(),
             cache_enabled: true,
             cache_dir: Some(PathBuf::from("/tmp/cache")),
             request_timeout_secs: 30,
@@ -460,7 +460,7 @@ mod tests {
     fn test_cache_path() {
         let config = AipackConfig {
             provider: Provider::Ollama,
-            ollama_model: "qwen:7b".to_string(),
+            model: "qwen:7b".to_string(),
             cache_enabled: true,
             cache_dir: Some(PathBuf::from("/tmp/cache")),
             request_timeout_secs: 30,
@@ -476,7 +476,7 @@ mod tests {
     fn test_cache_path_sanitizes_special_chars() {
         let config = AipackConfig {
             provider: Provider::Ollama,
-            ollama_model: "qwen:7b".to_string(),
+            model: "qwen:7b".to_string(),
             cache_enabled: true,
             cache_dir: Some(PathBuf::from("/tmp/cache")),
             request_timeout_secs: 30,

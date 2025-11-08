@@ -42,8 +42,10 @@ use genai::adapter::AdapterKind;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
 use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{Client, ModelIden, ServiceTarget};
+use reqwest;
+use serde::Deserialize;
 use std::time::Duration;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// Supported LLM providers
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,6 +125,37 @@ impl Provider {
             Provider::Groq => "GROQ_API_KEY",
         }
     }
+
+    /// Returns the default base URL for the provider
+    fn default_base_url(&self) -> &'static str {
+        match self {
+            Provider::Ollama => "http://localhost:11434",
+            Provider::OpenAI => "https://api.openai.com/v1",
+            Provider::Claude => "https://api.anthropic.com",
+            Provider::Gemini => "https://generativelanguage.googleapis.com",
+            Provider::Grok => "https://api.x.ai/v1",
+            Provider::Groq => "https://api.groq.com/openai/v1",
+        }
+    }
+
+    /// Returns the models list endpoint path for the provider
+    fn models_endpoint(&self) -> Option<&'static str> {
+        match self {
+            Provider::Ollama => Some("/api/tags"),
+            Provider::OpenAI => Some("/models"),
+            Provider::Grok => Some("/models"),
+            Provider::Groq => Some("/models"),
+            // Claude and Gemini don't have a standard models list endpoint
+            Provider::Claude => None,
+            Provider::Gemini => None,
+        }
+    }
+
+    /// Gets the base URL (custom or default)
+    fn base_url(&self) -> String {
+        self.custom_endpoint()
+            .unwrap_or_else(|| self.default_base_url().to_string())
+    }
 }
 
 impl std::fmt::Display for Provider {
@@ -136,6 +169,28 @@ impl std::fmt::Display for Provider {
             Provider::Groq => write!(f, "groq"),
         }
     }
+}
+
+/// OpenAI-compatible models list response
+#[derive(Debug, Deserialize)]
+struct OpenAIModelsResponse {
+    data: Vec<OpenAIModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIModel {
+    id: String,
+}
+
+/// Ollama models list response
+#[derive(Debug, Deserialize)]
+struct OllamaModelsResponse {
+    models: Vec<OllamaModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaModel {
+    name: String,
 }
 
 /// GenAI-based LLM backend supporting multiple providers
@@ -291,13 +346,142 @@ impl GenAIBackend {
             model,
         );
 
-        Ok(Self {
+        let backend = Self {
             client,
             model: full_model,
             provider,
             timeout: timeout.unwrap_or(Duration::from_secs(60)),
             max_tokens,
-        })
+        };
+
+        // Validate that the model exists
+        backend.validate_model(&model).await?;
+
+        Ok(backend)
+    }
+
+    /// Validates that the requested model is available on the provider
+    async fn validate_model(&self, model_name: &str) -> Result<(), BackendError> {
+        // Check if provider supports model listing
+        let endpoint_path = match self.provider.models_endpoint() {
+            Some(path) => path,
+            None => {
+                debug!(
+                    "{} doesn't support model listing, skipping validation",
+                    self.provider.name()
+                );
+                return Ok(());
+            }
+        };
+
+        let base_url = self.provider.base_url();
+        let models_url = format!("{}{}", base_url, endpoint_path);
+
+        debug!(
+            "Validating model '{}' against {} endpoint: {}",
+            model_name,
+            self.provider.name(),
+            models_url
+        );
+
+        // Build HTTP client with authentication
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .map_err(|e| BackendError::ConfigurationError {
+                message: format!("Failed to create HTTP client: {}", e),
+            })?;
+
+        let mut request_builder = client.get(&models_url);
+
+        // Add authentication header if needed
+        let api_key_var = self.provider.api_key_env_var();
+        if !api_key_var.is_empty() {
+            if let Ok(api_key) = std::env::var(api_key_var) {
+                request_builder = request_builder.header("Authorization", format!("Bearer {}", api_key));
+            }
+        }
+
+        // Make the request
+        let response = match request_builder.send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                warn!(
+                    "Failed to fetch models list from {}: {}. Skipping validation.",
+                    self.provider.name(),
+                    e
+                );
+                // Don't fail on network errors - just warn and continue
+                return Ok(());
+            }
+        };
+
+        if !response.status().is_success() {
+            warn!(
+                "Models endpoint returned status {}: {}. Skipping validation.",
+                response.status(),
+                models_url
+            );
+            // Don't fail on HTTP errors - just warn and continue
+            return Ok(());
+        }
+
+        // Parse response based on provider type
+        let available_models: Vec<String> = match self.provider {
+            Provider::Ollama => {
+                let ollama_response: OllamaModelsResponse = response.json().await.map_err(|e| {
+                    warn!("Failed to parse Ollama models response: {}", e);
+                    BackendError::ConfigurationError {
+                        message: format!("Failed to parse models list: {}", e),
+                    }
+                })?;
+                ollama_response.models.into_iter().map(|m| m.name).collect()
+            }
+            Provider::OpenAI | Provider::Grok | Provider::Groq => {
+                let openai_response: OpenAIModelsResponse = response.json().await.map_err(|e| {
+                    warn!("Failed to parse OpenAI-compatible models response: {}", e);
+                    BackendError::ConfigurationError {
+                        message: format!("Failed to parse models list: {}", e),
+                    }
+                })?;
+                openai_response.data.into_iter().map(|m| m.id).collect()
+            }
+            _ => {
+                // Shouldn't reach here due to models_endpoint() check above
+                return Ok(());
+            }
+        };
+
+        debug!(
+            "Available models on {}: {:?}",
+            self.provider.name(),
+            available_models
+        );
+
+        // Check if requested model is in the list
+        if !available_models.iter().any(|m| m == model_name) {
+            error!(
+                "Model '{}' not found in {} available models",
+                model_name,
+                self.provider.name()
+            );
+            return Err(BackendError::ConfigurationError {
+                message: format!(
+                    "Model '{}' is not available on {}. Available models: {}",
+                    model_name,
+                    self.provider.name(),
+                    available_models.join(", ")
+                ),
+            });
+        }
+
+        info!(
+            "Model '{}' validated successfully on {}",
+            model_name,
+            self.provider.name()
+        );
+
+        Ok(())
     }
 
     /// Internal method to call the GenAI API
@@ -317,6 +501,29 @@ impl GenAIBackend {
             self.provider.name(),
             prompt.len()
         );
+
+        // Log request payload details
+        debug!(
+            "Request payload - model: {}, temperature: {:?}, max_tokens: {:?}",
+            self.model,
+            0.3,
+            self.max_tokens
+        );
+        debug!(
+            "Request payload - messages: [{{role: user, content_length: {}}}]",
+            prompt.len()
+        );
+
+        // Log truncated prompt content for debugging
+        let prompt_preview = if prompt.len() > 500 {
+            format!("{}... [truncated, total {} chars]", &prompt[..500], prompt.len())
+        } else {
+            prompt.clone()
+        };
+        debug!("Request payload - prompt preview: {}", prompt_preview);
+
+        // Log full prompt at trace level for very detailed debugging
+        tracing::trace!("Request payload - full prompt: {}", prompt);
 
         let start = std::time::Instant::now();
 
@@ -341,6 +548,9 @@ impl GenAIBackend {
             elapsed.as_secs_f64()
         );
 
+        // Debug: Log the full response structure
+        debug!("{} response structure: {:?}", self.provider.name(), response);
+
         // Extract text content
         let content = response
             .first_text()
@@ -349,8 +559,9 @@ impl GenAIBackend {
                     "No text content in {} response",
                     self.provider.name()
                 );
+                error!("{} full response: {:?}", self.provider.name(), response);
                 BackendError::InvalidResponse {
-                    message: "No text content in response".to_string(),
+                    message: format!("No text content in response. Full response: {:?}", response),
                     raw_response: None,
                 }
             })?

@@ -169,14 +169,10 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     config.provider = args.backend;
     debug!("Provider set to: {:?}", config.provider);
 
-    // Override model if specified (Ollama only)
+    // Override model if specified
     if let Some(model) = &args.model {
-        if matches!(config.provider, Provider::Ollama) {
-            config.ollama_model = model.clone();
-            debug!("Ollama model overridden to: {}", model);
-        } else {
-            warn!("--model flag is only applicable for Ollama provider");
-        }
+        config.model = model.clone();
+        debug!("Model overridden to: {}", model);
     }
 
     // Override timeout
@@ -481,7 +477,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     Ok(response) if response.status().is_success() => {
                         info!("Ollama is available at {}", ollama_host);
                         HealthStatus::available(format!("Connected to {}", ollama_host))
-                            .with_details(format!("Model: {}", config.ollama_model))
+                            .with_details(format!("Model: {}", config.model))
                     }
                     _ => {
                         warn!("Ollama is not available at {}", ollama_host);
