@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
 const MAX_FILE_SIZE: u64 = 1024 * 1024;
@@ -29,15 +30,34 @@ impl ToolExecutor {
     }
 
     pub async fn execute(&self, tool_name: &str, arguments: Value) -> Result<String> {
-        match tool_name {
+        info!(tool = tool_name, "Executing tool");
+        debug!(tool = tool_name, args = ?arguments, "Tool arguments");
+
+        let result = match tool_name {
             "list_files" => self.list_files(arguments).await,
             "read_file" => self.read_file(arguments).await,
             "search_files" => self.search_files(arguments).await,
             "get_file_tree" => self.get_file_tree(arguments).await,
             "grep_content" => self.grep_content(arguments).await,
             "submit_detection" => self.submit_detection(arguments).await,
-            _ => Err(anyhow!("Unknown tool: {}", tool_name)),
+            _ => {
+                warn!(tool = tool_name, "Unknown tool requested");
+                Err(anyhow!("Unknown tool: {}", tool_name))
+            }
+        };
+
+        match &result {
+            Ok(output) => {
+                let output_len = output.len();
+                info!(tool = tool_name, output_len, "Tool execution completed");
+                debug!(tool = tool_name, output_preview = &output[..output.len().min(200)], "Tool output preview");
+            }
+            Err(e) => {
+                warn!(tool = tool_name, error = %e, "Tool execution failed");
+            }
         }
+
+        result
     }
 
     async fn list_files(&self, args: Value) -> Result<String> {
@@ -47,6 +67,8 @@ impl ToolExecutor {
             .trim_start_matches('/');
         let pattern = args["pattern"].as_str();
         let max_depth = args["max_depth"].as_u64().map(|d| d as usize);
+
+        debug!(path, pattern, max_depth, "list_files parameters");
 
         let target_path = self.validate_path(path)?;
 
@@ -80,6 +102,7 @@ impl ToolExecutor {
             }
         }
 
+        debug!(files_found = files.len(), "list_files completed");
         Ok(files.join("\n"))
     }
 
@@ -93,12 +116,15 @@ impl ToolExecutor {
             .map(|l| l as usize)
             .unwrap_or(DEFAULT_MAX_LINES);
 
+        debug!(path, max_lines, "read_file parameters");
+
         let file_path = self.validate_path(path)?;
 
         let metadata = fs::metadata(&file_path)
             .context(format!("Failed to read file metadata: {:?}", file_path))?;
 
         if metadata.len() > MAX_FILE_SIZE {
+            warn!(path, file_size = metadata.len(), max_size = MAX_FILE_SIZE, "File too large to read");
             return Err(anyhow!(
                 "File too large: {} bytes (max {} bytes)",
                 metadata.len(),
@@ -107,8 +133,11 @@ impl ToolExecutor {
         }
 
         if self.is_binary(&file_path)? {
+            warn!(path, "Cannot read binary file");
             return Err(anyhow!("Cannot read binary file: {:?}", path));
         }
+
+        debug!(path, file_size = metadata.len(), "Reading file");
 
         let content = fs::read_to_string(&file_path)
             .context(format!("Failed to read file: {:?}", file_path))?;
@@ -118,6 +147,7 @@ impl ToolExecutor {
 
         let mut result = truncated_lines.join("\n");
         if lines.len() > max_lines {
+            debug!(path, total_lines = lines.len(), returned_lines = max_lines, "File content truncated");
             result.push_str(&format!(
                 "\n... (truncated {} lines)",
                 lines.len() - max_lines
@@ -135,6 +165,8 @@ impl ToolExecutor {
             .as_u64()
             .map(|r| r as usize)
             .unwrap_or(DEFAULT_MAX_RESULTS);
+
+        debug!(pattern, max_results, "search_files parameters");
 
         let glob_pattern = Pattern::new(pattern).context("Invalid glob pattern")?;
         let mut matches = Vec::new();
@@ -159,6 +191,8 @@ impl ToolExecutor {
             }
         }
 
+        debug!(matches_found = matches.len(), "search_files completed");
+
         if matches.is_empty() {
             Ok(format!("No files found matching pattern: {}", pattern))
         } else {
@@ -175,6 +209,8 @@ impl ToolExecutor {
             .as_u64()
             .map(|d| d as usize)
             .unwrap_or(DEFAULT_TREE_DEPTH);
+
+        debug!(path, depth, "get_file_tree parameters");
 
         let target_path = self.validate_path(path)?;
         let mut tree = String::new();
@@ -193,6 +229,8 @@ impl ToolExecutor {
             .as_u64()
             .map(|m| m as usize)
             .unwrap_or(DEFAULT_MAX_MATCHES);
+
+        debug!(pattern, file_pattern, max_matches, "grep_content parameters");
 
         let regex = Regex::new(pattern).context("Invalid regex pattern")?;
         let file_glob = file_pattern.map(Pattern::new).transpose()?;
@@ -249,6 +287,8 @@ impl ToolExecutor {
             }
         }
 
+        debug!(matches_found = matches.len(), files_searched = match_count, "grep_content completed");
+
         if matches.is_empty() {
             Ok(format!("No matches found for pattern: {}", pattern))
         } else {
@@ -257,6 +297,8 @@ impl ToolExecutor {
     }
 
     async fn submit_detection(&self, args: Value) -> Result<String> {
+        info!("LLM submitting final detection result");
+        debug!(result = ?args, "Detection result details");
         serde_json::to_string_pretty(&args).context("Failed to serialize detection result")
     }
 
