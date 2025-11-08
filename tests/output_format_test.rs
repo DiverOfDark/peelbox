@@ -7,7 +7,6 @@
 //! - Error messages
 
 use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
-use aipack::config::AipackConfig;
 use aipack::detection::types::{DetectionResult, RepositoryContext};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -235,67 +234,6 @@ fn test_health_status_format_human() {
     // Verify human-readable format (backend health status may vary in format)
     assert!(output.contains("Ollama"));
     assert!(output.contains("Mistral"));
-}
-
-#[test]
-fn test_config_format_json() {
-    let config = AipackConfig {
-        provider: aipack::ai::genai_backend::Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
-        cache_enabled: true,
-        cache_dir: Some(PathBuf::from("/tmp/cache")),
-        request_timeout_secs: 30,
-        max_context_size: 512_000,
-        log_level: "info".to_string(),
-    };
-
-    let formatter = OutputFormatter::new(OutputFormat::Json);
-    let output = formatter.format_config(&config).unwrap();
-
-    // Verify valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-
-    assert_eq!(parsed["provider"], "Ollama");
-    assert_eq!(parsed["ollama_model"], "qwen:7b");
-    assert_eq!(parsed["cache_enabled"], "true");
-}
-
-// Removed test_config_format_json_show_secrets - secrets are no longer stored in config
-// API keys are managed by genai via environment variables
-
-#[test]
-fn test_config_format_yaml() {
-    let config = AipackConfig::default();
-
-    let formatter = OutputFormatter::new(OutputFormat::Yaml);
-    let output = formatter.format_config(&config).unwrap();
-
-    // Verify valid YAML
-    let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
-
-    assert!(parsed["provider"].is_string());
-    assert!(parsed["ollama_model"].is_string());
-}
-
-#[test]
-fn test_config_format_human() {
-    let config = AipackConfig {
-        provider: aipack::ai::genai_backend::Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
-        cache_enabled: true,
-        cache_dir: Some(PathBuf::from("/tmp/cache")),
-        request_timeout_secs: 30,
-        max_context_size: 512_000,
-        log_level: "info".to_string(),
-    };
-
-    let formatter = OutputFormatter::new(OutputFormat::Human);
-    let output = formatter.format_config(&config).unwrap();
-
-    // Verify human-readable format contains key config
-    assert!(output.contains("Ollama") || output.contains("ollama"));
-    assert!(output.contains("qwen:7b"));
-    assert!(output.contains("cache_enabled"));
 }
 
 #[test]

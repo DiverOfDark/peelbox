@@ -39,7 +39,8 @@ async fn main() {
     // This will use environment variables or fall back to sensible defaults
     let config = AipackConfig::default();
 
-    println!("Backend: {}", config.backend);
+    println!("Provider: {:?}", config.provider);
+    println!("Model: {}", config.model);
     println!();
 
     // Create detection service
@@ -70,7 +71,6 @@ async fn main() {
             println!("Commands:");
             println!("  Build:  {}", result.build_command);
             println!("  Test:   {}", result.test_command);
-            println!("  Deploy: {}", result.deploy_command);
             println!();
 
             if !result.reasoning.is_empty() {

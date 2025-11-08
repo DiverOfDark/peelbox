@@ -59,9 +59,8 @@ async fn main() {
     let config = AipackConfig::default();
 
     println!("\n⚙️  Configuration:");
-    println!("   Backend: {}", config.backend);
-    println!("   Ollama Endpoint: {}", config.ollama_endpoint);
-    println!("   Ollama Model: {}", config.ollama_model);
+    println!("   Provider: {:?}", config.provider);
+    println!("   Model: {}", config.model);
     println!("   Request Timeout: {}s", config.request_timeout_secs);
 
     // Validate configuration
@@ -86,8 +85,8 @@ async fn main() {
             eprintln!("\n❌ Failed to initialize service: {}", e);
             eprintln!("\n💡 Troubleshooting:");
             eprintln!("   1. Ensure Ollama is running: ollama serve");
-            eprintln!("   2. Pull the model: ollama pull {}", config.ollama_model);
-            eprintln!("   3. Check the endpoint: {}", config.ollama_endpoint);
+            eprintln!("   2. Pull the model: ollama pull {}", config.model);
+            eprintln!("   3. Check OLLAMA_HOST environment variable if using custom endpoint");
             process::exit(1);
         }
     };
@@ -153,7 +152,6 @@ async fn main() {
     println!("\n💡 Usage Examples:");
     println!("   Build:  {}", result.build_command);
     println!("   Test:   {}", result.test_command);
-    println!("   Deploy: {}", result.deploy_command);
 
     if let Some(ref dev_cmd) = result.dev_command {
         println!("   Dev:    {}", dev_cmd);

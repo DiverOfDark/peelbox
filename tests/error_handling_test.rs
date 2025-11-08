@@ -114,7 +114,7 @@ fn test_config_provider_is_type_safe() {
     // This test verifies that a config with a valid provider validates successfully
     let config = AipackConfig {
         provider: aipack::ai::genai_backend::Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: false,
         cache_dir: None,
         request_timeout_secs: 30,
@@ -220,7 +220,7 @@ async fn test_backend_unavailable_error() {
 
     let config = AipackConfig {
         provider: aipack::ai::genai_backend::Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: false,
         cache_dir: None,
         request_timeout_secs: 30,
@@ -303,7 +303,7 @@ fn test_config_error_display() {
 
 #[test]
 fn test_backend_error_display() {
-    use aipack::ai::backend::BackendError;
+    use aipack::ai::genai_backend::BackendError;
 
     let error = BackendError::TimeoutError { seconds: 30 };
     assert!(format!("{}", error).contains("30 seconds"));
@@ -341,12 +341,12 @@ fn test_error_types_implement_error_trait() {
     is_error::<ServiceError>();
     is_error::<AnalysisError>();
     is_error::<ConfigError>();
-    is_error::<aipack::ai::backend::BackendError>();
+    is_error::<aipack::ai::genai_backend::BackendError>();
 }
 
 #[test]
 fn test_error_chain_propagation() {
-    use aipack::ai::backend::BackendError;
+    use aipack::ai::genai_backend::BackendError;
 
     // Test that BackendError converts to ServiceError
     let backend_error = BackendError::TimeoutError { seconds: 30 };

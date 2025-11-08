@@ -12,7 +12,7 @@
 //! RUST_LOG=aipack=debug cargo run --example advanced_workflow -- /path/to/repo
 //! ```
 
-use aipack::ai::backend::BackendError;
+use aipack::ai::genai_backend::BackendError;
 use aipack::detection::service::{DetectionService, ServiceError};
 use aipack::{AipackConfig, DetectionResult};
 use std::env;

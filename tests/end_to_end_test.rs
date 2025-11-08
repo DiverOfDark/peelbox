@@ -244,7 +244,7 @@ fn test_configuration_loading_defaults() {
 
     // Provider is set via AIPACK_PROVIDER env var, defaults to Ollama
     assert!(matches!(config.provider, aipack::ai::genai_backend::Provider::Ollama | aipack::ai::genai_backend::Provider::OpenAI | aipack::ai::genai_backend::Provider::Claude | aipack::ai::genai_backend::Provider::Gemini | aipack::ai::genai_backend::Provider::Grok | aipack::ai::genai_backend::Provider::Groq));
-    assert_eq!(config.ollama_model, "qwen2.5-coder:7b");
+    assert_eq!(config.model, "qwen2.5-coder:7b");
     assert!(config.cache_enabled);
 }
 
@@ -252,7 +252,7 @@ fn test_configuration_loading_defaults() {
 fn test_configuration_validation_valid() {
     let config = AipackConfig {
         provider: aipack::ai::genai_backend::Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -470,7 +470,7 @@ async fn test_analyzer_respects_ignore_patterns() {
 fn test_config_display_map() {
     let config = AipackConfig {
         provider: aipack::ai::genai_backend::Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -481,7 +481,7 @@ fn test_config_display_map() {
     // Get display map (no arguments needed)
     let map = config.to_display_map();
     assert!(map.contains_key("provider"));
-    assert_eq!(map["ollama_model"], "qwen:7b");
+    assert_eq!(map["model"], "qwen:7b");
     assert_eq!(map["cache_enabled"], "true");
 }
 

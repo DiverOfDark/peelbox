@@ -51,7 +51,7 @@ async fn test_service_client_timeout() {
 fn test_config_provider_set() {
     let config = AipackConfig {
         provider: Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: false,
         cache_dir: None,
         request_timeout_secs: 2,
@@ -82,7 +82,7 @@ async fn test_service_creation_with_unreachable_backend() {
 
     let config = AipackConfig {
         provider: Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: false,
         cache_dir: None,
         request_timeout_secs: 2,
@@ -108,8 +108,6 @@ async fn test_service_client_name_and_info() {
     ).await;
 
     if let Ok(client) = client {
-        use aipack::ai::backend::LLMBackend;
-
         assert_eq!(client.name(), "OpenAI");
         assert!(client.model_info().is_some());
     }
@@ -134,7 +132,7 @@ async fn test_service_client_custom_timeout() {
 fn test_config_validation_all_fields() {
     let config = AipackConfig {
         provider: Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(std::path::PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -186,7 +184,7 @@ fn test_config_validation_all_log_levels() {
 fn test_config_cache_path_generation() {
     let config = AipackConfig {
         provider: Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(std::path::PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -229,7 +227,7 @@ async fn test_health_check_with_multiple_endpoints() {
 fn test_config_display_formatting() {
     let config = AipackConfig {
         provider: Provider::Ollama,
-        ollama_model: "qwen:7b".to_string(),
+        model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(std::path::PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -248,7 +246,7 @@ fn test_config_display_formatting() {
 
 #[test]
 fn test_backend_error_types() {
-    use aipack::ai::backend::BackendError;
+    use aipack::ai::genai_backend::BackendError;
 
     // Test TimeoutError
     let error = BackendError::TimeoutError { seconds: 30 };
@@ -329,7 +327,7 @@ fn test_backend_error_types() {
 
 #[test]
 fn test_backend_error_implements_error_trait() {
-    use aipack::ai::backend::BackendError;
+    use aipack::ai::genai_backend::BackendError;
     use std::error::Error;
 
     let error = BackendError::TimeoutError { seconds: 30 };

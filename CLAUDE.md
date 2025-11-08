@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 1. **No Backwards Compatibility**: Breaking changes are acceptable and preferred when they improve the codebase. Never maintain compatibility with old APIs, configurations, or interfaces.
 2. **No Historical Comments**: Code and documentation should reflect the current state only. Never include comments explaining what was added, removed, or changed (e.g., "removed X because...", "added Y to replace...").
 3. **Clean Slate**: When refactoring, completely remove old code and update all references. The codebase should read as if it was always implemented the current way.
+4. **Minimal Comments**: Keep commenting to a minimum. If code is simple and obvious it doesn't require comments. This is not a library so examples are not required.
 
 ## Project Overview
 

@@ -6,8 +6,8 @@
 //!
 //! # Core Concepts
 //!
-//! - **LLM Backends**: Pluggable AI providers (Claude, OpenAI, local models) that
-//!   analyze repositories and generate build commands
+//! - **GenAI Backend**: Multi-provider AI backend supporting Claude, OpenAI, Gemini,
+//!   Ollama, Grok, and Groq for analyzing repositories and generating build commands
 //! - **Detection**: Process of analyzing repository structure, configuration files,
 //!   and metadata to identify the build system
 //! - **Repository Context**: Structured information about a repository including
@@ -16,11 +16,12 @@
 //! # Example Usage
 //!
 //! ```ignore
-//! use aipack::{LLMBackend, RepositoryContext, DetectionResult};
+//! use aipack::{GenAIBackend, RepositoryContext, DetectionResult};
 //! use std::path::PathBuf;
+//! use std::sync::Arc;
 //!
 //! async fn detect_build_system(
-//!     backend: impl LLMBackend,
+//!     backend: Arc<GenAIBackend>,
 //!     repo_path: PathBuf,
 //! ) -> Result<DetectionResult, Box<dyn std::error::Error>> {
 //!     // Gather repository context
@@ -44,7 +45,7 @@
 //!
 //! # Features
 //!
-//! - Multi-backend LLM support (Claude, OpenAI, local models)
+//! - Multi-provider LLM support (Claude, OpenAI, Gemini, Ollama, Grok, Groq)
 //! - Comprehensive repository analysis
 //! - Confidence scoring for detection results
 //! - Warning generation for potential issues
@@ -57,8 +58,7 @@ pub mod config;
 pub mod detection;
 
 // Re-export key types for convenient access
-pub use ai::backend::{BackendError, LLMBackend};
-pub use ai::genai_backend::{GenAIBackend, Provider};
+pub use ai::genai_backend::{BackendError, GenAIBackend, Provider};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};

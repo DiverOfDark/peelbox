@@ -22,7 +22,6 @@
 //! PROVIDER=gemini GOOGLE_API_KEY=AIza... cargo run --example genai_detection
 //! ```
 
-use aipack::ai::backend::LLMBackend;
 use aipack::ai::genai_backend::{GenAIBackend, Provider};
 use aipack::detection::types::RepositoryContext;
 use std::env;
@@ -113,13 +112,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Language: {}", result.language);
             println!("Confidence: {:.1}%", result.confidence * 100.0);
             println!("\nBuild Command: {}", result.build_command);
+            println!("Test Command: {}", result.test_command);
 
-            if let Some(test_cmd) = result.test_command {
-                println!("Test Command: {}", test_cmd);
-            }
-
-            if let Some(run_cmd) = result.run_command {
-                println!("Run Command: {}", run_cmd);
+            if let Some(dev_cmd) = result.dev_command {
+                println!("Dev Command: {}", dev_cmd);
             }
 
             if !result.detected_files.is_empty() {
@@ -127,10 +123,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 for file in &result.detected_files {
                     println!("  - {}", file);
                 }
-            }
-
-            if let Some(explanation) = result.explanation {
-                println!("\nExplanation: {}", explanation);
             }
 
             println!("\n⏱️  Processing Time: {}ms", result.processing_time_ms);

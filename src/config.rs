@@ -47,8 +47,7 @@
 //! # }
 //! ```
 
-use crate::ai::backend::{BackendError, LLMBackend};
-use crate::ai::genai_backend::{GenAIBackend, Provider};
+use crate::ai::genai_backend::{BackendError, GenAIBackend, Provider};
 use std::env;
 use std::fmt;
 use std::path::PathBuf;
@@ -250,7 +249,7 @@ impl AipackConfig {
     ///
     /// # Returns
     ///
-    /// An `Arc<dyn LLMBackend>` ready for detection operations
+    /// An `Arc<GenAIBackend>` ready for detection operations
     ///
     /// # Errors
     ///
@@ -273,7 +272,7 @@ impl AipackConfig {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn create_backend(&self) -> Result<Arc<dyn LLMBackend>, ConfigError> {
+    pub async fn create_backend(&self) -> Result<Arc<GenAIBackend>, ConfigError> {
         let timeout = Duration::from_secs(self.request_timeout_secs);
 
         // Use the configured model for all providers
@@ -281,7 +280,7 @@ impl AipackConfig {
 
         let client = GenAIBackend::with_config(self.provider, model, Some(timeout), None).await?;
 
-        Ok(Arc::new(client) as Arc<dyn LLMBackend>)
+        Ok(Arc::new(client))
     }
 
     /// Computes the cache file path for a given repository
@@ -406,7 +405,7 @@ mod tests {
     fn test_environment_variable_parsing() {
         let _guards = vec![
             EnvGuard::set("AIPACK_PROVIDER", "claude"),
-            EnvGuard::set("AIPACK_OLLAMA_MODEL", "custom-model"),
+            EnvGuard::set("AIPACK_MODEL", "custom-model"),
             EnvGuard::set("AIPACK_LOG_LEVEL", "debug"),
             EnvGuard::set("AIPACK_CACHE_ENABLED", "false"),
             EnvGuard::set("AIPACK_REQUEST_TIMEOUT", "60"),

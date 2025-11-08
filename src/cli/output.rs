@@ -20,7 +20,6 @@ use serde_json;
 use serde_yaml;
 use std::collections::HashMap;
 
-use crate::config::AipackConfig;
 use crate::detection::types::{DetectionResult, RepositoryContext};
 
 /// Output format enumeration
@@ -64,15 +63,6 @@ impl OutputFormatter {
             OutputFormat::Json => self.format_json_with_context(result, context),
             OutputFormat::Yaml => self.format_yaml_with_context(result, context),
             OutputFormat::Human => self.format_human_with_context(result, context),
-        }
-    }
-
-    /// Formats configuration display
-    pub fn format_config(&self, config: &AipackConfig) -> Result<String> {
-        match self.format {
-            OutputFormat::Json => self.format_config_json(config),
-            OutputFormat::Yaml => self.format_config_yaml(config),
-            OutputFormat::Human => self.format_config_human(config),
         }
     }
 
@@ -125,11 +115,6 @@ impl OutputFormatter {
             .context("Failed to serialize result with context to JSON")
     }
 
-    fn format_config_json(&self, config: &AipackConfig) -> Result<String> {
-        let config_map = config.to_display_map();
-        serde_json::to_string_pretty(&config_map).context("Failed to serialize config to JSON")
-    }
-
     fn format_health_json(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
         serde_json::to_string_pretty(health_results)
             .context("Failed to serialize health status to JSON")
@@ -172,11 +157,6 @@ impl OutputFormatter {
         });
 
         serde_yaml::to_string(&output).context("Failed to serialize result with context to YAML")
-    }
-
-    fn format_config_yaml(&self, config: &AipackConfig) -> Result<String> {
-        let config_map = config.to_display_map();
-        serde_yaml::to_string(&config_map).context("Failed to serialize config to YAML")
     }
 
     fn format_health_yaml(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
@@ -323,59 +303,6 @@ impl OutputFormatter {
                 output.push_str(&preview);
                 output.push('\n');
             }
-        }
-
-        Ok(output)
-    }
-
-    fn format_config_human(&self, config: &AipackConfig) -> Result<String> {
-        let mut output = String::new();
-
-        output.push_str("aipack Configuration\n");
-        output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
-
-        let config_map = config.to_display_map();
-
-        // Backend section
-        output.push_str("Backend Configuration:\n");
-        if let Some(backend) = config_map.get("backend") {
-            output.push_str(&format!("  Backend: {}\n", backend));
-        }
-
-        // Ollama section
-        output.push_str("\nOllama Configuration:\n");
-        if let Some(endpoint) = config_map.get("ollama_endpoint") {
-            output.push_str(&format!("  Endpoint: {}\n", endpoint));
-        }
-        if let Some(model) = config_map.get("model") {
-            output.push_str(&format!("  Model: {}\n", model));
-        }
-        if let Some(timeout) = config_map.get("ollama_timeout") {
-            output.push_str(&format!("  Timeout: {}s\n", timeout));
-        }
-
-        // LM Studio section
-        output.push_str("\nLM Studio Configuration:\n");
-        if let Some(endpoint) = config_map.get("lm_studio_endpoint") {
-            output.push_str(&format!("  Endpoint: {}\n", endpoint));
-        }
-
-        // Mistral section
-        output.push_str("\nMistral Configuration:\n");
-        if let Some(api_key) = config_map.get("mistral_api_key") {
-            output.push_str(&format!("  API Key: {}\n", api_key));
-        }
-        if let Some(model) = config_map.get("mistral_model") {
-            output.push_str(&format!("  Model: {}\n", model));
-        }
-        if let Some(timeout) = config_map.get("mistral_timeout") {
-            output.push_str(&format!("  Timeout: {}s\n", timeout));
-        }
-
-        // Cache section
-        output.push_str("\nCache Configuration:\n");
-        if let Some(enabled) = config_map.get("cache_enabled") {
-            output.push_str(&format!("  Enabled: {}\n", enabled));
         }
 
         Ok(output)

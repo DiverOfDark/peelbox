@@ -36,9 +36,8 @@ async fn main() {
     println!("---------------------------------");
 
     let config = AipackConfig::default();
-    println!("Backend: {}", config.backend);
-    println!("Ollama endpoint: {}", config.ollama_endpoint);
-    println!("Ollama model: {}", config.ollama_model);
+    println!("Provider: {:?}", config.provider);
+    println!("Model: {}", config.model);
     println!();
 
     match DetectionService::new(&config).await {

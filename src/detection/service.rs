@@ -27,7 +27,7 @@
 //! # }
 //! ```
 
-use crate::ai::backend::{BackendError, LLMBackend};
+use crate::ai::genai_backend::{BackendError, GenAIBackend};
 use crate::config::AipackConfig;
 use crate::detection::analyzer::{AnalysisError, RepositoryAnalyzer};
 use crate::detection::types::{DetectionResult, RepositoryContext};
@@ -284,8 +284,8 @@ impl ServiceError {
 /// ```text
 /// DetectionService
 ///   ├── RepositoryAnalyzer  (scans files, builds context)
-///   └── LLMBackend          (AI-powered detection)
-///         └── OllamaClient (or other backends)
+///   └── GenAIBackend        (multi-provider AI backend)
+///         └── Supports: Ollama, OpenAI, Claude, Gemini, Grok, Groq
 /// ```
 ///
 /// # Thread Safety
@@ -293,7 +293,7 @@ impl ServiceError {
 /// This service is thread-safe and can be shared across threads using `Arc`.
 pub struct DetectionService {
     /// LLM backend for detection
-    backend: Arc<dyn LLMBackend>,
+    backend: Arc<GenAIBackend>,
 }
 
 impl std::fmt::Debug for DetectionService {
@@ -590,7 +590,7 @@ mod tests {
         let backend = Arc::new(GenAIBackend::new(
             Provider::Ollama,
             "qwen2.5-coder:7b".to_string(),
-        ).await.unwrap()) as Arc<dyn LLMBackend>;
+        ).await.unwrap());
 
         let service = DetectionService { backend };
 
@@ -608,7 +608,7 @@ mod tests {
         let backend = Arc::new(GenAIBackend::new(
             Provider::Ollama,
             "qwen2.5-coder:7b".to_string(),
-        ).await.unwrap()) as Arc<dyn LLMBackend>;
+        ).await.unwrap());
 
         let service = DetectionService { backend };
 
@@ -624,7 +624,7 @@ mod tests {
         let backend = Arc::new(GenAIBackend::new(
             Provider::Ollama,
             "qwen2.5-coder:7b".to_string(),
-        ).await.unwrap()) as Arc<dyn LLMBackend>;
+        ).await.unwrap());
 
         let service = DetectionService { backend };
 
