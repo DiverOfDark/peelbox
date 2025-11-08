@@ -26,6 +26,13 @@ impl ToolExecutor {
         if !repo_path.is_dir() {
             return Err(anyhow!("Repository path is not a directory: {:?}", repo_path));
         }
+
+        // Canonicalize the repo path to ensure consistent path comparisons
+        let repo_path = repo_path
+            .canonicalize()
+            .context("Failed to canonicalize repository path")?;
+
+        debug!(repo_path = %repo_path.display(), "ToolExecutor initialized");
         Ok(Self { repo_path })
     }
 
@@ -310,7 +317,21 @@ impl ToolExecutor {
             .canonicalize()
             .context(format!("Failed to resolve path: {:?}", full_path))?;
 
+        debug!(
+            requested_path = path,
+            normalized = normalized,
+            repo_path = %self.repo_path.display(),
+            canonical = %canonical.display(),
+            "Validating path"
+        );
+
         if !canonical.starts_with(&self.repo_path) {
+            warn!(
+                requested_path = path,
+                canonical = %canonical.display(),
+                repo_path = %self.repo_path.display(),
+                "Path traversal attempt detected"
+            );
             return Err(anyhow!(
                 "Path traversal detected: {:?} is outside repository",
                 path
