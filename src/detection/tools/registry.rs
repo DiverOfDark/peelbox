@@ -39,7 +39,7 @@ impl ToolRegistry {
                     },
                     "pattern": {
                         "type": "string",
-                        "description": "Optional glob pattern to filter files (e.g., '*.rs', '*.toml', 'Cargo.*')"
+                        "description": "Optional glob pattern to filter files (e.g., '*.extension', 'filename.*')"
                     },
                     "max_depth": {
                         "type": "integer",
@@ -64,7 +64,7 @@ impl ToolRegistry {
                 "properties": {
                     "path": {
                         "type": "string",
-                        "description": "File path relative to repository root (e.g., 'Cargo.toml', 'src/main.rs')"
+                        "description": "File path relative to repository root (e.g., 'config.ext', 'directory/file.ext')"
                     },
                     "max_lines": {
                         "type": "integer",
@@ -89,7 +89,7 @@ impl ToolRegistry {
                 "properties": {
                     "pattern": {
                         "type": "string",
-                        "description": "Glob pattern for file name matching (e.g., '**/package.json', 'Dockerfile*', '*.gradle')"
+                        "description": "Glob pattern for file name matching (e.g., '**/filename.ext', 'buildfile*', '*.extension')"
                     },
                     "max_results": {
                         "type": "integer",
@@ -139,11 +139,11 @@ impl ToolRegistry {
                 "properties": {
                     "pattern": {
                         "type": "string",
-                        "description": "Regex pattern to search for in file contents (e.g., 'fn main', 'import.*React', 'version.*=.*\"\\d+\\.\\d+\"')"
+                        "description": "Regex pattern to search for in file contents (e.g., 'function_pattern', 'import.*Module', 'key.*=.*\"value_pattern\"')"
                     },
                     "file_pattern": {
                         "type": "string",
-                        "description": "Optional glob pattern to filter which files to search (e.g., '*.rs', '*.js', 'src/**/*.py')"
+                        "description": "Optional glob pattern to filter which files to search (e.g., '*.ext', 'directory/**/*.extension')"
                     },
                     "max_matches": {
                         "type": "integer",
@@ -168,23 +168,23 @@ impl ToolRegistry {
                 "properties": {
                     "language": {
                         "type": "string",
-                        "description": "Primary programming language (e.g., 'Rust', 'JavaScript', 'Python', 'Go')"
+                        "description": "Primary programming language name"
                     },
                     "build_system": {
                         "type": "string",
-                        "description": "Detected build system (e.g., 'cargo', 'npm', 'gradle', 'maven', 'make', 'go')"
+                        "description": "Detected build system name"
                     },
                     "build_command": {
                         "type": "string",
-                        "description": "Command to build the project (e.g., 'cargo build', 'npm run build', 'make')"
+                        "description": "Command to build the project"
                     },
                     "test_command": {
                         "type": "string",
-                        "description": "Command to run tests (e.g., 'cargo test', 'npm test', 'pytest'). Optional."
+                        "description": "Command to run tests. Optional."
                     },
                     "runtime": {
                         "type": "string",
-                        "description": "Runtime environment (e.g., 'native', 'node', 'jvm', 'python', 'docker')"
+                        "description": "Runtime environment or execution platform"
                     },
                     "dependencies": {
                         "type": "array",
@@ -195,11 +195,11 @@ impl ToolRegistry {
                     },
                     "entry_point": {
                         "type": "string",
-                        "description": "Main entry point file or command (e.g., 'src/main.rs', 'index.js', 'main.py')"
+                        "description": "Main entry point file or command (e.g., 'directory/entrypoint.ext')"
                     },
                     "dev_command": {
                         "type": "string",
-                        "description": "Command to run in development mode (e.g., 'cargo run', 'npm run dev'). Optional."
+                        "description": "Command to run in development mode. Optional."
                     },
                     "confidence": {
                         "type": "number",
@@ -213,7 +213,7 @@ impl ToolRegistry {
                     },
                     "warnings": {
                         "type": "array",
-                        "description": "Any warnings or potential issues detected (e.g., missing files, unusual configurations)",
+                        "description": "Any warnings or potential issues detected",
                         "items": {
                             "type": "string"
                         }
