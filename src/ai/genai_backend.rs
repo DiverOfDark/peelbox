@@ -8,7 +8,6 @@
 //!
 //! ```no_run
 //! use aipack::ai::genai_backend::{GenAIBackend, Provider};
-//! use aipack::detection::types::RepositoryContext;
 //! use std::path::PathBuf;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,30 +18,51 @@
 //! ).await?;
 //!
 //! // Detect build system
-//! let context = RepositoryContext::minimal(
-//!     PathBuf::from("/path/to/repo"),
-//!     "repo/\n├── Cargo.toml\n└── src/".to_string(),
-//! );
-//!
-//! let result = client.detect(context).await?;
+//! let result = client.detect(PathBuf::from("/path/to/repo")).await?;
 //! println!("Detected: {}", result.build_system);
 //! # Ok(())
 //! # }
 //! ```
 
-use crate::detection::prompt::PromptBuilder;
 use crate::detection::response::parse_ollama_response;
-use crate::detection::types::{DetectionResult, RepositoryContext};
+use crate::detection::types::DetectionResult;
 use clap::ValueEnum;
 use genai::adapter::AdapterKind;
-use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
+use genai::chat::{ChatMessage, ChatOptions, ChatRequest, ToolResponse};
 use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{Client, ModelIden, ServiceTarget};
 use reqwest;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::path::PathBuf;
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
+
+/// System prompt for the LLM build system detection expert
+const SYSTEM_PROMPT: &str = r#"You are an expert build system detection assistant. Your role is to analyze repository structures and accurately identify the build system, language, and configuration.
+
+Available tools:
+- list_files: List files in a directory with optional filtering
+- read_file: Read the contents of a specific file
+- search_files: Search for files by name pattern
+- get_file_tree: Get a tree view of the repository structure
+- grep_content: Search for text patterns within files
+- submit_detection: Submit your final detection result
+
+Process:
+1. Start by exploring the repository structure (use get_file_tree or list_files)
+2. Identify key configuration files (package.json, Cargo.toml, pom.xml, etc.)
+3. Read relevant files to confirm the build system and gather details
+4. When confident, call submit_detection with your findings
+
+Be efficient - only request files you need. Focus on identifying:
+- Programming language
+- Build system (cargo, npm, maven, gradle, make, etc.)
+- Build and test commands
+- Runtime environment
+- Entry points and dependencies
+
+Your detection should be thorough but concise. Aim for high confidence by verifying key indicators."#;
 
 /// Errors that can occur during backend operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -574,141 +594,142 @@ impl GenAIBackend {
         Ok(())
     }
 
-    /// Internal method to call the GenAI API
-    async fn generate(&self, prompt: String) -> Result<String, BackendError> {
-        // Build chat request
-        let chat_req = ChatRequest::new(vec![ChatMessage::user(prompt.clone())]);
-
-        // Build options
-        let mut options = ChatOptions::default().with_temperature(0.3);
-
-        if let Some(max_tokens) = self.max_tokens {
-            options = options.with_max_tokens(max_tokens);
-        }
-
-        debug!(
-            "Sending request to {}: prompt_length={}",
-            self.provider.name(),
-            prompt.len()
-        );
-
-        // Log request payload details
-        debug!(
-            "Request payload - model: {}, temperature: {:?}, max_tokens: {:?}",
-            self.model,
-            0.3,
-            self.max_tokens
-        );
-        debug!(
-            "Request payload - messages: [{{role: user, content_length: {}}}]",
-            prompt.len()
-        );
-
-        // Log truncated prompt content for debugging
-        let prompt_preview = if prompt.len() > 500 {
-            format!("{}... [truncated, total {} chars]", &prompt[..500], prompt.len())
-        } else {
-            prompt.clone()
-        };
-        debug!("Request payload - prompt preview: {}", prompt_preview);
-
-        // Log full prompt at trace level for very detailed debugging
-        tracing::trace!("Request payload - full prompt: {}", prompt);
-
-        let start = std::time::Instant::now();
-
-        // Execute chat request
-        let response = self
-            .client
-            .exec_chat(&self.model, chat_req, Some(&options))
-            .await
-            .map_err(|e| {
-                error!("{} API error: {}", self.provider.name(), e);
-                BackendError::ApiError {
-                    message: format!("{} request failed: {}", self.provider.name(), e),
-                    status_code: None,
-                }
-            })?;
-
-        let elapsed = start.elapsed();
-
-        info!(
-            "{} generation completed in {:.2}s",
-            self.provider.name(),
-            elapsed.as_secs_f64()
-        );
-
-        // Debug: Log the full response structure
-        debug!("{} response structure: {:?}", self.provider.name(), response);
-
-        // Extract text content
-        let content = response
-            .first_text()
-            .ok_or_else(|| {
-                error!(
-                    "No text content in {} response",
-                    self.provider.name()
-                );
-                error!("{} full response: {:?}", self.provider.name(), response);
-                BackendError::InvalidResponse {
-                    message: format!("No text content in response. Full response: {:?}", response),
-                    raw_response: None,
-                }
-            })?
-            .to_string();
-
-        debug!(
-            "{} response length: {} characters",
-            self.provider.name(),
-            content.len()
-        );
-
-        Ok(content)
-    }
 }
 
 impl GenAIBackend {
-    /// Detects build system and generates commands from repository context
+    /// Detects build system using tool-based conversation loop
     ///
-    /// This method constructs a prompt from the repository context, sends it to
-    /// the configured LLM provider via genai, and parses the response.
-    pub async fn detect(&self, context: RepositoryContext) -> Result<DetectionResult, BackendError> {
+    /// This method uses an iterative tool-calling approach where the LLM
+    /// can request information about the repository through tools until
+    /// it has enough information to submit a final detection result.
+    pub async fn detect(&self, repo_path: PathBuf) -> Result<DetectionResult, BackendError> {
+        use crate::detection::tools::{ToolExecutor, ToolRegistry};
+
         info!(
-            "Starting detection for repository: {} using {}",
-            context.repo_path.display(),
+            "Starting tool-based detection for repository: {} using {}",
+            repo_path.display(),
             self.provider.name()
         );
 
-        // Build the prompt
-        let prompt = PromptBuilder::build_detection_prompt(&context);
-        debug!("Built prompt with {} characters", prompt.len());
-
-        // Call API
-        let response_text = self.generate(prompt).await?;
-        debug!("Received response with {} characters", response_text.len());
-
-        // Parse the response
-        let mut result = parse_ollama_response(&response_text).map_err(|e| {
-            error!("Failed to parse {} response: {}", self.provider.name(), e);
-            BackendError::ParseError {
-                message: e.to_string(),
-                context: response_text.chars().take(200).collect(),
+        // Create tool executor
+        let executor = ToolExecutor::new(repo_path.clone()).map_err(|e| {
+            BackendError::Other {
+                message: format!("Failed to create tool executor: {}", e),
             }
         })?;
 
-        // Set detected files from context if not already set
-        if result.detected_files.is_empty() {
-            result.detected_files = context.detected_files.clone();
+        // Get all tools
+        let tools = ToolRegistry::create_all_tools();
+        debug!("Initialized {} tools for detection", tools.len());
+
+        // Initial conversation
+        let mut messages: Vec<ChatMessage> = vec![
+            ChatMessage::system(SYSTEM_PROMPT),
+            ChatMessage::user(format!(
+                "Analyze the repository at path: {}",
+                repo_path.display()
+            )),
+        ];
+
+        const MAX_ITERATIONS: usize = 10;
+        let mut iteration = 0;
+        let start = std::time::Instant::now();
+
+        loop {
+            iteration += 1;
+            if iteration > MAX_ITERATIONS {
+                error!("Exceeded max iterations ({})", MAX_ITERATIONS);
+                return Err(BackendError::Other {
+                    message: format!("Exceeded max iterations ({})", MAX_ITERATIONS),
+                });
+            }
+
+            debug!("Iteration {}/{}", iteration, MAX_ITERATIONS);
+
+            // Create chat request with tools
+            let request = ChatRequest::new(messages.clone()).with_tools(tools.clone());
+
+            // Build options
+            let mut options = ChatOptions::default().with_temperature(0.3);
+            if let Some(max_tokens) = self.max_tokens {
+                options = options.with_max_tokens(max_tokens);
+            }
+
+            // Execute LLM request
+            let response = self
+                .client
+                .exec_chat(&self.model, request, Some(&options))
+                .await
+                .map_err(|e| {
+                    error!("{} API error: {}", self.provider.name(), e);
+                    BackendError::ApiError {
+                        message: format!("{} request failed: {}", self.provider.name(), e),
+                        status_code: None,
+                    }
+                })?;
+
+            debug!(
+                "{} responded with {} tool calls",
+                self.provider.name(),
+                response.tool_calls().len()
+            );
+
+            // Add assistant message to conversation (may contain text + tool calls)
+            messages.push(ChatMessage::assistant(response.content.clone()));
+
+            // Check for tool calls
+            let tool_calls = response.tool_calls();
+
+            if tool_calls.is_empty() {
+                warn!("LLM did not call any tools");
+                return Err(BackendError::InvalidResponse {
+                    message: "LLM did not call any tools".to_string(),
+                    raw_response: response.first_text().map(|s| s.to_string()),
+                });
+            }
+
+            // Execute each tool call
+            for tool_call in tool_calls {
+                debug!(
+                    "Executing tool: {} with call_id: {}",
+                    tool_call.fn_name, tool_call.call_id
+                );
+
+                // Check if this is submit_detection
+                if tool_call.fn_name == "submit_detection" {
+                    info!(
+                        "Detection submitted after {} iterations in {:.2}s",
+                        iteration,
+                        start.elapsed().as_secs_f64()
+                    );
+                    return parse_detection_from_tool_call(&tool_call.fn_arguments);
+                }
+
+                // Execute the tool
+                let result = executor
+                    .execute(&tool_call.fn_name, tool_call.fn_arguments.clone())
+                    .await
+                    .map_err(|e| {
+                        warn!("Tool {} failed: {}", tool_call.fn_name, e);
+                        BackendError::Other {
+                            message: format!("Tool {} failed: {}", tool_call.fn_name, e),
+                        }
+                    })?;
+
+                debug!(
+                    "Tool {} returned {} bytes",
+                    tool_call.fn_name,
+                    result.len()
+                );
+
+                // Add tool response to conversation
+                let tool_response = ToolResponse {
+                    call_id: tool_call.call_id.clone(),
+                    content: result,
+                };
+                messages.push(tool_response.into());
+            }
         }
-
-        info!(
-            "Detection completed: {} ({}) with {:.1}% confidence",
-            result.build_system,
-            result.language,
-            result.confidence * 100.0
-        );
-
-        Ok(result)
     }
 
     /// Returns the human-readable name of this backend
@@ -720,6 +741,30 @@ impl GenAIBackend {
     pub fn model_info(&self) -> Option<String> {
         Some(self.model.clone())
     }
+}
+
+/// Parses the detection result from submit_detection tool call arguments
+fn parse_detection_from_tool_call(
+    arguments: &serde_json::Value,
+) -> Result<DetectionResult, BackendError> {
+    debug!("Parsing detection from tool call arguments");
+
+    // Convert arguments to JSON string
+    let json_str = serde_json::to_string(arguments).map_err(|e| BackendError::ParseError {
+        message: format!("Failed to serialize detection: {}", e),
+        context: format!("{:?}", arguments),
+    })?;
+
+    debug!("Detection JSON: {}", json_str);
+
+    // Use existing parser
+    parse_ollama_response(&json_str).map_err(|e| {
+        error!("Failed to parse detection result: {}", e);
+        BackendError::ParseError {
+            message: format!("Failed to parse detection result: {}", e),
+            context: json_str,
+        }
+    })
 }
 
 impl std::fmt::Debug for GenAIBackend {

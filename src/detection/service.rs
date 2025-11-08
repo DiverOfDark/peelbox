@@ -29,7 +29,7 @@
 
 use crate::ai::genai_backend::{BackendError, GenAIBackend};
 use crate::config::AipackConfig;
-use crate::detection::analyzer::{AnalysisError, RepositoryAnalyzer};
+use crate::detection::analyzer::AnalysisError;
 use crate::detection::types::{DetectionResult, RepositoryContext};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -407,19 +407,9 @@ impl DetectionService {
 
         info!("Starting detection for repository: {}", repo_path.display());
 
-        // Analyze repository
-        debug!("Analyzing repository structure and contents");
-        let analyzer = RepositoryAnalyzer::new(repo_path.clone());
-        let context = analyzer.analyze().await?;
-
-        info!(
-            "Repository analysis complete: {} key files detected",
-            context.key_file_count()
-        );
-
-        // Perform detection with backend
-        debug!("Calling LLM backend for detection");
-        let mut result = self.backend.detect(context).await?;
+        // Perform detection with backend (using tool-based approach)
+        debug!("Calling LLM backend for tool-based detection");
+        let mut result = self.backend.detect(repo_path.clone()).await?;
 
         // Set processing time
         result.processing_time_ms = start.elapsed().as_millis() as u64;
@@ -492,8 +482,8 @@ impl DetectionService {
             context.repo_path.display()
         );
 
-        // Perform detection with backend
-        let mut result = self.backend.detect(context).await?;
+        // Perform detection with backend (tool-based approach, context is ignored)
+        let mut result = self.backend.detect(context.repo_path.clone()).await?;
 
         // Set processing time
         result.processing_time_ms = start.elapsed().as_millis() as u64;
