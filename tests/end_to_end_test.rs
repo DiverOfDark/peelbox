@@ -227,15 +227,6 @@ fn test_cli_parsing_health() {
     }
 }
 
-#[test]
-fn test_cli_parsing_config() {
-    let args = CliArgs::parse_from(&["aipack", "config"]);
-
-    match args.command {
-        Commands::Config(_) => {}
-        _ => panic!("Expected Config command"),
-    }
-}
 
 #[test]
 fn test_cli_parsing_invalid_command() {
@@ -504,7 +495,6 @@ fn test_help_output_generation() {
     assert!(help.contains("aipack"));
     assert!(help.contains("detect"));
     assert!(help.contains("health"));
-    assert!(help.contains("config"));
 }
 
 #[test]

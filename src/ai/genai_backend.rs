@@ -38,8 +38,10 @@ use crate::detection::response::parse_ollama_response;
 use crate::detection::types::{DetectionResult, RepositoryContext};
 use async_trait::async_trait;
 use clap::ValueEnum;
+use genai::adapter::AdapterKind;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest};
-use genai::Client;
+use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
+use genai::{Client, ModelIden, ServiceTarget};
 use std::time::Duration;
 use tracing::{debug, error, info};
 
@@ -49,6 +51,7 @@ pub enum Provider {
     /// Ollama local inference
     Ollama,
     /// OpenAI GPT models
+    #[value(name = "openai")]
     OpenAI,
     /// Anthropic Claude
     Claude,
@@ -82,6 +85,42 @@ impl Provider {
             Provider::Gemini => "Gemini",
             Provider::Grok => "Grok",
             Provider::Groq => "Groq",
+        }
+    }
+
+    /// Returns the AdapterKind for genai ServiceTarget
+    fn adapter_kind(&self) -> AdapterKind {
+        match self {
+            Provider::Ollama => AdapterKind::Ollama,
+            Provider::OpenAI => AdapterKind::OpenAI,
+            Provider::Claude => AdapterKind::Anthropic,
+            Provider::Gemini => AdapterKind::Gemini,
+            Provider::Grok => AdapterKind::Groq, // xAI uses OpenAI-compatible API
+            Provider::Groq => AdapterKind::Groq,
+        }
+    }
+
+    /// Reads custom endpoint from environment variable
+    fn custom_endpoint(&self) -> Option<String> {
+        match self {
+            Provider::Ollama => std::env::var("OLLAMA_HOST").ok(),
+            Provider::OpenAI => std::env::var("OPENAI_API_BASE").ok(),
+            Provider::Claude => std::env::var("ANTHROPIC_BASE_URL").ok(),
+            Provider::Gemini => std::env::var("GOOGLE_API_BASE_URL").ok(),
+            Provider::Grok => std::env::var("XAI_BASE_URL").ok(),
+            Provider::Groq => std::env::var("GROQ_BASE_URL").ok(),
+        }
+    }
+
+    /// Returns the environment variable name for API key
+    fn api_key_env_var(&self) -> &'static str {
+        match self {
+            Provider::Ollama => "", // Ollama doesn't require API key
+            Provider::OpenAI => "OPENAI_API_KEY",
+            Provider::Claude => "ANTHROPIC_API_KEY",
+            Provider::Gemini => "GOOGLE_API_KEY",
+            Provider::Grok => "XAI_API_KEY",
+            Provider::Groq => "GROQ_API_KEY",
         }
     }
 }
@@ -180,10 +219,12 @@ impl GenAIBackend {
     /// # Note
     ///
     /// Custom endpoints are configured via environment variables:
-    /// - `OLLAMA_HOST` for Ollama
+    /// - `OLLAMA_HOST` for Ollama (default: http://localhost:11434)
+    /// - `OPENAI_API_BASE` for OpenAI (default: https://api.openai.com/v1)
     /// - `ANTHROPIC_BASE_URL` for Claude
-    /// - `OPENAI_API_BASE` for OpenAI
     /// - `GOOGLE_API_BASE_URL` for Gemini
+    /// - `XAI_BASE_URL` for Grok
+    /// - `GROQ_BASE_URL` for Groq
     ///
     /// Set the appropriate environment variable before calling this function.
     pub async fn with_config(
@@ -192,8 +233,54 @@ impl GenAIBackend {
         timeout: Option<Duration>,
         max_tokens: Option<u32>,
     ) -> Result<Self, BackendError> {
-        // Create genai client
-        let client = Client::default();
+        // Check for custom endpoint
+        let custom_endpoint = provider.custom_endpoint();
+
+        // Create genai client with custom resolver if endpoint is specified
+        let client = if let Some(endpoint_url) = custom_endpoint {
+            debug!(
+                "Using custom endpoint for {}: {}",
+                provider.name(),
+                endpoint_url
+            );
+
+            // Create a ServiceTargetResolver for the custom endpoint
+            let provider_clone = provider;
+            let model_clone = model.clone();
+            let endpoint_clone = endpoint_url.clone();
+
+            let resolver = ServiceTargetResolver::from_resolver_fn(
+                move |_service_target: ServiceTarget| -> Result<ServiceTarget, genai::resolver::Error> {
+                    // Create endpoint from the custom URL
+                    let endpoint = Endpoint::from_owned(endpoint_clone.clone());
+
+                    // Get authentication from environment variable
+                    let api_key_var = provider_clone.api_key_env_var();
+                    let auth = if !api_key_var.is_empty() {
+                        AuthData::from_env(api_key_var)
+                    } else {
+                        // For Ollama which doesn't require auth
+                        AuthData::from_single("")
+                    };
+
+                    // Build model identifier
+                    let model_iden = ModelIden::new(provider_clone.adapter_kind(), &model_clone);
+
+                    Ok(ServiceTarget {
+                        endpoint,
+                        auth,
+                        model: model_iden,
+                    })
+                },
+            );
+
+            Client::builder()
+                .with_service_target_resolver(resolver)
+                .build()
+        } else {
+            // Use default client (reads standard environment variables)
+            Client::default()
+        };
 
         // Build full model string (e.g., "ollama:qwen2.5-coder:7b")
         let full_model = format!("{}:{}", provider.prefix(), model);

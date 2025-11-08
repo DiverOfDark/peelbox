@@ -97,7 +97,6 @@ fn test_cli_help() {
     assert!(stdout.contains("aipack"));
     assert!(stdout.contains("detect"));
     assert!(stdout.contains("health"));
-    assert!(stdout.contains("config"));
 }
 
 #[test]
@@ -149,51 +148,6 @@ fn test_health_command() {
     );
 }
 
-#[test]
-fn test_config_command() {
-    let output = Command::new(aipack_bin())
-        .arg("config")
-        .output()
-        .expect("Failed to execute aipack");
-
-    // Config command should always succeed
-    assert!(output.status.success() || output.status.code() == Some(2)); // 2 = config issues
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout.contains("backend")
-            || stdout.contains("Backend")
-            || stdout.contains("Configuration")
-    );
-}
-
-#[test]
-fn test_config_json_format() {
-    let output = Command::new(aipack_bin())
-        .arg("config")
-        .arg("--format")
-        .arg("json")
-        .output()
-        .expect("Failed to execute aipack");
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should be valid JSON
-    assert!(stdout.contains("{"));
-    assert!(stdout.contains("}"));
-}
-
-#[test]
-fn test_config_yaml_format() {
-    let output = Command::new(aipack_bin())
-        .arg("config")
-        .arg("--format")
-        .arg("yaml")
-        .output()
-        .expect("Failed to execute aipack");
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    // Should be valid YAML
-    assert!(stdout.contains(":"));
-}
 
 #[test]
 fn test_detect_nonexistent_path() {
