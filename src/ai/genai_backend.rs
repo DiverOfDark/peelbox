@@ -281,6 +281,9 @@ pub struct GenAIBackend {
     /// Request timeout
     timeout: Duration,
 
+    /// Maximum tool iterations for detection
+    max_tool_iterations: usize,
+
     /// Maximum tokens for response
     max_tokens: Option<u32>,
 }
@@ -325,7 +328,7 @@ impl GenAIBackend {
         provider: Provider,
         model: String,
     ) -> Result<Self, BackendError> {
-        Self::with_config(provider, model, None, None).await
+        Self::with_config(provider, model, None, None, None).await
     }
 
     /// Creates a new GenAI backend with custom configuration
@@ -336,6 +339,7 @@ impl GenAIBackend {
     /// * `model` - Model name (without provider prefix)
     /// * `timeout` - Optional request timeout
     /// * `max_tokens` - Optional maximum tokens for response
+    /// * `max_tool_iterations` - Optional maximum tool iterations (defaults to 10)
     ///
     /// # Note
     ///
@@ -353,6 +357,7 @@ impl GenAIBackend {
         model: String,
         timeout: Option<Duration>,
         max_tokens: Option<u32>,
+        max_tool_iterations: Option<usize>,
     ) -> Result<Self, BackendError> {
         // Check for custom endpoint
         let custom_endpoint = provider.custom_endpoint();
@@ -426,7 +431,8 @@ impl GenAIBackend {
             client,
             model: model.clone(),
             provider,
-            timeout: timeout.unwrap_or(Duration::from_secs(60)),
+            timeout: timeout.unwrap_or(Duration::from_secs(30)),
+            max_tool_iterations: max_tool_iterations.unwrap_or(10),
             max_tokens,
         };
 
@@ -608,23 +614,36 @@ impl GenAIBackend {
             )),
         ];
 
-        const MAX_ITERATIONS: usize = 10;
+        let max_iterations = self.max_tool_iterations;
         let mut iteration = 0;
         let start = std::time::Instant::now();
+        let total_timeout = self.timeout.saturating_mul(max_iterations as u32);
 
         // Track which tools have been called to enforce validation
         let mut has_read_file = false;
 
         loop {
             iteration += 1;
-            if iteration > MAX_ITERATIONS {
-                error!("Exceeded max iterations ({})", MAX_ITERATIONS);
-                return Err(BackendError::Other {
-                    message: format!("Exceeded max iterations ({})", MAX_ITERATIONS),
+
+            // Check total elapsed time
+            if start.elapsed() >= total_timeout {
+                error!(
+                    "Detection timeout: exceeded total time limit of {} seconds",
+                    total_timeout.as_secs()
+                );
+                return Err(BackendError::TimeoutError {
+                    seconds: total_timeout.as_secs(),
                 });
             }
 
-            debug!("Iteration {}/{}", iteration, MAX_ITERATIONS);
+            if iteration > max_iterations {
+                error!("Exceeded max iterations ({})", max_iterations);
+                return Err(BackendError::Other {
+                    message: format!("Exceeded max iterations ({})", max_iterations),
+                });
+            }
+
+            debug!("Iteration {}/{}", iteration, max_iterations);
 
             // Create chat request with tools
             let request = ChatRequest::new(messages.clone()).with_tools(tools.clone());
@@ -670,7 +689,7 @@ impl GenAIBackend {
 
             // Check if submit_detection is being called
             let has_submit_detection = tool_calls.iter().any(|tc| tc.fn_name == "submit_detection");
-            let is_last_iteration = iteration >= MAX_ITERATIONS - 1;
+            let is_last_iteration = iteration >= max_iterations - 1;
             let is_only_tool_call = tool_calls.len() == 1;
 
             // Determine if we should process submit_detection
@@ -703,7 +722,7 @@ impl GenAIBackend {
                             warn!("Skipping submit_detection - no files read yet. LLM should call read_file first.");
                             messages.push(ToolResponse {
                                 call_id: tool_call.call_id.clone(),
-                                content: "Error: Cannot submit detection yet. You must call read_file on at least one build configuration file (build.gradle.kts, pom.xml, package.json, Cargo.toml, etc.) before submitting detection. Please read the actual build file to verify the build system.".to_string(),
+                                content: "Error: Cannot submit detection yet. You must call read_file on at least one build configuration file before submitting detection. Please read the primary build file to verify the build system.".to_string(),
                             }.into());
                         } else if tool_calls.len() > 1 {
                             warn!("Skipping submit_detection - called alongside {} other tools. LLM should call it alone.", tool_calls.len() - 1);
@@ -847,12 +866,14 @@ mod tests {
             "claude-sonnet-4-5".to_string(),
             Some(Duration::from_secs(120)),
             Some(1024),
+            Some(5),
         )
         .await
         .unwrap();
 
         assert_eq!(backend.provider, Provider::Claude);
         assert_eq!(backend.timeout, Duration::from_secs(120));
+        assert_eq!(backend.max_tool_iterations, 5);
         assert_eq!(backend.max_tokens, Some(1024));
     }
 

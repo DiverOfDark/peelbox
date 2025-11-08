@@ -202,7 +202,14 @@ impl AipackConfig {
     pub async fn create_backend(&self) -> Result<Arc<GenAIBackend>, ConfigError> {
         let timeout = Duration::from_secs(self.request_timeout_secs);
         let model = self.model.clone();
-        let client = GenAIBackend::with_config(self.provider, model, Some(timeout), None).await?;
+        let client = GenAIBackend::with_config(
+            self.provider,
+            model,
+            Some(timeout),
+            None,
+            Some(self.max_tool_iterations),
+        )
+        .await?;
         Ok(Arc::new(client))
     }
 
