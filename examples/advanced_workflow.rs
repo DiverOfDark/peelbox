@@ -152,7 +152,7 @@ fn load_configuration() -> Result<AipackConfig, WorkflowError> {
 
     let config = AipackConfig::default();
 
-    debug!("Configuration loaded: backend={}", config.backend);
+    debug!("Configuration loaded: provider={:?}", config.provider);
 
     Ok(config)
 }
@@ -336,7 +336,9 @@ fn display_result(result: &DetectionResult) {
     println!("Commands:");
     println!("  Build:   {}", result.build_command);
     println!("  Test:    {}", result.test_command);
-    println!("  Deploy:  {}", result.deploy_command);
+    if let Some(ref dev_cmd) = result.dev_command {
+        println!("  Dev:     {}", dev_cmd);
+    }
     println!();
 
     if !result.reasoning.is_empty() {

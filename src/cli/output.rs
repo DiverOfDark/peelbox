@@ -68,11 +68,11 @@ impl OutputFormatter {
     }
 
     /// Formats configuration display
-    pub fn format_config(&self, config: &AipackConfig, show_secrets: bool) -> Result<String> {
+    pub fn format_config(&self, config: &AipackConfig) -> Result<String> {
         match self.format {
-            OutputFormat::Json => self.format_config_json(config, show_secrets),
-            OutputFormat::Yaml => self.format_config_yaml(config, show_secrets),
-            OutputFormat::Human => self.format_config_human(config, show_secrets),
+            OutputFormat::Json => self.format_config_json(config),
+            OutputFormat::Yaml => self.format_config_yaml(config),
+            OutputFormat::Human => self.format_config_human(config),
         }
     }
 
@@ -112,8 +112,8 @@ impl OutputFormatter {
             .context("Failed to serialize result with context to JSON")
     }
 
-    fn format_config_json(&self, config: &AipackConfig, show_secrets: bool) -> Result<String> {
-        let config_map = config.to_display_map(show_secrets);
+    fn format_config_json(&self, config: &AipackConfig) -> Result<String> {
+        let config_map = config.to_display_map();
         serde_json::to_string_pretty(&config_map).context("Failed to serialize config to JSON")
     }
 
@@ -148,8 +148,8 @@ impl OutputFormatter {
         serde_yaml::to_string(&output).context("Failed to serialize result with context to YAML")
     }
 
-    fn format_config_yaml(&self, config: &AipackConfig, show_secrets: bool) -> Result<String> {
-        let config_map = config.to_display_map(show_secrets);
+    fn format_config_yaml(&self, config: &AipackConfig) -> Result<String> {
+        let config_map = config.to_display_map();
         serde_yaml::to_string(&config_map).context("Failed to serialize config to YAML")
     }
 
@@ -289,13 +289,13 @@ impl OutputFormatter {
         Ok(output)
     }
 
-    fn format_config_human(&self, config: &AipackConfig, show_secrets: bool) -> Result<String> {
+    fn format_config_human(&self, config: &AipackConfig) -> Result<String> {
         let mut output = String::new();
 
         output.push_str("aipack Configuration\n");
         output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
 
-        let config_map = config.to_display_map(show_secrets);
+        let config_map = config.to_display_map();
 
         // Backend section
         output.push_str("Backend Configuration:\n");
@@ -337,10 +337,6 @@ impl OutputFormatter {
         output.push_str("\nCache Configuration:\n");
         if let Some(enabled) = config_map.get("cache_enabled") {
             output.push_str(&format!("  Enabled: {}\n", enabled));
-        }
-
-        if !show_secrets {
-            output.push_str("\n(Use --show-secrets to display API keys)\n");
         }
 
         Ok(output)

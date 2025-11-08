@@ -19,6 +19,7 @@
 //! println!("Command: {:?}", args.command);
 //! ```
 
+use crate::ai::genai_backend::Provider;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
@@ -31,7 +32,7 @@ use std::path::PathBuf;
     author,
     long_about = "aipack analyzes repository structure using LLMs to detect build systems \
                   and generate appropriate build commands. It supports multiple AI backends \
-                  (Ollama, Mistral) and output formats."
+                  (Ollama, OpenAI, Claude, Gemini, Grok, Groq) and output formats."
 )]
 pub struct CliArgs {
     /// Subcommand to execute
@@ -125,17 +126,17 @@ pub struct DetectArgs {
         short = 'b',
         long,
         value_enum,
-        default_value = "auto",
-        help = "AI backend to use for detection"
+        default_value = "ollama",
+        help = "AI backend provider to use for detection"
     )]
-    pub backend: BackendArg,
+    pub backend: Provider,
 
-    /// Model name (for Ollama backend)
+    /// Model name
     #[arg(
         short = 'm',
         long,
         value_name = "MODEL",
-        help = "Model name to use (Ollama only, e.g., 'qwen:14b')"
+        help = "Model name to use (provider-specific, e.g., 'qwen:14b' for Ollama)"
     )]
     pub model: Option<String>,
 
@@ -176,7 +177,7 @@ pub struct HealthArgs {
         value_enum,
         help = "Specific backend to check (omit to check all)"
     )]
-    pub backend: Option<BackendArg>,
+    pub backend: Option<Provider>,
 
     /// Output format
     #[arg(
@@ -192,10 +193,6 @@ pub struct HealthArgs {
 /// Arguments for the config command
 #[derive(Parser, Debug, Clone)]
 pub struct ConfigArgs {
-    /// Show secrets (API keys) unmasked
-    #[arg(long, help = "Show API keys and secrets (unmasked)")]
-    pub show_secrets: bool,
-
     /// Output format
     #[arg(
         short = 'f',
@@ -228,30 +225,6 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
     }
 }
 
-/// Backend selection argument enum
-#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BackendArg {
-    /// Automatically select best available backend
-    Auto,
-    /// Use Ollama (local) backend
-    Ollama,
-    /// Use LM Studio (local OpenAI-compatible) backend
-    #[value(name = "lm-studio")]
-    LMStudio,
-    /// Use Mistral API backend
-    Mistral,
-}
-
-impl std::fmt::Display for BackendArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BackendArg::Auto => write!(f, "auto"),
-            BackendArg::Ollama => write!(f, "ollama"),
-            BackendArg::LMStudio => write!(f, "lm-studio"),
-            BackendArg::Mistral => write!(f, "mistral"),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -270,7 +243,7 @@ mod tests {
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Human);
-                assert_eq!(detect_args.backend, BackendArg::Auto);
+                assert_eq!(detect_args.backend, Provider::Ollama);
                 assert_eq!(detect_args.timeout, 60);
                 assert!(!detect_args.verbose_output);
                 assert!(!detect_args.no_cache);
@@ -314,7 +287,7 @@ mod tests {
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Json);
-                assert_eq!(detect_args.backend, BackendArg::Ollama);
+                assert_eq!(detect_args.backend, Provider::Ollama);
                 assert_eq!(detect_args.model, Some("qwen:14b".to_string()));
                 assert_eq!(detect_args.timeout, 120);
                 assert!(detect_args.verbose_output);
@@ -341,7 +314,7 @@ mod tests {
         let args = CliArgs::parse_from(&["aipack", "health", "--backend", "ollama"]);
         match args.command {
             Commands::Health(health_args) => {
-                assert_eq!(health_args.backend, Some(BackendArg::Ollama));
+                assert_eq!(health_args.backend, Some(Provider::Ollama));
             }
             _ => panic!("Expected Health command"),
         }
@@ -352,19 +325,7 @@ mod tests {
         let args = CliArgs::parse_from(&["aipack", "config"]);
         match args.command {
             Commands::Config(config_args) => {
-                assert!(!config_args.show_secrets);
                 assert_eq!(config_args.format, OutputFormatArg::Human);
-            }
-            _ => panic!("Expected Config command"),
-        }
-    }
-
-    #[test]
-    fn test_config_show_secrets() {
-        let args = CliArgs::parse_from(&["aipack", "config", "--show-secrets"]);
-        match args.command {
-            Commands::Config(config_args) => {
-                assert!(config_args.show_secrets);
             }
             _ => panic!("Expected Config command"),
         }
@@ -391,9 +352,12 @@ mod tests {
     }
 
     #[test]
-    fn test_backend_arg_display() {
-        assert_eq!(BackendArg::Auto.to_string(), "auto");
-        assert_eq!(BackendArg::Ollama.to_string(), "ollama");
-        assert_eq!(BackendArg::Mistral.to_string(), "mistral");
+    fn test_provider_display() {
+        assert_eq!(Provider::Ollama.to_string(), "ollama");
+        assert_eq!(Provider::OpenAI.to_string(), "openai");
+        assert_eq!(Provider::Claude.to_string(), "claude");
+        assert_eq!(Provider::Gemini.to_string(), "gemini");
+        assert_eq!(Provider::Grok.to_string(), "grok");
+        assert_eq!(Provider::Groq.to_string(), "groq");
     }
 }

@@ -240,12 +240,8 @@ fn test_health_status_format_human() {
 #[test]
 fn test_config_format_json() {
     let config = AipackConfig {
-        backend: "ollama".to_string(),
-        ollama_endpoint: "http://localhost:11434".to_string(),
+        provider: aipack::ai::genai_backend::Provider::Ollama,
         ollama_model: "qwen:7b".to_string(),
-        lm_studio_endpoint: "http://localhost:8000".to_string(),
-        mistral_api_key: Some("secret-key".to_string()),
-        mistral_model: "mistral-small".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -254,66 +250,38 @@ fn test_config_format_json() {
     };
 
     let formatter = OutputFormatter::new(OutputFormat::Json);
-    let output = formatter.format_config(&config, false).unwrap();
+    let output = formatter.format_config(&config).unwrap();
 
     // Verify valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
-    assert_eq!(parsed["backend"], "ollama");
-    assert_eq!(parsed["ollama_endpoint"], "http://localhost:11434");
-    // API key should be masked
-    assert!(parsed["mistral_api_key"].as_str().unwrap().contains("***"));
+    assert_eq!(parsed["provider"], "Ollama");
+    assert_eq!(parsed["ollama_model"], "qwen:7b");
+    assert_eq!(parsed["cache_enabled"], "true");
 }
 
-#[test]
-fn test_config_format_json_show_secrets() {
-    let config = AipackConfig {
-        backend: "ollama".to_string(),
-        ollama_endpoint: "http://localhost:11434".to_string(),
-        ollama_model: "qwen:7b".to_string(),
-        lm_studio_endpoint: "http://localhost:8000".to_string(),
-        mistral_api_key: Some("secret-key".to_string()),
-        mistral_model: "mistral-small".to_string(),
-        cache_enabled: true,
-        cache_dir: Some(PathBuf::from("/tmp/cache")),
-        request_timeout_secs: 30,
-        max_context_size: 512_000,
-        log_level: "info".to_string(),
-    };
-
-    let formatter = OutputFormatter::new(OutputFormat::Json);
-    let output = formatter.format_config(&config, true).unwrap();
-
-    // Verify valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-
-    // API key should be visible
-    assert_eq!(parsed["mistral_api_key"], "secret-key");
-}
+// Removed test_config_format_json_show_secrets - secrets are no longer stored in config
+// API keys are managed by genai via environment variables
 
 #[test]
 fn test_config_format_yaml() {
     let config = AipackConfig::default();
 
     let formatter = OutputFormatter::new(OutputFormat::Yaml);
-    let output = formatter.format_config(&config, false).unwrap();
+    let output = formatter.format_config(&config).unwrap();
 
     // Verify valid YAML
     let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
 
-    assert!(parsed["backend"].is_string());
-    assert!(parsed["ollama_endpoint"].is_string());
+    assert!(parsed["provider"].is_string());
+    assert!(parsed["ollama_model"].is_string());
 }
 
 #[test]
 fn test_config_format_human() {
     let config = AipackConfig {
-        backend: "ollama".to_string(),
-        ollama_endpoint: "http://localhost:11434".to_string(),
+        provider: aipack::ai::genai_backend::Provider::Ollama,
         ollama_model: "qwen:7b".to_string(),
-        lm_studio_endpoint: "http://localhost:8000".to_string(),
-        mistral_api_key: Some("secret-key".to_string()),
-        mistral_model: "mistral-small".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -322,13 +290,12 @@ fn test_config_format_human() {
     };
 
     let formatter = OutputFormatter::new(OutputFormat::Human);
-    let output = formatter.format_config(&config, false).unwrap();
+    let output = formatter.format_config(&config).unwrap();
 
     // Verify human-readable format contains key config
-    assert!(output.contains("ollama"));
-    assert!(output.contains("http://localhost:11434"));
-    // API key should not be visible in plain text
-    assert!(!output.contains("secret-key"));
+    assert!(output.contains("Ollama") || output.contains("ollama"));
+    assert!(output.contains("qwen:7b"));
+    assert!(output.contains("cache_enabled"));
 }
 
 #[test]
@@ -338,7 +305,8 @@ fn test_detection_result_minimal() {
         "C".to_string(),
         "make".to_string(),
         "make test".to_string(),
-        "make install".to_string(),
+        "gcc:latest".to_string(),
+        "/app".to_string(),
     );
 
     let formatter = OutputFormatter::new(OutputFormat::Json);
@@ -359,7 +327,8 @@ fn test_detection_result_with_warnings() {
         "JavaScript".to_string(),
         "npm run build".to_string(),
         "npm test".to_string(),
-        "npm publish".to_string(),
+        "node:18".to_string(),
+        "/app".to_string(),
     );
 
     result.add_warning("No lock file found".to_string());

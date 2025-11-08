@@ -109,51 +109,25 @@ async fn test_repository_too_large_error() {
 }
 
 #[test]
-fn test_config_error_invalid_backend() {
-    let mut config = AipackConfig::default();
-    config.backend = "invalid-backend".to_string();
+fn test_config_provider_is_type_safe() {
+    // With the new Provider enum, backends are type-safe at compile time
+    // This test verifies that a config with a valid provider validates successfully
+    let config = AipackConfig {
+        provider: aipack::ai::genai_backend::Provider::Ollama,
+        ollama_model: "qwen:7b".to_string(),
+        cache_enabled: false,
+        cache_dir: None,
+        request_timeout_secs: 30,
+        max_context_size: 512_000,
+        log_level: "info".to_string(),
+    };
 
     let result = config.validate();
-    assert!(result.is_err());
-
-    match result.unwrap_err() {
-        ConfigError::InvalidBackend(backend) => {
-            assert_eq!(backend, "invalid-backend");
-        }
-        _ => panic!("Expected InvalidBackend error"),
-    }
+    assert!(result.is_ok());
 }
 
-#[test]
-fn test_config_error_missing_api_key() {
-    let mut config = AipackConfig::default();
-    config.backend = "mistral".to_string();
-    config.mistral_api_key = None;
-
-    let result = config.validate();
-    assert!(result.is_err());
-
-    match result.unwrap_err() {
-        ConfigError::MissingApiKey => {}
-        _ => panic!("Expected MissingApiKey error"),
-    }
-}
-
-#[test]
-fn test_config_error_invalid_endpoint() {
-    let mut config = AipackConfig::default();
-    config.ollama_endpoint = "not-a-url".to_string();
-
-    let result = config.validate();
-    assert!(result.is_err());
-
-    match result.unwrap_err() {
-        ConfigError::InvalidEndpoint(endpoint) => {
-            assert_eq!(endpoint, "not-a-url");
-        }
-        _ => panic!("Expected InvalidEndpoint error"),
-    }
-}
+// API key and endpoint validation is now handled by genai via environment variables
+// Config validation only checks timeout, context size, and log level
 
 #[test]
 fn test_config_error_invalid_timeout() {
@@ -214,22 +188,7 @@ fn test_config_error_invalid_log_level() {
 
 #[tokio::test]
 async fn test_service_error_path_not_found() {
-    let config = AipackConfig {
-        backend: "ollama".to_string(),
-        ollama_endpoint: "http://localhost:11434".to_string(),
-        ollama_model: "qwen:7b".to_string(),
-        lm_studio_endpoint: "http://localhost:8000".to_string(),
-        mistral_api_key: None,
-        mistral_model: "mistral-small".to_string(),
-        cache_enabled: false,
-        cache_dir: None,
-        request_timeout_secs: 30,
-        max_context_size: 512_000,
-        log_level: "error".to_string(),
-    };
-
-    // Note: This test will fail to create service if Ollama is not available
-    // We test the path validation in the analyzer level instead
+    // Test path validation at the analyzer level
     let non_existent = PathBuf::from("/nonexistent/path");
     let analyzer = RepositoryAnalyzer::new(non_existent);
 
@@ -256,40 +215,31 @@ async fn test_service_error_not_a_directory() {
 #[tokio::test]
 async fn test_backend_unavailable_error() {
     // Try to create service with unreachable endpoint
-    let mut config = AipackConfig::default();
-    config.backend = "ollama".to_string();
-    config.ollama_endpoint = "http://localhost:59999".to_string(); // Non-existent port
+    // Set custom Ollama endpoint via environment variable
+    std::env::set_var("OLLAMA_HOST", "http://localhost:59999"); // Non-existent port
 
+    let config = AipackConfig {
+        provider: aipack::ai::genai_backend::Provider::Ollama,
+        ollama_model: "qwen:7b".to_string(),
+        cache_enabled: false,
+        cache_dir: None,
+        request_timeout_secs: 30,
+        max_context_size: 512_000,
+        log_level: "error".to_string(),
+    };
+
+    // GenAI client creation is lazy - succeeds even with unreachable backend
+    // Actual connectivity is checked on first request
     let result = DetectionService::new(&config).await;
-    assert!(result.is_err());
+    assert!(result.is_ok());
 
-    match result.unwrap_err() {
-        ServiceError::BackendInitError(msg) => {
-            assert!(msg.contains("Ollama"));
-        }
-        _ => panic!("Expected BackendInitError"),
-    }
+    // Clean up
+    std::env::remove_var("OLLAMA_HOST");
 }
 
-#[tokio::test]
-async fn test_config_error_in_service() {
-    let mut config = AipackConfig::default();
-    config.backend = "mistral".to_string();
-    config.mistral_api_key = None;
-
-    // First, validation should fail
-    let validation_result = config.validate();
-    assert!(validation_result.is_err());
-
-    // If we bypass validation, service creation should fail
-    let result = config.selected_backend_config();
-    assert!(result.is_err());
-
-    match result.unwrap_err() {
-        ConfigError::MissingApiKey => {}
-        _ => panic!("Expected MissingApiKey error"),
-    }
-}
+// Removed test_config_error_in_service - no longer applicable
+// API keys are now managed by genai via environment variables,
+// not by AipackConfig directly
 
 #[test]
 fn test_service_error_display() {
@@ -341,14 +291,11 @@ fn test_analysis_error_display() {
 
 #[test]
 fn test_config_error_display() {
-    let error = ConfigError::InvalidBackend("test".to_string());
-    assert!(format!("{}", error).contains("Invalid backend"));
+    let error = ConfigError::InvalidProvider("test".to_string());
+    assert!(format!("{}", error).contains("Invalid provider"));
 
-    let error = ConfigError::MissingApiKey;
-    assert!(format!("{}", error).contains("API key"));
-
-    let error = ConfigError::InvalidEndpoint("test".to_string());
-    assert!(format!("{}", error).contains("Invalid endpoint"));
+    let error = ConfigError::MissingProvider;
+    assert!(format!("{}", error).contains("Provider not specified"));
 
     let error = ConfigError::ValidationFailed("test".to_string());
     assert!(format!("{}", error).contains("validation failed"));
@@ -420,27 +367,8 @@ fn test_error_chain_propagation() {
     }
 }
 
-#[test]
-fn test_config_auto_mode_no_backends() {
-    let mut config = AipackConfig::default();
-    config.backend = "auto".to_string();
-    config.mistral_api_key = None;
-
-    // In auto mode with no Ollama and no Mistral key, should fail
-    let result = config.selected_backend_config();
-
-    // Result depends on whether Ollama is actually running
-    // If Ollama is not running and no Mistral key, should error
-    if !config.is_ollama_available() {
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            ConfigError::ValidationFailed(msg) => {
-                assert!(msg.contains("No backend available"));
-            }
-            _ => panic!("Expected ValidationFailed error"),
-        }
-    }
-}
+// Removed test_config_auto_mode_no_backends - auto mode is no longer a feature
+// Provider must be explicitly selected via AIPACK_PROVIDER environment variable
 
 #[tokio::test]
 async fn test_empty_repository() {

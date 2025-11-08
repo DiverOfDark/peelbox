@@ -25,7 +25,8 @@
 //! aipack config
 //! ```
 
-use aipack::cli::commands::{BackendArg, CliArgs, Commands, ConfigArgs, DetectArgs, HealthArgs};
+use aipack::ai::genai_backend::Provider;
+use aipack::cli::commands::{CliArgs, Commands, ConfigArgs, DetectArgs, HealthArgs};
 use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
@@ -131,19 +132,17 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     // Load configuration
     let mut config = AipackConfig::default();
 
-    // Override backend if specified
-    if args.backend != BackendArg::Auto {
-        config.backend = args.backend.to_string();
-        debug!("Backend overridden to: {}", config.backend);
-    }
+    // Override provider if specified
+    config.provider = args.backend;
+    debug!("Provider set to: {:?}", config.provider);
 
     // Override model if specified (Ollama only)
     if let Some(model) = &args.model {
-        if config.backend == "ollama" || args.backend == BackendArg::Ollama {
+        if matches!(config.provider, Provider::Ollama) {
             config.ollama_model = model.clone();
             debug!("Ollama model overridden to: {}", model);
         } else {
-            warn!("--model flag is only applicable for Ollama backend");
+            warn!("--model flag is only applicable for Ollama provider");
         }
     }
 
@@ -173,22 +172,31 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
             error!("Failed to initialize detection service: {}", e);
             eprintln!("Failed to initialize detection service: {}", e);
             eprintln!("\nPossible solutions:");
-            match e {
-                aipack::detection::service::ServiceError::BackendInitError(ref msg) => {
-                    if msg.contains("Ollama") {
-                        eprintln!("  - Ensure Ollama is running: ollama serve");
-                        eprintln!("  - Check Ollama endpoint: {}", config.ollama_endpoint);
-                        eprintln!("  - Try using Mistral backend: --backend mistral");
-                    } else if msg.contains("Mistral") {
-                        eprintln!("  - Set MISTRAL_API_KEY environment variable");
-                        eprintln!("  - Try using Ollama backend: --backend ollama");
-                    }
+            match config.provider {
+                Provider::Ollama => {
+                    eprintln!("  - Ensure Ollama is running: ollama serve");
+                    eprintln!("  - Check OLLAMA_HOST environment variable (default: http://localhost:11434)");
+                    eprintln!("  - Try a different provider: --backend openai, --backend claude, etc.");
                 }
-                _ => {
-                    eprintln!("  - Run 'aipack health' to check backend availability");
-                    eprintln!("  - Run 'aipack config' to verify configuration");
+                Provider::OpenAI => {
+                    eprintln!("  - Set OPENAI_API_KEY environment variable");
+                    eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints");
+                }
+                Provider::Claude => {
+                    eprintln!("  - Set ANTHROPIC_API_KEY environment variable");
+                }
+                Provider::Gemini => {
+                    eprintln!("  - Set GOOGLE_API_KEY environment variable");
+                }
+                Provider::Grok => {
+                    eprintln!("  - Set XAI_API_KEY environment variable");
+                }
+                Provider::Groq => {
+                    eprintln!("  - Set GROQ_API_KEY environment variable");
                 }
             }
+            eprintln!("  - Run 'aipack health' to check backend availability");
+            eprintln!("  - Run 'aipack config' to verify configuration");
             return 1;
         }
     };
@@ -303,85 +311,123 @@ async fn handle_health(args: &HealthArgs) -> i32 {
     info!("Checking backend health");
 
     let config = AipackConfig::default();
-
     let mut health_results = HashMap::new();
 
-    // Determine which backends to check
-    let check_all = args.backend.is_none();
-    let check_ollama = check_all || args.backend == Some(BackendArg::Ollama);
-    let check_lm_studio = check_all || args.backend == Some(BackendArg::LMStudio);
-    let check_mistral = check_all || args.backend == Some(BackendArg::Mistral);
+    // Determine which providers to check
+    let providers_to_check: Vec<Provider> = if let Some(provider) = args.backend {
+        vec![provider]
+    } else {
+        // Check all supported providers
+        vec![
+            Provider::Ollama,
+            Provider::OpenAI,
+            Provider::Claude,
+            Provider::Gemini,
+            Provider::Grok,
+            Provider::Groq,
+        ]
+    };
 
-    // Check Ollama
-    if check_ollama {
-        debug!("Checking Ollama at {}", config.ollama_endpoint);
+    for provider in providers_to_check {
+        let provider_name = format!("{:?}", provider);
+        debug!("Checking {} provider", provider_name);
 
-        // Check availability using async reqwest client
-        let url = format!("{}/api/tags", config.ollama_endpoint);
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(2))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+        let status = match provider {
+            Provider::Ollama => {
+                // Check Ollama availability by attempting to connect
+                let ollama_host = env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://localhost:11434".to_string());
+                let url = format!("{}/api/tags", ollama_host);
+                let client = reqwest::Client::builder()
+                    .timeout(std::time::Duration::from_secs(2))
+                    .build()
+                    .unwrap_or_else(|_| reqwest::Client::new());
 
-        let status = match client.get(&url).send().await {
-            Ok(response) if response.status().is_success() => {
-                info!("Ollama is available at {}", config.ollama_endpoint);
-                HealthStatus::available(format!("Connected to {}", config.ollama_endpoint))
-                    .with_details(format!("Model: {}", config.ollama_model))
+                match client.get(&url).send().await {
+                    Ok(response) if response.status().is_success() => {
+                        info!("Ollama is available at {}", ollama_host);
+                        HealthStatus::available(format!("Connected to {}", ollama_host))
+                            .with_details(format!("Model: {}", config.ollama_model))
+                    }
+                    _ => {
+                        warn!("Ollama is not available at {}", ollama_host);
+                        HealthStatus::unavailable(format!("Cannot connect to {}", ollama_host))
+                            .with_details("Ensure Ollama is running: ollama serve".to_string())
+                    }
+                }
             }
-            _ => {
-                warn!("Ollama is not available at {}", config.ollama_endpoint);
-                HealthStatus::unavailable(format!("Cannot connect to {}", config.ollama_endpoint))
-                    .with_details("Ensure Ollama is running: ollama serve".to_string())
+            Provider::OpenAI => {
+                // Check if OpenAI API key is configured
+                match env::var("OPENAI_API_KEY") {
+                    Ok(_) => {
+                        info!("OpenAI API key is configured");
+                        HealthStatus::available("API key is configured".to_string())
+                    }
+                    Err(_) => {
+                        warn!("OpenAI API key is not configured");
+                        HealthStatus::unavailable("API key not configured".to_string())
+                            .with_details("Set OPENAI_API_KEY environment variable".to_string())
+                    }
+                }
+            }
+            Provider::Claude => {
+                // Check if Anthropic API key is configured
+                match env::var("ANTHROPIC_API_KEY") {
+                    Ok(_) => {
+                        info!("Anthropic API key is configured");
+                        HealthStatus::available("API key is configured".to_string())
+                    }
+                    Err(_) => {
+                        warn!("Anthropic API key is not configured");
+                        HealthStatus::unavailable("API key not configured".to_string())
+                            .with_details("Set ANTHROPIC_API_KEY environment variable".to_string())
+                    }
+                }
+            }
+            Provider::Gemini => {
+                // Check if Google API key is configured
+                match env::var("GOOGLE_API_KEY") {
+                    Ok(_) => {
+                        info!("Google API key is configured");
+                        HealthStatus::available("API key is configured".to_string())
+                    }
+                    Err(_) => {
+                        warn!("Google API key is not configured");
+                        HealthStatus::unavailable("API key not configured".to_string())
+                            .with_details("Set GOOGLE_API_KEY environment variable".to_string())
+                    }
+                }
+            }
+            Provider::Grok => {
+                // Check if xAI API key is configured
+                match env::var("XAI_API_KEY") {
+                    Ok(_) => {
+                        info!("xAI API key is configured");
+                        HealthStatus::available("API key is configured".to_string())
+                    }
+                    Err(_) => {
+                        warn!("xAI API key is not configured");
+                        HealthStatus::unavailable("API key not configured".to_string())
+                            .with_details("Set XAI_API_KEY environment variable".to_string())
+                    }
+                }
+            }
+            Provider::Groq => {
+                // Check if Groq API key is configured
+                match env::var("GROQ_API_KEY") {
+                    Ok(_) => {
+                        info!("Groq API key is configured");
+                        HealthStatus::available("API key is configured".to_string())
+                    }
+                    Err(_) => {
+                        warn!("Groq API key is not configured");
+                        HealthStatus::unavailable("API key not configured".to_string())
+                            .with_details("Set GROQ_API_KEY environment variable".to_string())
+                    }
+                }
             }
         };
-        health_results.insert("Ollama".to_string(), status);
-    }
 
-    // Check LM Studio
-    if check_lm_studio {
-        debug!("Checking LM Studio at {}", config.lm_studio_endpoint);
-
-        // Check availability using async reqwest client
-        let url = format!("{}/v1/models", config.lm_studio_endpoint);
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(2))
-            .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-
-        let status = match client.get(&url).send().await {
-            Ok(response) if response.status().is_success() => {
-                info!("LM Studio is available at {}", config.lm_studio_endpoint);
-                HealthStatus::available(format!("Connected to {}", config.lm_studio_endpoint))
-            }
-            _ => {
-                warn!(
-                    "LM Studio is not available at {}",
-                    config.lm_studio_endpoint
-                );
-                HealthStatus::unavailable(format!(
-                    "Cannot connect to {}",
-                    config.lm_studio_endpoint
-                ))
-                .with_details("Ensure LM Studio is running on the configured endpoint".to_string())
-            }
-        };
-        health_results.insert("LM Studio".to_string(), status);
-    }
-
-    // Check Mistral
-    if check_mistral {
-        debug!("Checking Mistral API configuration");
-        let status = if config.has_mistral_key() {
-            info!("Mistral API key is configured");
-            HealthStatus::available("API key is configured".to_string())
-                .with_details(format!("Model: {}", config.mistral_model))
-        } else {
-            warn!("Mistral API key is not configured");
-            HealthStatus::unavailable("API key not configured".to_string())
-                .with_details("Set MISTRAL_API_KEY environment variable".to_string())
-        };
-        health_results.insert("Mistral".to_string(), status);
+        health_results.insert(provider_name, status);
     }
 
     // Format and display results
@@ -420,7 +466,7 @@ fn handle_config(args: &ConfigArgs) -> i32 {
     let format: OutputFormat = args.format.into();
     let formatter = OutputFormatter::new(format);
 
-    let output = match formatter.format_config(&config, args.show_secrets) {
+    let output = match formatter.format_config(&config) {
         Ok(out) => out,
         Err(e) => {
             error!("Failed to format config output: {}", e);

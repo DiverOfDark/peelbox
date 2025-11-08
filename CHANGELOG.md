@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **GenAI Multi-Provider Backend** (RECOMMENDED):
+  - New `GenAIBackend` using the `genai` crate for unified multi-provider support
+  - **Supported providers**:
+    - Ollama (local inference)
+    - Anthropic Claude (cloud API)
+    - OpenAI GPT (cloud API)
+    - Google Gemini (cloud API)
+    - xAI Grok, Groq
+  - **Benefits**:
+    - ~70% code reduction compared to manual HTTP clients
+    - Consistent API across all providers
+    - Easy provider switching with minimal code changes
+    - Active community maintenance (genai crate)
+  - **Examples**: New `genai_detection.rs` example demonstrating all providers
+  - **Migration guide** in CLAUDE.md for moving from `OpenAICompatibleClient`
+
+- **Provider Enum**: Clean abstraction for LLM provider selection
+  - Type-safe provider specification
+  - Automatic model prefix handling (`ollama:`, `claude:`, etc.)
+  - Custom configuration support (timeouts, max tokens, endpoints)
+
+- **Comprehensive Documentation**:
+  - Updated CLAUDE.md with GenAI backend usage guide
+  - Provider comparison table with environment variables
+  - Migration examples from legacy OpenAICompatibleClient
+  - Quick start guide for all supported providers
+
 ### Changed
 - **Refactored Backend Architecture**: Unified Ollama and LM Studio into single OpenAI-compatible client
   - Removed 700+ lines of duplicate client code
@@ -16,21 +44,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Auto-selection order maintained: Ollama → LM Studio → Mistral
   - Simplified architecture: single client implementation for any OpenAI-compatible API
   - Reduced maintenance burden and improved code clarity
+  - **Note**: OpenAICompatibleClient is now legacy; GenAI backend is recommended
 
-### Added
-- **LM Studio Support**: Now fully integrated with unified OpenAI-compatible backend
-  - Works seamlessly with Ollama through standardized API
-  - Configurable endpoint (default: `http://localhost:8000`)
-  - Environment variable: `AIPACK_LM_STUDIO_ENDPOINT`
-  - Comprehensive service detection and health checking
+- **Environment Variable Configuration** (BREAKING CHANGE):
+  - **Removed programmatic API key handling** from `BackendConfig` enum
+  - **Removed fields**: `api_key` from `BackendConfig::Claude` and `BackendConfig::OpenAI`, `organization_id` from `BackendConfig::OpenAI`
+  - **Migration required**: API keys must now be set via environment variables:
+    - `ANTHROPIC_API_KEY` for Claude
+    - `OPENAI_API_KEY` for OpenAI
+    - `GOOGLE_API_KEY` for Gemini
+    - `XAI_API_KEY` for Grok
+    - `GROQ_API_KEY` for Groq
+    - `OLLAMA_HOST` for custom Ollama endpoint (optional)
+  - **Benefits**:
+    - Standard pattern consistent with other tools
+    - No manual `std::env::set_var()` calls in code
+    - genai crate reads environment variables automatically
+    - Better security - keys never passed as parameters
+  - **Documentation**: Added comprehensive environment variables section to CLAUDE.md with setup examples
+  - See CLAUDE.md "Environment Variables for GenAI Backend" for complete guide
+
+- **Dependencies**: Added `genai` (v0.4) for multi-provider LLM support
+
+### Removed
+- **`OpenAICompatibleClient`** - Completely removed in favor of `GenAIBackend`
+  - Old manual HTTP client for Ollama/LM Studio has been removed
+  - All code now uses the unified `GenAIBackend` with `genai` crate
+  - Removed `src/ai/openai_compatible.rs` (553 lines)
+  - See CLAUDE.md for migration examples
+
+### Deprecated
+- None
 
 ### Planned for Phase 2
-- Claude API backend integration
-- OpenAI GPT backend integration
 - Result caching system
 - Custom model support
 - Improved prompt engineering
 - Multi-language monorepo support
+- Integration of GenAI backend into CLI commands
+- Environment variable auto-configuration for GenAI providers
 
 ### Planned for Phase 3
 - HTTP/REST API service

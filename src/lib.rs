@@ -58,8 +58,8 @@ pub mod detection;
 pub mod util;
 
 // Re-export key types for convenient access
-pub use ai::backend::{BackendConfig, BackendError, LLMBackend};
-pub use ai::openai_compatible::OpenAICompatibleClient;
+pub use ai::backend::{BackendError, LLMBackend};
+pub use ai::genai_backend::{GenAIBackend, Provider};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};

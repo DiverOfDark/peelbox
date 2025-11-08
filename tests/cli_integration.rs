@@ -398,18 +398,6 @@ fn test_health_with_specific_backend() {
 }
 
 #[test]
-fn test_config_show_secrets() {
-    let output = Command::new(aipack_bin())
-        .arg("config")
-        .arg("--show-secrets")
-        .output()
-        .expect("Failed to execute aipack");
-
-    // Should complete successfully
-    assert!(output.status.success() || output.status.code() == Some(2));
-}
-
-#[test]
 fn test_detect_no_cache_flag() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);

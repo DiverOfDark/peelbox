@@ -8,7 +8,8 @@
 //! - Output formatting
 //! - Error handling
 
-use aipack::cli::commands::{BackendArg, CliArgs, Commands, OutputFormatArg};
+use aipack::ai::genai_backend::Provider;
+use aipack::cli::commands::{CliArgs, Commands, OutputFormatArg};
 use aipack::cli::output::{OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
@@ -180,7 +181,7 @@ fn test_cli_parsing_detect_default() {
     match args.command {
         Commands::Detect(detect_args) => {
             assert_eq!(detect_args.format, OutputFormatArg::Human);
-            assert_eq!(detect_args.backend, BackendArg::Auto);
+            assert_eq!(detect_args.backend, Provider::Ollama);
             assert_eq!(detect_args.timeout, 60);
             assert!(detect_args.repository_path.is_none());
         }
@@ -209,7 +210,7 @@ fn test_cli_parsing_detect_with_options() {
                 Some(PathBuf::from("/tmp/repo"))
             );
             assert_eq!(detect_args.format, OutputFormatArg::Json);
-            assert_eq!(detect_args.backend, BackendArg::Ollama);
+            assert_eq!(detect_args.backend, Provider::Ollama);
             assert_eq!(detect_args.timeout, 120);
         }
         _ => panic!("Expected Detect command"),
@@ -250,8 +251,8 @@ fn test_configuration_loading_defaults() {
 
     let config = AipackConfig::default();
 
-    assert_eq!(config.backend, "auto");
-    assert_eq!(config.ollama_endpoint, "http://localhost:11434");
+    // Provider is set via AIPACK_PROVIDER env var, defaults to Ollama
+    assert!(matches!(config.provider, aipack::ai::genai_backend::Provider::Ollama | aipack::ai::genai_backend::Provider::OpenAI | aipack::ai::genai_backend::Provider::Claude | aipack::ai::genai_backend::Provider::Gemini | aipack::ai::genai_backend::Provider::Grok | aipack::ai::genai_backend::Provider::Groq));
     assert_eq!(config.ollama_model, "qwen2.5-coder:7b");
     assert!(config.cache_enabled);
 }
@@ -259,12 +260,8 @@ fn test_configuration_loading_defaults() {
 #[test]
 fn test_configuration_validation_valid() {
     let config = AipackConfig {
-        backend: "ollama".to_string(),
-        ollama_endpoint: "http://localhost:11434".to_string(),
+        provider: aipack::ai::genai_backend::Provider::Ollama,
         ollama_model: "qwen:7b".to_string(),
-        lm_studio_endpoint: "http://localhost:8000".to_string(),
-        mistral_api_key: None,
-        mistral_model: "mistral-small".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -275,14 +272,7 @@ fn test_configuration_validation_valid() {
     assert!(config.validate().is_ok());
 }
 
-#[test]
-fn test_configuration_validation_invalid_backend() {
-    let mut config = AipackConfig::default();
-    config.backend = "invalid".to_string();
-
-    let result = config.validate();
-    assert!(result.is_err());
-}
+// Provider validation is now type-safe via Provider enum at compile time
 
 #[test]
 fn test_configuration_validation_invalid_timeout() {
@@ -414,7 +404,8 @@ fn test_detection_result_confidence_levels() {
         "Rust".to_string(),
         "cargo build".to_string(),
         "cargo test".to_string(),
-        "cargo publish".to_string(),
+        "rust:1.75".to_string(),
+        "/app".to_string(),
     );
 
     result.set_confidence(0.95);
@@ -436,7 +427,8 @@ fn test_detection_result_warnings() {
         "JavaScript".to_string(),
         "npm run build".to_string(),
         "npm test".to_string(),
-        "npm publish".to_string(),
+        "node:18".to_string(),
+        "/app".to_string(),
     );
 
     assert!(!result.has_warnings());
@@ -486,12 +478,8 @@ async fn test_analyzer_respects_ignore_patterns() {
 #[test]
 fn test_config_display_map() {
     let config = AipackConfig {
-        backend: "ollama".to_string(),
-        ollama_endpoint: "http://localhost:11434".to_string(),
+        provider: aipack::ai::genai_backend::Provider::Ollama,
         ollama_model: "qwen:7b".to_string(),
-        lm_studio_endpoint: "http://localhost:8000".to_string(),
-        mistral_api_key: Some("secret-key".to_string()),
-        mistral_model: "mistral-small".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
         request_timeout_secs: 30,
@@ -499,13 +487,11 @@ fn test_config_display_map() {
         log_level: "info".to_string(),
     };
 
-    // Without secrets
-    let map = config.to_display_map(false);
-    assert!(map["mistral_api_key"].contains("***"));
-
-    // With secrets
-    let map = config.to_display_map(true);
-    assert_eq!(map["mistral_api_key"], "secret-key");
+    // Get display map (no arguments needed)
+    let map = config.to_display_map();
+    assert!(map.contains_key("provider"));
+    assert_eq!(map["ollama_model"], "qwen:7b");
+    assert_eq!(map["cache_enabled"], "true");
 }
 
 #[test]

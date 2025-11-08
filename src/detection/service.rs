@@ -27,14 +27,13 @@
 //! # }
 //! ```
 
-use crate::ai::backend::{BackendConfig, BackendError, LLMBackend};
-use crate::ai::openai_compatible::OpenAICompatibleClient;
+use crate::ai::backend::{BackendError, LLMBackend};
 use crate::config::AipackConfig;
 use crate::detection::analyzer::{AnalysisError, RepositoryAnalyzer};
 use crate::detection::types::{DetectionResult, RepositoryContext};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use thiserror::Error;
 use tracing::{debug, info, warn};
 
@@ -345,13 +344,11 @@ impl DetectionService {
     pub async fn new(config: &AipackConfig) -> Result<Self, ServiceError> {
         info!("Initializing detection service");
 
-        // Get backend configuration
-        let backend_config = config
-            .selected_backend_config()
+        // Create backend directly from configuration
+        let backend = config
+            .create_backend()
+            .await
             .map_err(|e| ServiceError::ConfigError(e.to_string()))?;
-
-        // Create backend
-        let backend = Self::create_backend(backend_config).await?;
 
         info!(
             "Detection service initialized with backend: {}",
@@ -359,53 +356,6 @@ impl DetectionService {
         );
 
         Ok(Self { backend })
-    }
-
-    /// Creates a backend from configuration
-    async fn create_backend(config: BackendConfig) -> Result<Arc<dyn LLMBackend>, ServiceError> {
-        match config {
-            BackendConfig::Local {
-                endpoint,
-                model,
-                timeout_seconds,
-                ..
-            } => {
-                let timeout = Duration::from_secs(timeout_seconds.unwrap_or(60));
-                let client = OpenAICompatibleClient::with_timeout(endpoint.clone(), model.clone(), timeout);
-
-                // Verify backend is available
-                match client.health_check().await {
-                    Ok(true) => {
-                        info!("OpenAI-compatible backend is healthy at {}", endpoint);
-                        Ok(Arc::new(client) as Arc<dyn LLMBackend>)
-                    }
-                    Ok(false) => {
-                        warn!("OpenAI-compatible backend at {} is not responding", endpoint);
-                        Err(ServiceError::BackendInitError(format!(
-                            "Backend is not available at {}. Please ensure a compatible service (Ollama or LM Studio) is running",
-                            endpoint
-                        )))
-                    }
-                    Err(e) => {
-                        warn!("Backend health check failed: {}", e);
-                        Err(ServiceError::BackendInitError(format!(
-                            "Failed to connect to backend at {}: {}",
-                            endpoint, e
-                        )))
-                    }
-                }
-            }
-            BackendConfig::Claude { .. } | BackendConfig::OpenAI { .. } => {
-                // Future: Implement other backends
-                Err(ServiceError::BackendInitError(
-                    "Claude and OpenAI backends are not yet implemented".to_string(),
-                ))
-            }
-            #[cfg(test)]
-            BackendConfig::Mock { .. } => Err(ServiceError::BackendInitError(
-                "Mock backend is only available in tests".to_string(),
-            )),
-        }
     }
 
     /// Detects build system for a repository
@@ -619,6 +569,7 @@ impl DetectionService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ai::genai_backend::{GenAIBackend, Provider};
     use tempfile::TempDir;
 
     #[test]
@@ -636,12 +587,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_validate_repo_path_not_exists() {
-        let backend = Arc::new(OpenAICompatibleClient::new(
-            "http://localhost:11434".to_string(),
+    #[tokio::test]
+    async fn test_validate_repo_path_not_exists() {
+        let backend = Arc::new(GenAIBackend::new(
+            Provider::Ollama,
             "qwen2.5-coder:7b".to_string(),
-        )) as Arc<dyn LLMBackend>;
+        ).await.unwrap()) as Arc<dyn LLMBackend>;
 
         let service = DetectionService { backend };
 
@@ -650,16 +601,16 @@ mod tests {
         assert!(matches!(result, Err(ServiceError::PathNotFound(_))));
     }
 
-    #[test]
-    fn test_validate_repo_path_is_file() {
+    #[tokio::test]
+    async fn test_validate_repo_path_is_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("file.txt");
         std::fs::write(&file_path, "content").unwrap();
 
-        let backend = Arc::new(OpenAICompatibleClient::new(
-            "http://localhost:11434".to_string(),
+        let backend = Arc::new(GenAIBackend::new(
+            Provider::Ollama,
             "qwen2.5-coder:7b".to_string(),
-        )) as Arc<dyn LLMBackend>;
+        ).await.unwrap()) as Arc<dyn LLMBackend>;
 
         let service = DetectionService { backend };
 
@@ -668,14 +619,14 @@ mod tests {
         assert!(matches!(result, Err(ServiceError::NotADirectory(_))));
     }
 
-    #[test]
-    fn test_validate_repo_path_success() {
+    #[tokio::test]
+    async fn test_validate_repo_path_success() {
         let temp_dir = TempDir::new().unwrap();
 
-        let backend = Arc::new(OpenAICompatibleClient::new(
-            "http://localhost:11434".to_string(),
+        let backend = Arc::new(GenAIBackend::new(
+            Provider::Ollama,
             "qwen2.5-coder:7b".to_string(),
-        )) as Arc<dyn LLMBackend>;
+        ).await.unwrap()) as Arc<dyn LLMBackend>;
 
         let service = DetectionService { backend };
 

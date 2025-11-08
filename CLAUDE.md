@@ -2,17 +2,28 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the aipack project.
 
+## Development Policy
+
+**IMPORTANT PRINCIPLES:**
+1. **No Backwards Compatibility**: Breaking changes are acceptable and preferred when they improve the codebase. Never maintain compatibility with old APIs, configurations, or interfaces.
+2. **No Historical Comments**: Code and documentation should reflect the current state only. Never include comments explaining what was added, removed, or changed (e.g., "removed X because...", "added Y to replace...").
+3. **Clean Slate**: When refactoring, completely remove old code and update all references. The codebase should read as if it was always implemented the current way.
+
 ## Project Overview
 
-**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis (Mistral API, or local LLMs via OpenAI-compatible APIs like Ollama/LM Studio) to detect repository build systems without hardcoded heuristics.
+**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM analysis to detect repository build systems without hardcoded heuristics.
 
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
 - **Build System**: Cargo
-- **AI Backends**:
-  - OpenAI-compatible (Ollama, LM Studio, any compatible service)
-  - Mistral API (cloud)
-- **HTTP Client**: reqwest (async)
+- **AI Backends**: GenAI (unified multi-provider client)
+  - Ollama (local inference)
+  - Anthropic Claude
+  - OpenAI GPT
+  - Google Gemini
+  - xAI Grok
+  - Groq
+- **HTTP Client**: reqwest (async), genai (multi-provider)
 - **CLI Framework**: clap (derive macros)
 - **Error Handling**: anyhow, thiserror
 - **Async Runtime**: tokio
@@ -116,6 +127,288 @@ aipack/
 └── CLAUDE.md                # This file
 ```
 
+## Using the GenAI Backend
+
+The GenAI backend provides a unified interface to multiple LLM providers through the `genai` crate.
+
+### Quick Start
+
+```rust
+use aipack::ai::backend::LLMBackend;
+use aipack::ai::genai_backend::{GenAIBackend, Provider};
+
+// Create an Ollama client (default local endpoint)
+let client = GenAIBackend::new(
+    Provider::Ollama,
+    "qwen2.5-coder:7b".to_string(),
+).await?;
+
+// Use it for detection
+let result = client.detect(context).await?;
+```
+
+### Supported Providers
+
+| Provider | Example Model | Environment Variable | Notes |
+|----------|---------------|---------------------|-------|
+| **Ollama** | `qwen2.5-coder:7b` | `OLLAMA_HOST` (optional) | Local inference, default port 11434 |
+| **Claude** | `claude-sonnet-4-5-20250929` | `ANTHROPIC_API_KEY` (required) | Anthropic API |
+| **OpenAI** | `gpt-4` | `OPENAI_API_KEY` (required) | OpenAI API |
+| **Gemini** | `gemini-pro` | `GOOGLE_API_KEY` (required) | Google AI |
+| **Grok** | `grok-1` | `XAI_API_KEY` (required) | xAI |
+| **Groq** | `mixtral-8x7b-32768` | `GROQ_API_KEY` (required) | Groq |
+
+### Examples
+
+#### Ollama (Local)
+```rust
+// Uses default localhost:11434, or set OLLAMA_HOST environment variable
+let backend = GenAIBackend::new(
+    Provider::Ollama,
+    "qwen2.5-coder:7b".to_string(),
+).await?;
+```
+
+#### Claude
+```rust
+// Requires ANTHROPIC_API_KEY in environment
+let backend = GenAIBackend::new(
+    Provider::Claude,
+    "claude-sonnet-4-5-20250929".to_string(),
+).await?;
+```
+
+#### OpenAI
+```rust
+// Requires OPENAI_API_KEY in environment
+let backend = GenAIBackend::new(
+    Provider::OpenAI,
+    "gpt-4".to_string(),
+).await?;
+```
+
+#### Custom Configuration
+```rust
+use std::time::Duration;
+
+// For custom Ollama endpoint, set OLLAMA_HOST environment variable:
+// std::env::set_var("OLLAMA_HOST", "http://192.168.1.100:11434");
+
+let backend = GenAIBackend::with_config(
+    Provider::Ollama,
+    "qwen2.5-coder:14b".to_string(),
+    Some(Duration::from_secs(120)),  // Custom timeout
+    Some(1024),  // Max tokens
+).await?;
+```
+
+### Running Examples
+
+```bash
+# Ollama
+cargo run --example genai_detection
+
+# With custom model
+OLLAMA_MODEL=qwen2.5-coder:14b cargo run --example genai_detection
+
+# Claude
+PROVIDER=claude ANTHROPIC_API_KEY=sk-... cargo run --example genai_detection
+
+# OpenAI
+PROVIDER=openai OPENAI_API_KEY=sk-... cargo run --example genai_detection
+```
+
+## Environment Variables for GenAI Backend
+
+The GenAI backend relies on environment variables for API authentication and configuration. The `genai` crate automatically reads these standard environment variables - **you do not need to set them programmatically in your code**.
+
+### Required Environment Variables by Provider
+
+#### Ollama (Local Inference)
+```bash
+# Optional - Custom Ollama server endpoint
+# Default: http://localhost:11434
+export OLLAMA_HOST=http://localhost:11434
+
+# Or use custom port/host
+export OLLAMA_HOST=http://192.168.1.100:11434
+```
+
+**Note:** Ollama doesn't require an API key. If `OLLAMA_HOST` is not set, it defaults to `http://localhost:11434`.
+
+#### Anthropic Claude
+```bash
+# Required - Your Anthropic API key
+export ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# Optional - Custom API endpoint (for proxies or custom deployments)
+export ANTHROPIC_BASE_URL=https://api.anthropic.com
+```
+
+**Obtaining an API key:** Visit https://console.anthropic.com/settings/keys
+
+#### OpenAI
+```bash
+# Required - Your OpenAI API key
+export OPENAI_API_KEY=sk-proj-...
+
+# Optional - Custom API endpoint (for Azure OpenAI or proxies)
+export OPENAI_API_BASE=https://api.openai.com/v1
+
+# Optional - Organization ID (for team accounts)
+export OPENAI_ORG_ID=org-...
+```
+
+**Obtaining an API key:** Visit https://platform.openai.com/api-keys
+
+#### Google Gemini
+```bash
+# Required - Your Google AI API key
+export GOOGLE_API_KEY=AIza...
+
+# Optional - Custom API endpoint
+export GOOGLE_API_BASE_URL=https://generativelanguage.googleapis.com
+```
+
+**Obtaining an API key:** Visit https://makersuite.google.com/app/apikey
+
+#### xAI Grok
+```bash
+# Required - Your xAI API key
+export XAI_API_KEY=xai-...
+```
+
+**Obtaining an API key:** Visit https://console.x.ai/
+
+#### Groq
+```bash
+# Required - Your Groq API key
+export GROQ_API_KEY=gsk_...
+```
+
+**Obtaining an API key:** Visit https://console.groq.com/keys
+
+### Setting Environment Variables
+
+#### For a Single Command
+```bash
+# Ollama (no API key needed)
+cargo run --example genai_detection
+
+# Claude
+ANTHROPIC_API_KEY=sk-ant-... cargo run --example genai_detection
+
+# OpenAI
+OPENAI_API_KEY=sk-proj-... cargo run --example genai_detection
+
+# Multiple variables
+PROVIDER=claude ANTHROPIC_API_KEY=sk-ant-... cargo run --example genai_detection
+```
+
+#### For Your Shell Session
+```bash
+# Add to ~/.bashrc, ~/.zshrc, or ~/.profile
+export ANTHROPIC_API_KEY=sk-ant-api03-...
+export OPENAI_API_KEY=sk-proj-...
+export GOOGLE_API_KEY=AIza...
+
+# Reload your shell
+source ~/.bashrc
+```
+
+#### Using .env Files (Recommended for Development)
+Create a `.env` file in your project root:
+```bash
+# .env
+ANTHROPIC_API_KEY=sk-ant-api03-...
+OPENAI_API_KEY=sk-proj-...
+GOOGLE_API_KEY=AIza...
+OLLAMA_HOST=http://localhost:11434
+```
+
+**Important:** Add `.env` to your `.gitignore` to avoid committing secrets!
+
+Then use a tool like `direnv` or load manually:
+```bash
+# Load environment variables from .env
+set -a
+source .env
+set +a
+
+# Now run your command
+cargo run --example genai_detection
+```
+
+### Error Messages for Missing Environment Variables
+
+If a required environment variable is not set, you'll see helpful error messages:
+
+```
+Error: Failed to initialize Claude backend: authentication error.
+Ensure ANTHROPIC_API_KEY is set in environment.
+```
+
+```
+Error: Failed to initialize OpenAI backend: missing API key.
+Ensure OPENAI_API_KEY is set in environment.
+```
+
+### How GenAI Reads Environment Variables
+
+The `genai` crate automatically reads these environment variables when you create a backend:
+
+```rust
+// The genai crate reads ANTHROPIC_API_KEY automatically
+let backend = GenAIBackend::new(
+    Provider::Claude,
+    "claude-sonnet-4-5-20250929".to_string(),
+).await?;
+```
+
+**You do not need to:**
+- Read environment variables manually with `std::env::var()`
+- Set environment variables programmatically with `std::env::set_var()`
+- Pass API keys as parameters to the backend constructor
+
+**The genai crate handles all of this internally.**
+
+### Verification
+
+To verify your environment variables are set correctly:
+
+```bash
+# Check if variables are set (without revealing values)
+env | grep -E '(ANTHROPIC|OPENAI|GOOGLE|GROQ|XAI)_API_KEY'
+
+# Test with a simple detection
+ANTHROPIC_API_KEY=sk-... cargo run -- detect /path/to/repo
+```
+
+### Security Best Practices
+
+1. **Never commit API keys to Git:** Always use environment variables or encrypted secrets
+2. **Use .env files locally:** Keep `.env` in `.gitignore`
+3. **Rotate keys regularly:** Generate new API keys periodically
+4. **Use separate keys per environment:** Different keys for dev/staging/production
+5. **Restrict key permissions:** Use API key scopes/permissions where available
+
+### Troubleshooting
+
+**Problem:** "Authentication failed" or "missing API key" errors
+
+**Solution:**
+1. Verify the environment variable is set: `echo $ANTHROPIC_API_KEY`
+2. Check for typos in the variable name (case-sensitive!)
+3. Ensure the key is valid (not expired or revoked)
+4. Try setting the variable in the same command: `ANTHROPIC_API_KEY=... cargo run`
+
+**Problem:** "Connection refused" with Ollama
+
+**Solution:**
+1. Check if Ollama is running: `curl http://localhost:11434/api/tags`
+2. Start Ollama: `ollama serve`
+3. Verify the port: Ollama defaults to 11434
+
 ## Architecture & Design Patterns
 
 ### Core Concepts
@@ -159,30 +452,42 @@ Structured output containing:
 
 ## Development Workflow
 
-### Adding a New LLM Backend
+### Adding a New LLM Provider
 
-1. Create new file in `src/ai/` (e.g., `openai.rs`)
-2. Implement `LLMBackend` trait
-3. Add to backend selection logic in `src/ai/mod.rs`
-4. Write tests in `tests/`
-5. Update documentation
+To add support for a new LLM provider:
+
+1. Add the new provider variant to the `Provider` enum in `src/ai/genai_backend.rs`
+2. Update the `prefix()` and `name()` methods to handle the new provider
+3. Update the `Display` implementation
+4. Document the required environment variables
+5. Write tests
 
 Example:
 ```rust
-// src/ai/newprovider.rs
-pub struct NewProviderClient {
-    api_key: String,
-    endpoint: String,
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Provider {
+    Ollama,
+    OpenAI,
+    Claude,
+    Gemini,
+    Grok,
+    Groq,
+    NewProvider,  // Add your provider here
 }
 
-#[async_trait]
-impl LLMBackend for NewProviderClient {
-    async fn detect(&self, context: RepositoryContext) -> Result<DetectionResult> {
-        // Implementation
+impl Provider {
+    fn prefix(&self) -> &'static str {
+        match self {
+            // ... existing cases
+            Provider::NewProvider => "newprovider",
+        }
     }
 
-    fn name(&self) -> &str {
-        "newprovider"
+    fn name(&self) -> &'static str {
+        match self {
+            // ... existing cases
+            Provider::NewProvider => "NewProvider",
+        }
     }
 }
 ```
@@ -209,9 +514,12 @@ cargo test test_prompt_generation
 
 ```rust
 #[tokio::test]
-async fn test_ollama_detection() {
+async fn test_detection() {
     let context = create_test_context();
-    let client = OllamaClient::new("http://localhost:11434");
+    let client = GenAIBackend::new(
+        Provider::Ollama,
+        "qwen2.5-coder:7b".to_string(),
+    ).await.unwrap();
     let result = client.detect(context).await.unwrap();
     assert_eq!(result.build_command, "cargo build");
 }
@@ -219,50 +527,70 @@ async fn test_ollama_detection() {
 
 ## Configuration & Environment
 
-### Environment Variables
+### Aipack Configuration Environment Variables
 
 ```bash
-# Backend selection
-AIPACK_BACKEND=auto                # "ollama", "lm-studio", "mistral", or "auto" (default)
-AIPACK_OLLAMA_ENDPOINT=http://localhost:11434
+# Provider selection (defaults to "ollama")
+AIPACK_PROVIDER=ollama             # "ollama", "openai", "claude", "gemini", "grok", or "groq"
+
+# Ollama-specific configuration
 AIPACK_OLLAMA_MODEL=qwen2.5-coder:7b
-
-# LM Studio configuration (OpenAI-compatible local inference)
-AIPACK_LM_STUDIO_ENDPOINT=http://localhost:8000
-
-# Mistral configuration (cloud API)
-MISTRAL_API_KEY=your-api-key
-AIPACK_MISTRAL_MODEL=mistral-small
 
 # Caching
 AIPACK_CACHE_ENABLED=true
 AIPACK_CACHE_DIR=/tmp/aipack-cache
 
+# Request configuration
+AIPACK_REQUEST_TIMEOUT=60          # Request timeout in seconds
+AIPACK_MAX_CONTEXT_SIZE=512000     # Maximum context size in tokens
+
 # Logging
-RUST_LOG=aipack=debug,info         # Structured logging
+AIPACK_LOG_LEVEL=info              # "trace", "debug", "info", "warn", or "error"
+RUST_LOG=aipack=debug,info         # Structured logging (overrides AIPACK_LOG_LEVEL)
+```
+
+### Provider-Specific Environment Variables
+
+These are managed by the `genai` crate and should be set according to the provider documentation:
+
+```bash
+# Ollama (local inference)
+OLLAMA_HOST=http://localhost:11434   # Optional, defaults to localhost:11434
+
+# OpenAI
+OPENAI_API_KEY=sk-proj-...           # Required for OpenAI
+OPENAI_API_BASE=https://api.openai.com/v1  # Optional
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-api03-...   # Required for Claude
+
+# Google Gemini
+GOOGLE_API_KEY=AIza...               # Required for Gemini
+
+# xAI Grok
+XAI_API_KEY=xai-...                  # Required for Grok
+
+# Groq
+GROQ_API_KEY=gsk_...                 # Required for Groq
 ```
 
 ### Configuration File
-Can add support for `aipack.toml`:
-```toml
-[ai]
-backend = "auto"                    # or "ollama", "lm-studio", "mistral"
 
-[ollama]
-endpoint = "http://localhost:11434"
-model = "qwen2.5-coder:7b"
+The configuration is primarily driven by environment variables. The `AipackConfig` struct has the following fields:
 
-[lm_studio]
-endpoint = "http://localhost:8000"
-
-[mistral]
-api_key = "${MISTRAL_API_KEY}"
-model = "mistral-small"
-
-[cache]
-enabled = true
-ttl_seconds = 86400
+```rust
+pub struct AipackConfig {
+    pub provider: Provider,              // Ollama, OpenAI, Claude, Gemini, Grok, Groq
+    pub ollama_model: String,            // Model name for Ollama
+    pub cache_enabled: bool,
+    pub cache_dir: Option<PathBuf>,
+    pub request_timeout_secs: u64,
+    pub max_context_size: usize,
+    pub log_level: String,
+}
 ```
+
+All provider-specific settings (API keys, endpoints) are handled via environment variables by the `genai` crate.
 
 ## Dependencies & Versioning
 
@@ -462,6 +790,6 @@ perf: Performance improvements
 - Handle permission errors gracefully
 
 ### API Rate Limiting
-- Mistral has rate limits; implement exponential backoff
+- All cloud providers have rate limits; implement exponential backoff
 - Consider request queuing for high volume
 - Cache results aggressively to minimize API calls

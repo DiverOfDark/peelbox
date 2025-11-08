@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates how to load, validate, and use the aipack configuration.
 
-use aipack::{AipackConfig, ConfigError};
+use aipack::AipackConfig;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging first
@@ -25,33 +25,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Check which backends are available
-    println!("Backend availability:");
-    println!("  Ollama available: {}", config.is_ollama_available());
-    println!("  Mistral API key set: {}\n", config.has_mistral_key());
-
-    // Try to get the selected backend configuration
-    match config.selected_backend_config() {
-        Ok(backend_config) => {
-            println!("✓ Selected backend: {}", backend_config.model_name());
-            println!("  Timeout: {}s", backend_config.timeout_seconds());
-        }
-        Err(ConfigError::ValidationFailed(msg)) => {
-            println!("✗ Backend selection failed: {}", msg);
-            println!("\nTo use aipack, either:");
-            println!("  1. Start Ollama: ollama serve");
-            println!("  2. Set MISTRAL_API_KEY environment variable");
-        }
-        Err(e) => {
-            return Err(Box::new(e));
-        }
-    }
+    // Display configured provider
+    println!("Configured provider: {:?}\n", config.provider);
 
     // If caching is enabled, show cache path
     if config.cache_enabled {
         let cache_path = config.cache_path("example-repo");
-        println!("\nCache enabled:");
+        println!("Cache enabled:");
         println!("  Path: {}", cache_path.display());
+    } else {
+        println!("Cache disabled");
     }
 
     Ok(())
