@@ -31,14 +31,14 @@ use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
 use aipack::detection::service::DetectionService;
-use aipack::util::logging::{init_logging, parse_level, LoggingConfig};
 use aipack::VERSION;
 
 use clap::Parser;
 use std::collections::HashMap;
 use std::env;
 use std::process;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, warn, Level};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
 async fn main() {
@@ -72,20 +72,58 @@ async fn main() {
 /// 4. AIPACK_LOG_LEVEL environment variable
 /// 5. Default (INFO)
 fn init_logging_from_args(args: &CliArgs) {
-    let level = if let Some(level_str) = &args.log_level {
-        parse_level(level_str)
-    } else if args.verbose {
-        tracing::Level::DEBUG
-    } else if args.quiet {
-        tracing::Level::ERROR
-    } else {
-        // Fall back to environment or default
-        let level_str = env::var("AIPACK_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
-        parse_level(&level_str)
-    };
+    use std::sync::Once;
+    static INIT: Once = Once::new();
 
-    let config = LoggingConfig::with_level(level);
-    init_logging(config);
+    INIT.call_once(|| {
+        let level = if let Some(level_str) = &args.log_level {
+            parse_level(level_str)
+        } else if args.verbose {
+            Level::DEBUG
+        } else if args.quiet {
+            Level::ERROR
+        } else {
+            // Fall back to environment or default
+            let level_str = env::var("AIPACK_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+            parse_level(&level_str)
+        };
+
+        // Build the EnvFilter
+        let mut filter = EnvFilter::from_default_env()
+            .add_directive(format!("aipack={}", level).parse().unwrap());
+
+        // If RUST_LOG is not set, quiet down noisy dependencies
+        if env::var("RUST_LOG").is_err() {
+            filter = filter
+                .add_directive("h2=warn".parse().unwrap())
+                .add_directive("hyper=warn".parse().unwrap())
+                .add_directive("reqwest=warn".parse().unwrap());
+        }
+
+        // Initialize tracing subscriber
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer().with_target(true))
+            .init();
+    });
+}
+
+/// Parses a log level from a string
+fn parse_level(level_str: &str) -> Level {
+    match level_str.to_lowercase().as_str() {
+        "trace" => Level::TRACE,
+        "debug" => Level::DEBUG,
+        "info" => Level::INFO,
+        "warn" => Level::WARN,
+        "error" => Level::ERROR,
+        _ => {
+            eprintln!(
+                "Invalid log level '{}', defaulting to INFO. Valid levels: trace, debug, info, warn, error",
+                level_str
+            );
+            Level::INFO
+        }
+    }
 }
 
 /// Handles the detect command

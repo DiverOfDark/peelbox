@@ -55,7 +55,6 @@ pub mod ai;
 pub mod cli;
 pub mod config;
 pub mod detection;
-pub mod util;
 
 // Re-export key types for convenient access
 pub use ai::backend::{BackendError, LLMBackend};
@@ -64,7 +63,29 @@ pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};
 pub use detection::types::{DetectionResult, GitInfo, RepositoryContext};
-pub use util::{init_default, init_from_env, init_logging, LoggingConfig};
+
+/// Initialize logging with default configuration
+///
+/// This is a convenience function for examples and tests that initializes
+/// tracing with sensible defaults.
+pub fn init_default() {
+    use std::sync::Once;
+    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        let filter = EnvFilter::from_default_env()
+            .add_directive("aipack=info".parse().unwrap())
+            .add_directive("h2=warn".parse().unwrap())
+            .add_directive("hyper=warn".parse().unwrap())
+            .add_directive("reqwest=warn".parse().unwrap());
+
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer().with_target(true))
+            .init();
+    });
+}
 
 /// Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
