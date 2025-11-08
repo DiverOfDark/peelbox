@@ -130,7 +130,7 @@ No preamble, no explanation before the JSON.
   "language": "string (e.g., 'Rust', 'JavaScript', 'Python')",
   "build_system": "string (e.g., 'cargo', 'npm', 'gradle')",
   "build_command": "string (complete command to build the application)",
-  "test_command": "string (complete command to run tests)",
+  "test_command": "string or null (optional: command to run tests)",
   "runtime": "string (Docker runtime, e.g., 'python:3.11-slim', 'node:20', 'rust:1.75')",
   "dependencies": ["list of system packages needed (e.g., 'curl', 'openssl')"],
   "entry_point": "string (command to start the application in container, e.g., 'java -jar app.jar')",

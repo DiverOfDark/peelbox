@@ -92,7 +92,7 @@ pub struct DetectionResult {
     pub build_system: String,
     pub language: String,
     pub build_command: String,
-    pub test_command: String,
+    pub test_command: Option<String>,
     pub runtime: String,
     pub dependencies: Vec<String>,
     pub entry_point: String,
@@ -109,7 +109,7 @@ impl DetectionResult {
         build_system: String,
         language: String,
         build_command: String,
-        test_command: String,
+        test_command: Option<String>,
         runtime: String,
         entry_point: String,
     ) -> Self {
@@ -176,7 +176,9 @@ impl fmt::Display for DetectionResult {
         writeln!(f)?;
         writeln!(f, "Build Information:")?;
         writeln!(f, "  Build:   {}", self.build_command)?;
-        writeln!(f, "  Test:    {}", self.test_command)?;
+        if let Some(ref test_cmd) = self.test_command {
+            writeln!(f, "  Test:    {}", test_cmd)?;
+        }
         if let Some(ref dev_cmd) = self.dev_command {
             writeln!(f, "  Dev:     {}", dev_cmd)?;
         }
@@ -247,7 +249,7 @@ mod tests {
             "cargo".to_string(),
             "Rust".to_string(),
             "cargo build".to_string(),
-            "cargo test".to_string(),
+            Some("cargo test".to_string()),
             "rust:1.75".to_string(),
             "/app/target/release/myapp".to_string(),
         );
@@ -284,7 +286,7 @@ mod tests {
             "npm".to_string(),
             "JavaScript".to_string(),
             "npm run build".to_string(),
-            "npm test".to_string(),
+            Some("npm test".to_string()),
             "node:20".to_string(),
             "node index.js".to_string(),
         );
@@ -301,7 +303,7 @@ mod tests {
             build_system: "cargo".to_string(),
             language: "Rust".to_string(),
             build_command: "cargo build --release".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec!["ca-certificates".to_string()],
             entry_point: "/app/target/release/myapp".to_string(),

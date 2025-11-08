@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking Change**: `test_command` field is now `Option<String>` instead of `String` in `DetectionResult` and `LlmResponse` structs
+  - LLMs can now return `null` for test_command when projects don't have test suites
+  - Validation allows `None` values and only validates non-empty strings when present
+  - Display implementations handle missing test commands gracefully
+  - Prompt documentation updated to clarify test_command is optional
+
 ## [0.2.0] - 2025-11-08
 
 ### Added

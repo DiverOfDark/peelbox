@@ -166,10 +166,11 @@ impl OutputFormatter {
             "\u{251C}\u{2500} Build:   {}\n",
             result.build_command
         ));
-        output.push_str(&format!(
-            "\u{251C}\u{2500} Test:    {}\n",
-            result.test_command
-        ));
+        if let Some(ref test_cmd) = result.test_command {
+            output.push_str(&format!("\u{251C}\u{2500} Test:    {}\n", test_cmd));
+        } else {
+            output.push_str("\u{251C}\u{2500} Test:    (not specified)\n");
+        }
         if let Some(ref dev_cmd) = result.dev_command {
             output.push_str(&format!("\u{2514}\u{2500} Dev:     {}\n", dev_cmd));
         } else {
@@ -407,7 +408,7 @@ mod tests {
             build_system: "cargo".to_string(),
             language: "Rust".to_string(),
             build_command: "cargo build --release".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),

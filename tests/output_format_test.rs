@@ -16,7 +16,7 @@ fn create_sample_detection_result() -> DetectionResult {
         build_system: "cargo".to_string(),
         language: "Rust".to_string(),
         build_command: "cargo build --release".to_string(),
-        test_command: "cargo test".to_string(),
+        test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),
@@ -242,7 +242,7 @@ fn test_detection_result_minimal() {
         "make".to_string(),
         "C".to_string(),
         "make".to_string(),
-        "make test".to_string(),
+        Some("make test".to_string()),
         "gcc:latest".to_string(),
         "/app".to_string(),
     );
@@ -264,7 +264,7 @@ fn test_detection_result_with_warnings() {
         "npm".to_string(),
         "JavaScript".to_string(),
         "npm run build".to_string(),
-        "npm test".to_string(),
+        Some("npm test".to_string()),
         "node:18".to_string(),
         "/app".to_string(),
     );

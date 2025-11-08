@@ -25,7 +25,7 @@ struct LlmResponse {
     language: String,
     build_system: String,
     build_command: String,
-    test_command: String,
+    test_command: Option<String>,
     runtime: String,
     #[serde(default)]
     dependencies: Vec<String>,
@@ -144,8 +144,10 @@ pub fn validate_detection_result(result: &DetectionResult) -> Result<(), ParseEr
         return Err(ParseError::InvalidCommand("build_command".to_string()));
     }
 
-    if result.test_command.trim().is_empty() {
-        return Err(ParseError::InvalidCommand("test_command".to_string()));
+    if let Some(ref test_cmd) = result.test_command {
+        if test_cmd.trim().is_empty() {
+            return Err(ParseError::InvalidCommand("test_command".to_string()));
+        }
     }
 
     if result.runtime.trim().is_empty() {
@@ -196,7 +198,7 @@ mod tests {
         assert_eq!(result.language, "Rust");
         assert_eq!(result.build_system, "cargo");
         assert_eq!(result.build_command, "cargo build --release");
-        assert_eq!(result.test_command, "cargo test");
+        assert_eq!(result.test_command, Some("cargo test".to_string()));
         assert_eq!(result.runtime, "rust:1.75");
         assert_eq!(result.entry_point, "/app");
         assert_eq!(result.confidence, 0.95);
@@ -245,6 +247,27 @@ mod tests {
 
         let result = parse_ollama_response(response).unwrap();
         assert_eq!(result.dev_command, None);
+    }
+
+    #[test]
+    fn test_parse_ollama_response_with_null_test_command() {
+        let response = r#"{
+            "language": "JavaScript",
+            "build_system": "npm",
+            "build_command": "npm run build",
+            "test_command": null,
+            "runtime": "node:22-alpine3.17",
+            "dependencies": ["nodejs"],
+            "entry_point": "npm start",
+            "confidence": 0.9,
+            "reasoning": "JavaScript project without test suite",
+            "warnings": ["No test command available"]
+        }"#;
+
+        let result = parse_ollama_response(response).unwrap();
+        assert_eq!(result.test_command, None);
+        assert_eq!(result.warnings.len(), 1);
+        assert_eq!(result.warnings[0], "No test command available");
     }
 
     #[test]
@@ -325,7 +348,7 @@ Let me know if you need more details."#;
             language: "Rust".to_string(),
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),
@@ -346,7 +369,7 @@ Let me know if you need more details."#;
             language: "".to_string(),
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),
@@ -368,7 +391,7 @@ Let me know if you need more details."#;
             language: "Rust".to_string(),
             build_system: "cargo".to_string(),
             build_command: "".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),
@@ -390,7 +413,7 @@ Let me know if you need more details."#;
             language: "Rust".to_string(),
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),
@@ -449,7 +472,7 @@ Let me know if you need more details."#;
             language: "Rust".to_string(),
             build_system: "cargo".to_string(),
             build_command: "cargo build".to_string(),
-            test_command: "cargo test".to_string(),
+            test_command: Some("cargo test".to_string()),
             runtime: "rust:1.75".to_string(),
             dependencies: vec![],
             entry_point: "/app".to_string(),

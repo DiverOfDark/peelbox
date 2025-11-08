@@ -154,14 +154,18 @@ Run `cargo build` to build the project.
             println!("   Language: {}", detection.language);
             println!("   Build System: {}", detection.build_system);
             println!("   Build Command: {}", detection.build_command);
-            println!("   Test Command: {}", detection.test_command);
+            if let Some(ref test_cmd) = detection.test_command {
+                println!("   Test Command: {}", test_cmd);
+            } else {
+                println!("   Test Command: (not specified)");
+            }
             println!("   Confidence: {:.1}%", detection.confidence * 100.0);
 
             // Verify the detection makes sense
             assert_eq!(detection.language, "Rust");
             assert_eq!(detection.build_system, "cargo");
             assert!(detection.build_command.contains("cargo"));
-            assert!(detection.test_command.contains("cargo"));
+            assert!(detection.test_command.as_ref().map_or(false, |cmd| cmd.contains("cargo")));
             assert!(detection.confidence >= 0.7);
         }
         Err(e) => {
