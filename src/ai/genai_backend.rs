@@ -668,43 +668,52 @@ impl GenAIBackend {
                 });
             }
 
-            // Validate: submit_detection cannot be called alongside other tools
+            // Check if submit_detection is being called
             let has_submit_detection = tool_calls.iter().any(|tc| tc.fn_name == "submit_detection");
-            if has_submit_detection && tool_calls.len() > 1 {
-                warn!(
-                    "LLM attempted to call submit_detection alongside {} other tools - rejecting",
-                    tool_calls.len() - 1
-                );
-                return Err(BackendError::InvalidResponse {
-                    message: "submit_detection cannot be called alongside other tools. Call ONE tool at a time and wait for results.".to_string(),
-                    raw_response: response.first_text().map(|s| s.to_string()),
-                });
-            }
+            let is_last_iteration = iteration >= MAX_ITERATIONS - 1;
+            let is_only_tool_call = tool_calls.len() == 1;
+
+            // Determine if we should process submit_detection
+            let should_accept_submit_detection = has_submit_detection && (is_only_tool_call || is_last_iteration);
 
             // Execute each tool call
-            for tool_call in tool_calls {
+            for tool_call in &tool_calls {
                 debug!(
                     "Executing tool: {} with call_id: {}",
                     tool_call.fn_name, tool_call.call_id
                 );
 
-                // Check if this is submit_detection
+                // Handle submit_detection
                 if tool_call.fn_name == "submit_detection" {
-                    // Validate that at least one read_file was called
-                    if !has_read_file {
-                        warn!("LLM attempted submit_detection without reading any files - rejecting");
-                        return Err(BackendError::InvalidResponse {
-                            message: "You must call read_file on at least one build configuration file before submitting detection. Do not guess - verify by reading actual files.".to_string(),
-                            raw_response: response.first_text().map(|s| s.to_string()),
-                        });
-                    }
+                    if should_accept_submit_detection {
+                        // Warn if submitting without reading files
+                        if !has_read_file {
+                            warn!("LLM submitting detection without reading any files (allowed on last iteration)");
+                        }
 
-                    info!(
-                        "Detection submitted after {} iterations in {:.2}s",
-                        iteration,
-                        start.elapsed().as_secs_f64()
-                    );
-                    return parse_detection_from_tool_call(&tool_call.fn_arguments);
+                        info!(
+                            "Detection submitted after {} iterations in {:.2}s",
+                            iteration,
+                            start.elapsed().as_secs_f64()
+                        );
+                        return parse_detection_from_tool_call(&tool_call.fn_arguments);
+                    } else {
+                        // Skip submit_detection and continue with other tools
+                        if !has_read_file {
+                            warn!("Skipping submit_detection - no files read yet. LLM should call read_file first.");
+                            messages.push(ToolResponse {
+                                call_id: tool_call.call_id.clone(),
+                                content: "Error: Cannot submit detection yet. You must call read_file on at least one build configuration file (build.gradle.kts, pom.xml, package.json, Cargo.toml, etc.) before submitting detection. Please read the actual build file to verify the build system.".to_string(),
+                            }.into());
+                        } else if tool_calls.len() > 1 {
+                            warn!("Skipping submit_detection - called alongside {} other tools. LLM should call it alone.", tool_calls.len() - 1);
+                            messages.push(ToolResponse {
+                                call_id: tool_call.call_id.clone(),
+                                content: "Error: Cannot submit detection alongside other tool calls. Call submit_detection alone in a separate response after reviewing all necessary files.".to_string(),
+                            }.into());
+                        }
+                        continue; // Skip this tool call
+                    }
                 }
 
                 // Track read_file calls
