@@ -4,6 +4,7 @@
 //! to provide build system detection capabilities.
 
 use crate::detection::types::DetectionResult;
+use crate::detection::JumpstartContext;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
@@ -21,6 +22,11 @@ pub use super::genai_backend::BackendError;
 /// information about the repository through tools (list_files, read_file, etc.)
 /// until it has enough information to submit a final detection result.
 ///
+/// # Jumpstart Context
+///
+/// An optional `JumpstartContext` can be provided to pre-populate the LLM with
+/// discovered manifest files, reducing the number of tool calls needed.
+///
 /// # Example
 ///
 /// ```no_run
@@ -34,7 +40,7 @@ pub use super::genai_backend::BackendError;
 ///     "qwen2.5-coder:7b".to_string(),
 /// ).await?;
 ///
-/// let result = backend.detect(PathBuf::from("/path/to/repo")).await?;
+/// let result = backend.detect(PathBuf::from("/path/to/repo"), None).await?;
 /// println!("Detected: {}", result.build_system);
 /// # Ok(())
 /// # }
@@ -51,6 +57,7 @@ pub trait LLMBackend: Send + Sync {
     /// # Arguments
     ///
     /// * `repo_path` - Path to the repository root directory
+    /// * `jumpstart_context` - Optional pre-scanned manifest information
     ///
     /// # Returns
     ///
@@ -64,7 +71,11 @@ pub trait LLMBackend: Send + Sync {
     /// - The response cannot be parsed
     /// - Tool execution fails
     /// - The repository path is invalid
-    async fn detect(&self, repo_path: PathBuf) -> Result<DetectionResult, BackendError>;
+    async fn detect(
+        &self,
+        repo_path: PathBuf,
+        jumpstart_context: Option<JumpstartContext>,
+    ) -> Result<DetectionResult, BackendError>;
 
     /// Returns the human-readable name of this backend
     ///

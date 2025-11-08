@@ -4,6 +4,7 @@
 //! including context gathering and result processing.
 
 pub mod analyzer;
+pub mod jumpstart;
 pub mod prompt;
 pub mod response;
 pub mod service;
@@ -12,6 +13,7 @@ pub mod types;
 
 // Re-export commonly used types
 pub use analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
+pub use jumpstart::{JumpstartContext, JumpstartScanner};
 pub use prompt::SYSTEM_PROMPT;
 pub use response::{parse_ollama_response, validate_detection_result, ParseError};
 pub use service::{DetectionService, ServiceError};

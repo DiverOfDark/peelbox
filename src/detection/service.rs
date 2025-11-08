@@ -371,8 +371,27 @@ impl DetectionService {
 
         info!("Starting detection for repository: {}", repo_path.display());
 
+        // Run jumpstart scan to pre-discover manifest files
+        let jumpstart_context = match self.run_jumpstart_scan(&repo_path) {
+            Ok(context) => {
+                info!(
+                    manifests_found = context.manifest_files.len(),
+                    scan_time_ms = context.scan_time_ms,
+                    "Jumpstart scan completed successfully"
+                );
+                Some(context)
+            }
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    "Jumpstart scan failed, continuing with normal detection"
+                );
+                None
+            }
+        };
+
         // Delegate to backend for tool-based detection
-        let mut result = self.backend.detect(repo_path).await?;
+        let mut result = self.backend.detect(repo_path, jumpstart_context).await?;
 
         // Set processing time
         result.processing_time_ms = start.elapsed().as_millis() as u64;
@@ -390,6 +409,21 @@ impl DetectionService {
         }
 
         Ok(result)
+    }
+
+    /// Runs jumpstart scan to pre-discover manifest files
+    fn run_jumpstart_scan(&self, repo_path: &Path) -> Result<crate::detection::JumpstartContext, ServiceError> {
+        use crate::detection::jumpstart::{JumpstartContext, JumpstartScanner};
+
+        let scanner = JumpstartScanner::new(repo_path.to_path_buf())
+            .map_err(|e| ServiceError::DetectionFailed(format!("Jumpstart scan setup failed: {}", e)))?;
+
+        let scan_start = Instant::now();
+        let manifests = scanner.scan()
+            .map_err(|e| ServiceError::DetectionFailed(format!("Jumpstart scan failed: {}", e)))?;
+        let scan_time_ms = scan_start.elapsed().as_millis() as u64;
+
+        Ok(JumpstartContext::from_manifests(manifests, scan_time_ms))
     }
 
     /// Detects build system using a repository path from context

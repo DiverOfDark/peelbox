@@ -585,7 +585,16 @@ impl GenAIBackend {
     /// This method uses an iterative tool-calling approach where the LLM
     /// can request information about the repository through tools until
     /// it has enough information to submit a final detection result.
-    pub async fn detect(&self, repo_path: PathBuf) -> Result<DetectionResult, BackendError> {
+    ///
+    /// # Arguments
+    ///
+    /// * `repo_path` - Path to the repository root directory
+    /// * `jumpstart_context` - Optional pre-scanned manifest information to guide detection
+    pub async fn detect(
+        &self,
+        repo_path: PathBuf,
+        jumpstart_context: Option<crate::detection::JumpstartContext>,
+    ) -> Result<DetectionResult, BackendError> {
         use crate::detection::tools::{ToolExecutor, ToolRegistry};
 
         info!(
@@ -605,13 +614,26 @@ impl GenAIBackend {
         let tools = ToolRegistry::create_all_tools();
         debug!("Initialized {} tools for detection", tools.len());
 
+        // Build user message with optional jumpstart context
+        let user_message = if let Some(ref context) = jumpstart_context {
+            info!(
+                manifests = context.manifest_files.len(),
+                "Using jumpstart context with {} pre-scanned manifests",
+                context.manifest_files.len()
+            );
+            format!(
+                "{}\n\nAnalyze the repository at path: {}",
+                context.to_prompt_string(),
+                repo_path.display()
+            )
+        } else {
+            format!("Analyze the repository at path: {}", repo_path.display())
+        };
+
         // Initial conversation
         let mut messages: Vec<ChatMessage> = vec![
             ChatMessage::system(SYSTEM_PROMPT),
-            ChatMessage::user(format!(
-                "Analyze the repository at path: {}",
-                repo_path.display()
-            )),
+            ChatMessage::user(user_message),
         ];
 
         let max_iterations = self.max_tool_iterations;
@@ -851,8 +873,12 @@ impl std::fmt::Debug for GenAIBackend {
 
 #[async_trait]
 impl LLMBackend for GenAIBackend {
-    async fn detect(&self, repo_path: PathBuf) -> Result<DetectionResult, BackendError> {
-        self.detect(repo_path).await
+    async fn detect(
+        &self,
+        repo_path: PathBuf,
+        jumpstart_context: Option<crate::detection::JumpstartContext>,
+    ) -> Result<DetectionResult, BackendError> {
+        self.detect(repo_path, jumpstart_context).await
     }
 
     fn name(&self) -> &str {
