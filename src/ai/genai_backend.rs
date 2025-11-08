@@ -24,8 +24,10 @@
 //! # }
 //! ```
 
+use crate::ai::backend::LLMBackend;
 use crate::detection::response::parse_ollama_response;
 use crate::detection::types::DetectionResult;
+use async_trait::async_trait;
 use clap::ValueEnum;
 use genai::adapter::AdapterKind;
 use genai::chat::{ChatMessage, ChatOptions, ChatRequest, ToolResponse};
@@ -775,6 +777,21 @@ impl std::fmt::Debug for GenAIBackend {
             .field("timeout", &self.timeout)
             .field("max_tokens", &self.max_tokens)
             .finish()
+    }
+}
+
+#[async_trait]
+impl LLMBackend for GenAIBackend {
+    async fn detect(&self, repo_path: PathBuf) -> Result<DetectionResult, BackendError> {
+        self.detect(repo_path).await
+    }
+
+    fn name(&self) -> &str {
+        self.name()
+    }
+
+    fn model_info(&self) -> Option<String> {
+        self.model_info()
     }
 }
 

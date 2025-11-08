@@ -1,11 +1,18 @@
 //! Detection service orchestration
 //!
 //! This module provides the high-level `DetectionService` that orchestrates
-//! the entire build system detection workflow. It combines:
+//! build system detection using LLM backends with tool-based analysis.
 //!
-//! - Repository analysis (file scanning, context gathering)
-//! - LLM backend communication
-//! - Result validation and enrichment
+//! # Architecture
+//!
+//! The service acts as a thin orchestration layer:
+//! 1. Validates the repository path
+//! 2. Delegates detection to the LLM backend
+//! 3. Tracks timing metrics
+//! 4. Returns validated results
+//!
+//! The actual repository analysis is performed iteratively by the backend
+//! through tool calls (list_files, read_file, etc.).
 //!
 //! # Example
 //!
@@ -27,15 +34,15 @@
 //! # }
 //! ```
 
-use crate::ai::genai_backend::{BackendError, GenAIBackend};
+use crate::ai::backend::BackendError;
+use crate::ai::genai_backend::GenAIBackend;
 use crate::config::AipackConfig;
-use crate::detection::analyzer::AnalysisError;
-use crate::detection::types::{DetectionResult, RepositoryContext};
+use crate::detection::types::DetectionResult;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 use thiserror::Error;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// Errors that can occur during detection service operations
 #[derive(Debug, Error)]
@@ -43,10 +50,6 @@ pub enum ServiceError {
     /// Backend error occurred during LLM communication
     #[error("Backend error: {0}")]
     BackendError(#[from] BackendError),
-
-    /// Analysis error occurred during repository scanning
-    #[error("Analysis error: {0}")]
-    AnalysisError(#[from] AnalysisError),
 
     /// Configuration error
     #[error("Configuration error: {0}")]
@@ -213,50 +216,6 @@ impl ServiceError {
                     )
                 }
             },
-            ServiceError::AnalysisError(analysis_err) => match analysis_err {
-                AnalysisError::PathNotFound(path) => {
-                    format!(
-                        "Error: Repository path not found\nPath: {}\n\n\
-                            Help: The path does not exist. Please check:\n\
-                            - Is the path correct?\n\
-                            - Does the directory exist?",
-                        path.display()
-                    )
-                }
-                AnalysisError::PermissionDenied(path) => {
-                    format!(
-                        "Error: Permission denied\nPath: {}\n\n\
-                            Help: Cannot access the directory or file. Try:\n\
-                            - Check file permissions\n\
-                            - Ensure you have read access\n\
-                            - Try running with appropriate permissions",
-                        path
-                    )
-                }
-                AnalysisError::TooLarge(limit) => {
-                    format!(
-                        "Error: Repository too large\n\n\
-                            Help: Repository exceeded file limit of {} entries.\n\
-                            This usually indicates a very large repository.\n\n\
-                            Try:\n\
-                            - Analyze a subdirectory instead\n\
-                            - Clean up build artifacts (target/, node_modules/, etc.)\n\
-                            - Use .gitignore patterns to exclude large directories",
-                        limit
-                    )
-                }
-                _ => {
-                    format!(
-                        "Error: Repository analysis failed\n\n\
-                            Help: Failed to analyze repository. Try:\n\
-                            - Check the repository is valid\n\
-                            - Ensure you have read permissions\n\
-                            - Try a different directory\n\n\
-                            Details: {}",
-                        analysis_err
-                    )
-                }
-            },
             ServiceError::DetectionFailed(msg) => {
                 format!(
                     "Error: Detection failed\n\n\
@@ -275,16 +234,17 @@ impl ServiceError {
 
 /// High-level detection service that orchestrates the detection workflow
 ///
-/// This service combines repository analysis with LLM-based detection to
-/// identify build systems and generate appropriate commands. It provides
-/// a simple, high-level API for detection operations.
+/// This service provides a simple interface for LLM-based build system detection.
+/// It validates repository paths and delegates analysis to the backend, which
+/// uses an iterative tool-calling approach to gather information and make decisions.
 ///
 /// # Architecture
 ///
 /// ```text
 /// DetectionService
-///   ├── RepositoryAnalyzer  (scans files, builds context)
-///   └── GenAIBackend        (multi-provider AI backend)
+///   └── GenAIBackend (multi-provider with tool-based detection)
+///         ├── ToolExecutor (on-demand file access)
+///         ├── Iterative LLM conversation
 ///         └── Supports: Ollama, OpenAI, Claude, Gemini, Grok, Groq
 /// ```
 ///
@@ -359,25 +319,29 @@ impl DetectionService {
     /// Detects build system for a repository
     ///
     /// This is the main entry point for detection. It:
-    /// 1. Validates the repository path
-    /// 2. Analyzes the repository to gather context
-    /// 3. Calls the LLM backend to detect the build system
-    /// 4. Returns a validated, enriched result
+    /// 1. Validates the repository path exists and is a directory
+    /// 2. Delegates to the LLM backend for tool-based detection
+    /// 3. Tracks processing time
+    /// 4. Returns the detection result
+    ///
+    /// The backend uses an iterative tool-calling approach where the LLM
+    /// requests information about files and directory structure as needed.
     ///
     /// # Arguments
     ///
-    /// * `repo_path` - Path to the repository root
+    /// * `repo_path` - Path to the repository root directory
     ///
     /// # Returns
     ///
-    /// A `DetectionResult` containing build system information and commands
+    /// A `DetectionResult` containing build system information, commands,
+    /// confidence score, and reasoning.
     ///
     /// # Errors
     ///
     /// Returns `ServiceError` if:
     /// - Repository path does not exist or is not a directory
-    /// - Repository analysis fails
     /// - LLM backend fails or times out
+    /// - Tool execution fails
     /// - Response parsing fails
     ///
     /// # Example
@@ -394,8 +358,8 @@ impl DetectionService {
     /// let result = service.detect(PathBuf::from("/path/to/my-project")).await?;
     ///
     /// println!("Build: {}", result.build_command);
-    /// println!("Test: {}", result.test_command);
-    /// println!("Deploy: {}", result.deploy_command);
+    /// println!("Test: {:?}", result.test_command);
+    /// println!("Confidence: {:.1}%", result.confidence * 100.0);
     /// # Ok(())
     /// # }
     /// ```
@@ -407,9 +371,8 @@ impl DetectionService {
 
         info!("Starting detection for repository: {}", repo_path.display());
 
-        // Perform detection with backend (using tool-based approach)
-        debug!("Calling LLM backend for tool-based detection");
-        let mut result = self.backend.detect(repo_path.clone()).await?;
+        // Delegate to backend for tool-based detection
+        let mut result = self.backend.detect(repo_path).await?;
 
         // Set processing time
         result.processing_time_ms = start.elapsed().as_millis() as u64;
@@ -429,15 +392,21 @@ impl DetectionService {
         Ok(result)
     }
 
-    /// Detects build system using a custom repository context
+    /// Detects build system using a repository path from context
     ///
-    /// This method allows you to provide a pre-built `RepositoryContext` instead
-    /// of analyzing a repository from disk. Useful for testing or when you already
-    /// have the context from another source.
+    /// This method extracts the repository path from a `RepositoryContext`
+    /// and delegates to the standard `detect()` method. The context's
+    /// pre-analyzed files are not used - the backend will use tools to
+    /// analyze the repository on-demand.
+    ///
+    /// # Deprecated
+    ///
+    /// This method exists for backwards compatibility. Prefer using
+    /// `detect(repo_path)` directly.
     ///
     /// # Arguments
     ///
-    /// * `context` - Pre-built repository context
+    /// * `context` - Repository context (only the path is used)
     ///
     /// # Returns
     ///
@@ -445,57 +414,13 @@ impl DetectionService {
     ///
     /// # Errors
     ///
-    /// Returns `ServiceError` if LLM backend fails or response parsing fails
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
-    /// use aipack::detection::types::RepositoryContext;
-    /// use aipack::AipackConfig;
-    /// use std::path::PathBuf;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = AipackConfig::default();
-    /// let service = DetectionService::new(&config).await?;
-    ///
-    /// let context = RepositoryContext::minimal(
-    ///     PathBuf::from("/test/repo"),
-    ///     "repo/\n├── package.json\n└── src/".to_string(),
-    /// ).with_key_file(
-    ///     "package.json".to_string(),
-    ///     r#"{"name": "test", "scripts": {"build": "tsc"}}"#.to_string(),
-    /// );
-    ///
-    /// let result = service.detect_with_context(context).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
+    /// Returns `ServiceError` if detection fails
+    #[deprecated(since = "0.2.0", note = "Use detect(repo_path) instead")]
     pub async fn detect_with_context(
         &self,
-        context: RepositoryContext,
+        context: crate::detection::types::RepositoryContext,
     ) -> Result<DetectionResult, ServiceError> {
-        let start = Instant::now();
-
-        info!(
-            "Starting detection with custom context for: {}",
-            context.repo_path.display()
-        );
-
-        // Perform detection with backend (tool-based approach, context is ignored)
-        let mut result = self.backend.detect(context.repo_path.clone()).await?;
-
-        // Set processing time
-        result.processing_time_ms = start.elapsed().as_millis() as u64;
-
-        info!(
-            "Detection completed in {:.2}s: {} ({})",
-            start.elapsed().as_secs_f64(),
-            result.build_system,
-            result.language
-        );
-
-        Ok(result)
+        self.detect(context.repo_path).await
     }
 
     /// Validates that a repository path exists and is a directory
