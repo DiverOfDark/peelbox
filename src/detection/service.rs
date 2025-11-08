@@ -128,7 +128,6 @@ impl ServiceError {
                         "Error: Failed to initialize backend\n\n\
                         Help: Try:\n\
                         - Check backend availability: aipack health\n\
-                        - Verify configuration: aipack config\n\
                         - Use different backend: --backend <ollama|mistral>\n\n\
                         Details: {}",
                         msg
@@ -140,7 +139,6 @@ impl ServiceError {
                     "Error: Configuration error\n\n\
                     Help: Configuration validation failed. Try:\n\
                     - Check environment variables\n\
-                    - View current config: aipack config\n\
                     - Check the documentation\n\n\
                     Details: {}",
                     msg

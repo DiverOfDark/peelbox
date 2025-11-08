@@ -370,7 +370,7 @@ fn handle_workflow_error(error: WorkflowError) {
             println!("Troubleshooting:");
             println!("  - Check environment variables are set correctly");
             println!("  - Verify backend configuration");
-            println!("  - Run: aipack config");
+            println!("  - Run: aipack health");
         }
         WorkflowError::ServiceError(service_err) => {
             error!("Service error: {}", service_err);

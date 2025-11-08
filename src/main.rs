@@ -7,7 +7,6 @@
 //!
 //! - `detect` - Detect build commands in a repository
 //! - `health` - Check backend availability
-//! - `config` - Show current configuration
 //!
 //! # Example Usage
 //!
@@ -20,13 +19,10 @@
 //!
 //! # Check backend health
 //! aipack health
-//!
-//! # Show configuration
-//! aipack config
 //! ```
 
 use aipack::ai::genai_backend::Provider;
-use aipack::cli::commands::{CliArgs, Commands, ConfigArgs, DetectArgs, HealthArgs};
+use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
@@ -56,7 +52,6 @@ async fn main() {
     let exit_code = match &args.command {
         Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet).await,
         Commands::Health(health_args) => handle_health(health_args).await,
-        Commands::Config(config_args) => handle_config(config_args),
     };
 
     // Exit with appropriate code
@@ -198,7 +193,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
         error!("Configuration error: {}", e);
         eprintln!("Configuration error: {}", e);
         eprintln!("\nPlease check your environment variables and command-line arguments.");
-        eprintln!("Run 'aipack config' to see current configuration.");
         return 1;
     }
 
@@ -218,7 +212,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
                 }
                 Provider::OpenAI => {
                     eprintln!("  - Set OPENAI_API_KEY environment variable");
-                    eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints");
+                    eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints (e.g., Azure OpenAI)");
                 }
                 Provider::Claude => {
                     eprintln!("  - Set ANTHROPIC_API_KEY environment variable");
@@ -234,7 +228,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
                 }
             }
             eprintln!("  - Run 'aipack health' to check backend availability");
-            eprintln!("  - Run 'aipack config' to verify configuration");
             return 1;
         }
     };
@@ -344,7 +337,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
 
 /// Handles the health command
 ///
-/// Checks availability of configured backends and displays status
+/// Checks availability of configured backends and displays status.
 async fn handle_health(args: &HealthArgs) -> i32 {
     info!("Checking backend health");
 
@@ -492,35 +485,3 @@ async fn handle_health(args: &HealthArgs) -> i32 {
     }
 }
 
-/// Handles the config command
-///
-/// Displays current configuration
-fn handle_config(args: &ConfigArgs) -> i32 {
-    info!("Displaying configuration");
-
-    let config = AipackConfig::default();
-
-    // Format and display configuration
-    let format: OutputFormat = args.format.into();
-    let formatter = OutputFormatter::new(format);
-
-    let output = match formatter.format_config(&config) {
-        Ok(out) => out,
-        Err(e) => {
-            error!("Failed to format config output: {}", e);
-            eprintln!("Error: Failed to format config output: {}", e);
-            return 1;
-        }
-    };
-
-    println!("{}", output);
-
-    // Validate configuration and warn about issues
-    if let Err(e) = config.validate() {
-        warn!("Configuration validation failed: {}", e);
-        eprintln!("\nWarning: Configuration has issues: {}", e);
-        return 2;
-    }
-
-    0
-}

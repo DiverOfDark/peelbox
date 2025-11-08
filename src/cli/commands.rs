@@ -6,8 +6,7 @@
 //! # Commands
 //!
 //! - `detect` - Detect build commands in a repository
-//! - `health` - Check backend availability
-//! - `config` - Show current configuration
+//! - `health` - Check backend availability and configuration
 //!
 //! # Example
 //!
@@ -79,7 +78,7 @@ pub enum Commands {
     )]
     Detect(DetectArgs),
 
-    /// Check backend availability and health
+    /// Check backend availability
     #[command(
         about = "Check backend availability",
         long_about = "Checks the availability and health of configured AI backends.\n\n\
@@ -88,17 +87,6 @@ pub enum Commands {
                       aipack health --backend ollama"
     )]
     Health(HealthArgs),
-
-    /// Show current configuration
-    #[command(
-        about = "Show current configuration",
-        long_about = "Displays the current aipack configuration including backend settings, \
-                      timeouts, and other options. API keys are masked by default.\n\n\
-                      Examples:\n  \
-                      aipack config\n  \
-                      aipack config --show-secrets"
-    )]
-    Config(ConfigArgs),
 }
 
 /// Arguments for the detect command
@@ -179,20 +167,6 @@ pub struct HealthArgs {
     )]
     pub backend: Option<Provider>,
 
-    /// Output format
-    #[arg(
-        short = 'f',
-        long,
-        value_enum,
-        default_value = "human",
-        help = "Output format"
-    )]
-    pub format: OutputFormatArg,
-}
-
-/// Arguments for the config command
-#[derive(Parser, Debug, Clone)]
-pub struct ConfigArgs {
     /// Output format
     #[arg(
         short = 'f',
@@ -320,16 +294,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_config_command() {
-        let args = CliArgs::parse_from(&["aipack", "config"]);
-        match args.command {
-            Commands::Config(config_args) => {
-                assert_eq!(config_args.format, OutputFormatArg::Human);
-            }
-            _ => panic!("Expected Config command"),
-        }
-    }
 
     #[test]
     fn test_global_verbose_flag() {
