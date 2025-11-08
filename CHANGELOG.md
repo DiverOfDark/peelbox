@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **Breaking Change**: `test_command` field is now `Option<String>` instead of `String` in `DetectionResult` and `LlmResponse` structs
-  - LLMs can now return `null` for test_command when projects don't have test suites
-  - Validation allows `None` values and only validates non-empty strings when present
-  - Display implementations handle missing test commands gracefully
-  - Prompt documentation updated to clarify test_command is optional
+- **Breaking Change**: All `LlmResponse` fields are now `Option<T>` to prevent deserialization failures
+  - LLMs can return `null` for any field without causing parsing errors
+  - Explicit validation after deserialization provides clear error messages for missing required fields
+  - Required fields: `language`, `build_system`, `build_command`, `runtime`, `entry_point`, `reasoning`, `confidence`
+  - Optional fields: `test_command`, `dev_command`
+  - This prevents edge cases where AI responses are incomplete or malformed from breaking the application
+  - Validation happens after successful deserialization with helpful error messages
 
 ## [0.2.0] - 2025-11-08
 

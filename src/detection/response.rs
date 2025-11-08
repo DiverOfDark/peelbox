@@ -22,18 +22,18 @@ pub enum ParseError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LlmResponse {
-    language: String,
-    build_system: String,
-    build_command: String,
+    language: Option<String>,
+    build_system: Option<String>,
+    build_command: Option<String>,
     test_command: Option<String>,
-    runtime: String,
+    runtime: Option<String>,
     #[serde(default)]
     dependencies: Vec<String>,
-    entry_point: String,
+    entry_point: Option<String>,
     #[serde(default)]
     dev_command: Option<String>,
-    confidence: f32,
-    reasoning: String,
+    confidence: Option<f32>,
+    reasoning: Option<String>,
     #[serde(default)]
     warnings: Vec<String>,
 }
@@ -105,26 +105,34 @@ fn extract_from_markdown_block(text: &str) -> Result<String, ParseError> {
 }
 
 fn convert_to_detection_result(llm: LlmResponse) -> Result<DetectionResult, ParseError> {
-    let confidence = llm.confidence.clamp(0.0, 1.0);
+    let language = llm.language.ok_or_else(|| ParseError::MissingField("language".to_string()))?;
+    let build_system = llm.build_system.ok_or_else(|| ParseError::MissingField("build_system".to_string()))?;
+    let build_command = llm.build_command.ok_or_else(|| ParseError::MissingField("build_command".to_string()))?;
+    let runtime = llm.runtime.ok_or_else(|| ParseError::MissingField("runtime".to_string()))?;
+    let entry_point = llm.entry_point.ok_or_else(|| ParseError::MissingField("entry_point".to_string()))?;
+    let reasoning = llm.reasoning.ok_or_else(|| ParseError::MissingField("reasoning".to_string()))?;
 
-    if confidence != llm.confidence {
+    let confidence_raw = llm.confidence.ok_or_else(|| ParseError::MissingField("confidence".to_string()))?;
+    let confidence = confidence_raw.clamp(0.0, 1.0);
+
+    if confidence != confidence_raw {
         warn!(
             "Confidence value {} was out of range, clamped to {}",
-            llm.confidence, confidence
+            confidence_raw, confidence
         );
     }
 
     Ok(DetectionResult {
-        build_system: llm.build_system,
-        language: llm.language,
-        build_command: llm.build_command,
+        build_system,
+        language,
+        build_command,
         test_command: llm.test_command,
-        runtime: llm.runtime,
+        runtime,
         dependencies: llm.dependencies,
-        entry_point: llm.entry_point,
+        entry_point,
         dev_command: llm.dev_command,
         confidence,
-        reasoning: llm.reasoning,
+        reasoning,
         warnings: llm.warnings,
         detected_files: Vec::new(),
         processing_time_ms: 0,
@@ -170,7 +178,9 @@ impl fmt::Display for LlmResponse {
         write!(
             f,
             "LlmResponse {{ language: {}, build_system: {}, confidence: {:.2} }}",
-            self.language, self.build_system, self.confidence
+            self.language.as_ref().map_or("None", |s| s.as_str()),
+            self.build_system.as_ref().map_or("None", |s| s.as_str()),
+            self.confidence.unwrap_or(0.0)
         )
     }
 }
@@ -469,16 +479,16 @@ Let me know if you need more details."#;
     #[test]
     fn test_llm_response_display() {
         let response = LlmResponse {
-            language: "Rust".to_string(),
-            build_system: "cargo".to_string(),
-            build_command: "cargo build".to_string(),
+            language: Some("Rust".to_string()),
+            build_system: Some("cargo".to_string()),
+            build_command: Some("cargo build".to_string()),
             test_command: Some("cargo test".to_string()),
-            runtime: "rust:1.75".to_string(),
+            runtime: Some("rust:1.75".to_string()),
             dependencies: vec![],
-            entry_point: "/app".to_string(),
+            entry_point: Some("/app".to_string()),
             dev_command: None,
-            confidence: 0.95,
-            reasoning: "Test".to_string(),
+            confidence: Some(0.95),
+            reasoning: Some("Test".to_string()),
             warnings: vec![],
         };
 
