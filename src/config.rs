@@ -11,6 +11,9 @@ const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_CACHE_ENABLED: bool = true;
 const DEFAULT_REQUEST_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_MAX_CONTEXT_SIZE: usize = 512_000;
+const DEFAULT_MAX_TOOL_ITERATIONS: usize = 10;
+const DEFAULT_TOOL_TIMEOUT_SECS: u64 = 30;
+const DEFAULT_MAX_FILE_SIZE_BYTES: usize = 1_048_576; // 1MB
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -39,6 +42,9 @@ pub struct AipackConfig {
     pub request_timeout_secs: u64,
     pub max_context_size: usize,
     pub log_level: String,
+    pub max_tool_iterations: usize,
+    pub tool_timeout_secs: u64,
+    pub max_file_size_bytes: usize,
 }
 
 impl Default for AipackConfig {
@@ -93,6 +99,21 @@ impl Default for AipackConfig {
             .unwrap_or_else(|_| DEFAULT_LOG_LEVEL.to_string())
             .to_lowercase();
 
+        let max_tool_iterations = env::var("AIPACK_MAX_TOOL_ITERATIONS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_MAX_TOOL_ITERATIONS);
+
+        let tool_timeout_secs = env::var("AIPACK_TOOL_TIMEOUT")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(DEFAULT_TOOL_TIMEOUT_SECS);
+
+        let max_file_size_bytes = env::var("AIPACK_MAX_FILE_SIZE")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
+
         Self {
             provider,
             model,
@@ -101,6 +122,9 @@ impl Default for AipackConfig {
             request_timeout_secs,
             max_context_size,
             log_level,
+            max_tool_iterations,
+            tool_timeout_secs,
+            max_file_size_bytes,
         }
     }
 }
@@ -137,6 +161,39 @@ impl AipackConfig {
                     self.log_level
                 )))
             }
+        }
+
+        if self.max_tool_iterations == 0 {
+            return Err(ConfigError::ValidationFailed(
+                "Max tool iterations must be at least 1".to_string(),
+            ));
+        }
+        if self.max_tool_iterations > 50 {
+            return Err(ConfigError::ValidationFailed(
+                "Max tool iterations cannot exceed 50".to_string(),
+            ));
+        }
+
+        if self.tool_timeout_secs == 0 {
+            return Err(ConfigError::ValidationFailed(
+                "Tool timeout must be at least 1 second".to_string(),
+            ));
+        }
+        if self.tool_timeout_secs > 300 {
+            return Err(ConfigError::ValidationFailed(
+                "Tool timeout cannot exceed 5 minutes".to_string(),
+            ));
+        }
+
+        if self.max_file_size_bytes < 1024 {
+            return Err(ConfigError::ValidationFailed(
+                "Max file size must be at least 1KB".to_string(),
+            ));
+        }
+        if self.max_file_size_bytes > 10_485_760 {
+            return Err(ConfigError::ValidationFailed(
+                "Max file size cannot exceed 10MB".to_string(),
+            ));
         }
 
         Ok(())
@@ -177,6 +234,18 @@ impl AipackConfig {
             self.max_context_size.to_string(),
         );
         map.insert("log_level".to_string(), self.log_level.clone());
+        map.insert(
+            "max_tool_iterations".to_string(),
+            self.max_tool_iterations.to_string(),
+        );
+        map.insert(
+            "tool_timeout_secs".to_string(),
+            self.tool_timeout_secs.to_string(),
+        );
+        map.insert(
+            "max_file_size_bytes".to_string(),
+            self.max_file_size_bytes.to_string(),
+        );
 
         map
     }
@@ -194,6 +263,13 @@ impl fmt::Display for AipackConfig {
         writeln!(f, "  Request Timeout: {}s", self.request_timeout_secs)?;
         writeln!(f, "  Max Context Size: {} bytes", self.max_context_size)?;
         writeln!(f, "  Log Level: {}", self.log_level)?;
+        writeln!(f, "  Max Tool Iterations: {}", self.max_tool_iterations)?;
+        writeln!(f, "  Tool Timeout: {}s", self.tool_timeout_secs)?;
+        writeln!(
+            f,
+            "  Max File Size: {} bytes",
+            self.max_file_size_bytes
+        )?;
         Ok(())
     }
 }
@@ -243,6 +319,9 @@ mod tests {
         assert_eq!(config.request_timeout_secs, DEFAULT_REQUEST_TIMEOUT_SECS);
         assert_eq!(config.max_context_size, DEFAULT_MAX_CONTEXT_SIZE);
         assert_eq!(config.log_level, DEFAULT_LOG_LEVEL);
+        assert_eq!(config.max_tool_iterations, DEFAULT_MAX_TOOL_ITERATIONS);
+        assert_eq!(config.tool_timeout_secs, DEFAULT_TOOL_TIMEOUT_SECS);
+        assert_eq!(config.max_file_size_bytes, DEFAULT_MAX_FILE_SIZE_BYTES);
     }
 
     #[test]
@@ -276,6 +355,9 @@ mod tests {
             request_timeout_secs: 30,
             max_context_size: 512_000,
             log_level: "info".to_string(),
+            max_tool_iterations: 10,
+            tool_timeout_secs: 30,
+            max_file_size_bytes: 1_048_576,
         };
 
         assert!(config.validate().is_ok());
@@ -309,6 +391,9 @@ mod tests {
             request_timeout_secs: 30,
             max_context_size: 512_000,
             log_level: "info".to_string(),
+            max_tool_iterations: 10,
+            tool_timeout_secs: 30,
+            max_file_size_bytes: 1_048_576,
         };
 
         let path = config.cache_path("myrepo");
@@ -325,6 +410,9 @@ mod tests {
             request_timeout_secs: 30,
             max_context_size: 512_000,
             log_level: "info".to_string(),
+            max_tool_iterations: 10,
+            tool_timeout_secs: 30,
+            max_file_size_bytes: 1_048_576,
         };
 
         let path = config.cache_path("user/repo:branch");
