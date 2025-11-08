@@ -34,6 +34,7 @@ async fn is_service_available() -> bool {
         "qwen2.5-coder:7b".to_string(),
         Some(Duration::from_secs(5)),
         None,
+        None,
     )
     .await
     .is_ok()
@@ -66,6 +67,7 @@ async fn create_test_client() -> GenAIBackend {
         Provider::Ollama,
         model,
         Some(Duration::from_secs(60)),
+        None,
         None,
     )
     .await
@@ -325,6 +327,7 @@ async fn test_ollama_error_handling_invalid_model() {
         "nonexistent-model:latest".to_string(),
         Some(Duration::from_secs(10)),
         None,
+        None,
     )
     .await
     .expect("Failed to create client");
@@ -358,6 +361,7 @@ async fn test_ollama_timeout_handling() {
         Provider::Ollama,
         model,
         Some(Duration::from_millis(1)),
+        None,
         None,
     )
     .await

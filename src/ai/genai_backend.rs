@@ -622,6 +622,10 @@ impl GenAIBackend {
         // Track which tools have been called to enforce validation
         let mut has_read_file = false;
 
+        // Track consecutive zero tool call responses for retry logic
+        let mut consecutive_zero_tool_calls = 0;
+        const MAX_CONSECUTIVE_ZERO_TOOL_CALLS: usize = 2;
+
         loop {
             iteration += 1;
 
@@ -680,12 +684,38 @@ impl GenAIBackend {
             let tool_calls = response.tool_calls();
 
             if tool_calls.is_empty() {
-                warn!("LLM did not call any tools");
-                return Err(BackendError::InvalidResponse {
-                    message: "LLM did not call any tools".to_string(),
-                    raw_response: response.first_text().map(|s| s.to_string()),
-                });
+                consecutive_zero_tool_calls += 1;
+
+                if consecutive_zero_tool_calls >= MAX_CONSECUTIVE_ZERO_TOOL_CALLS {
+                    error!(
+                        "LLM failed to call tools {} times consecutively",
+                        consecutive_zero_tool_calls
+                    );
+                    return Err(BackendError::InvalidResponse {
+                        message: format!(
+                            "LLM did not call any tools after {} attempts. You must call a tool on every response.",
+                            consecutive_zero_tool_calls
+                        ),
+                        raw_response: response.first_text().map(|s| s.to_string()),
+                    });
+                }
+
+                warn!(
+                    "LLM did not call any tools (attempt {}/{}). Sending reminder.",
+                    consecutive_zero_tool_calls, MAX_CONSECUTIVE_ZERO_TOOL_CALLS
+                );
+
+                // Add user message reminder
+                messages.push(ChatMessage::user(
+                    "You must call a tool now. Do not respond with text. Use one of the available tools to analyze the repository."
+                        .to_string(),
+                ));
+
+                continue; // Continue to next iteration
             }
+
+            // Reset counter on successful tool call
+            consecutive_zero_tool_calls = 0;
 
             // Check if submit_detection is being called
             let has_submit_detection = tool_calls.iter().any(|tc| tc.fn_name == "submit_detection");

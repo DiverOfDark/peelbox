@@ -18,6 +18,7 @@ async fn test_service_health_check_unavailable() {
         "qwen2.5-coder:7b".to_string(),
         Some(Duration::from_millis(500)),
         None,
+        None,
     )
     .await;
 
@@ -39,6 +40,7 @@ async fn test_service_client_timeout() {
         Provider::OpenAI,
         "qwen2.5-coder:7b".to_string(),
         Some(Duration::from_millis(1)),
+        None,
         None,
     )
     .await;
@@ -126,6 +128,7 @@ async fn test_service_client_custom_timeout() {
         Provider::OpenAI,
         "qwen2.5-coder:7b".to_string(),
         Some(Duration::from_secs(120)),
+        None,
         None,
     ).await;
 
@@ -227,6 +230,7 @@ async fn test_health_check_with_multiple_endpoints() {
             Provider::OpenAI,
             "qwen2.5-coder:7b".to_string(),
             Some(Duration::from_millis(100)),
+            None,
             None,
         ).await;
 

@@ -11,34 +11,12 @@
 ✅ **Core tool-based detection system** already implemented (6 tools)
 ✅ **Multi-provider LLM backend** (Ollama, Claude, OpenAI, Gemini, etc.)
 ✅ **Security & validation** (path traversal protection, binary detection, size limits)
-
----
-
-## Phase 0: Zero Tool Call Handler (CRITICAL FIX) 🚨
-
-**Priority**: CRITICAL
-**Duration**: 1 day
-**Owner**: TBD
-
-### Objective
-Handle LLM responses that contain conversational text instead of tool calls.
-
-### Problem
-Some LLMs respond with text like "I'm searching for..." instead of calling tools, breaking detection.
-
-### Tasks
-1. Update system prompt in `src/detection/prompt.rs`:
-   - Add explicit instruction: **"NEVER respond with conversational text. You MUST call a tool on every response."**
-   - Add: **"Do not explain what you're doing. Just call the appropriate tool."**
-2. Detect zero tool calls in iteration loop (`src/detection/service.rs`):
-   - Check if response has no tool calls
-   - Send follow-up: **"You must call a tool now. Do not respond with text."**
-   - Count as iteration (within max limit)
-3. After 2 consecutive text responses, fail with error
-
-### Success Criteria
-- System prompt explicitly forbids conversational text
-- Auto-recovery for zero-tool-call responses
+✅ **Phase 0: Zero Tool Call Handler** - COMPLETED (2025-11-08)
+  - System prompt forbids conversational text
+  - Retry logic for zero tool calls (max 2 attempts)
+  - Improved error messages for non-existent files
+  - JSON format for get_file_tree tool
+  - Limit of 5 tool calls per response
 
 ---
 
@@ -518,13 +496,12 @@ Build comprehensive E2E test suite using real-world example projects from railpa
 
 ## Implementation Timeline
 
-### Sprint 1 (Week 1): Critical Fixes & Quick Wins
-**Goal**: Fix zero tool call issue & add jumpstart performance boost
+### Sprint 1 (Week 1): Jumpstart Analysis
+**Goal**: Add jumpstart performance boost for fast repository detection
 
-- **Day 1**: Phase 0 - Zero Tool Call Handler
-- **Days 2-4**: Phase 1 - Jumpstart Analysis
+- **Days 1-3**: Phase 1 - Jumpstart Analysis
 
-**Milestone**: LLM always calls tools; aipack detects 90% of repos with <5 tool calls
+**Milestone**: aipack detects 90% of repos with <5 tool calls (Phase 0 completed separately)
 
 ---
 
@@ -663,13 +640,13 @@ Build comprehensive E2E test suite using real-world example projects from railpa
 
 ## Next Steps
 
-1. Review and approve this plan
-2. Set up project tracking (GitHub issues/milestones)
-3. Assign ownership for each phase
-4. Begin Sprint 1: Jumpstart Analysis
+1. ~~Phase 0: Zero Tool Call Handler~~ ✅ COMPLETED (2025-11-08)
+2. Begin Phase 1: Jumpstart Analysis
+3. Set up project tracking (GitHub issues/milestones)
+4. Assign ownership for remaining phases
 5. Schedule weekly progress reviews
 
 ---
 
-**Last Updated**: 2025-11-08 (Updated: Added Phase 0 - Zero Tool Call Handler, switched to Phi-4-mini-reasoning, added Phase 10 - E2E Tests with Railpack)
-**Status**: Ready for Implementation
+**Last Updated**: 2025-11-08 (Updated: Phase 0 completed, removed from roadmap)
+**Status**: Phase 0 ✅ Complete | Remaining phases ready for implementation

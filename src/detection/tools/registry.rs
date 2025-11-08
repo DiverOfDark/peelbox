@@ -107,7 +107,7 @@ impl ToolRegistry {
         Tool {
             name: TOOL_GET_FILE_TREE.to_string(),
             description: Some(
-                "Get a tree view of the repository structure starting from a path".to_string(),
+                "Get a JSON tree view of the repository structure starting from a path. Returns hierarchical JSON with 'name', 'type' (file/directory), and 'children' fields.".to_string(),
             ),
             schema: Some(json!({
                 "type": "object",

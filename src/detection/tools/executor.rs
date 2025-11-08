@@ -1,12 +1,22 @@
 use anyhow::{anyhow, Context, Result};
 use glob::Pattern;
 use regex::Regex;
+use serde::{Serialize};
 use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
+
+#[derive(Serialize)]
+struct TreeNode {
+    name: String,
+    #[serde(rename = "type")]
+    node_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    children: Option<Vec<TreeNode>>,
+}
 
 const MAX_FILE_SIZE: u64 = 1024 * 1024;
 const DEFAULT_MAX_LINES: usize = 500;
@@ -220,11 +230,11 @@ impl ToolExecutor {
         debug!(path, depth, "get_file_tree parameters");
 
         let target_path = self.validate_path(path)?;
-        let mut tree = String::new();
 
-        self.build_tree(&target_path, "", 0, depth, &mut tree)?;
+        let tree_json = self.build_tree_json(&target_path, 0, depth)?;
 
-        Ok(tree)
+        serde_json::to_string_pretty(&tree_json)
+            .context("Failed to serialize file tree to JSON")
     }
 
     async fn grep_content(&self, args: Value) -> Result<String> {
@@ -313,6 +323,11 @@ impl ToolExecutor {
         let normalized = path.trim_start_matches('/');
         let full_path = self.repo_path.join(normalized);
 
+        // Check if path exists before canonicalize
+        if !full_path.exists() {
+            return Err(anyhow!("File or directory does not exist: {}", path));
+        }
+
         let canonical = full_path
             .canonicalize()
             .context(format!("Failed to resolve path: {:?}", full_path))?;
@@ -383,54 +398,50 @@ impl ToolExecutor {
         Ok(buffer[..bytes_read].contains(&0))
     }
 
-    fn build_tree(
+    fn build_tree_json(
         &self,
         path: &Path,
-        prefix: &str,
         current_depth: usize,
         max_depth: usize,
-        output: &mut String,
-    ) -> Result<()> {
-        if current_depth > max_depth {
-            return Ok(());
-        }
+    ) -> Result<TreeNode> {
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(".")
+            .to_string();
 
-        let entries: Result<Vec<_>, _> = fs::read_dir(path)?
-            .filter(|e| {
-                if let Ok(entry) = e {
-                    !self.is_ignored(&entry.path())
-                } else {
-                    true
-                }
-            })
-            .collect();
+        let is_dir = path.is_dir();
+        let node_type = if is_dir { "directory" } else { "file" }.to_string();
 
-        let mut entries = entries?;
-        entries.sort_by_key(|e| e.file_name());
+        let children = if is_dir && current_depth < max_depth {
+            let entries: Result<Vec<_>, _> = fs::read_dir(path)?
+                .filter(|e| {
+                    if let Ok(entry) = e {
+                        !self.is_ignored(&entry.path())
+                    } else {
+                        true
+                    }
+                })
+                .collect();
 
-        for (i, entry) in entries.iter().enumerate() {
-            let is_last = i == entries.len() - 1;
-            let name = entry.file_name().to_string_lossy().to_string();
-            let is_dir = entry.path().is_dir();
+            let mut entries = entries?;
+            entries.sort_by_key(|e| e.file_name());
 
-            let connector = if is_last { "└── " } else { "├── " };
-            let child_prefix = if is_last { "    " } else { "│   " };
+            let child_nodes: Result<Vec<TreeNode>> = entries
+                .iter()
+                .map(|entry| self.build_tree_json(&entry.path(), current_depth + 1, max_depth))
+                .collect();
 
-            output.push_str(prefix);
-            output.push_str(connector);
-            output.push_str(&name);
-            if is_dir {
-                output.push('/');
-            }
-            output.push('\n');
+            Some(child_nodes?)
+        } else {
+            None
+        };
 
-            if is_dir && current_depth < max_depth {
-                let new_prefix = format!("{}{}", prefix, child_prefix);
-                self.build_tree(&entry.path(), &new_prefix, current_depth + 1, max_depth, output)?;
-            }
-        }
-
-        Ok(())
+        Ok(TreeNode {
+            name,
+            node_type,
+            children,
+        })
     }
 }
 
@@ -567,10 +578,20 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.contains("Cargo.toml"));
-        assert!(result.contains("src/"));
-        assert!(result.contains("main.rs"));
-        assert!(!result.contains("node_modules"));
+        // Parse JSON result
+        let tree: serde_json::Value = serde_json::from_str(&result).unwrap();
+
+        // Check root structure
+        assert_eq!(tree["type"], "directory");
+
+        // Convert to string for pattern matching
+        let json_str = serde_json::to_string(&tree).unwrap();
+
+        // Check that expected files/directories are in the JSON
+        assert!(json_str.contains("Cargo.toml"));
+        assert!(json_str.contains("src"));
+        assert!(json_str.contains("main.rs"));
+        assert!(!json_str.contains("node_modules"));
     }
 
     #[tokio::test]
