@@ -19,6 +19,7 @@ impl ToolRegistry {
             Self::create_search_files_tool(),
             Self::create_get_file_tree_tool(),
             Self::create_grep_content_tool(),
+            Self::create_get_best_practices_tool(),
             Self::create_submit_detection_tool(),
         ]
     }
@@ -152,6 +153,30 @@ impl ToolRegistry {
                     }
                 },
                 "required": ["pattern"]
+            })),
+            config: None,
+        }
+    }
+
+    fn create_get_best_practices_tool() -> Tool {
+        Tool {
+            name: TOOL_GET_BEST_PRACTICES.to_string(),
+            description: Some(
+                "Get recommended best practices template for a specific language and build system combination. Returns a template with recommended base images, build commands, cache paths, and runtime configuration. Use this to get proven patterns for common technology stacks.".to_string(),
+            ),
+            schema: Some(json!({
+                "type": "object",
+                "properties": {
+                    "language": {
+                        "type": "string",
+                        "description": "Programming language (e.g., 'Rust', 'JavaScript', 'TypeScript', 'Java', 'Python', 'Go', 'C++', '.NET', 'Ruby')"
+                    },
+                    "build_system": {
+                        "type": "string",
+                        "description": "Build system/package manager (e.g., 'cargo', 'npm', 'yarn', 'pnpm', 'bun', 'maven', 'gradle', 'pip', 'poetry', 'pipenv', 'go mod', 'cmake', 'make', 'dotnet', 'bundler')"
+                    }
+                },
+                "required": ["language", "build_system"]
             })),
             config: None,
         }
@@ -438,7 +463,7 @@ mod tests {
     #[test]
     fn test_tool_count() {
         let tools = ToolRegistry::create_all_tools();
-        assert_eq!(tools.len(), 6, "Expected 6 tools to be registered");
+        assert_eq!(tools.len(), 7, "Expected 7 tools to be registered");
     }
 
     #[test]
@@ -451,6 +476,7 @@ mod tests {
         assert!(tool_names.contains(&TOOL_SEARCH_FILES.to_string()));
         assert!(tool_names.contains(&TOOL_GET_FILE_TREE.to_string()));
         assert!(tool_names.contains(&TOOL_GREP_CONTENT.to_string()));
+        assert!(tool_names.contains(&TOOL_GET_BEST_PRACTICES.to_string()));
         assert!(tool_names.contains(&TOOL_SUBMIT_DETECTION.to_string()));
     }
 

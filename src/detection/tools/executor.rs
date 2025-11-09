@@ -10,6 +10,7 @@ use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
 use crate::output::UniversalBuild;
+use super::best_practices::BestPractices;
 
 #[derive(Serialize)]
 struct TreeNode {
@@ -60,6 +61,7 @@ impl ToolExecutor {
             "search_files" => self.search_files(arguments).await,
             "get_file_tree" => self.get_file_tree(arguments).await,
             "grep_content" => self.grep_content(arguments).await,
+            "get_best_practices" => self.get_best_practices(arguments).await,
             "submit_detection" => self.submit_detection(arguments).await,
             _ => {
                 warn!(tool = tool_name, "Unknown tool requested");
@@ -338,6 +340,32 @@ impl ToolExecutor {
         } else {
             Ok(matches.join("\n"))
         }
+    }
+
+    async fn get_best_practices(&self, args: Value) -> Result<String> {
+        let language = args["language"]
+            .as_str()
+            .ok_or_else(|| anyhow!("Missing 'language' parameter"))?;
+        let build_system = args["build_system"]
+            .as_str()
+            .ok_or_else(|| anyhow!("Missing 'build_system' parameter"))?;
+
+        debug!(language, build_system, "get_best_practices parameters");
+
+        let template = BestPractices::get_template(language, build_system)
+            .context(format!(
+                "Failed to get best practices template for {} + {}",
+                language, build_system
+            ))?;
+
+        info!(
+            language,
+            build_system,
+            "Best practices template retrieved successfully"
+        );
+
+        serde_json::to_string_pretty(&template)
+            .context("Failed to serialize best practices template")
     }
 
     async fn submit_detection(&self, args: Value) -> Result<String> {

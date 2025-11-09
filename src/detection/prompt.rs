@@ -23,13 +23,15 @@ Available tools:
 - read_file: Read the contents of a specific file (REQUIRED before submit_detection)
 - list_files: List files in a directory with optional filtering
 - grep_content: Search for text patterns within files
+- get_best_practices: Get recommended template for a language + build system combination (e.g., rust+cargo, javascript+npm)
 - submit_detection: Submit your final detection result (ONLY after reading build files)
 
 Recommended workflow:
 1. Call get_file_tree to see the repository structure
 2. Identify likely build configuration files from the tree
 3. Call read_file on the primary build configuration file
-4. Submit detection once you understand the primary build system
+4. Optionally call get_best_practices with the detected language and build system for guidance
+5. Submit detection once you understand the primary build system
 
 Best practices:
 - Focus on standard build patterns - most repositories follow conventions

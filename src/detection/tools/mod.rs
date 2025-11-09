@@ -9,10 +9,12 @@
 //! - `executor`: Execution engine that runs tools and returns results
 //! - `registry`: Central registry that manages available tools and their metadata
 
+pub mod best_practices;
 pub mod definitions;
 pub mod executor;
 pub mod registry;
 
+pub use best_practices::BestPractices;
 pub use definitions::*;
 pub use executor::ToolExecutor;
 pub use registry::ToolRegistry;
