@@ -52,8 +52,7 @@ impl ToolExecutor {
     }
 
     pub async fn execute(&self, tool_name: &str, arguments: Value) -> Result<String> {
-        info!(tool = tool_name, "Executing tool");
-        debug!(tool = tool_name, args = ?arguments, "Tool arguments");
+        info!(tool = tool_name, args = ?arguments, "Executing tool");
 
         let result = match tool_name {
             "list_files" => self.list_files(arguments).await,

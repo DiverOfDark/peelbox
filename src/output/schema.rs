@@ -5,9 +5,28 @@
 //! and package applications for container deployment.
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+
+fn deserialize_null_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Default + Deserialize<'de>,
+{
+    Ok(Option::deserialize(deserializer)?.unwrap_or_default())
+}
+
+fn deserialize_null_default_version<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Option::deserialize(deserializer)?.unwrap_or_else(default_version))
+}
+
+fn default_version() -> String {
+    "1.0".to_string()
+}
 
 /// Main UniversalBuild structure representing a complete container build specification
 ///
@@ -16,70 +35,85 @@ use std::fmt;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UniversalBuild {
     /// Schema version (e.g., "1.0")
+    #[serde(default = "default_version", deserialize_with = "deserialize_null_default_version")]
     pub version: String,
     /// Project metadata and detection information
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub metadata: BuildMetadata,
     /// Build stage configuration
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub build: BuildStage,
     /// Runtime stage configuration
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub runtime: RuntimeStage,
 }
 
 /// Metadata about the detected project and build system
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildMetadata {
     /// Optional project name (if detected)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_name: Option<String>,
     /// Detected programming language (e.g., "rust", "nodejs", "python")
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub language: String,
     /// Detected build system (e.g., "cargo", "npm", "maven", "gradle")
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub build_system: String,
     /// Confidence score from 0.0 to 1.0
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub confidence: f32,
     /// Human-readable explanation of the detection reasoning
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub reasoning: String,
 }
 
 /// Build stage configuration - defines how to compile/build the application
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildStage {
     /// Base Docker image for the build stage (e.g., "rust:1.75", "node:20")
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub base: String,
     /// System packages to install (e.g., ["build-essential", "pkg-config"])
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
     /// Environment variables for the build stage
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub env: HashMap<String, String>,
     /// Build commands to execute in order
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub commands: Vec<String>,
     /// Files/directories to copy from source (pairs: [source, destination])
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub context: Vec<String>,
     /// Directories to cache between builds (e.g., ["/usr/local/cargo/registry"])
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
     /// Build artifacts to preserve (e.g., ["target/release/myapp"])
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub artifacts: Vec<String>,
 }
 
 /// Runtime stage configuration - defines the final container environment
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
     /// Base Docker image for runtime (e.g., "debian:bookworm-slim", "alpine:3.19")
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub base: String,
     /// Runtime system packages to install
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
     /// Runtime environment variables
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub env: HashMap<String, String>,
     /// Files to copy from build stage
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub copy: Vec<CopySpec>,
     /// Container entrypoint command
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub command: Vec<String>,
     /// Ports to expose
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub ports: Vec<u16>,
     /// Optional health check configuration
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -87,18 +121,21 @@ pub struct RuntimeStage {
 }
 
 /// Specification for copying files from build stage to runtime stage
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CopySpec {
     /// Source path in build stage
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
     /// Destination path in runtime stage
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub to: String,
 }
 
 /// Container health check configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct Healthcheck {
     /// Health check command (e.g., ["CMD", "curl", "-f", "http://localhost/health"])
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub test: Vec<String>,
     /// Interval between health checks (e.g., "30s")
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -533,5 +570,209 @@ mod tests {
             format_ports(&[8080, 8443, 9000, 9090, 3000, 5000, 6000, 7000]),
             "8080, 8443, 9000, 9090, 3000 (and 3 more)"
         );
+    }
+
+    #[test]
+    fn test_deserialize_minimal_universal_build() {
+        let minimal_json = r#"{
+            "metadata": {},
+            "build": {},
+            "runtime": {}
+        }"#;
+
+        let result: Result<UniversalBuild, _> = serde_json::from_str(minimal_json);
+        assert!(result.is_ok());
+
+        let build = result.unwrap();
+        assert_eq!(build.version, "1.0");
+        assert_eq!(build.metadata.language, "");
+        assert_eq!(build.metadata.build_system, "");
+        assert_eq!(build.metadata.confidence, 0.0);
+        assert_eq!(build.metadata.reasoning, "");
+        assert!(build.build.commands.is_empty());
+        assert!(build.build.context.is_empty());
+        assert!(build.build.artifacts.is_empty());
+        assert!(build.runtime.copy.is_empty());
+        assert!(build.runtime.command.is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_with_null_values() {
+        let json_with_nulls = r#"{
+            "version": null,
+            "metadata": {
+                "language": null,
+                "build_system": null,
+                "confidence": null,
+                "reasoning": null
+            },
+            "build": {
+                "base": null,
+                "commands": null,
+                "context": null,
+                "artifacts": null
+            },
+            "runtime": {
+                "base": null,
+                "copy": null,
+                "command": null
+            }
+        }"#;
+
+        let result: Result<UniversalBuild, _> = serde_json::from_str(json_with_nulls);
+        assert!(result.is_ok());
+
+        let build = result.unwrap();
+        assert_eq!(build.version, "1.0");
+        assert_eq!(build.metadata.language, "");
+        assert_eq!(build.build.base, "");
+        assert!(build.build.commands.is_empty());
+        assert!(build.runtime.copy.is_empty());
+    }
+
+    #[test]
+    fn test_deserialize_missing_optional_fields() {
+        let json = r#"{
+            "metadata": {
+                "language": "rust",
+                "build_system": "cargo"
+            },
+            "build": {
+                "base": "rust:1.75",
+                "commands": ["cargo build --release"]
+            },
+            "runtime": {
+                "base": "debian:bookworm-slim",
+                "command": ["./app"]
+            }
+        }"#;
+
+        let result: Result<UniversalBuild, _> = serde_json::from_str(json);
+        assert!(result.is_ok());
+
+        let build = result.unwrap();
+        assert_eq!(build.version, "1.0");
+        assert_eq!(build.metadata.project_name, None);
+        assert_eq!(build.metadata.confidence, 0.0);
+        assert_eq!(build.metadata.reasoning, "");
+        assert!(build.build.packages.is_empty());
+        assert!(build.build.env.is_empty());
+        assert!(build.build.cache.is_empty());
+        assert!(build.runtime.packages.is_empty());
+        assert!(build.runtime.ports.is_empty());
+        assert_eq!(build.runtime.healthcheck, None);
+    }
+
+    #[test]
+    fn test_deserialize_empty_copy_spec() {
+        let json = r#"{
+            "metadata": {},
+            "build": {},
+            "runtime": {
+                "copy": [{}]
+            }
+        }"#;
+
+        let result: Result<UniversalBuild, _> = serde_json::from_str(json);
+        assert!(result.is_ok());
+
+        let build = result.unwrap();
+        assert_eq!(build.runtime.copy.len(), 1);
+        assert_eq!(build.runtime.copy[0].from, "");
+        assert_eq!(build.runtime.copy[0].to, "");
+    }
+
+    #[test]
+    fn test_deserialize_empty_healthcheck() {
+        let json = r#"{
+            "metadata": {},
+            "build": {},
+            "runtime": {
+                "healthcheck": {}
+            }
+        }"#;
+
+        let result: Result<UniversalBuild, _> = serde_json::from_str(json);
+        assert!(result.is_ok());
+
+        let build = result.unwrap();
+        assert!(build.runtime.healthcheck.is_some());
+        let healthcheck = build.runtime.healthcheck.unwrap();
+        assert!(healthcheck.test.is_empty());
+        assert_eq!(healthcheck.interval, None);
+        assert_eq!(healthcheck.timeout, None);
+        assert_eq!(healthcheck.retries, None);
+    }
+
+    #[test]
+    fn test_validation_still_works_after_defaults() {
+        let minimal_build = UniversalBuild {
+            version: "".to_string(),
+            metadata: BuildMetadata {
+                project_name: None,
+                language: "".to_string(),
+                build_system: "".to_string(),
+                confidence: 0.0,
+                reasoning: "".to_string(),
+            },
+            build: BuildStage {
+                base: "".to_string(),
+                packages: vec![],
+                env: HashMap::new(),
+                commands: vec![],
+                context: vec![],
+                cache: vec![],
+                artifacts: vec![],
+            },
+            runtime: RuntimeStage {
+                base: "".to_string(),
+                packages: vec![],
+                env: HashMap::new(),
+                copy: vec![],
+                command: vec![],
+                ports: vec![],
+                healthcheck: None,
+            },
+        };
+
+        let validation_result = minimal_build.validate();
+        assert!(validation_result.is_err());
+    }
+
+    #[test]
+    fn test_deserialize_partial_valid_build() {
+        let json = r#"{
+            "version": "1.0",
+            "metadata": {
+                "language": "rust",
+                "build_system": "cargo",
+                "confidence": 0.95
+            },
+            "build": {
+                "base": "rust:1.75",
+                "commands": ["cargo build --release"],
+                "context": [".", "/app"],
+                "artifacts": ["target/release/app"]
+            },
+            "runtime": {
+                "base": "debian:bookworm-slim",
+                "copy": [
+                    {
+                        "from": "target/release/app",
+                        "to": "/usr/local/bin/app"
+                    }
+                ],
+                "command": ["/usr/local/bin/app"]
+            }
+        }"#;
+
+        let result: Result<UniversalBuild, _> = serde_json::from_str(json);
+        assert!(result.is_ok());
+
+        let build = result.unwrap();
+        assert!(build.validate().is_ok());
+        assert_eq!(build.metadata.reasoning, "");
+        assert!(build.build.packages.is_empty());
+        assert!(build.runtime.ports.is_empty());
     }
 }

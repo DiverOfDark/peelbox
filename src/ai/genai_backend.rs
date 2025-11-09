@@ -35,7 +35,10 @@ use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{Client, ModelIden, ServiceTarget};
 use reqwest;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
@@ -642,6 +645,9 @@ impl GenAIBackend {
         let mut consecutive_zero_tool_calls = 0;
         const MAX_CONSECUTIVE_ZERO_TOOL_CALLS: usize = 2;
 
+        // Tool call cache: hash(tool_name + arguments) -> execution result
+        let mut tool_cache: HashMap<u64, String> = HashMap::new();
+
         loop {
             iteration += 1;
 
@@ -809,6 +815,23 @@ impl GenAIBackend {
                     has_read_file = true;
                 }
 
+                // Create cache key from tool name + arguments
+                let mut hasher = DefaultHasher::new();
+                tool_call.fn_name.hash(&mut hasher);
+                serde_json::to_string(&tool_call.fn_arguments)
+                    .unwrap_or_default()
+                    .hash(&mut hasher);
+                let cache_key = hasher.finish();
+
+                // Check if this tool call has already been executed
+                if tool_cache.contains_key(&cache_key) {
+                    debug!(
+                        "Tool {} with same arguments already executed - skipping (idempotent)",
+                        tool_call.fn_name
+                    );
+                    continue;
+                }
+
                 // Execute the tool and convert errors to tool responses
                 let result = executor
                     .execute(&tool_call.fn_name, tool_call.fn_arguments.clone())
@@ -827,6 +850,9 @@ impl GenAIBackend {
                         format!("Error: {}", e)
                     }
                 };
+
+                // Cache the result
+                tool_cache.insert(cache_key, content.clone());
 
                 // Add tool response to conversation
                 let tool_response = ToolResponse {
