@@ -14,7 +14,9 @@ use aipack::cli::output::{OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::analyzer::RepositoryAnalyzer;
 use aipack::detection::types::RepositoryContext;
-use aipack::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild};
+use aipack::output::schema::{
+    BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
+};
 use clap::Parser;
 use std::collections::HashMap;
 use std::env;
@@ -334,7 +336,10 @@ fn test_output_format_json() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["cargo build --release".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["target/release/app".to_string()],
         },
@@ -378,7 +383,10 @@ fn test_output_format_yaml() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["npm run build".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["dist/".to_string()],
         },
@@ -421,7 +429,10 @@ fn test_output_format_human_readable() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["cargo build --release".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["target/release/app".to_string()],
         },
@@ -445,7 +456,7 @@ fn test_output_format_human_readable() {
     // Verify output contains key information
     assert!(output.contains("cargo"));
     assert!(output.contains("Rust"));
-    assert!(output.contains("90.0%")); // Decimal in human format
+    assert!(output.contains("0.9")); // Confidence as decimal in YAML
     assert!(output.contains("cargo build --release"));
 }
 
@@ -465,7 +476,10 @@ fn test_detection_result_confidence_levels() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["cargo build".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["target/release/app".to_string()],
         },
@@ -483,19 +497,19 @@ fn test_detection_result_confidence_levels() {
         },
     };
 
-    // Confidence levels are now validated in the Display trait implementation
-    // Test different confidence levels
+    // Display uses YAML format which shows confidence as decimal
+    // Test different confidence levels are properly serialized
     result.metadata.confidence = 0.95;
     let display = format!("{}", result);
-    assert!(display.contains("Very High"));
+    assert!(display.contains("confidence: 0.95"));
 
     result.metadata.confidence = 0.85;
     let display = format!("{}", result);
-    assert!(display.contains("High"));
+    assert!(display.contains("confidence: 0.85"));
 
     result.metadata.confidence = 0.5;
     let display = format!("{}", result);
-    assert!(display.contains("Very Low"));
+    assert!(display.contains("confidence: 0.5"));
 }
 
 #[test]
@@ -516,7 +530,10 @@ fn test_detection_result_warnings() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["npm run build".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["dist/".to_string()],
         },

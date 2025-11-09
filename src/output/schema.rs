@@ -83,9 +83,9 @@ pub struct BuildStage {
     /// Build commands to execute in order
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub commands: Vec<String>,
-    /// Files/directories to copy from source (pairs: [source, destination])
+    /// Files/directories to copy from source as from/to pairs
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub context: Vec<String>,
+    pub context: Vec<ContextSpec>,
     /// Directories to cache between builds (e.g., ["/usr/local/cargo/registry"])
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
@@ -127,6 +127,17 @@ pub struct CopySpec {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
     /// Destination path in runtime stage
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub to: String,
+}
+
+/// Specification for build context files to copy from source
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ContextSpec {
+    /// Source path in host/repository
+    #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub from: String,
+    /// Destination path in build stage container
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub to: String,
 }
@@ -211,12 +222,13 @@ impl UniversalBuild {
         if self.build.context.is_empty() {
             anyhow::bail!("Build context cannot be empty");
         }
-        // Context should have pairs of (source, destination)
-        if self.build.context.len() % 2 != 0 {
-            anyhow::bail!(
-                "Build context must have an even number of elements (source/dest pairs), got {}",
-                self.build.context.len()
-            );
+        for (i, context_spec) in self.build.context.iter().enumerate() {
+            if context_spec.from.is_empty() {
+                anyhow::bail!("Build context[{}] 'from' path cannot be empty", i);
+            }
+            if context_spec.to.is_empty() {
+                anyhow::bail!("Build context[{}] 'to' path cannot be empty", i);
+            }
         }
         if self.build.artifacts.is_empty() {
             anyhow::bail!("Build artifacts cannot be empty");
@@ -264,7 +276,10 @@ mod tests {
                 packages: vec![],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![".".to_string(), "/app".to_string()],
+                context: vec![ContextSpec {
+                    from: ".".to_string(),
+                    to: "/app".to_string(),
+                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
@@ -330,9 +345,22 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_context_pairs() {
+    fn test_invalid_context_empty_from() {
         let mut build = create_minimal_valid_build();
-        build.build.context = vec![".".to_string()]; // Odd number
+        build.build.context = vec![ContextSpec {
+            from: "".to_string(),
+            to: "/app".to_string(),
+        }];
+        assert!(build.validate().is_err());
+    }
+
+    #[test]
+    fn test_invalid_context_empty_to() {
+        let mut build = create_minimal_valid_build();
+        build.build.context = vec![ContextSpec {
+            from: ".".to_string(),
+            to: "".to_string(),
+        }];
         assert!(build.validate().is_err());
     }
 
@@ -596,7 +624,7 @@ mod tests {
             "build": {
                 "base": "rust:1.75",
                 "commands": ["cargo build --release"],
-                "context": [".", "/app"],
+                "context": [{"from": ".", "to": "/app"}],
                 "artifacts": ["target/release/app"]
             },
             "runtime": {

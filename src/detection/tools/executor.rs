@@ -689,7 +689,7 @@ mod tests {
                 "packages": [],
                 "env": {},
                 "commands": ["cargo build --release"],
-                "context": [".", "/app"],
+                "context": [{"from": ".", "to": "/app"}],
                 "cache": ["/usr/local/cargo/registry"],
                 "artifacts": ["target/release/test"]
             },

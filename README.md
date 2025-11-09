@@ -348,8 +348,8 @@ build:
   commands:
     - cargo build --release
   context:
-    - "."
-    - /app
+    - from: "."
+      to: /app
   artifacts:
     - target/release/my-app
 runtime:

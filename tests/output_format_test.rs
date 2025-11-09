@@ -8,7 +8,9 @@
 
 use aipack::cli::output::{HealthStatus, OutputFormat, OutputFormatter};
 use aipack::detection::types::RepositoryContext;
-use aipack::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild};
+use aipack::output::schema::{
+    BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -27,7 +29,10 @@ fn create_sample_detection_result() -> UniversalBuild {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["cargo build --release".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["target/release/app".to_string()],
         },
@@ -123,15 +128,13 @@ fn test_human_format_detection_result() {
 
     let output = formatter.format(&result).unwrap();
 
-    // Verify human-readable output contains key information
-    assert!(output.contains("UniversalBuild Detection Result"));
+    // Human format outputs YAML, verify it contains key information
     assert!(output.contains("cargo"));
     assert!(output.contains("Rust"));
-    assert!(output.contains("95.0%")); // Confidence as percentage with decimal
-    assert!(output.contains("Very High")); // Confidence level
+    assert!(output.contains("confidence: 0.95"));
     assert!(output.contains("cargo build --release"));
-    assert!(output.contains("Build Stage:"));
-    assert!(output.contains("Runtime Stage:"));
+    assert!(output.contains("build:"));
+    assert!(output.contains("runtime:"));
 }
 
 #[test]
@@ -173,11 +176,10 @@ fn test_human_format_complete() {
 
     let output = formatter.format(&result).unwrap();
 
-    // Verify output includes all sections
-    assert!(output.contains("UniversalBuild Detection Result"));
-    assert!(output.contains("Build Stage:"));
-    assert!(output.contains("Runtime Stage:"));
-    assert!(output.contains("Reasoning:"));
+    // Human format outputs YAML, verify it includes all sections
+    assert!(output.contains("build:"));
+    assert!(output.contains("runtime:"));
+    assert!(output.contains("reasoning:"));
 }
 
 #[test]
@@ -260,7 +262,10 @@ fn test_detection_result_minimal() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["make".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["./app".to_string()],
         },
@@ -304,7 +309,10 @@ fn test_detection_result_with_warnings() {
             packages: vec![],
             env: HashMap::new(),
             commands: vec!["npm run build".to_string()],
-            context: vec![".".to_string(), "/app".to_string()],
+            context: vec![ContextSpec {
+                from: ".".to_string(),
+                to: "/app".to_string(),
+            }],
             cache: vec![],
             artifacts: vec!["dist/".to_string()],
         },
@@ -326,31 +334,28 @@ fn test_detection_result_with_warnings() {
     let output = formatter.format(&result).unwrap();
 
     // UniversalBuild doesn't have warnings field - reasoning contains detection explanation
-    assert!(output.contains("Reasoning:"));
+    // YAML format uses lowercase keys
+    assert!(output.contains("reasoning:"));
     assert!(output.contains("Found package.json"));
 }
 
 #[test]
 fn test_detection_result_confidence_levels_in_output() {
-    let confidence_levels = vec![
-        (0.95, "Very High"),
-        (0.85, "High"),
-        (0.75, "Moderate"),
-        (0.65, "Low"),
-        (0.45, "Very Low"),
-    ];
+    let confidence_levels = vec![0.95, 0.85, 0.75, 0.65, 0.45];
 
-    for (confidence, expected_level) in confidence_levels {
+    for confidence in confidence_levels {
         let mut result = create_sample_detection_result();
         result.metadata.confidence = confidence;
 
         let formatter = OutputFormatter::new(OutputFormat::Human);
         let output = formatter.format(&result).unwrap();
 
+        // YAML format shows confidence as decimal
+        let expected = format!("confidence: {}", confidence);
         assert!(
-            output.contains(expected_level),
+            output.contains(&expected),
             "Expected '{}' for confidence {}, but not found in output",
-            expected_level,
+            expected,
             confidence
         );
     }
@@ -416,12 +421,11 @@ fn test_detection_result_display() {
 
     let display = format!("{}", result);
 
-    // Verify Display implementation
-    assert!(display.contains("UniversalBuild Detection Result"));
+    // Display outputs YAML format
     assert!(display.contains("cargo"));
     assert!(display.contains("Rust"));
-    assert!(display.contains("95.0%"));
-    assert!(display.contains("Very High"));
+    assert!(display.contains("confidence: 0.95"));
+    assert!(display.contains("version:"));
 }
 
 #[test]

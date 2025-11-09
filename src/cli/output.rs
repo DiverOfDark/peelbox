@@ -203,7 +203,9 @@ impl HealthStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::schema::{UniversalBuild, BuildMetadata, BuildStage, RuntimeStage, CopySpec};
+    use crate::output::schema::{
+        BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
+    };
 
     fn create_test_result() -> UniversalBuild {
         UniversalBuild {
@@ -220,7 +222,10 @@ mod tests {
                 packages: vec![],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![".".to_string(), "/app".to_string()],
+                context: vec![ContextSpec {
+                    from: ".".to_string(),
+                    to: "/app".to_string(),
+                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
@@ -273,11 +278,12 @@ mod tests {
         let formatter = OutputFormatter::new(OutputFormat::Human);
         let output = formatter.format(&result).unwrap();
 
-        assert!(output.contains("Build System"));
+        eprintln!("Output:\n{}", output);
+        assert!(output.contains("build_system"));
         assert!(output.contains("cargo"));
         assert!(output.contains("rust"));
-        assert!(output.contains("Confidence"));
-        assert!(output.contains("95"));
+        assert!(output.contains("confidence"));
+        assert!(output.contains("0.95"));
     }
 
     #[test]

@@ -213,7 +213,7 @@ Key Guidelines:
 - version: Always use "1.0"
 - confidence: 0.0-1.0 (0.9+ for strong evidence, 0.7-0.9 for good evidence, <0.7 for uncertain)
 - build.base: Full image with build tools (compilers, build systems)
-- build.context: Source files to copy - pairs of [source, destination], e.g., [".", "/app", "src", "/build/src"]
+- build.context: Source files to copy as objects with 'from' and 'to' fields, e.g., [{"from": ".", "to": "/app"}]
 - build.cache: Directories to cache between builds (e.g., ["/root/.cargo/registry", "/usr/local/cargo/git"])
 - build.artifacts: Output files from build stage to preserve
 - runtime.base: Minimal image for running the application
@@ -295,11 +295,22 @@ Call this tool once you have analyzed the repository and determined the build ap
                             },
                             "context": {
                                 "type": "array",
-                                "description": "Files/directories to copy from source as pairs [source, destination] (e.g., ['.', '/app'] means copy current dir to /app)",
+                                "description": "Files/directories to copy from source as objects with 'from' and 'to' fields",
                                 "items": {
-                                    "type": "string"
+                                    "type": "object",
+                                    "properties": {
+                                        "from": {
+                                            "type": "string",
+                                            "description": "Source path in host/repository"
+                                        },
+                                        "to": {
+                                            "type": "string",
+                                            "description": "Destination path in build stage container"
+                                        }
+                                    },
+                                    "required": ["from", "to"]
                                 },
-                                "minItems": 2
+                                "minItems": 1
                             },
                             "cache": {
                                 "type": "array",
