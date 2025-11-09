@@ -61,8 +61,10 @@ The LLM has access to 6 filesystem tools:
 | `read_file`        | Read file contents (size-limited)          | Read `Cargo.toml`                |
 | `search_files`     | Search by filename pattern                 | Find `*.gradle` files            |
 | `get_file_tree`    | Tree view of directory                     | Understand layout                |
-| `grep_content`     | Search file contents with regex            | Find `"scripts"` in package.json |
-| `submit_detection` | Submit final result                        | Return build definition          |
+| `grep_content`        | Search file contents with regex            | Find `"scripts"` in package.json |
+| `submit_detection`    | Submit final UniversalBuild result         | Return build definition (Build Agent) |
+| `submit_project_list` | Submit discovered project list             | Return project list (Discovery Agent) |
+| `get_best_practices`  | Get build template for language+tool       | Get Rust+cargo template (Build Agent) |
 
 ### Key Principles
 
@@ -320,32 +322,392 @@ if workspace_type == "pnpm_workspaces":
 - **Bazel**: Use `BUILD` files as authoritative source
 - **Go**: Use `go.work` to list modules
 
+## Multi-Project Detection & Best Practices System
+
+### Overview
+
+aipack implements a **two-agent detection system** that intelligently handles both single-project repositories and complex monorepos. This system separates project discovery from build specification generation, providing users with clear visibility into multi-project repositories while leveraging best practices templates for faster, more accurate UniversalBuild generation.
+
+### Two-Agent Architecture
+
+**Agent 1: Discovery Agent**
+- **Purpose**: Identify all buildable projects in a repository
+- **Model**: Same as configured (e.g., qwen2.5-coder:7b)
+- **Tools**: Standard exploration tools + `submit_project_list`
+- **Output**: List of ProjectInfo (max 200 projects)
+- **Decision Logic**:
+  - 1 project found → Proceed to Agent 2 (Build Agent)
+  - 2-200 projects found → Return list to user
+  - >200 projects → Error with suggestion to use subdirectory or `--project` flag
+
+**Agent 2: Build Agent**
+- **Purpose**: Generate UniversalBuild for a single project
+- **Model**: Same as configured
+- **Tools**: All exploration tools + `get_best_practices` + `submit_detection`
+- **Input**: Single project path
+- **Output**: UniversalBuild specification
+- **Enhancement**: Access to predefined best practices templates
+
+### Sequential Workflow
+
+```
+User runs: aipack detect <path> [--project <subpath>]
+    ↓
+Check --project flag:
+    ├─ --project specified? → Skip to Build Agent for that subpath
+    └─ No flag → Run Discovery Agent
+        ↓
+    Discovery Agent explores repository
+        ├─ Uses tools to find all buildable projects
+        ├─ Calls submit_project_list with findings
+        └─ Returns ProjectList
+            ↓
+        Validation:
+            ├─ 0 projects → Error
+            ├─ 1 project → Automatically proceed to Build Agent
+            ├─ 2-200 projects → Return list to user
+            └─ >200 projects → Error with hint
+                ↓
+            Build Agent (if 1 project OR --project specified)
+                ├─ Explores single project
+                ├─ Optionally calls get_best_practices(lang, build_sys)
+                ├─ Generates UniversalBuild
+                └─ Calls submit_detection
+```
+
+### New Tools
+
+#### Tool: `submit_project_list` (Discovery Agent Terminal Tool)
+
+**Purpose**: Submit the final list of buildable projects discovered in the repository.
+
+**Parameters**:
+```json
+{
+  "projects": [
+    {
+      "name": "web-frontend",
+      "path": "packages/web",
+      "language": "JavaScript",
+      "build_system": "npm"
+    },
+    {
+      "name": "api-server",
+      "path": "packages/api",
+      "language": "Rust",
+      "build_system": "cargo"
+    }
+  ]
+}
+```
+
+**Behavior**: Terminates Discovery Agent loop, returns ProjectList to orchestrator.
+
+#### Tool: `get_best_practices` (Build Agent Enhancement)
+
+**Purpose**: Retrieve predefined build templates for common language and build system combinations.
+
+**Parameters**:
+```json
+{
+  "language": "Rust",
+  "build_system": "cargo"
+}
+```
+
+**Returns**:
+```json
+{
+  "build_stage": {
+    "base_image": "rust:1.75",
+    "system_packages": ["pkg-config", "libssl-dev"],
+    "build_commands": ["cargo build --release"],
+    "cache_paths": ["target/", "/usr/local/cargo/registry/"],
+    "common_artifacts": ["target/release/{project_name}"]
+  },
+  "runtime_stage": {
+    "base_image": "debian:bookworm-slim",
+    "system_packages": ["ca-certificates", "libssl3"],
+    "common_ports": [8080],
+    "healthcheck_hint": null
+  }
+}
+```
+
+**Supported Combinations** (15 total):
+- **Rust**: cargo
+- **JavaScript/TypeScript**: npm, yarn, pnpm, bun
+- **Java**: maven, gradle
+- **Python**: pip, poetry, pipenv
+- **Go**: go mod
+- **C/C++**: cmake, make
+- **.NET**: dotnet
+- **Ruby**: bundler
+
+**Behavior**: Returns template if available, error if unsupported combination. LLM can customize template based on project specifics.
+
+### User Workflow Examples
+
+#### Example 1: Monorepo Discovery
+```bash
+$ aipack detect /path/to/monorepo
+
+Found 3 buildable projects:
+
+NAME          PATH                 LANGUAGE    BUILD SYSTEM
+web-frontend  packages/web         JavaScript  npm
+api-server    packages/api         Rust        cargo
+worker        services/worker      Python      poetry
+
+To build a specific project:
+  aipack detect /path/to/monorepo --project packages/web
+```
+
+#### Example 2: Build Specific Project with --project Flag
+```bash
+$ aipack detect /path/to/monorepo --project packages/web
+
+# Skips discovery, directly generates:
+# packages/web/universalbuild.yaml
+```
+
+Output (universalbuild.yaml):
+```yaml
+version: "1.0"
+metadata:
+  project_name: web-frontend
+  language: JavaScript
+  build_system: npm
+  confidence: 0.95
+  reasoning: "Standard Next.js project with npm"
+build:
+  base: node:20
+  packages: []
+  commands: ["npm ci", "npm run build"]
+  cache: ["node_modules/", ".npm/"]
+  artifacts: [".next/", "public/"]
+runtime:
+  base: node:20-slim
+  command: ["npm", "start"]
+  ports: [3000]
+```
+
+#### Example 3: Single-Project Auto-Detection
+```bash
+$ aipack detect /path/to/single-app
+
+# Discovery finds 1 project, automatically proceeds to build:
+# universalbuild.yaml
+```
+
+#### Example 4: Multi-Module Maven Project
+```bash
+$ aipack detect /path/to/maven-project
+
+Found 4 buildable projects:
+
+NAME       PATH           LANGUAGE  BUILD SYSTEM
+api        modules/api    Java      maven
+worker     modules/worker Java      maven
+admin      modules/admin  Java      maven
+shared     modules/shared Java      maven
+
+$ aipack detect /path/to/maven-project --project modules/api
+
+# Generates universalbuild.yaml for modules/api only
+```
+
+### Data Structures
+
+#### ProjectInfo
+```rust
+pub struct ProjectInfo {
+    pub name: String,           // Project name
+    pub path: String,           // Relative to repository root
+    pub language: Option<String>,     // Detected language
+    pub build_system: Option<String>, // Detected build system
+}
+```
+
+#### ProjectList
+```rust
+pub struct ProjectList {
+    pub projects: Vec<ProjectInfo>,
+}
+```
+
+#### DetectionResult (Enum)
+```rust
+pub enum DetectionResult {
+    SingleProject(UniversalBuild),
+    MultiProject(ProjectList),
+}
+```
+
+#### BestPracticeTemplate
+```rust
+pub struct BestPracticeTemplate {
+    pub build_stage: BuildStageTemplate,
+    pub runtime_stage: RuntimeStageTemplate,
+}
+
+pub struct BuildStageTemplate {
+    pub base_image: String,
+    pub system_packages: Vec<String>,
+    pub build_commands: Vec<String>,
+    pub cache_paths: Vec<String>,
+    pub common_artifacts: Vec<String>,
+}
+
+pub struct RuntimeStageTemplate {
+    pub base_image: String,
+    pub system_packages: Vec<String>,
+    pub common_ports: Vec<u16>,
+    pub healthcheck_hint: Option<String>,
+}
+```
+
+### CLI Changes
+
+**New Flag**: `--project <subpath>`
+
+```bash
+aipack detect <path> [--project <subpath>] [--format <format>]
+
+Options:
+  --project <SUBPATH>   Build specific project by subpath (skips discovery)
+  --format <FORMAT>     Output format for project list: table, json, yaml [default: table]
+```
+
+**Examples**:
+```bash
+# Discovery mode
+aipack detect /repo
+
+# Build specific project
+aipack detect /repo --project packages/web
+
+# JSON output for project list
+aipack detect /repo --format json
+
+# YAML output
+aipack detect /repo --format yaml
+```
+
+### Output Formats
+
+#### Table Format (Default for ProjectList)
+```
+Found 3 buildable projects:
+
+NAME          PATH                 LANGUAGE    BUILD SYSTEM
+web-frontend  packages/web         JavaScript  npm
+api-server    packages/api         Rust        cargo
+worker        services/worker      Python      poetry
+
+To build a specific project:
+  aipack detect /repo --project <path>
+```
+
+#### JSON Format
+```json
+{
+  "projects": [
+    {
+      "name": "web-frontend",
+      "path": "packages/web",
+      "language": "JavaScript",
+      "build_system": "npm"
+    },
+    {
+      "name": "api-server",
+      "path": "packages/api",
+      "language": "Rust",
+      "build_system": "cargo"
+    }
+  ]
+}
+```
+
+#### YAML Format
+```yaml
+projects:
+  - name: web-frontend
+    path: packages/web
+    language: JavaScript
+    build_system: npm
+  - name: api-server
+    path: packages/api
+    language: Rust
+    build_system: cargo
+```
+
+### Validation & Limits
+
+**Constants**:
+```rust
+const MAX_PROJECTS: usize = 200;
+const MAX_PROJECT_NAME_LENGTH: usize = 100;
+const MAX_PROJECT_PATH_LENGTH: usize = 500;
+```
+
+**Error Handling**:
+- **0 projects**: "No buildable projects found in the specified path"
+- **>200 projects**: "Found {count} projects (limit: 200). Please use --project to specify a subdirectory"
+- **Invalid --project path**: "Project path '{subpath}' does not exist in repository"
+- **Invalid best practices**: "No template found for {language} + {build_system}"
+
+**Path Validation**:
+- Ensure `--project` subpath exists within repository root
+- Prevent path traversal attacks (`../` escaping)
+- Validate paths are within repository boundaries
+
+### Benefits
+
+1. **User Clarity**: Users see all buildable projects before committing to build
+2. **Efficiency**: Best practices templates reduce LLM token usage by ~30%
+3. **Flexibility**: `--project` flag for direct builds when user knows the target
+4. **Scalability**: Handles monorepos with hundreds of projects gracefully
+5. **Consistency**: Leverages proven build patterns for common stacks
+6. **Multi-Module Support**: Works seamlessly with Maven/Gradle multi-module projects
+
 ## Use Cases
 
 ### 1. Single Application Analysis
 ```bash
 aipack detect /path/to/rust-project
-# LLM explores: finds Cargo.toml → reads it → detects Rust → returns build commands
+# Discovery Agent: explores → finds single Cargo.toml
+# Result: 1 project found, automatically proceeds to Build Agent
+# Build Agent: analyzes project → calls get_best_practices("Rust", "cargo")
+#             → generates universalbuild.yaml
 ```
 
 ### 2. Monorepo Discovery
 ```bash
 aipack detect /path/to/monorepo
-# Root agent: lists directories → finds apps/, services/ → identifies manifests
-#            → spawns sub-agents → each analyzes its project
+# Discovery Agent: explores → finds multiple projects
+# Output:
+# Found 3 buildable projects:
+#   web-frontend  packages/web         JavaScript  npm
+#   api-server    packages/api         Rust        cargo
+#   worker        services/worker      Python      poetry
+#
+# User then chooses which project to build with --project flag
 ```
 
-### 3. Ambiguous Structure
+### 3. Direct Project Build
 ```bash
-aipack detect /path/to/complex-repo
-# LLM: lists root → sees multiple tools → reads README → checks scripts
-#     → reasons about primary vs auxiliary → makes decision
+aipack detect /path/to/monorepo --project packages/api
+# Skips Discovery Agent entirely
+# Build Agent: analyzes packages/api → generates universalbuild.yaml
 ```
 
-### 4. Nested Monorepos
+### 4. Multi-Module Maven/Gradle Project
 ```bash
-aipack detect /path/to/workspace
-# Recursively explores: can handle services/backend/api (nested structure)
+aipack detect /path/to/maven-project
+# Discovery Agent: detects Maven multi-module structure
+# Lists all modules (api, worker, admin, shared)
+# User selects specific module to build with --project flag
 ```
 
 ## Technical Specification

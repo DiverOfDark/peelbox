@@ -70,132 +70,186 @@ Add offline fallback with embedded LLM for zero-dependency operation.
 
 ---
 
-## Phase 2: External Memory System
+## Phase 3 & 4: Multi-Project Detection & Best Practices System (IN PROGRESS)
 
-**Priority**: HIGH
-**Duration**: 3-5 days
+**Priority**: HIGHEST
+**Duration**: 13 days (~2.5 weeks)
 **Owner**: TBD
+**Status**: In Progress
 
 ### Objective
-Implement persistent state tracking for large repository exploration.
+Implement two-agent detection system that separates project discovery from build specification generation, with support for best practices templates to improve efficiency and accuracy.
 
-### Tasks
-1. Create `src/detection/memory.rs` module
-2. Define data structures:
-   ```rust
-   pub struct ExternalMemory {
-       exploration_log: Vec<ExplorationStep>,
-       discovered_projects: Vec<ProjectInfo>,
-       workspace_info: Option<WorkspaceInfo>,
-       next_steps: Vec<String>,
-   }
+### Architecture Overview
 
-   pub struct ExplorationStep {
-       timestamp: u64,
-       action: String,
-       result: String,
-       confidence: f32,
-   }
+**Two-Agent System**:
+1. **Discovery Agent**: Finds all buildable projects in repository (always runs first unless `--project` flag)
+2. **Build Agent**: Generates UniversalBuild for single project (enhanced with best practices templates)
 
-   pub struct ProjectInfo {
-       path: String,
-       language: String,
-       build_system: String,
-       confidence: f32,
-   }
-   ```
-3. Add memory initialization from jumpstart data
-4. Integrate memory query/update tools for LLM:
-   - `query_memory` - Read current state
-   - `update_memory` - Add discoveries
-5. Add memory persistence between tool calls (in-memory during detection session)
-6. Update system prompts to use memory effectively
-7. Add memory serialization/deserialization (JSON format)
+**Flow**:
+```
+User runs: aipack detect <path> [--project <subpath>]
+    ↓
+--project specified?
+    ├─ Yes → Skip to Build Agent
+    └─ No → Discovery Agent
+        ↓
+    1 project? → Build Agent
+    2-200 projects? → Return list to user
+    >200 projects? → Error
+```
+
+### Phase 3a: Discovery Agent (4 days)
+
+**Files to Create**:
+- `src/detection/discovery_agent.rs` - Discovery agent implementation
+- `src/output/project_list.rs` - ProjectInfo and ProjectList structs
+
+**Files to Modify**:
+- `src/detection/tools/executor.rs` - Add `submit_project_list` tool
+- `src/detection/prompt.rs` - Add discovery agent system prompt
+
+**Tasks**:
+1. Create Discovery Agent with simple prompt: "Find all buildable projects"
+2. Implement `submit_project_list` tool (terminal tool for discovery)
+3. Add ProjectInfo and ProjectList data structures
+4. Implement validation logic:
+   - 0 projects → Error
+   - 1 project → Continue to build
+   - 2-200 projects → Return list
+   - >200 projects → Error with hint
+5. Add output serialization (JSON, YAML, table format)
+6. Write tests for discovery on monorepos and single projects
+
+**Deliverables**:
+- Discovery agent can identify all buildable projects
+- Validation prevents >200 projects
+- Clear table/JSON/YAML output
+
+### Phase 3b: Best Practices Tool (3 days)
+
+**Files to Create**:
+- `src/detection/tools/best_practices.rs` - Template definitions and logic
+
+**Files to Modify**:
+- `src/detection/tools/executor.rs` - Add `get_best_practices` tool
+- `src/detection/prompt.rs` - Update build agent prompt to explain new tool
+
+**Tasks**:
+1. Define BestPracticeTemplate data structures:
+   - BuildStageTemplate (base image, packages, commands, cache, artifacts)
+   - RuntimeStageTemplate (base image, packages, ports, healthcheck)
+2. Implement templates for 15 combinations:
+   - Rust + cargo
+   - JavaScript/TypeScript + npm, yarn, pnpm, bun
+   - Java + maven, gradle
+   - Python + pip, poetry, pipenv
+   - Go + go mod
+   - .NET + dotnet
+   - Ruby + bundler
+   - C/C++ + cmake, make
+3. Add template matching logic (language + build_system)
+4. Wire up `get_best_practices` tool to executor
+5. Update system prompt to encourage template usage
+6. Test all template combinations
+
+**Deliverables**:
+- Templates for 15 language/build-system combinations
+- LLM can request and apply templates
+- Fallback for unsupported combinations
+
+### Phase 4: Two-Agent Orchestration (2 days)
+
+**Files to Create**:
+- `src/detection/detection_result.rs` - DetectionResult enum
+
+**Files to Modify**:
+- `src/detection/detector.rs` - Orchestration logic, --project flag handling
+
+**Tasks**:
+1. Implement DetectionResult enum (SingleProject | MultiProject)
+2. Add orchestration logic:
+   - Check for `--project` flag → skip discovery if present
+   - Run discovery agent first (if no flag)
+   - Validate project count
+   - Run build agent conditionally
+3. Add path validation for `--project` flag:
+   - Ensure path exists
+   - Prevent path traversal
+   - Validate within repository boundaries
+4. Wire both agents together
+5. Handle all validation cases
+6. Write end-to-end integration tests
+
+**Deliverables**:
+- Sequential agent execution working
+- --project flag skips discovery
+- Automatic mode detection (1 vs many projects)
+
+### Phase 5: CLI Integration (2 days)
+
+**Files to Modify**:
+- `src/cli/commands.rs` - Add --project flag, handle DetectionResult
+- `src/main.rs` - CLI argument parsing
+
+**Tasks**:
+1. Add `--project <subpath>` flag to detect command
+2. Add `--format <format>` flag (table, json, yaml)
+3. Implement output formatting for ProjectList:
+   - Table format (default, human-readable)
+   - JSON format (machine-readable)
+   - YAML format (alternative)
+4. Handle DetectionResult enum in CLI output
+5. Update help text and examples
+6. Add path validation logic
+7. Test all CLI combinations
+
+**Deliverables**:
+- --project flag working correctly
+- Multiple output formats
+- Clear help text
+
+### Documentation (2 days)
+
+**Files to Update**:
+- `README.md` - Add two-agent workflow explanation and examples
+- `PRD-2.0.md` - Document new architecture (already done)
+- `ROADMAP.md` - Update this file
+- `CLAUDE.md` - Update architecture section with two-agent system
+- `CHANGELOG.md` - Add changelog entries for Phase 3 & 4
+
+**Tasks**:
+1. Update README with workflow examples
+2. Document all CLI flags and options
+3. Add examples for common scenarios
+4. Update architecture diagrams in CLAUDE.md
+5. Write comprehensive changelog
+
+**Deliverables**:
+- Complete documentation update
+- Clear examples for users
+- Updated architecture docs
 
 ### Expected Outcomes
-- Handle monorepos with 50+ projects without context overflow
-- LLM can track exploration state across iterations
-- Reduced redundant work
+- Users can discover all projects in monorepos before building
+- `--project` flag enables direct builds when target is known
+- Best practices templates reduce LLM token usage by ~30%
+- Works seamlessly with Maven/Gradle multi-module projects
+- Clear, actionable output for multi-project repositories
 
 ### Success Criteria
-- Memory persists across all tool calls in a session
-- Jumpstart data seeds initial memory state
-- Memory queries count as tool calls (tracked in limits)
+- ✅ Discovery agent finds all projects in monorepos (>95% accuracy)
+- ✅ Build agent generates correct UniversalBuild for single projects
+- ✅ `--project` flag skips discovery and builds specific project
+- ✅ Validation prevents >200 projects error
+- ✅ Best practices templates work for 15 combinations
+- ✅ No regression on single-project detection
+- ✅ Works with multi-module Maven/Gradle projects
+- ✅ Documentation is comprehensive and clear
 
 ---
 
-## Phase 3: Hierarchical Exploration Strategy
-
-**Priority**: MEDIUM
-**Duration**: 3-4 days
-**Owner**: TBD
-
-### Objective
-Optimize large repository analysis with progressive depth levels.
-
-### Tasks
-1. Create `src/detection/strategy.rs` module
-2. Implement exploration levels:
-   - **Level 0: Structural Survey** (use jumpstart data as foundation)
-   - **Level 1: Manifest Discovery** (augment jumpstart with focused search if needed)
-   - **Level 2: Manifest Inspection** (selective reading, 2KB truncation)
-   - **Level 3: Context Refinement** (deep dive for low confidence <80%)
-3. Add confidence-based early termination logic
-4. Update LLM prompts with level-aware instructions
-5. Skip levels when jumpstart provides high confidence:
-   - Single `package.json` → skip to Level 2
-   - Clear monorepo structure → skip to Level 1
-6. Add metrics tracking per level
-
-### Expected Outcomes
-- Jumpstart eliminates Level 0-1 for most repos
-- Only complex/ambiguous repos need Level 3
-- Average exploration depth: Level 2
-
-### Success Criteria
-- 80% of repos complete at Level 1-2
-- Level 3 only triggered for <20% of detections
-- No accuracy loss vs exhaustive exploration
-
----
-
-## Phase 4: Monorepo Multi-Agent System
-
-**Priority**: MEDIUM
-**Duration**: 4-5 days
-**Owner**: TBD
-
-### Objective
-Enable parallel analysis of monorepo sub-projects.
-
-### Tasks
-1. Enhance `src/detection/service.rs` with agent orchestration
-2. Implement root agent for monorepo detection:
-   - Use jumpstart workspace detection
-   - Identify sub-project boundaries
-3. Implement sub-agent spawning per project:
-   - Based on jumpstart discovered projects
-   - Each agent gets isolated context
-4. Add parallel execution with concurrency limits:
-   - Use `tokio::spawn`
-   - Limit to 4-8 concurrent agents
-5. Implement result aggregation
-6. Generate multiple universalbuild.yaml files (one per project)
-7. Add progress reporting for monorepo analysis
-
-### Expected Outcomes
-- Parallel analysis of monorepo sub-projects
-- Linear scaling with project count (up to concurrency limit)
-- Complete discovery of all buildable projects
-
-### Success Criteria
-- 100% discovery rate for monorepo projects
-- Latency <30s for monorepos with <10 projects
-- Latency scales linearly beyond 10 projects
-
----
-
-## Phase 5: Enhanced Tool Features
+## Phase 6: Enhanced Tool Features
 
 **Priority**: MEDIUM
 **Duration**: 2-3 days
@@ -230,7 +284,7 @@ Add smart filtering, caching, and truncation to existing tools.
 
 ---
 
-## Phase 6: Context Size Tracking & Optimization
+## Phase 7: Context Size Tracking & Optimization
 
 **Priority**: MEDIUM
 **Duration**: 3-4 days
@@ -322,7 +376,7 @@ Compress messages while preserving key information:
 
 ---
 
-## Phase 7: Testing & Integration
+## Phase 8: Testing & Integration
 
 **Priority**: HIGH
 **Duration**: 5-7 days
@@ -362,7 +416,7 @@ Comprehensive testing and documentation updates.
 
 ---
 
-## Phase 8: E2E Automated Tests with Railpack Projects (OPTIONAL)
+## Phase 9: E2E Automated Tests with Railpack Projects (OPTIONAL)
 
 **Priority**: LOWEST
 **Duration**: 2-3 days
