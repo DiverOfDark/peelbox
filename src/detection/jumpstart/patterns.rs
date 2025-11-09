@@ -6,13 +6,8 @@ use std::path::Path;
 pub const MANIFEST_PATTERNS: &[&str] = &[
     // Rust
     "Cargo.toml",
-    "Cargo.lock",
     // JavaScript/TypeScript
     "package.json",
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-    "bun.lockb",
     // Java
     "pom.xml",
     "build.gradle",
@@ -24,23 +19,17 @@ pub const MANIFEST_PATTERNS: &[&str] = &[
     // Python
     "requirements.txt",
     "Pipfile",
-    "Pipfile.lock",
     "pyproject.toml",
-    "poetry.lock",
     "setup.py",
     "setup.cfg",
     // Ruby
     "Gemfile",
-    "Gemfile.lock",
     // PHP
     "composer.json",
-    "composer.lock",
     // Go
     "go.mod",
-    "go.sum",
     // Elixir
     "mix.exs",
-    "mix.lock",
     // .NET
     "*.csproj",
     "*.fsproj",

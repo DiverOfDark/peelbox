@@ -247,7 +247,7 @@ impl BestPractices {
                     "/root/.cache/pip/".to_string(),
                     "/root/.cache/pipenv/".to_string(),
                 ],
-                common_artifacts: vec!["Pipfile".to_string(), "Pipfile.lock".to_string()],
+                common_artifacts: vec!["Pipfile".to_string()],
             },
             runtime_stage: RuntimeStageTemplate {
                 base_image: "python:3.11-slim".to_string(),

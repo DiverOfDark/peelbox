@@ -224,7 +224,6 @@ async fn test_analyze_rust_project() {
 
     // Verify detected files list
     assert!(context.detected_files.contains(&"Cargo.toml".to_string()));
-    assert!(context.detected_files.contains(&"Cargo.lock".to_string()));
 }
 
 #[tokio::test]
@@ -243,11 +242,8 @@ async fn test_analyze_nodejs_project() {
     assert!(package_json.contains("test-app"));
     assert!(package_json.contains("webpack"));
 
-    // Verify both package files detected
+    // Verify package.json detected
     assert!(context.detected_files.contains(&"package.json".to_string()));
-    assert!(context
-        .detected_files
-        .contains(&"package-lock.json".to_string()));
 
     // Verify README
     assert!(context.readme_content.is_some());
@@ -269,9 +265,8 @@ async fn test_analyze_go_project() {
     assert!(go_mod.contains("example.com/test"));
     assert!(go_mod.contains("go 1.21"));
 
-    // Verify both go files detected
+    // Verify go.mod detected
     assert!(context.detected_files.contains(&"go.mod".to_string()));
-    assert!(context.detected_files.contains(&"go.sum".to_string()));
 }
 
 #[tokio::test]
