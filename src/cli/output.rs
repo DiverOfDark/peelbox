@@ -10,6 +10,7 @@ pub enum OutputFormat {
     Json,
     Yaml,
     Human,
+    Dockerfile,
 }
 
 pub struct OutputFormatter {
@@ -26,6 +27,7 @@ impl OutputFormatter {
             OutputFormat::Json => serde_json::to_string_pretty(result).context("Failed to serialize UniversalBuild to JSON"),
             OutputFormat::Yaml => result.to_yaml(),
             OutputFormat::Human => Ok(format!("{}", result)),
+            OutputFormat::Dockerfile => result.to_dockerfile(),
         }
     }
 
@@ -36,7 +38,7 @@ impl OutputFormatter {
                     .context("Failed to serialize health status to JSON")
             }
             OutputFormat::Yaml => serde_yaml::to_string(health_results).context("Failed to serialize health status to YAML"),
-            OutputFormat::Human => self.format_health_human(health_results),
+            OutputFormat::Human | OutputFormat::Dockerfile => self.format_health_human(health_results),
         }
     }
 
@@ -48,7 +50,7 @@ impl OutputFormatter {
         match self.format {
             OutputFormat::Json => self.format_health_with_env_vars_json(health_results, env_vars),
             OutputFormat::Yaml => self.format_health_with_env_vars_yaml(health_results, env_vars),
-            OutputFormat::Human => self.format_health_with_env_vars_human(health_results, env_vars),
+            OutputFormat::Human | OutputFormat::Dockerfile => self.format_health_with_env_vars_human(health_results, env_vars),
         }
     }
 

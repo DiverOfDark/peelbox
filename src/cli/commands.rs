@@ -167,6 +167,8 @@ pub enum OutputFormatArg {
     Yaml,
     /// Human-readable format
     Human,
+    /// Dockerfile format
+    Dockerfile,
 }
 
 impl From<OutputFormatArg> for super::output::OutputFormat {
@@ -175,6 +177,7 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
             OutputFormatArg::Json => super::output::OutputFormat::Json,
             OutputFormatArg::Yaml => super::output::OutputFormat::Yaml,
             OutputFormatArg::Human => super::output::OutputFormat::Human,
+            OutputFormatArg::Dockerfile => super::output::OutputFormat::Dockerfile,
         }
     }
 }
