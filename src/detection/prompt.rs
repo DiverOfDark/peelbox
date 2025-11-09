@@ -35,7 +35,7 @@ Recommended workflow:
 
 Best practices:
 - Focus on standard build patterns - most repositories follow conventions
-- Submit when you have reasonable confidence (>70%) based on key build files
+- Submit when you have reasonable confidence (>95%) based on key build files
 - It's better to return a quick result than to over-analyze edge cases
 - You can read 2-3 files in parallel if multiple build systems appear present
 - Don't explore every possible file - focus on the most obvious build configuration
@@ -65,4 +65,4 @@ PATH REQUIREMENTS (CRITICAL):
   * CORRECT: "cd services/api && mvn clean package"
   * WRONG: "mvn clean package" (will fail if pom.xml is in services/api/)
 
-Submit when you have reasonable confidence (>70%) based on reading the primary build configuration file."#;
+Submit when you have reasonable confidence (>95%) based on reading the primary build configuration file."#;
