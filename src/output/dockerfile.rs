@@ -1,5 +1,5 @@
 use anyhow::Result;
-use crate::output::schema::{Healthcheck, UniversalBuild};
+use crate::output::schema::UniversalBuild;
 
 /// Generates Dockerfiles from UniversalBuild specifications
 pub struct DockerfileGenerator;
@@ -11,7 +11,7 @@ impl DockerfileGenerator {
     /// - Metadata comments (project info, confidence, reasoning)
     /// - Build stage with dependencies, environment, and build commands
     /// - Runtime stage with runtime dependencies and application setup
-    /// - Proper handling of cache mounts, healthchecks, and ports
+    /// - Proper handling of cache mounts and ports
     pub fn generate(build: &UniversalBuild) -> Result<String> {
         let mut dockerfile = String::new();
 
@@ -173,13 +173,6 @@ impl DockerfileGenerator {
             df.push_str("\n\n");
         }
 
-        // Configure healthcheck
-        if let Some(ref healthcheck) = build.runtime.healthcheck {
-            df.push_str("# Configure health check\n");
-            df.push_str(&Self::format_healthcheck(healthcheck));
-            df.push_str("\n");
-        }
-
         // Run application
         if !build.runtime.command.is_empty() {
             df.push_str("# Run application\n");
@@ -192,31 +185,6 @@ impl DockerfileGenerator {
             }
             df.push_str("]\n");
         }
-    }
-
-    fn format_healthcheck(healthcheck: &Healthcheck) -> String {
-        let mut result = String::from("HEALTHCHECK");
-
-        if let Some(ref interval) = healthcheck.interval {
-            result.push_str(&format!(" --interval={}", interval));
-        }
-        if let Some(ref timeout) = healthcheck.timeout {
-            result.push_str(&format!(" --timeout={}", timeout));
-        }
-        if let Some(retries) = healthcheck.retries {
-            result.push_str(&format!(" --retries={}", retries));
-        }
-
-        result.push_str(" \\\n    CMD [");
-        for (i, arg) in healthcheck.test.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
-            }
-            result.push_str(&format!("\"{}\"", arg.replace('"', "\\\"")));
-        }
-        result.push_str("]\n");
-
-        result
     }
 }
 
@@ -265,7 +233,6 @@ mod tests {
                 }],
                 command: vec!["/usr/local/bin/app".to_string()],
                 ports: vec![],
-                healthcheck: None,
             },
         }
     }
@@ -328,25 +295,6 @@ mod tests {
         let dockerfile = DockerfileGenerator::generate(&build).unwrap();
 
         assert!(dockerfile.contains("EXPOSE 8080 8443"));
-    }
-
-    #[test]
-    fn test_with_healthcheck() {
-        let mut build = create_minimal_build();
-        build.runtime.healthcheck = Some(Healthcheck {
-            test: vec!["curl".to_string(), "-f".to_string(), "http://localhost:8080/health".to_string()],
-            interval: Some("30s".to_string()),
-            timeout: Some("3s".to_string()),
-            retries: Some(3),
-        });
-
-        let dockerfile = DockerfileGenerator::generate(&build).unwrap();
-
-        assert!(dockerfile.contains("HEALTHCHECK"));
-        assert!(dockerfile.contains("--interval=30s"));
-        assert!(dockerfile.contains("--timeout=3s"));
-        assert!(dockerfile.contains("--retries=3"));
-        assert!(dockerfile.contains("curl"));
     }
 
     #[test]

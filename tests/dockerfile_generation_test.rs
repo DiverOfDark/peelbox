@@ -1,6 +1,6 @@
 use aipack::cli::output::{OutputFormat, OutputFormatter};
 use aipack::output::schema::{
-    BuildMetadata, BuildStage, ContextSpec, CopySpec, Healthcheck, RuntimeStage, UniversalBuild,
+    BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
 use std::collections::HashMap;
 
@@ -42,16 +42,6 @@ fn create_rust_build() -> UniversalBuild {
             }],
             command: vec!["/usr/local/bin/my-rust-app".to_string()],
             ports: vec![8080],
-            healthcheck: Some(Healthcheck {
-                test: vec![
-                    "curl".to_string(),
-                    "-f".to_string(),
-                    "http://localhost:8080/health".to_string(),
-                ],
-                interval: Some("30s".to_string()),
-                timeout: Some("3s".to_string()),
-                retries: Some(3),
-            }),
         },
     }
 }
@@ -86,8 +76,6 @@ fn test_dockerfile_generation_rust_project() {
     assert!(dockerfile.contains("ENV PORT=8080"));
     assert!(dockerfile.contains("COPY --from=builder /app/target/release/my-rust-app"));
     assert!(dockerfile.contains("EXPOSE 8080"));
-    assert!(dockerfile.contains("HEALTHCHECK"));
-    assert!(dockerfile.contains("--interval=30s"));
     assert!(dockerfile.contains("CMD [\"/usr/local/bin/my-rust-app\"]"));
 }
 
@@ -124,7 +112,6 @@ fn test_dockerfile_generation_minimal() {
             }],
             command: vec!["python".to_string(), "app.py".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 
@@ -170,7 +157,6 @@ fn test_dockerfile_without_healthcheck() {
             }],
             command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
             ports: vec![3000],
-            healthcheck: None,
         },
     };
 
@@ -232,7 +218,6 @@ fn test_dockerfile_multiple_copy_specs() {
             ],
             command: vec!["/usr/local/bin/app".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 

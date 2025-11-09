@@ -353,7 +353,6 @@ fn test_output_format_json() {
             }],
             command: vec!["/usr/local/bin/app".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 
@@ -400,7 +399,6 @@ fn test_output_format_yaml() {
             }],
             command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 
@@ -446,7 +444,6 @@ fn test_output_format_human_readable() {
             }],
             command: vec!["/usr/local/bin/app".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 
@@ -493,7 +490,6 @@ fn test_detection_result_confidence_levels() {
             }],
             command: vec!["/usr/local/bin/app".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 
@@ -547,7 +543,6 @@ fn test_detection_result_warnings() {
             }],
             command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 

@@ -46,7 +46,6 @@ fn create_sample_detection_result() -> UniversalBuild {
             }],
             command: vec!["/usr/local/bin/app".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     }
 }
@@ -279,7 +278,6 @@ fn test_detection_result_minimal() {
             }],
             command: vec!["/usr/local/bin/app".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 
@@ -326,7 +324,6 @@ fn test_detection_result_with_warnings() {
             }],
             command: vec!["node".to_string(), "/app/dist/index.js".to_string()],
             ports: vec![],
-            healthcheck: None,
         },
     };
 

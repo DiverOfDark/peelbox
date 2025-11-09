@@ -732,8 +732,7 @@ mod tests {
                     }
                 ],
                 "command": ["/usr/local/bin/test"],
-                "ports": [],
-                "healthcheck": null
+                "ports": []
             }
         });
 

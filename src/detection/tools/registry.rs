@@ -245,7 +245,6 @@ Key Guidelines:
 - runtime.copy: Copy artifacts from build stage, using {"from": "...", "to": "..."} objects
 - runtime.command: Array of strings for entrypoint (e.g., ["./myapp"] or ["python", "main.py"])
 - runtime.ports: Expose ports if this is a service (e.g., [8080, 8443])
-- runtime.healthcheck: Optional health check for services
 
 Call this tool once you have analyzed the repository and determined the build approach."#.to_string(),
             ),
@@ -416,34 +415,6 @@ Call this tool once you have analyzed the repository and determined the build ap
                                     "maximum": 65535
                                 },
                                 "default": []
-                            },
-                            "healthcheck": {
-                                "type": "object",
-                                "description": "Optional health check configuration for services",
-                                "properties": {
-                                    "test": {
-                                        "type": "array",
-                                        "description": "Health check command (e.g., ['CMD', 'curl', '-f', 'http://localhost/health'])",
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "minItems": 1
-                                    },
-                                    "interval": {
-                                        "type": "string",
-                                        "description": "Interval between checks (e.g., '30s')"
-                                    },
-                                    "timeout": {
-                                        "type": "string",
-                                        "description": "Timeout for each check (e.g., '3s')"
-                                    },
-                                    "retries": {
-                                        "type": "integer",
-                                        "description": "Number of consecutive failures before unhealthy",
-                                        "minimum": 1
-                                    }
-                                },
-                                "required": ["test"]
                             }
                         },
                         "required": ["base", "copy", "command"]

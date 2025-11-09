@@ -21,8 +21,6 @@ pub struct RuntimeStageTemplate {
     pub base_image: String,
     pub system_packages: Vec<String>,
     pub common_ports: Vec<u16>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub healthcheck_hint: Option<String>,
 }
 
 pub struct BestPractices;
@@ -71,7 +69,6 @@ impl BestPractices {
                 base_image: "debian:bookworm-slim".to_string(),
                 system_packages: vec!["ca-certificates".to_string(), "libssl3".to_string()],
                 common_ports: vec![8080],
-                healthcheck_hint: None,
             },
         }
     }
@@ -89,7 +86,6 @@ impl BestPractices {
                 base_image: "node:20-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![3000, 8080],
-                healthcheck_hint: Some("curl http://localhost:3000/health".to_string()),
             },
         }
     }
@@ -113,7 +109,6 @@ impl BestPractices {
                 base_image: "node:20-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![3000, 8080],
-                healthcheck_hint: Some("curl http://localhost:3000/health".to_string()),
             },
         }
     }
@@ -138,7 +133,6 @@ impl BestPractices {
                 base_image: "node:20-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![3000, 8080],
-                healthcheck_hint: Some("curl http://localhost:3000/health".to_string()),
             },
         }
     }
@@ -156,7 +150,6 @@ impl BestPractices {
                 base_image: "oven/bun:1-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![3000, 8080],
-                healthcheck_hint: Some("curl http://localhost:3000/health".to_string()),
             },
         }
     }
@@ -174,9 +167,6 @@ impl BestPractices {
                 base_image: "eclipse-temurin:21-jre".to_string(),
                 system_packages: vec![],
                 common_ports: vec![8080],
-                healthcheck_hint: Some(
-                    "curl http://localhost:8080/actuator/health".to_string(),
-                ),
             },
         }
     }
@@ -197,9 +187,6 @@ impl BestPractices {
                 base_image: "eclipse-temurin:21-jre".to_string(),
                 system_packages: vec![],
                 common_ports: vec![8080],
-                healthcheck_hint: Some(
-                    "curl http://localhost:8080/actuator/health".to_string(),
-                ),
             },
         }
     }
@@ -220,7 +207,6 @@ impl BestPractices {
                 base_image: "python:3.11-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![8000, 5000],
-                healthcheck_hint: Some("curl http://localhost:8000/health".to_string()),
             },
         }
     }
@@ -244,7 +230,6 @@ impl BestPractices {
                 base_image: "python:3.11-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![8000, 5000],
-                healthcheck_hint: Some("curl http://localhost:8000/health".to_string()),
             },
         }
     }
@@ -268,7 +253,6 @@ impl BestPractices {
                 base_image: "python:3.11-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![8000, 5000],
-                healthcheck_hint: Some("curl http://localhost:8000/health".to_string()),
             },
         }
     }
@@ -289,7 +273,6 @@ impl BestPractices {
                 base_image: "alpine:3.19".to_string(),
                 system_packages: vec!["ca-certificates".to_string()],
                 common_ports: vec![8080],
-                healthcheck_hint: Some("wget -q --spider http://localhost:8080/health".to_string()),
             },
         }
     }
@@ -310,7 +293,6 @@ impl BestPractices {
                 base_image: "debian:bookworm-slim".to_string(),
                 system_packages: vec!["libstdc++6".to_string()],
                 common_ports: vec![8080],
-                healthcheck_hint: None,
             },
         }
     }
@@ -328,7 +310,6 @@ impl BestPractices {
                 base_image: "debian:bookworm-slim".to_string(),
                 system_packages: vec!["libstdc++6".to_string()],
                 common_ports: vec![8080],
-                healthcheck_hint: None,
             },
         }
     }
@@ -352,7 +333,6 @@ impl BestPractices {
                 base_image: "mcr.microsoft.com/dotnet/aspnet:8.0".to_string(),
                 system_packages: vec![],
                 common_ports: vec![8080, 5000],
-                healthcheck_hint: Some("curl http://localhost:8080/health".to_string()),
             },
         }
     }
@@ -373,7 +353,6 @@ impl BestPractices {
                 base_image: "ruby:3.2-slim".to_string(),
                 system_packages: vec![],
                 common_ports: vec![3000],
-                healthcheck_hint: Some("curl http://localhost:3000/health".to_string()),
             },
         }
     }

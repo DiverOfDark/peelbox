@@ -115,9 +115,6 @@ pub struct RuntimeStage {
     /// Ports to expose
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub ports: Vec<u16>,
-    /// Optional health check configuration
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub healthcheck: Option<Healthcheck>,
 }
 
 /// Specification for copying files from build stage to runtime stage
@@ -140,23 +137,6 @@ pub struct ContextSpec {
     /// Destination path in build stage container
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub to: String,
-}
-
-/// Container health check configuration
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct Healthcheck {
-    /// Health check command (e.g., ["CMD", "curl", "-f", "http://localhost/health"])
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub test: Vec<String>,
-    /// Interval between health checks (e.g., "30s")
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub interval: Option<String>,
-    /// Timeout for each health check (e.g., "3s")
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timeout: Option<String>,
-    /// Number of consecutive failures before marking unhealthy
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retries: Option<u32>,
 }
 
 impl fmt::Display for UniversalBuild {
@@ -293,7 +273,6 @@ mod tests {
                 }],
                 command: vec!["/usr/local/bin/app".to_string()],
                 ports: vec![],
-                healthcheck: None,
             },
         }
     }
@@ -410,12 +389,6 @@ mod tests {
         build.runtime.packages = vec!["ca-certificates".to_string()];
         build.runtime.env.insert("PORT".to_string(), "8080".to_string());
         build.runtime.ports = vec![8080, 8443];
-        build.runtime.healthcheck = Some(Healthcheck {
-            test: vec!["CMD".to_string(), "curl".to_string(), "-f".to_string(), "http://localhost/health".to_string()],
-            interval: Some("30s".to_string()),
-            timeout: Some("3s".to_string()),
-            retries: Some(3),
-        });
 
         let display = format!("{}", build);
 
@@ -428,10 +401,6 @@ mod tests {
         assert!(display.contains("cache:"));
         assert!(display.contains("ports:"));
         assert!(display.contains("8080"));
-        assert!(display.contains("healthcheck:"));
-        assert!(display.contains("interval:"));
-        assert!(display.contains("timeout:"));
-        assert!(display.contains("retries:"));
     }
 
     #[test]
@@ -533,7 +502,6 @@ mod tests {
         assert!(build.build.cache.is_empty());
         assert!(build.runtime.packages.is_empty());
         assert!(build.runtime.ports.is_empty());
-        assert_eq!(build.runtime.healthcheck, None);
     }
 
     #[test]
@@ -553,28 +521,6 @@ mod tests {
         assert_eq!(build.runtime.copy.len(), 1);
         assert_eq!(build.runtime.copy[0].from, "");
         assert_eq!(build.runtime.copy[0].to, "");
-    }
-
-    #[test]
-    fn test_deserialize_empty_healthcheck() {
-        let json = r#"{
-            "metadata": {},
-            "build": {},
-            "runtime": {
-                "healthcheck": {}
-            }
-        }"#;
-
-        let result: Result<UniversalBuild, _> = serde_json::from_str(json);
-        assert!(result.is_ok());
-
-        let build = result.unwrap();
-        assert!(build.runtime.healthcheck.is_some());
-        let healthcheck = build.runtime.healthcheck.unwrap();
-        assert!(healthcheck.test.is_empty());
-        assert_eq!(healthcheck.interval, None);
-        assert_eq!(healthcheck.timeout, None);
-        assert_eq!(healthcheck.retries, None);
     }
 
     #[test]
@@ -604,7 +550,6 @@ mod tests {
                 copy: vec![],
                 command: vec![],
                 ports: vec![],
-                healthcheck: None,
             },
         };
 
