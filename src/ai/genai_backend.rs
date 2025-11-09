@@ -784,12 +784,79 @@ impl GenAIBackend {
                             warn!("LLM submitting detection without reading any files (allowed on last iteration)");
                         }
 
-                        info!(
-                            "Detection submitted after {} iterations in {:.2}s",
-                            iteration,
-                            start.elapsed().as_secs_f64()
-                        );
-                        return parse_detection_from_tool_call(&tool_call.fn_arguments);
+                        // Parse and validate the UniversalBuild
+                        match parse_detection_from_tool_call(&tool_call.fn_arguments) {
+                            Ok(universal_build) => {
+                                // Validate the UniversalBuild
+                                match universal_build.validate() {
+                                    Ok(_) => {
+                                        info!(
+                                            "Detection submitted after {} iterations in {:.2}s",
+                                            iteration,
+                                            start.elapsed().as_secs_f64()
+                                        );
+                                        return Ok(universal_build);
+                                    }
+                                    Err(validation_error) => {
+                                        warn!(
+                                            "UniversalBuild validation failed: {}. Sending error to LLM for retry.",
+                                            validation_error
+                                        );
+
+                                        // If this is the last iteration, return the error
+                                        if is_last_iteration {
+                                            error!(
+                                                "UniversalBuild validation failed on last iteration: {}",
+                                                validation_error
+                                            );
+                                            return Err(BackendError::InvalidResponse {
+                                                message: format!(
+                                                    "UniversalBuild validation failed: {}",
+                                                    validation_error
+                                                ),
+                                                raw_response: None,
+                                            });
+                                        }
+
+                                        // Otherwise, send the validation error back to the LLM and continue
+                                        messages.push(ToolResponse {
+                                            call_id: tool_call.call_id.clone(),
+                                            content: format!(
+                                                "Error: UniversalBuild validation failed: {}. Please fix the validation errors and resubmit.",
+                                                validation_error
+                                            ),
+                                        }.into());
+                                        continue;
+                                    }
+                                }
+                            }
+                            Err(parse_error) => {
+                                warn!(
+                                    "Failed to parse UniversalBuild: {}. Sending error to LLM for retry.",
+                                    parse_error
+                                );
+
+                                // If this is the last iteration, return the error
+                                if is_last_iteration {
+                                    return Err(parse_error);
+                                }
+
+                                // Otherwise, send the parse error back to the LLM and continue
+                                let error_message = match &parse_error {
+                                    BackendError::ParseError { message, .. } => message.clone(),
+                                    _ => format!("{:?}", parse_error),
+                                };
+
+                                messages.push(ToolResponse {
+                                    call_id: tool_call.call_id.clone(),
+                                    content: format!(
+                                        "Error: Failed to parse UniversalBuild: {}. Please fix the JSON structure and resubmit.",
+                                        error_message
+                                    ),
+                                }.into());
+                                continue;
+                            }
+                        }
                     } else {
                         // Skip submit_detection and continue with other tools
                         if !has_read_file {

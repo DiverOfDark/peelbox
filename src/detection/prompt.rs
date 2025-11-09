@@ -53,4 +53,16 @@ Focus on identifying:
 - Whether a multi-stage build is beneficial (separate build vs runtime images)
 - Test commands and development commands if applicable
 
+PATH REQUIREMENTS (CRITICAL):
+- ALWAYS use full paths relative to repository root for ALL commands and files
+- If a command must be run from a specific directory, include the directory path in the command
+- For copy operations, use full paths for BOTH source and target
+- Examples:
+  * CORRECT: "cd backend && npm install" (if project is in backend/)
+  * WRONG: "npm install" (assumes root, will fail if project is in subdirectory)
+  * CORRECT: Copy from "backend/dist/*" to "/app/"
+  * WRONG: Copy from "dist/*" to "/app/" (assumes dist is at root)
+  * CORRECT: "cd services/api && mvn clean package"
+  * WRONG: "mvn clean package" (will fail if pom.xml is in services/api/)
+
 Submit when you have reasonable confidence (>70%) based on reading the primary build configuration file."#;
