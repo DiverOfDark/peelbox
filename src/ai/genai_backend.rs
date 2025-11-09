@@ -619,12 +619,11 @@ impl GenAIBackend {
                 context.manifest_files.len()
             );
             format!(
-                "{}\n\nAnalyze the repository at path: {}",
-                context.to_prompt_string(),
-                repo_path.display()
+                "{}\n\nAnalyze the repository. All file paths are relative to the repository root.",
+                context.to_prompt_string()
             )
         } else {
-            format!("Analyze the repository at path: {}", repo_path.display())
+            "Analyze the repository. All file paths are relative to the repository root.".to_string()
         };
 
         // Initial conversation

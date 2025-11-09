@@ -121,6 +121,17 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
         return 1;
     }
 
+    // Canonicalize repository path to ensure consistent absolute path handling
+    let repo_path = match repo_path.canonicalize() {
+        Ok(path) => path,
+        Err(e) => {
+            error!("Failed to canonicalize repository path: {}", e);
+            eprintln!("Error: Failed to canonicalize repository path: {}", e);
+            return 1;
+        }
+    };
+    debug!("Canonicalized repository path: {}", repo_path.display());
+
     // Load configuration
     let mut config = AipackConfig::default();
 
