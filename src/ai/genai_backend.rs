@@ -822,7 +822,15 @@ impl GenAIBackend {
                                         messages.push(ToolResponse {
                                             call_id: tool_call.call_id.clone(),
                                             content: format!(
-                                                "Error: UniversalBuild validation failed: {}. Please fix the validation errors and resubmit.",
+                                                "VALIDATION ERROR: Your UniversalBuild submission was rejected.\n\n\
+                                                Reason: {}\n\n\
+                                                Please fix this validation error and call submit_detection again with the corrected UniversalBuild. \
+                                                Make sure all required fields are populated with valid values:\n\
+                                                - All image names must be non-empty (e.g., 'rust:1.75', 'node:20')\n\
+                                                - All command arrays must have at least one element\n\
+                                                - All context and copy specifications must have both 'from' and 'to' paths\n\
+                                                - Build artifacts array cannot be empty\n\
+                                                - Confidence must be between 0.0 and 1.0",
                                                 validation_error
                                             ),
                                         }.into());
@@ -850,7 +858,14 @@ impl GenAIBackend {
                                 messages.push(ToolResponse {
                                     call_id: tool_call.call_id.clone(),
                                     content: format!(
-                                        "Error: Failed to parse UniversalBuild: {}. Please fix the JSON structure and resubmit.",
+                                        "PARSE ERROR: Your UniversalBuild submission has invalid JSON structure.\n\n\
+                                        Reason: {}\n\n\
+                                        Please fix the JSON structure and call submit_detection again. Common issues:\n\
+                                        - Missing required fields (version, metadata, build, runtime)\n\
+                                        - Incorrect data types (e.g., string instead of array, number instead of string)\n\
+                                        - Invalid JSON syntax (missing commas, quotes, brackets)\n\
+                                        - Field name typos or incorrect casing\n\n\
+                                        Refer to the submit_detection tool schema for the correct structure.",
                                         error_message
                                     ),
                                 }.into());
