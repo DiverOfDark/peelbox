@@ -28,7 +28,7 @@
 
 ---
 
-## Phase 1: Embedded LLM Support (Phi-4-mini-reasoning)
+## Phase 1: Embedded LLM Support (Qwen 2.5 Coder 7B Instruct)
 
 **Priority**: HIGHEST
 **Duration**: 5-7 days
@@ -42,10 +42,11 @@ Add offline fallback with embedded LLM for zero-dependency operation.
 2. Research and select inference library:
    - Option A: `candle-transformers` (pure Rust)
    - Option B: `llama-cpp-rs` (bindings to llama.cpp)
-3. Implement Phi-4-mini-reasoning model download:
+3. Implement Qwen 2.5 Coder 7B Instruct model download:
    - Auto-download to `~/.aipack/models/`
    - GGUF format for efficient CPU inference
-   - Model source: Hugging Face (microsoft/phi-4-mini-reasoning)
+   - Model source: Hugging Face (Qwen/Qwen2.5-Coder-7B-Instruct-GGUF)
+   - Context window: 32K tokens
 4. Implement GenAI trait for embedded backend
 5. Add fallback logic (try external → fallback to embedded)
 6. Add model management commands to CLI:
@@ -59,11 +60,13 @@ Add offline fallback with embedded LLM for zero-dependency operation.
 - Out-of-the-box operation without external LLM dependencies
 - Offline detection capability
 - Fallback for API failures or rate limits
+- 32K context window handles larger repositories
 
 ### Success Criteria
 - Model downloads automatically on first run
 - Detection completes in <10s on modern CPU
 - Works with jumpstart data for optimal context
+- 32K context window supports complex monorepos
 
 ---
 
@@ -256,10 +259,10 @@ Track actual token usage and dynamically optimize context when approaching model
    - **Selective retention**: Keep high-priority messages (jumpstart, recent tools)
    - **Progressive removal**: Remove in order: old file reads → old searches → exploration steps
 5. Add per-provider context limits:
-   - Phi-4-mini-reasoning: 16K tokens
-   - Qwen 2.5 Coder 7B: 32K tokens
+   - Qwen 2.5 Coder 7B Instruct: 32K tokens
    - Claude Sonnet: 200K tokens
    - GPT-4: 128K tokens
+   - Gemini Pro: 2M tokens
 6. Implement context warning system:
    - Log warnings when reaching 80% capacity
    - Automatically trigger optimization at 90% capacity
@@ -286,7 +289,7 @@ Track actual token usage and dynamically optimize context when approaching model
 - Zero context overflow errors across all providers
 - Detection accuracy >95% even with context optimization active
 - Context warnings logged before automatic truncation
-- Embedded LLM (16K context) handles repositories with >50 files
+- Embedded LLM (32K context) handles repositories with >100 files
 
 ### Context Optimization Strategies
 

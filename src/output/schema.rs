@@ -148,106 +148,12 @@ pub struct Healthcheck {
     pub retries: Option<u32>,
 }
 
-fn confidence_level(confidence: f32) -> &'static str {
-    match confidence {
-        c if c >= 0.9 => "Very High",
-        c if c >= 0.8 => "High",
-        c if c >= 0.7 => "Moderate",
-        c if c >= 0.6 => "Low",
-        _ => "Very Low",
-    }
-}
-
-fn format_ports(ports: &[u16]) -> String {
-    if ports.len() > 5 {
-        format!(
-            "{} (and {} more)",
-            ports[..5]
-                .iter()
-                .map(|p| p.to_string())
-                .collect::<Vec<_>>()
-                .join(", "),
-            ports.len() - 5
-        )
-    } else {
-        ports
-            .iter()
-            .map(|p| p.to_string())
-            .collect::<Vec<_>>()
-            .join(", ")
-    }
-}
-
 impl fmt::Display for UniversalBuild {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "UniversalBuild Detection Result")?;
-        writeln!(f, "================================")?;
-        writeln!(f, "Language: {}", self.metadata.language)?;
-        writeln!(f, "Build System: {}", self.metadata.build_system)?;
-        if let Some(ref project_name) = self.metadata.project_name {
-            writeln!(f, "Project: {}", project_name)?;
+        match self.to_yaml() {
+            Ok(yaml) => write!(f, "{}", yaml),
+            Err(e) => write!(f, "Error formatting UniversalBuild: {}", e),
         }
-        writeln!(
-            f,
-            "Confidence: {:.1}% ({})",
-            self.metadata.confidence * 100.0,
-            confidence_level(self.metadata.confidence)
-        )?;
-        writeln!(f)?;
-
-        writeln!(f, "Build Stage:")?;
-        writeln!(f, "  Base Image: {}", self.build.base)?;
-        if !self.build.packages.is_empty() {
-            let pkg_display = if self.build.packages.len() > 3 {
-                format!(
-                    "{} (and {} more)",
-                    self.build.packages[..3].join(", "),
-                    self.build.packages.len() - 3
-                )
-            } else {
-                self.build.packages.join(", ")
-            };
-            writeln!(f, "  Packages:   {}", pkg_display)?;
-        }
-        writeln!(f, "  Commands:")?;
-        for cmd in &self.build.commands {
-            writeln!(f, "    - {}", cmd)?;
-        }
-        if !self.build.artifacts.is_empty() {
-            writeln!(f, "  Artifacts:")?;
-            for artifact in &self.build.artifacts {
-                writeln!(f, "    - {}", artifact)?;
-            }
-        }
-        writeln!(f)?;
-
-        writeln!(f, "Runtime Stage:")?;
-        writeln!(f, "  Base Image: {}", self.runtime.base)?;
-        if !self.runtime.packages.is_empty() {
-            let pkg_display = if self.runtime.packages.len() > 3 {
-                format!(
-                    "{} (and {} more)",
-                    self.runtime.packages[..3].join(", "),
-                    self.runtime.packages.len() - 3
-                )
-            } else {
-                self.runtime.packages.join(", ")
-            };
-            writeln!(f, "  Packages:   {}", pkg_display)?;
-        }
-        writeln!(f, "  Command:    {}", self.runtime.command.join(" "))?;
-        if !self.runtime.ports.is_empty() {
-            writeln!(f, "  Ports:      {}", format_ports(&self.runtime.ports))?;
-        }
-        if let Some(ref healthcheck) = self.runtime.healthcheck {
-            writeln!(f, "  Healthcheck: {}", healthcheck.test.join(" "))?;
-        }
-        writeln!(f)?;
-
-        writeln!(f, "Reasoning:")?;
-        writeln!(f, "  {}", self.metadata.reasoning)?;
-
-        Ok(())
     }
 }
 
@@ -449,127 +355,66 @@ mod tests {
     }
 
     #[test]
-    fn test_display_minimal() {
+    fn test_display_yaml_format() {
         let build = create_minimal_valid_build();
         let display = format!("{}", build);
 
-        assert!(display.contains("UniversalBuild Detection Result"));
-        assert!(display.contains("Language: rust"));
-        assert!(display.contains("Build System: cargo"));
-        assert!(display.contains("95.0%"));
-        assert!(display.contains("Very High"));
-        assert!(display.contains("Build Stage:"));
-        assert!(display.contains("Base Image: rust:1.75"));
+        // YAML output should contain all major sections
+        assert!(display.contains("version:"));
+        assert!(display.contains("metadata:"));
+        assert!(display.contains("language: rust"));
+        assert!(display.contains("build_system: cargo"));
+        assert!(display.contains("confidence: 0.95"));
+        assert!(display.contains("build:"));
+        assert!(display.contains("base: rust:1.75"));
         assert!(display.contains("cargo build --release"));
-        assert!(display.contains("Runtime Stage:"));
-        assert!(display.contains("Base Image: debian:bookworm-slim"));
-        assert!(display.contains("Reasoning:"));
-        assert!(display.contains("Detected Cargo.toml"));
+        assert!(display.contains("runtime:"));
+        assert!(display.contains("base: debian:bookworm-slim"));
+        assert!(display.contains("reasoning: Detected Cargo.toml"));
     }
 
     #[test]
-    fn test_display_with_packages() {
+    fn test_display_shows_all_fields() {
         let mut build = create_minimal_valid_build();
         build.build.packages = vec!["pkg-config".to_string(), "libssl-dev".to_string()];
-        build.runtime.packages = vec!["ca-certificates".to_string(), "libssl3".to_string()];
-
-        let display = format!("{}", build);
-        assert!(display.contains("Packages:   pkg-config, libssl-dev"));
-        assert!(display.contains("Packages:   ca-certificates, libssl3"));
-    }
-
-    #[test]
-    fn test_display_truncates_long_package_lists() {
-        let mut build = create_minimal_valid_build();
-        build.build.packages = vec![
-            "pkg1".to_string(),
-            "pkg2".to_string(),
-            "pkg3".to_string(),
-            "pkg4".to_string(),
-            "pkg5".to_string(),
-        ];
-
-        let display = format!("{}", build);
-        assert!(display.contains("pkg1, pkg2, pkg3"));
-        assert!(display.contains("and 2 more"));
-    }
-
-    #[test]
-    fn test_display_with_ports() {
-        let mut build = create_minimal_valid_build();
-        build.runtime.ports = vec![8080, 8443, 9000];
-
-        let display = format!("{}", build);
-        assert!(display.contains("Ports:      8080, 8443, 9000"));
-    }
-
-    #[test]
-    fn test_display_truncates_many_ports() {
-        let mut build = create_minimal_valid_build();
-        build.runtime.ports = vec![8080, 8443, 9000, 9090, 3000, 5000, 6000];
-
-        let display = format!("{}", build);
-        assert!(display.contains("8080, 8443, 9000, 9090, 3000"));
-        assert!(display.contains("and 2 more"));
-    }
-
-    #[test]
-    fn test_display_with_healthcheck() {
-        let mut build = create_minimal_valid_build();
+        build.build.env.insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
+        build.build.cache = vec!["/cache/cargo".to_string()];
+        build.runtime.packages = vec!["ca-certificates".to_string()];
+        build.runtime.env.insert("PORT".to_string(), "8080".to_string());
+        build.runtime.ports = vec![8080, 8443];
         build.runtime.healthcheck = Some(Healthcheck {
-            test: vec![
-                "CMD".to_string(),
-                "curl".to_string(),
-                "-f".to_string(),
-                "http://localhost/health".to_string(),
-            ],
+            test: vec!["CMD".to_string(), "curl".to_string(), "-f".to_string(), "http://localhost/health".to_string()],
             interval: Some("30s".to_string()),
             timeout: Some("3s".to_string()),
             retries: Some(3),
         });
 
         let display = format!("{}", build);
-        assert!(display.contains("Healthcheck: CMD curl -f http://localhost/health"));
+
+        // Verify all fields are present in YAML output
+        assert!(display.contains("packages:"));
+        assert!(display.contains("pkg-config"));
+        assert!(display.contains("libssl-dev"));
+        assert!(display.contains("env:"));
+        assert!(display.contains("CARGO_HOME"));
+        assert!(display.contains("cache:"));
+        assert!(display.contains("ports:"));
+        assert!(display.contains("8080"));
+        assert!(display.contains("healthcheck:"));
+        assert!(display.contains("interval:"));
+        assert!(display.contains("timeout:"));
+        assert!(display.contains("retries:"));
     }
 
     #[test]
-    fn test_display_with_project_name() {
-        let mut build = create_minimal_valid_build();
-        build.metadata.project_name = Some("my-awesome-app".to_string());
-
+    fn test_display_with_copy_specs() {
+        let build = create_minimal_valid_build();
         let display = format!("{}", build);
-        assert!(display.contains("Project: my-awesome-app"));
-    }
 
-    #[test]
-    fn test_confidence_level_function() {
-        use super::confidence_level;
-
-        assert_eq!(confidence_level(0.95), "Very High");
-        assert_eq!(confidence_level(0.85), "High");
-        assert_eq!(confidence_level(0.75), "Moderate");
-        assert_eq!(confidence_level(0.65), "Low");
-        assert_eq!(confidence_level(0.45), "Very Low");
-    }
-
-    #[test]
-    fn test_format_ports_function() {
-        use super::format_ports;
-
-        assert_eq!(format_ports(&[8080]), "8080");
-        assert_eq!(format_ports(&[8080, 8443]), "8080, 8443");
-        assert_eq!(
-            format_ports(&[8080, 8443, 9000, 9090, 3000]),
-            "8080, 8443, 9000, 9090, 3000"
-        );
-        assert_eq!(
-            format_ports(&[8080, 8443, 9000, 9090, 3000, 5000]),
-            "8080, 8443, 9000, 9090, 3000 (and 1 more)"
-        );
-        assert_eq!(
-            format_ports(&[8080, 8443, 9000, 9090, 3000, 5000, 6000, 7000]),
-            "8080, 8443, 9000, 9090, 3000 (and 3 more)"
-        );
+        // Verify copy specifications are shown
+        assert!(display.contains("copy:"));
+        assert!(display.contains("from: target/release/app"));
+        assert!(display.contains("to: /usr/local/bin/app"));
     }
 
     #[test]
