@@ -1,6 +1,7 @@
 //! Elixir language definition
 
 use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use regex::Regex;
 
 pub struct ElixirLanguage;
 
@@ -76,6 +77,36 @@ impl LanguageDefinition for ElixirLanguage {
     fn build_systems(&self) -> &[&str] {
         &["mix"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["_build", "deps", "cover", ".elixir_ls"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
+
+    fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
+        let content = manifest_content?;
+
+        // mix.exs: elixir: "~> 1.15"
+        if let Some(caps) = Regex::new(r#"elixir:\s*"[^"]*(\d+\.\d+)"#)
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        // .elixir-version file
+        if !content.contains("defmodule") {
+            let trimmed = content.trim();
+            if let Some(caps) = Regex::new(r"^(\d+\.\d+)").ok()?.captures(trimmed) {
+                return Some(caps.get(1)?.as_str().to_string());
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -137,5 +168,25 @@ end
         let t = template.unwrap();
         assert!(t.build_image.contains("elixir"));
         assert!(t.build_commands.iter().any(|c| c.contains("mix")));
+    }
+
+    #[test]
+    fn test_excluded_dirs() {
+        let lang = ElixirLanguage;
+        assert!(lang.excluded_dirs().contains(&"_build"));
+        assert!(lang.excluded_dirs().contains(&"deps"));
+    }
+
+    #[test]
+    fn test_detect_version() {
+        let lang = ElixirLanguage;
+        let content = r#"
+defmodule MyApp.MixProject do
+  def project do
+    [app: :my_app, elixir: "~> 1.15"]
+  end
+end
+"#;
+        assert_eq!(lang.detect_version(Some(content)), Some("1.15".to_string()));
     }
 }

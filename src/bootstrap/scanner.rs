@@ -34,6 +34,7 @@ pub struct BootstrapScanner {
     repo_path: PathBuf,
     registry: LanguageRegistry,
     config: ScanConfig,
+    gitignore_dirs: Vec<String>,
 }
 
 impl BootstrapScanner {
@@ -61,8 +62,11 @@ impl BootstrapScanner {
             .canonicalize()
             .context("Failed to canonicalize repository path")?;
 
+        let gitignore_dirs = Self::parse_gitignore(&repo_path);
+
         debug!(
             repo_path = %repo_path.display(),
+            gitignore_entries = gitignore_dirs.len(),
             "BootstrapScanner initialized"
         );
 
@@ -70,7 +74,44 @@ impl BootstrapScanner {
             repo_path,
             registry,
             config: ScanConfig::default(),
+            gitignore_dirs,
         })
+    }
+
+    /// Parse .gitignore file and extract directory patterns
+    fn parse_gitignore(repo_path: &Path) -> Vec<String> {
+        let gitignore_path = repo_path.join(".gitignore");
+        if !gitignore_path.exists() {
+            return Vec::new();
+        }
+
+        let content = match std::fs::read_to_string(&gitignore_path) {
+            Ok(c) => c,
+            Err(_) => return Vec::new(),
+        };
+
+        content
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                // Skip empty lines and comments
+                if line.is_empty() || line.starts_with('#') {
+                    return None;
+                }
+                // Extract directory patterns (ending with / or simple names that are likely dirs)
+                let pattern = line.trim_start_matches('/').trim_end_matches('/');
+                // Skip patterns with wildcards or complex patterns
+                if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
+                    return None;
+                }
+                // Only include simple directory names
+                if !pattern.contains('/') && !pattern.is_empty() {
+                    Some(pattern.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Configure scanning options
@@ -191,30 +232,15 @@ impl BootstrapScanner {
             return false;
         }
 
-        const EXCLUDED_DIRS: &[&str] = &[
-            ".git",
-            "node_modules",
-            "target",
-            "dist",
-            "build",
-            "out",
-            ".next",
-            ".nuxt",
-            "venv",
-            ".venv",
-            "__pycache__",
-            ".pytest_cache",
-            "vendor",
-            ".idea",
-            ".vscode",
-            "coverage",
-            ".gradle",
-            ".m2",
-            ".cargo",
-        ];
+        let excluded_dirs = self.registry.all_excluded_dirs();
 
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if EXCLUDED_DIRS.contains(&name) {
+            // Check registry-provided excluded dirs
+            if excluded_dirs.contains(&name) {
+                return true;
+            }
+            // Check .gitignore patterns
+            if self.gitignore_dirs.iter().any(|d| d == name) {
                 return true;
             }
             // Exclude hidden directories (but not files)
@@ -228,15 +254,7 @@ impl BootstrapScanner {
 
     /// Checks if a file is a workspace configuration
     fn is_workspace_config(&self, filename: &str) -> bool {
-        const WORKSPACE_CONFIGS: &[&str] = &[
-            "pnpm-workspace.yaml",
-            "lerna.json",
-            "nx.json",
-            "turbo.json",
-            "rush.json",
-        ];
-
-        WORKSPACE_CONFIGS.contains(&filename)
+        self.registry.all_workspace_configs().contains(&filename)
     }
 }
 
@@ -389,5 +407,34 @@ mod tests {
         assert!(prompt.contains("Pre-scanned Repository"));
         assert!(prompt.contains("Rust"));
         assert!(prompt.contains("cargo"));
+    }
+
+    #[test]
+    fn test_gitignore_exclusion() {
+        let dir = TempDir::new().unwrap();
+        let base = dir.path();
+
+        // Create .gitignore with custom_build directory
+        fs::write(base.join(".gitignore"), "custom_build/\n# comment\nsome_cache\n").unwrap();
+
+        // Create root package.json
+        fs::File::create(base.join("package.json"))
+            .unwrap()
+            .write_all(b"{\"name\": \"root\"}")
+            .unwrap();
+
+        // Create a package.json in gitignored directory
+        fs::create_dir(base.join("custom_build")).unwrap();
+        fs::File::create(base.join("custom_build/package.json"))
+            .unwrap()
+            .write_all(b"{\"name\": \"ignored\"}")
+            .unwrap();
+
+        let scanner = BootstrapScanner::new(base.to_path_buf()).unwrap();
+        let context = scanner.scan().unwrap();
+
+        // Should only find root package.json, not the one in custom_build
+        assert_eq!(context.detections.len(), 1);
+        assert_eq!(context.detections[0].manifest_path, "package.json");
     }
 }

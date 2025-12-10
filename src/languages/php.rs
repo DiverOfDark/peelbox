@@ -1,6 +1,7 @@
 //! PHP language definition
 
 use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use regex::Regex;
 
 pub struct PhpLanguage;
 
@@ -72,6 +73,28 @@ impl LanguageDefinition for PhpLanguage {
     fn build_systems(&self) -> &[&str] {
         &["composer"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["vendor", "storage", "bootstrap/cache"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
+
+    fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
+        let content = manifest_content?;
+
+        // composer.json: "php": ">=8.2"
+        if let Some(caps) = Regex::new(r#""php"\s*:\s*"[^"]*(\d+\.\d+)"#)
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -124,5 +147,18 @@ mod tests {
         let t = template.unwrap();
         assert!(t.build_image.contains("composer"));
         assert!(t.runtime_image.contains("php"));
+    }
+
+    #[test]
+    fn test_excluded_dirs() {
+        let lang = PhpLanguage;
+        assert!(lang.excluded_dirs().contains(&"vendor"));
+    }
+
+    #[test]
+    fn test_detect_version() {
+        let lang = PhpLanguage;
+        let content = r#"{"require": {"php": ">=8.2"}}"#;
+        assert_eq!(lang.detect_version(Some(content)), Some("8.2".to_string()));
     }
 }

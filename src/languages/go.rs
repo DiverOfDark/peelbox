@@ -1,6 +1,7 @@
 //! Go language definition
 
 use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use regex::Regex;
 
 pub struct GoLanguage;
 
@@ -62,6 +63,28 @@ impl LanguageDefinition for GoLanguage {
     fn build_systems(&self) -> &[&str] {
         &["go"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["vendor"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &["go.work"]
+    }
+
+    fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
+        let content = manifest_content?;
+
+        // go.mod: go 1.21
+        if let Some(caps) = Regex::new(r"(?m)^go\s+(\d+\.\d+)")
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -107,5 +130,18 @@ mod tests {
         let t = template.unwrap();
         assert!(t.build_image.contains("golang"));
         assert_eq!(t.runtime_image, "alpine:3.19");
+    }
+
+    #[test]
+    fn test_workspace_configs() {
+        let lang = GoLanguage;
+        assert!(lang.workspace_configs().contains(&"go.work"));
+    }
+
+    #[test]
+    fn test_detect_version() {
+        let lang = GoLanguage;
+        let content = "module github.com/user/project\n\ngo 1.21";
+        assert_eq!(lang.detect_version(Some(content)), Some("1.21".to_string()));
     }
 }

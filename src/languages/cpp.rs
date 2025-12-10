@@ -112,6 +112,14 @@ impl LanguageDefinition for CppLanguage {
     fn build_systems(&self) -> &[&str] {
         &["cmake", "make", "meson"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["build", "builddir", "cmake-build-debug", "cmake-build-release"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
 }
 
 #[cfg(test)]
@@ -194,5 +202,12 @@ mod tests {
         assert!(template.is_some());
         let t = template.unwrap();
         assert!(t.build_commands.iter().any(|c| c.contains("meson")));
+    }
+
+    #[test]
+    fn test_excluded_dirs() {
+        let lang = CppLanguage;
+        assert!(lang.excluded_dirs().contains(&"build"));
+        assert!(lang.excluded_dirs().contains(&"cmake-build-debug"));
     }
 }

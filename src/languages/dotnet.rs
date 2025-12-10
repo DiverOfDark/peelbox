@@ -1,6 +1,7 @@
 //! .NET language definition (C#, F#, VB)
 
 use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use regex::Regex;
 
 pub struct DotNetLanguage;
 
@@ -84,6 +85,44 @@ impl LanguageDefinition for DotNetLanguage {
     fn build_systems(&self) -> &[&str] {
         &["dotnet"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["bin", "obj", ".nuget"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
+
+    fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
+        let content = manifest_content?;
+
+        // <TargetFramework>net8.0</TargetFramework>
+        if let Some(caps) = Regex::new(r"<TargetFramework>net(\d+\.\d+)</TargetFramework>")
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        // <TargetFramework>net8.0-windows</TargetFramework>
+        if let Some(caps) = Regex::new(r"<TargetFramework>net(\d+\.\d+)-")
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        // <TargetFramework>netcoreapp3.1</TargetFramework>
+        if let Some(caps) = Regex::new(r"<TargetFramework>netcoreapp(\d+\.\d+)</TargetFramework>")
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -144,5 +183,27 @@ mod tests {
         let t = template.unwrap();
         assert!(t.build_image.contains("dotnet/sdk"));
         assert!(t.runtime_image.contains("dotnet/aspnet"));
+    }
+
+    #[test]
+    fn test_excluded_dirs() {
+        let lang = DotNetLanguage;
+        assert!(lang.excluded_dirs().contains(&"bin"));
+        assert!(lang.excluded_dirs().contains(&"obj"));
+        assert!(lang.excluded_dirs().contains(&".nuget"));
+    }
+
+    #[test]
+    fn test_detect_version_net8() {
+        let lang = DotNetLanguage;
+        let content = r#"<Project><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>"#;
+        assert_eq!(lang.detect_version(Some(content)), Some("8.0".to_string()));
+    }
+
+    #[test]
+    fn test_detect_version_netcoreapp() {
+        let lang = DotNetLanguage;
+        let content = r#"<Project><PropertyGroup><TargetFramework>netcoreapp3.1</TargetFramework></PropertyGroup></Project>"#;
+        assert_eq!(lang.detect_version(Some(content)), Some("3.1".to_string()));
     }
 }

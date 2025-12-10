@@ -64,6 +64,37 @@ impl LanguageDefinition for RustLanguage {
     fn build_systems(&self) -> &[&str] {
         &["cargo"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["target", ".cargo"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
+
+    fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
+        let content = manifest_content?;
+        // Check rust-toolchain.toml or rust-toolchain file format
+        // channel = "1.75" or just "1.75"
+        if content.contains("channel") {
+            if let Some(start) = content.find("channel") {
+                let after = &content[start..];
+                if let Some(quote_start) = after.find('"') {
+                    let after_quote = &after[quote_start + 1..];
+                    if let Some(quote_end) = after_quote.find('"') {
+                        return Some(after_quote[..quote_end].to_string());
+                    }
+                }
+            }
+        }
+        // Simple version string
+        let trimmed = content.trim();
+        if trimmed.starts_with("1.") && trimmed.len() < 10 {
+            return Some(trimmed.to_string());
+        }
+        None
+    }
 }
 
 #[cfg(test)]

@@ -6,13 +6,11 @@ mod elixir;
 mod go;
 mod java;
 mod javascript;
-mod kotlin;
 mod php;
 mod python;
 mod registry;
 mod ruby;
 mod rust;
-mod typescript;
 
 pub use cpp::CppLanguage;
 pub use dotnet::DotNetLanguage;
@@ -20,13 +18,11 @@ pub use elixir::ElixirLanguage;
 pub use go::GoLanguage;
 pub use java::JavaLanguage;
 pub use javascript::JavaScriptLanguage;
-pub use kotlin::KotlinLanguage;
 pub use php::PhpLanguage;
 pub use python::PythonLanguage;
 pub use registry::LanguageRegistry;
 pub use ruby::RubyLanguage;
 pub use rust::RustLanguage;
-pub use typescript::TypeScriptLanguage;
 
 /// Information about a detected language/build system combination
 #[derive(Debug, Clone)]
@@ -69,6 +65,21 @@ pub trait LanguageDefinition: Send + Sync {
 
     /// Get all supported build systems
     fn build_systems(&self) -> &[&str];
+
+    /// Directories to exclude from scanning (e.g., build outputs, caches)
+    fn excluded_dirs(&self) -> &[&str] {
+        &[]
+    }
+
+    /// Workspace configuration files for monorepo detection
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
+
+    /// Detect runtime version from manifest content
+    fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
+        None
+    }
 }
 
 /// Pattern for matching manifest files

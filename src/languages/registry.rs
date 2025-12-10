@@ -25,9 +25,7 @@ impl LanguageRegistry {
         let mut registry = Self::new();
         registry.register(Arc::new(super::RustLanguage));
         registry.register(Arc::new(super::JavaLanguage));
-        registry.register(Arc::new(super::KotlinLanguage));
         registry.register(Arc::new(super::JavaScriptLanguage));
-        registry.register(Arc::new(super::TypeScriptLanguage));
         registry.register(Arc::new(super::PythonLanguage));
         registry.register(Arc::new(super::GoLanguage));
         registry.register(Arc::new(super::DotNetLanguage));
@@ -36,6 +34,38 @@ impl LanguageRegistry {
         registry.register(Arc::new(super::CppLanguage));
         registry.register(Arc::new(super::ElixirLanguage));
         registry
+    }
+
+    /// Get all excluded directories aggregated from all languages
+    pub fn all_excluded_dirs(&self) -> Vec<&str> {
+        let mut dirs: Vec<&str> = Vec::new();
+        for lang in &self.languages {
+            for dir in lang.excluded_dirs() {
+                if !dirs.contains(dir) {
+                    dirs.push(dir);
+                }
+            }
+        }
+        // Add common dirs not language-specific
+        for dir in &[".git", ".idea", ".vscode", "vendor"] {
+            if !dirs.contains(dir) {
+                dirs.push(dir);
+            }
+        }
+        dirs
+    }
+
+    /// Get all workspace config files aggregated from all languages
+    pub fn all_workspace_configs(&self) -> Vec<&str> {
+        let mut configs: Vec<&str> = Vec::new();
+        for lang in &self.languages {
+            for config in lang.workspace_configs() {
+                if !configs.contains(config) {
+                    configs.push(config);
+                }
+            }
+        }
+        configs
     }
 
     /// Register a language definition
@@ -198,5 +228,36 @@ mod tests {
         let detections = registry.detect_all(&manifests);
         assert_eq!(detections.len(), 1);
         assert_eq!(detections[0].language, "Rust");
+    }
+
+    #[test]
+    fn test_all_excluded_dirs() {
+        let registry = LanguageRegistry::with_defaults();
+        let excluded = registry.all_excluded_dirs();
+
+        // Should include common dirs added by registry
+        assert!(excluded.contains(&".git"));
+        assert!(excluded.contains(&".idea"));
+        assert!(excluded.contains(&".vscode"));
+        assert!(excluded.contains(&"vendor"));
+
+        // Should include language-specific dirs
+        assert!(excluded.contains(&"target"));
+        assert!(excluded.contains(&"node_modules"));
+        assert!(excluded.contains(&"__pycache__"));
+
+        // Should NOT include regular directories
+        assert!(!excluded.contains(&"packages"));
+        assert!(!excluded.contains(&"src"));
+    }
+
+    #[test]
+    fn test_all_workspace_configs() {
+        let registry = LanguageRegistry::with_defaults();
+        let configs = registry.all_workspace_configs();
+
+        // Should include workspace configs from languages
+        assert!(configs.contains(&"pnpm-workspace.yaml"));
+        assert!(configs.contains(&"go.work"));
     }
 }

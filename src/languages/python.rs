@@ -1,6 +1,7 @@
 //! Python language definition (pip, poetry, pipenv)
 
 use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use regex::Regex;
 
 pub struct PythonLanguage;
 
@@ -141,6 +142,46 @@ impl LanguageDefinition for PythonLanguage {
     fn build_systems(&self) -> &[&str] {
         &["pip", "poetry", "pipenv"]
     }
+
+    fn excluded_dirs(&self) -> &[&str] {
+        &["__pycache__", ".venv", "venv", ".tox", ".pytest_cache", ".mypy_cache", "dist", "build", "*.egg-info"]
+    }
+
+    fn workspace_configs(&self) -> &[&str] {
+        &[]
+    }
+
+    fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
+        let content = manifest_content?;
+
+        // pyproject.toml: requires-python = ">=3.11"
+        if let Some(caps) = Regex::new(r#"requires-python\s*=\s*"[^"]*(\d+\.\d+)"#)
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        // Pipfile: python_version = "3.11"
+        if let Some(caps) = Regex::new(r#"python_version\s*=\s*"(\d+\.\d+)""#)
+            .ok()
+            .and_then(|re| re.captures(content))
+        {
+            return Some(caps.get(1)?.as_str().to_string());
+        }
+
+        // .python-version file (just contains version)
+        if !content.contains('[') && !content.contains('{') {
+            let trimmed = content.trim();
+            if Regex::new(r"^\d+\.\d+").ok()?.is_match(trimmed) {
+                if let Some(caps) = Regex::new(r"^(\d+\.\d+)").ok()?.captures(trimmed) {
+                    return Some(caps.get(1)?.as_str().to_string());
+                }
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
@@ -233,5 +274,36 @@ version = "0.1.0"
         assert!(template.is_some());
         let t = template.unwrap();
         assert!(t.build_commands.iter().any(|c| c.contains("pipenv")));
+    }
+
+    #[test]
+    fn test_excluded_dirs() {
+        let lang = PythonLanguage;
+        assert!(lang.excluded_dirs().contains(&"__pycache__"));
+        assert!(lang.excluded_dirs().contains(&".venv"));
+    }
+
+    #[test]
+    fn test_detect_version_pyproject() {
+        let lang = PythonLanguage;
+        let content = r#"[project]
+requires-python = ">=3.11"
+"#;
+        assert_eq!(lang.detect_version(Some(content)), Some("3.11".to_string()));
+    }
+
+    #[test]
+    fn test_detect_version_pipfile() {
+        let lang = PythonLanguage;
+        let content = r#"[requires]
+python_version = "3.10"
+"#;
+        assert_eq!(lang.detect_version(Some(content)), Some("3.10".to_string()));
+    }
+
+    #[test]
+    fn test_detect_version_file() {
+        let lang = PythonLanguage;
+        assert_eq!(lang.detect_version(Some("3.11.4")), Some("3.11".to_string()));
     }
 }
