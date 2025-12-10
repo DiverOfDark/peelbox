@@ -1,0 +1,344 @@
+# Tasks: Restructure AI Analysis Pipeline
+
+Each phase delivers compilable, working code that integrates with the existing system.
+Old code is removed incrementally as new code takes over its responsibilities.
+
+---
+
+## Phase 1: Language Registry Foundation
+
+Create the language registry and migrate one language (Rust) to prove the pattern.
+Existing detection continues to work; new registry runs in parallel for validation.
+
+- [ ] 1.1 Create `src/languages/mod.rs` with `LanguageDefinition` trait
+- [ ] 1.2 Create `src/languages/registry.rs` with `LanguageRegistry`
+- [ ] 1.3 Implement `src/languages/rust.rs` (extensions, manifests, detection, templates)
+- [ ] 1.4 Add unit tests for Rust language definition
+- [ ] 1.5 Wire `LanguageRegistry` into `DetectionService` (unused, just instantiated)
+- [ ] 1.6 Verify: `cargo build && cargo test` passes
+
+**Deliverable:** New module compiles, existing behavior unchanged.
+
+---
+
+## Phase 2: Migrate Languages to Registry
+
+Add remaining languages. Still not used in production path, but fully tested.
+
+- [ ] 2.1 Implement `src/languages/java.rs` (Maven, Gradle)
+- [ ] 2.2 Implement `src/languages/kotlin.rs`
+- [ ] 2.3 Implement `src/languages/javascript.rs` (npm, yarn, pnpm, bun)
+- [ ] 2.4 Implement `src/languages/typescript.rs`
+- [ ] 2.5 Implement `src/languages/python.rs` (pip, poetry, pipenv)
+- [ ] 2.6 Implement `src/languages/go.rs`
+- [ ] 2.7 Implement `src/languages/dotnet.rs`
+- [ ] 2.8 Implement `src/languages/ruby.rs`
+- [ ] 2.9 Implement `src/languages/php.rs`
+- [ ] 2.10 Implement `src/languages/cpp.rs`
+- [ ] 2.11 Implement `src/languages/elixir.rs`
+- [ ] 2.12 Add integration test: registry detects same as current code for test repos
+- [ ] 2.13 Verify: `cargo build && cargo test` passes
+
+**Deliverable:** Full language registry, tested against current detection.
+
+---
+
+## Phase 3: FileSystem Abstraction
+
+Create FileSystem trait and RealFileSystem. Wire into existing tool executor.
+
+- [ ] 3.1 Create `src/fs/mod.rs` module structure
+- [ ] 3.2 Define `FileSystem` trait in `src/fs/trait.rs`
+- [ ] 3.3 Implement `RealFileSystem` in `src/fs/real.rs`
+- [ ] 3.4 Update existing `ToolExecutor` to accept `&dyn FileSystem` parameter
+- [ ] 3.5 Pass `RealFileSystem` from current call sites
+- [ ] 3.6 Add unit tests for `RealFileSystem`
+- [ ] 3.7 Verify: `cargo build && cargo test` passes, detection still works
+
+**Deliverable:** Tools use FileSystem trait, production uses RealFileSystem.
+
+---
+
+## Phase 4: MockFileSystem for Testing
+
+Add MockFileSystem and use it to test existing tools.
+
+- [ ] 4.1 Implement `MockFileSystem` in `src/fs/mock.rs`
+- [ ] 4.2 Add unit tests for each existing tool using `MockFileSystem`
+- [ ] 4.3 Verify: `cargo test` passes with new tool tests
+
+**Deliverable:** Tools are unit-testable without real filesystem.
+
+---
+
+## Phase 5: Bootstrap Scanner
+
+Create bootstrap scanner using LanguageRegistry. Inject into system prompt.
+
+- [ ] 5.1 Create `src/bootstrap/mod.rs` module structure
+- [ ] 5.2 Define `BootstrapContext`, `RepoSummary`, `LanguageDetection` in `src/bootstrap/context.rs`
+- [ ] 5.3 Implement `BootstrapScanner` using `LanguageRegistry` in `src/bootstrap/scanner.rs`
+- [ ] 5.4 Implement `format_for_prompt()` for system prompt injection
+- [ ] 5.5 Add bootstrap context to system prompt in existing `GenAIBackend`
+- [ ] 5.6 Remove `src/detection/jumpstart/` (replaced by bootstrap)
+- [ ] 5.7 Add unit tests for bootstrap scanner
+- [ ] 5.8 Verify: `cargo build && cargo test` passes, detection works with bootstrap
+
+**Deliverable:** Bootstrap pre-scan runs before LLM, enriches system prompt. Old jumpstart removed.
+
+---
+
+## Phase 6: Progress Reporting
+
+Add progress handler trait and wire into existing detection flow.
+
+- [ ] 6.1 Create `src/progress/mod.rs` module structure
+- [ ] 6.2 Define `ProgressHandler` trait in `src/progress/handler.rs`
+- [ ] 6.3 Implement `NoOpHandler` (default)
+- [ ] 6.4 Implement `LoggingHandler` in `src/progress/logging.rs`
+- [ ] 6.5 Add `progress: Option<&dyn ProgressHandler>` to `GenAIBackend::detect()`
+- [ ] 6.6 Emit progress events from existing detection loop
+- [ ] 6.7 Wire `--verbose` CLI flag to use `LoggingHandler`
+- [ ] 6.8 Verify: `cargo build && cargo test` passes, `--verbose` shows progress
+
+**Deliverable:** Progress events emitted during detection, visible with --verbose.
+
+---
+
+## Phase 7: LLM Client Abstraction
+
+Extract LLM communication into trait. Existing GenAI logic becomes `GenAIClient`.
+
+- [ ] 7.1 Create `src/llm/mod.rs` module structure
+- [ ] 7.2 Define `LLMClient` trait in `src/llm/client.rs`
+- [ ] 7.3 Define `LLMResponse`, `ToolCall` types in `src/llm/types.rs`
+- [ ] 7.4 Extract existing genai logic into `GenAIClient` implementing `LLMClient`
+- [ ] 7.5 Update `GenAIBackend` to use `GenAIClient` via trait
+- [ ] 7.6 Add unit tests for `GenAIClient`
+- [ ] 7.7 Verify: `cargo build && cargo test` passes, detection unchanged
+
+**Deliverable:** LLM communication behind trait, GenAI is one implementation.
+
+---
+
+## Phase 8: Mock LLM Client
+
+Add MockLLMClient for testing detection logic without real LLM.
+
+- [ ] 8.1 Implement `MockLLMClient` with scripted responses in `src/llm/mock.rs`
+- [ ] 8.2 Add integration tests using `MockLLMClient` + `MockFileSystem`
+- [ ] 8.3 Test full detection flow with mocked dependencies
+- [ ] 8.4 Verify: `cargo test` passes with mock-based integration tests
+
+**Deliverable:** Full detection testable without external dependencies.
+
+---
+
+## Phase 9: Embedded LLM Client
+
+Implement zero-config local inference using Candle. Falls back when no API keys or Ollama available.
+
+- [ ] 9.1 Add Candle dependencies to `Cargo.toml` with feature flags (`embedded-llm`, `cuda`, `metal`)
+- [ ] 9.2 Create `src/llm/embedded/mod.rs` module structure
+- [ ] 9.3 Implement `HardwareDetector` in `src/llm/embedded/hardware.rs` (RAM, CUDA, Metal detection)
+- [ ] 9.4 Implement `ModelSelector` in `src/llm/embedded/models.rs` (select model by available RAM)
+- [ ] 9.5 Implement `ModelDownloader` in `src/llm/embedded/download.rs` (HuggingFace hub integration)
+- [ ] 9.6 Implement interactive download prompt (skip in CI, detect via `std::io::stdin().is_terminal()`)
+- [ ] 9.7 Implement `EmbeddedClient` in `src/llm/embedded/client.rs` implementing `LLMClient`
+- [ ] 9.8 Add `select_llm_client()` function with provider fallback chain (env → Ollama → embedded)
+- [ ] 9.9 Wire `select_llm_client()` into CLI default behavior
+- [ ] 9.10 Add unit tests for hardware detection and model selection
+- [ ] 9.11 Add integration test with small model (1.5B) for CI
+- [ ] 9.12 Verify: `cargo build && cargo test` passes, `aipack detect` works without any config
+
+**Deliverable:** Zero-config local inference works out of the box.
+
+---
+
+## Phase 10: Validation System
+
+Extract validation logic into dedicated module. Wire into existing flow.
+
+- [ ] 10.1 Create `src/validation/mod.rs` module structure
+- [ ] 10.2 Define `ValidationRule` trait in `src/validation/rules.rs`
+- [ ] 10.3 Implement validation rules: `RequiredFieldsRule`, `NonEmptyCommandsRule`, `ValidImageNameRule`, `ConfidenceRangeRule`
+- [ ] 10.4 Implement `Validator` in `src/validation/validator.rs`
+- [ ] 10.5 Replace inline validation in `GenAIBackend` with `Validator`
+- [ ] 10.6 Add unit tests for each validation rule
+- [ ] 10.7 Verify: `cargo build && cargo test` passes, validation works
+
+**Deliverable:** Validation extracted, rules are testable individually.
+
+---
+
+## Phase 11: Tool System Refactor
+
+Restructure tools with proper trait, registry, and caching.
+
+- [ ] 11.1 Create `src/tools/mod.rs` module structure
+- [ ] 11.2 Define `Tool` trait in `src/tools/trait.rs`
+- [ ] 11.3 Migrate existing tools to implement `Tool` trait
+- [ ] 11.4 Implement `ToolRegistry` in `src/tools/registry.rs`
+- [ ] 11.5 Implement `ToolCache` in `src/tools/cache.rs`
+- [ ] 11.6 Implement `ToolSystem` facade in `src/tools/system.rs`
+- [ ] 11.7 Update `GenAIBackend` to use `ToolSystem`
+- [ ] 11.8 Remove `src/detection/tools/` (replaced by `src/tools/`)
+- [ ] 11.9 Verify: `cargo build && cargo test` passes, tools work
+
+**Deliverable:** Tools behind clean abstraction with caching. Old tool code removed.
+
+---
+
+## Phase 12: GetBestPractices via Registry
+
+Update best practices tool to use LanguageRegistry instead of hardcoded templates.
+
+- [ ] 12.1 Update `GetBestPracticesTool` to accept `&LanguageRegistry`
+- [ ] 12.2 Implement `best_practices()` lookup via registry
+- [ ] 12.3 Remove old hardcoded template code
+- [ ] 12.4 Add tests for best practices with various languages
+- [ ] 12.5 Verify: `cargo build && cargo test` passes
+
+**Deliverable:** Best practices served from language definitions.
+
+---
+
+## Phase 13: Pipeline Context
+
+Create PipelineContext to own long-lived dependencies.
+
+- [ ] 13.1 Create `src/pipeline/mod.rs` module structure
+- [ ] 13.2 Define `PipelineConfig` in `src/pipeline/config.rs`
+- [ ] 13.3 Implement `PipelineContext` owning LLMClient, FileSystem, LanguageRegistry, Validator
+- [ ] 13.4 Update `DetectionService` to own `PipelineContext`
+- [ ] 13.5 Add `PipelineContext::with_mocks()` for testing
+- [ ] 13.6 Verify: `cargo build && cargo test` passes
+
+**Deliverable:** Dependencies centralized in context, easy to inject mocks.
+
+---
+
+## Phase 14: Analysis Pipeline
+
+Extract detection loop into AnalysisPipeline. Replace GenAIBackend internals.
+
+- [ ] 14.1 Implement `AnalysisPipeline` in `src/pipeline/analysis.rs`
+- [ ] 14.2 Move detection loop logic from `GenAIBackend` to `AnalysisPipeline`
+- [ ] 14.3 Integrate bootstrap, progress, tools, validation in pipeline
+- [ ] 14.4 Update `DetectionService::detect()` to use `AnalysisPipeline`
+- [ ] 14.5 Remove `GenAIBackend::detect()` method (now in pipeline)
+- [ ] 14.6 Remove `src/detection/prompt.rs` (replaced by bootstrap)
+- [ ] 14.7 Clean up `src/detection/mod.rs` exports
+- [ ] 14.8 Remove unused types from `src/ai/`
+- [ ] 14.9 Add integration tests for `AnalysisPipeline`
+- [ ] 14.10 Run `cargo fmt && cargo clippy`
+- [ ] 14.11 Verify: `cargo build && cargo test && cargo clippy` passes, CLI works
+
+**Deliverable:** Clean pipeline orchestration, old monolithic code removed.
+
+---
+
+## Phase 15: Test Fixtures
+
+Create minimal test repositories for E2E testing.
+
+- [ ] 15.1 Create `tests/fixtures/` directory structure
+- [ ] 15.2 Create single-language fixtures: rust-cargo, rust-workspace
+- [ ] 15.3 Create single-language fixtures: node-npm, node-yarn, node-pnpm
+- [ ] 15.4 Create single-language fixtures: python-pip, python-poetry
+- [ ] 15.5 Create single-language fixtures: java-maven, java-gradle, kotlin-gradle
+- [ ] 15.6 Create single-language fixtures: go-mod, dotnet-csproj
+- [ ] 15.7 Create monorepo fixtures: npm-workspaces, turborepo
+- [ ] 15.8 Create monorepo fixtures: cargo-workspace, gradle-multiproject
+- [ ] 15.9 Create monorepo fixtures: maven-multimodule, polyglot
+- [ ] 15.10 Create edge-case fixtures: empty-repo, no-manifest, multiple-manifests
+- [ ] 15.11 Create edge-case fixtures: nested-projects, vendor-heavy
+- [ ] 15.12 Create `tests/fixtures/expected/` with expected JSON outputs
+- [ ] 15.13 Verify: all fixtures are minimal but representative
+
+**Deliverable:** Comprehensive test fixture library covering common and edge cases.
+
+---
+
+## Phase 16: LLM Recording System
+
+Implement request-response recording for deterministic testing.
+
+- [ ] 16.1 Create `src/llm/recording.rs` module
+- [ ] 16.2 Define `RecordingMode` enum (Record, Replay, Auto)
+- [ ] 16.3 Define `RecordedExchange` and `RecordedRequest` types
+- [ ] 16.4 Implement `RecordingLLMClient` wrapping any `LLMClient`
+- [ ] 16.5 Implement request hashing (canonical JSON → MD5)
+- [ ] 16.6 Implement recording file I/O (JSON format)
+- [ ] 16.7 Add `AIPACK_RECORDING_MODE` environment variable support
+- [ ] 16.8 Add `AIPACK_RECORDINGS_DIR` environment variable support
+- [ ] 16.9 Add unit tests for recording/replay logic
+- [ ] 16.10 Verify: `cargo build && cargo test` passes
+
+**Deliverable:** LLM responses can be recorded and replayed deterministically.
+
+---
+
+## Phase 17: E2E Test Suite
+
+Implement end-to-end tests using fixtures and recordings.
+
+- [ ] 17.1 Create `tests/e2e/mod.rs` test module
+- [ ] 17.2 Implement test utilities: `create_fixture()`, `assert_detection()`
+- [ ] 17.3 Implement single-language E2E tests (rust, node, python, java, go)
+- [ ] 17.4 Implement monorepo E2E tests (turborepo, cargo-workspace, npm-workspaces)
+- [ ] 17.5 Implement edge-case E2E tests (empty, no-manifest, multiple-manifests)
+- [ ] 17.6 Add performance test: detection timeout validation
+- [ ] 17.7 Generate initial recordings using embedded LLM
+- [ ] 17.8 Verify: `cargo test --test e2e` passes in replay mode
+
+**Deliverable:** Full E2E test coverage with deterministic LLM responses.
+
+---
+
+## Phase 18: Monorepo Support
+
+Extend UniversalBuild to support monorepo detection.
+
+- [ ] 18.1 Add `projects: Option<Vec<ProjectBuild>>` to `UniversalBuild`
+- [ ] 18.2 Define `ProjectBuild` struct (path, name, build, runtime)
+- [ ] 18.3 Update `LanguageRegistry` with monorepo detection signals
+- [ ] 18.4 Add monorepo indicators to `BootstrapContext`
+- [ ] 18.5 Update system prompt to guide LLM on monorepo analysis
+- [ ] 18.6 Update validation rules for monorepo output
+- [ ] 18.7 Add E2E tests for each monorepo type
+- [ ] 18.8 Verify: `cargo build && cargo test` passes, monorepos detected correctly
+
+**Deliverable:** aipack correctly detects and reports monorepo structure.
+
+---
+
+## Phase 19: CI Test Pipeline
+
+Set up GitHub Actions for automated testing.
+
+- [ ] 19.1 Create `.github/workflows/test.yml`
+- [ ] 19.2 Configure unit test job (`cargo test --lib`)
+- [ ] 19.3 Configure integration test job with replay mode
+- [ ] 19.4 Configure E2E recording job (main branch only)
+- [ ] 19.5 Add recording auto-commit on main branch
+- [ ] 19.6 Add clippy and fmt checks
+- [ ] 19.7 Add cargo doc build check
+- [ ] 19.8 Verify: CI pipeline runs successfully
+
+**Deliverable:** Automated CI pipeline with recording updates.
+
+---
+
+## Phase 20: Documentation
+
+Update documentation to reflect new architecture.
+
+- [ ] 20.1 Update CLAUDE.md with new module structure
+- [ ] 20.2 Add rustdoc comments to public APIs
+- [ ] 20.3 Update CHANGELOG.md with refactoring notes
+- [ ] 20.4 Document test fixture creation process
+- [ ] 20.5 Document recording system usage
+- [ ] 20.6 Verify: `cargo doc` generates without warnings
+
+**Deliverable:** Documentation matches implementation.
