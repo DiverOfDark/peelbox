@@ -3,7 +3,7 @@
 //! This module defines the core trait that all LLM backends must implement
 //! to provide build system detection capabilities.
 
-use crate::detection::JumpstartContext;
+use crate::bootstrap::BootstrapContext;
 use crate::output::UniversalBuild;
 use async_trait::async_trait;
 use std::path::PathBuf;
@@ -22,10 +22,10 @@ pub use super::genai_backend::BackendError;
 /// information about the repository through tools (list_files, read_file, etc.)
 /// until it has enough information to submit a final detection result.
 ///
-/// # Jumpstart Context
+/// # Bootstrap Context
 ///
-/// An optional `JumpstartContext` can be provided to pre-populate the LLM with
-/// discovered manifest files, reducing the number of tool calls needed.
+/// An optional `BootstrapContext` can be provided to pre-populate the LLM with
+/// pre-scanned repository analysis, reducing the number of tool calls needed.
 ///
 /// # Example
 ///
@@ -57,7 +57,7 @@ pub trait LLMBackend: Send + Sync {
     /// # Arguments
     ///
     /// * `repo_path` - Path to the repository root directory
-    /// * `jumpstart_context` - Optional pre-scanned manifest information
+    /// * `bootstrap_context` - Optional pre-scanned repository analysis
     ///
     /// # Returns
     ///
@@ -74,7 +74,7 @@ pub trait LLMBackend: Send + Sync {
     async fn detect(
         &self,
         repo_path: PathBuf,
-        jumpstart_context: Option<JumpstartContext>,
+        bootstrap_context: Option<BootstrapContext>,
     ) -> Result<UniversalBuild, BackendError>;
 
     /// Returns the human-readable name of this backend

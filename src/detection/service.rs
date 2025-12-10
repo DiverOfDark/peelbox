@@ -380,27 +380,27 @@ impl DetectionService {
 
         info!("Starting detection for repository: {}", repo_path.display());
 
-        // Run jumpstart scan to pre-discover manifest files
-        let jumpstart_context = match self.run_jumpstart_scan(&repo_path) {
+        // Run bootstrap scan to pre-analyze repository
+        let bootstrap_context = match self.run_bootstrap_scan(&repo_path) {
             Ok(context) => {
                 info!(
-                    manifests_found = context.manifest_files.len(),
+                    detections_found = context.detections.len(),
                     scan_time_ms = context.scan_time_ms,
-                    "Jumpstart scan completed successfully"
+                    "Bootstrap scan completed successfully"
                 );
                 Some(context)
             }
             Err(e) => {
                 warn!(
                     error = %e,
-                    "Jumpstart scan failed, continuing with normal detection"
+                    "Bootstrap scan failed, continuing with normal detection"
                 );
                 None
             }
         };
 
         // Delegate to backend for tool-based detection
-        let result = self.backend.detect(repo_path, jumpstart_context).await?;
+        let result = self.backend.detect(repo_path, bootstrap_context).await?;
 
         let elapsed = start.elapsed();
 
@@ -415,24 +415,22 @@ impl DetectionService {
         Ok(result)
     }
 
-    /// Runs jumpstart scan to pre-discover manifest files
-    fn run_jumpstart_scan(
+    /// Runs bootstrap scan to pre-analyze repository
+    fn run_bootstrap_scan(
         &self,
         repo_path: &Path,
-    ) -> Result<crate::detection::JumpstartContext, ServiceError> {
-        use crate::detection::jumpstart::{JumpstartContext, JumpstartScanner};
+    ) -> Result<crate::bootstrap::BootstrapContext, ServiceError> {
+        use crate::bootstrap::BootstrapScanner;
 
-        let scanner = JumpstartScanner::new(repo_path.to_path_buf()).map_err(|e| {
-            ServiceError::DetectionFailed(format!("Jumpstart scan setup failed: {}", e))
-        })?;
+        let scanner =
+            BootstrapScanner::with_registry(repo_path.to_path_buf(), self.language_registry.clone())
+                .map_err(|e| {
+                    ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
+                })?;
 
-        let scan_start = Instant::now();
-        let manifests = scanner
+        scanner
             .scan()
-            .map_err(|e| ServiceError::DetectionFailed(format!("Jumpstart scan failed: {}", e)))?;
-        let scan_time_ms = scan_start.elapsed().as_millis() as u64;
-
-        Ok(JumpstartContext::from_manifests(manifests, scan_time_ms))
+            .map_err(|e| ServiceError::DetectionFailed(format!("Bootstrap scan failed: {}", e)))
     }
 
     /// Detects build system using a repository path from context

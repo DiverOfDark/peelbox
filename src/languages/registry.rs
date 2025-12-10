@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Registry of language definitions for build system detection
+#[derive(Clone)]
 pub struct LanguageRegistry {
     languages: Vec<Arc<dyn LanguageDefinition>>,
     manifest_index: HashMap<String, Vec<(usize, u8)>>,

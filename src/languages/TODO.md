@@ -66,6 +66,30 @@ Languages should detect and recommend appropriate runtime versions based on proj
 - Support versions: net6.0, net7.0, net8.0
 - Default to net8.0 if not specified
 
+## Move Scanner Constants to Language Definitions
+
+The bootstrap scanner has hardcoded constants that should be moved to the language registry:
+
+### Excluded Directories (`scanner.rs:is_excluded`)
+Currently hardcoded in `BootstrapScanner::is_excluded()`:
+- `.git`, `node_modules`, `target`, `dist`, `build`, `out`, `.next`, `.nuxt`
+- `venv`, `.venv`, `__pycache__`, `.pytest_cache`, `vendor`
+- `.idea`, `.vscode`, `coverage`, `.gradle`, `.m2`, `.cargo`
+
+Should be:
+- Add `excluded_dirs()` method to `LanguageDefinition` trait
+- Each language provides its own excluded directories
+- Scanner aggregates from all registered languages
+
+### Workspace Configurations (`scanner.rs:is_workspace_config`)
+Currently hardcoded in `BootstrapScanner::is_workspace_config()`:
+- `pnpm-workspace.yaml`, `lerna.json`, `nx.json`, `turbo.json`, `rush.json`
+
+Should be:
+- Add `workspace_configs()` method to `LanguageDefinition` trait
+- JavaScript/TypeScript language provides these workspace config files
+- Other languages can provide their own (e.g., Cargo workspace, Gradle multi-project)
+
 ## Implementation Plan
 
 1. Add `detect_version()` method to `LanguageDefinition` trait
@@ -73,3 +97,5 @@ Languages should detect and recommend appropriate runtime versions based on proj
 3. Implement version detection for each language
 4. Update best practices templates to use detected version
 5. Add tests for version detection edge cases
+6. Add `excluded_dirs()` and `workspace_configs()` to `LanguageDefinition` trait
+7. Migrate hardcoded constants from `BootstrapScanner` to language definitions

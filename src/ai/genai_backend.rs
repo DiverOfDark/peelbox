@@ -588,11 +588,11 @@ impl GenAIBackend {
     /// # Arguments
     ///
     /// * `repo_path` - Path to the repository root directory
-    /// * `jumpstart_context` - Optional pre-scanned manifest information to guide detection
+    /// * `bootstrap_context` - Optional pre-scanned repository analysis to guide detection
     pub async fn detect(
         &self,
         repo_path: PathBuf,
-        jumpstart_context: Option<crate::detection::JumpstartContext>,
+        bootstrap_context: Option<crate::bootstrap::BootstrapContext>,
     ) -> Result<UniversalBuild, BackendError> {
         use crate::detection::tools::{ToolExecutor, ToolRegistry};
 
@@ -611,16 +611,16 @@ impl GenAIBackend {
         let tools = ToolRegistry::create_all_tools();
         debug!("Initialized {} tools for detection", tools.len());
 
-        // Build user message with optional jumpstart context
-        let user_message = if let Some(ref context) = jumpstart_context {
+        // Build user message with optional bootstrap context
+        let user_message = if let Some(ref context) = bootstrap_context {
             info!(
-                manifests = context.manifest_files.len(),
-                "Using jumpstart context with {} pre-scanned manifests",
-                context.manifest_files.len()
+                manifests = context.detections.len(),
+                "Using bootstrap context with {} pre-scanned detections",
+                context.detections.len()
             );
             format!(
                 "{}\n\nAnalyze the repository. All file paths are relative to the repository root.",
-                context.to_prompt_string()
+                context.format_for_prompt()
             )
         } else {
             "Analyze the repository. All file paths are relative to the repository root.".to_string()
@@ -1005,9 +1005,9 @@ impl LLMBackend for GenAIBackend {
     async fn detect(
         &self,
         repo_path: PathBuf,
-        jumpstart_context: Option<crate::detection::JumpstartContext>,
+        bootstrap_context: Option<crate::bootstrap::BootstrapContext>,
     ) -> Result<UniversalBuild, BackendError> {
-        self.detect(repo_path, jumpstart_context).await
+        self.detect(repo_path, bootstrap_context).await
     }
 
     fn name(&self) -> &str {
