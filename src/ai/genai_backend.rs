@@ -26,18 +26,16 @@
 
 use crate::ai::backend::LLMBackend;
 use crate::detection::prompt::SYSTEM_PROMPT;
+use crate::llm::{ChatMessage as LLMChatMessage, GenAIClient, LLMClient, LLMRequest};
 use crate::output::UniversalBuild;
 use crate::progress::{NoOpHandler, ProgressEvent, ProgressHandler};
 use async_trait::async_trait;
 use clap::ValueEnum;
 use genai::adapter::AdapterKind;
-use genai::chat::{ChatMessage, ChatOptions, ChatRequest, ToolResponse};
-use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
-use genai::{Client, ModelIden, ServiceTarget};
 use reqwest;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
@@ -149,7 +147,7 @@ pub enum Provider {
 
 impl Provider {
     /// Returns the provider name for logging
-    fn name(&self) -> &'static str {
+    pub fn name(&self) -> &'static str {
         match self {
             Provider::Ollama => "Ollama",
             Provider::Claude => "Claude",
@@ -161,7 +159,7 @@ impl Provider {
     }
 
     /// Returns the AdapterKind for genai ServiceTarget
-    fn adapter_kind(&self) -> AdapterKind {
+    pub fn adapter_kind(&self) -> AdapterKind {
         match self {
             Provider::Ollama => AdapterKind::Ollama,
             Provider::OpenAI => AdapterKind::OpenAI,
@@ -173,7 +171,7 @@ impl Provider {
     }
 
     /// Reads custom endpoint from environment variable
-    fn custom_endpoint(&self) -> Option<String> {
+    pub fn custom_endpoint(&self) -> Option<String> {
         match self {
             Provider::Ollama => std::env::var("OLLAMA_HOST").ok(),
             Provider::OpenAI => std::env::var("OPENAI_API_BASE").ok(),
@@ -185,7 +183,7 @@ impl Provider {
     }
 
     /// Returns the environment variable name for API key
-    fn api_key_env_var(&self) -> &'static str {
+    pub fn api_key_env_var(&self) -> &'static str {
         match self {
             Provider::Ollama => "", // Ollama doesn't require API key
             Provider::OpenAI => "OPENAI_API_KEY",
@@ -273,17 +271,11 @@ struct OllamaModel {
 ///
 /// This client is thread-safe and can be shared across threads using `Arc`.
 pub struct GenAIBackend {
-    /// GenAI client instance
-    client: Client,
-
-    /// Model name (without provider prefix)
-    model: String,
+    /// LLM client for chat completions
+    llm_client: Arc<dyn LLMClient>,
 
     /// Provider type
     provider: Provider,
-
-    /// Request timeout
-    timeout: Duration,
 
     /// Maximum tool iterations for detection
     max_tool_iterations: usize,
@@ -360,67 +352,7 @@ impl GenAIBackend {
         max_tokens: Option<u32>,
         max_tool_iterations: Option<usize>,
     ) -> Result<Self, BackendError> {
-        // Check for custom endpoint
-        let custom_endpoint = provider.custom_endpoint();
-
-        // Create genai client with custom resolver if endpoint is specified
-        let client = if let Some(endpoint_url) = custom_endpoint {
-            debug!(
-                "Using custom endpoint for {}: {}",
-                provider.name(),
-                endpoint_url
-            );
-
-            // Create a ServiceTargetResolver for the custom endpoint
-            let provider_clone = provider;
-            let model_clone = model.clone();
-            let endpoint_clone = endpoint_url.clone();
-
-            let resolver = ServiceTargetResolver::from_resolver_fn(
-                move |_service_target: ServiceTarget| -> Result<ServiceTarget, genai::resolver::Error> {
-                    debug!(
-                        "ServiceTargetResolver: creating custom endpoint for {} at {}",
-                        provider_clone.name(),
-                        endpoint_clone
-                    );
-
-                    // Create endpoint from the custom URL
-                    let endpoint = Endpoint::from_owned(endpoint_clone.clone());
-
-                    // Get authentication from environment variable
-                    let api_key_var = provider_clone.api_key_env_var();
-                    let auth = if !api_key_var.is_empty() {
-                        AuthData::from_env(api_key_var)
-                    } else {
-                        // For Ollama which doesn't require auth
-                        AuthData::from_single("")
-                    };
-
-                    // Build model identifier
-                    let model_iden = ModelIden::new(provider_clone.adapter_kind(), &model_clone);
-
-                    debug!(
-                        "ServiceTargetResolver: returning endpoint URL={}, adapter={:?}, model={}",
-                        endpoint_clone,
-                        provider_clone.adapter_kind(),
-                        model_clone
-                    );
-
-                    Ok(ServiceTarget {
-                        endpoint,
-                        auth,
-                        model: model_iden,
-                    })
-                },
-            );
-
-            Client::builder()
-                .with_service_target_resolver(resolver)
-                .build()
-        } else {
-            // Use default client (reads standard environment variables)
-            Client::default()
-        };
+        let timeout = timeout.unwrap_or(Duration::from_secs(30));
 
         debug!(
             "Creating GenAI backend: provider={}, model={}",
@@ -428,11 +360,12 @@ impl GenAIBackend {
             model,
         );
 
+        // Create the LLM client
+        let llm_client = GenAIClient::new(provider, model.clone(), timeout).await?;
+
         let backend = Self {
-            client,
-            model: model.clone(),
+            llm_client: Arc::new(llm_client),
             provider,
-            timeout: timeout.unwrap_or(Duration::from_secs(30)),
             max_tool_iterations: max_tool_iterations.unwrap_or(10),
             max_tokens,
         };
@@ -609,7 +542,7 @@ impl GenAIBackend {
         info!(
             "Starting tool-based detection for repository: {} using {}",
             repo_path.display(),
-            self.provider.name()
+            self.llm_client.name()
         );
 
         // Create tool executor
@@ -617,8 +550,8 @@ impl GenAIBackend {
             message: format!("Failed to create tool executor: {}", e),
         })?;
 
-        // Get all tools
-        let tools = ToolRegistry::create_all_tools();
+        // Get all tools as ToolDefinition
+        let tools = ToolRegistry::create_tool_definitions();
         debug!("Initialized {} tools for detection", tools.len());
 
         // Build user message with optional bootstrap context
@@ -642,16 +575,15 @@ impl GenAIBackend {
             "Analyze the repository. All file paths are relative to the repository root.".to_string()
         };
 
-        // Initial conversation
-        let mut messages: Vec<ChatMessage> = vec![
-            ChatMessage::system(SYSTEM_PROMPT),
-            ChatMessage::user(user_message),
+        // Initial conversation using our LLM types
+        let mut messages: Vec<LLMChatMessage> = vec![
+            LLMChatMessage::system(SYSTEM_PROMPT),
+            LLMChatMessage::user(user_message),
         ];
 
         let max_iterations = self.max_tool_iterations;
         let mut iteration = 0;
         let start = std::time::Instant::now();
-        let total_timeout = self.timeout.saturating_mul(max_iterations as u32);
 
         // Track which tools have been called to enforce validation
         let mut has_read_file = false;
@@ -665,21 +597,6 @@ impl GenAIBackend {
 
         loop {
             iteration += 1;
-
-            // Check total elapsed time
-            if start.elapsed() >= total_timeout {
-                let error_msg = format!(
-                    "Detection timeout: exceeded total time limit of {} seconds",
-                    total_timeout.as_secs()
-                );
-                error!("{}", error_msg);
-                progress.on_progress(&ProgressEvent::Failed {
-                    error: error_msg.clone(),
-                });
-                return Err(BackendError::TimeoutError {
-                    seconds: total_timeout.as_secs(),
-                });
-            }
 
             if iteration > max_iterations {
                 let error_msg = format!("Exceeded max iterations ({})", max_iterations);
@@ -695,68 +612,54 @@ impl GenAIBackend {
             // Emit LLM request started event
             progress.on_progress(&ProgressEvent::LlmRequestStarted { iteration });
 
-            // Create chat request with tools
-            let request_start = std::time::Instant::now();
-            let request = ChatRequest::new(messages.clone()).with_tools(tools.clone());
+            // Create LLM request with tools
+            let mut request = LLMRequest::new(messages.clone())
+                .with_tools(tools.clone())
+                .with_temperature(0.3)
+                .with_stop_sequences(vec![
+                    "</thinking>".to_string(),
+                    "In summary:".to_string(),
+                    "To reiterate:".to_string(),
+                    "Let me repeat:".to_string(),
+                ]);
 
-            // Build options with max_tokens and stop sequences
-            let mut options = ChatOptions::default().with_temperature(0.3);
             if let Some(max_tokens) = self.max_tokens {
-                options = options.with_max_tokens(max_tokens);
+                request = request.with_max_tokens(max_tokens);
             }
 
-            // Add stop sequences to prevent repetitive reasoning
-            options = options.with_stop_sequences(vec![
-                "</thinking>".to_string(),
-                "In summary:".to_string(),
-                "To reiterate:".to_string(),
-                "Let me repeat:".to_string(),
-            ]);
+            // Execute LLM request via trait
+            let response = self.llm_client.chat(request).await?;
 
-            // Execute LLM request with per-call timeout
-            let response = match tokio::time::timeout(
-                self.timeout,
-                self.client.exec_chat(&self.model, request, Some(&options)),
-            )
-            .await
-            {
-                Ok(Ok(resp)) => resp,
-                Ok(Err(e)) => {
-                    error!("{} API error: {}", self.provider.name(), e);
-                    return Err(BackendError::ApiError {
-                        message: format!("{} request failed: {}", self.provider.name(), e),
-                        status_code: None,
-                    });
-                }
-                Err(_) => {
-                    error!(
-                        "{} request timed out after {}s",
-                        self.provider.name(),
-                        self.timeout.as_secs()
-                    );
-                    return Err(BackendError::TimeoutError {
-                        seconds: self.timeout.as_secs(),
-                    });
-                }
-            };
-
-            let tool_calls = response.tool_calls();
+            let tool_calls = &response.tool_calls;
 
             // Emit LLM response received event
             progress.on_progress(&ProgressEvent::LlmResponseReceived {
                 iteration,
                 tool_calls: tool_calls.len(),
-                response_time: request_start.elapsed(),
+                response_time: response.response_time,
             });
 
             debug!(
                 "{} responded with {} tool calls",
-                self.provider.name(),
+                self.llm_client.name(),
                 tool_calls.len()
             );
 
-            // Add assistant message to conversation (may contain text + tool calls)
-            messages.push(ChatMessage::assistant(response.content.clone()));
+            // Add assistant message to conversation
+            if tool_calls.is_empty() {
+                messages.push(LLMChatMessage::assistant(&response.content));
+            } else {
+                // Convert our ToolCall to the format needed for assistant message
+                let llm_tool_calls: Vec<crate::llm::ToolCall> = tool_calls
+                    .iter()
+                    .map(|tc| crate::llm::ToolCall {
+                        call_id: tc.call_id.clone(),
+                        name: tc.name.clone(),
+                        arguments: tc.arguments.clone(),
+                    })
+                    .collect();
+                messages.push(LLMChatMessage::assistant_with_tools(&response.content, llm_tool_calls));
+            }
 
             if tool_calls.is_empty() {
                 consecutive_zero_tool_calls += 1;
@@ -771,7 +674,7 @@ impl GenAIBackend {
                             "LLM did not call any tools after {} attempts. You must call a tool on every response.",
                             consecutive_zero_tool_calls
                         ),
-                        raw_response: response.first_text().map(|s| s.to_string()),
+                        raw_response: Some(response.content.clone()),
                     });
                 }
 
@@ -781,9 +684,8 @@ impl GenAIBackend {
                 );
 
                 // Add user message reminder
-                messages.push(ChatMessage::user(
+                messages.push(LLMChatMessage::user(
                     "You must call a tool now. Do not respond with text. Use one of the available tools to analyze the repository."
-                        .to_string(),
                 ));
 
                 continue; // Continue to next iteration
@@ -793,7 +695,7 @@ impl GenAIBackend {
             consecutive_zero_tool_calls = 0;
 
             // Check if submit_detection is being called
-            let has_submit_detection = tool_calls.iter().any(|tc| tc.fn_name == "submit_detection");
+            let has_submit_detection = tool_calls.iter().any(|tc| tc.name == "submit_detection");
             let is_last_iteration = iteration >= max_iterations - 1;
             let is_only_tool_call = tool_calls.len() == 1;
 
@@ -802,14 +704,14 @@ impl GenAIBackend {
                 has_submit_detection && (is_only_tool_call || is_last_iteration);
 
             // Execute each tool call
-            for tool_call in &tool_calls {
+            for tool_call in tool_calls {
                 debug!(
                     "Executing tool: {} with call_id: {}",
-                    tool_call.fn_name, tool_call.call_id
+                    tool_call.name, tool_call.call_id
                 );
 
                 // Handle submit_detection
-                if tool_call.fn_name == "submit_detection" {
+                if tool_call.name == "submit_detection" {
                     if should_accept_submit_detection {
                         // Warn if submitting without reading files
                         if !has_read_file {
@@ -817,7 +719,7 @@ impl GenAIBackend {
                         }
 
                         // Parse and validate the UniversalBuild
-                        match parse_detection_from_tool_call(&tool_call.fn_arguments) {
+                        match parse_detection_from_tool_call(&tool_call.arguments) {
                             Ok(universal_build) => {
                                 // Emit validation started event
                                 progress.on_progress(&ProgressEvent::ValidationStarted);
@@ -864,9 +766,9 @@ impl GenAIBackend {
                                         }
 
                                         // Otherwise, send the validation error back to the LLM and continue
-                                        messages.push(ToolResponse {
-                                            call_id: tool_call.call_id.clone(),
-                                            content: format!(
+                                        messages.push(LLMChatMessage::tool_response(
+                                            &tool_call.call_id,
+                                            format!(
                                                 "VALIDATION ERROR: Your UniversalBuild submission was rejected.\n\n\
                                                 Reason: {}\n\n\
                                                 Please fix this validation error and call submit_detection again with the corrected UniversalBuild. \
@@ -878,7 +780,7 @@ impl GenAIBackend {
                                                 - Confidence must be between 0.0 and 1.0",
                                                 validation_error
                                             ),
-                                        }.into());
+                                        ));
                                         continue;
                                     }
                                 }
@@ -900,9 +802,9 @@ impl GenAIBackend {
                                     _ => format!("{:?}", parse_error),
                                 };
 
-                                messages.push(ToolResponse {
-                                    call_id: tool_call.call_id.clone(),
-                                    content: format!(
+                                messages.push(LLMChatMessage::tool_response(
+                                    &tool_call.call_id,
+                                    format!(
                                         "PARSE ERROR: Your UniversalBuild submission has invalid JSON structure.\n\n\
                                         Reason: {}\n\n\
                                         Please fix the JSON structure and call submit_detection again. Common issues:\n\
@@ -913,7 +815,7 @@ impl GenAIBackend {
                                         Refer to the submit_detection tool schema for the correct structure.",
                                         error_message
                                     ),
-                                }.into());
+                                ));
                                 continue;
                             }
                         }
@@ -921,30 +823,30 @@ impl GenAIBackend {
                         // Skip submit_detection and continue with other tools
                         if !has_read_file {
                             warn!("Skipping submit_detection - no files read yet. LLM should call read_file first.");
-                            messages.push(ToolResponse {
-                                call_id: tool_call.call_id.clone(),
-                                content: "Error: Cannot submit detection yet. You must call read_file on at least one build configuration file before submitting detection. Please read the primary build file to verify the build system.".to_string(),
-                            }.into());
+                            messages.push(LLMChatMessage::tool_response(
+                                &tool_call.call_id,
+                                "Error: Cannot submit detection yet. You must call read_file on at least one build configuration file before submitting detection. Please read the primary build file to verify the build system.",
+                            ));
                         } else if tool_calls.len() > 1 {
                             warn!("Skipping submit_detection - called alongside {} other tools. LLM should call it alone.", tool_calls.len() - 1);
-                            messages.push(ToolResponse {
-                                call_id: tool_call.call_id.clone(),
-                                content: "Error: Cannot submit detection alongside other tool calls. Call submit_detection alone in a separate response after reviewing all necessary files.".to_string(),
-                            }.into());
+                            messages.push(LLMChatMessage::tool_response(
+                                &tool_call.call_id,
+                                "Error: Cannot submit detection alongside other tool calls. Call submit_detection alone in a separate response after reviewing all necessary files.",
+                            ));
                         }
                         continue; // Skip this tool call
                     }
                 }
 
                 // Track read_file calls
-                if tool_call.fn_name == "read_file" {
+                if tool_call.name == "read_file" {
                     has_read_file = true;
                 }
 
                 // Create cache key from tool name + arguments
                 let mut hasher = DefaultHasher::new();
-                tool_call.fn_name.hash(&mut hasher);
-                serde_json::to_string(&tool_call.fn_arguments)
+                tool_call.name.hash(&mut hasher);
+                serde_json::to_string(&tool_call.arguments)
                     .unwrap_or_default()
                     .hash(&mut hasher);
                 let cache_key = hasher.finish();
@@ -953,32 +855,32 @@ impl GenAIBackend {
                 if tool_cache.contains_key(&cache_key) {
                     debug!(
                         "Tool {} with same arguments already executed - skipping (idempotent)",
-                        tool_call.fn_name
+                        tool_call.name
                     );
                     continue;
                 }
 
                 // Emit tool execution started event
                 progress.on_progress(&ProgressEvent::ToolExecutionStarted {
-                    tool_name: tool_call.fn_name.clone(),
+                    tool_name: tool_call.name.clone(),
                     iteration,
                 });
 
                 // Execute the tool and convert errors to tool responses
                 let tool_start = std::time::Instant::now();
                 let result = executor
-                    .execute(&tool_call.fn_name, tool_call.fn_arguments.clone())
+                    .execute(&tool_call.name, tool_call.arguments.clone())
                     .await;
 
                 let (content, success) = match result {
                     Ok(output) => {
-                        debug!("Tool {} returned {} bytes", tool_call.fn_name, output.len());
+                        debug!("Tool {} returned {} bytes", tool_call.name, output.len());
                         (output, true)
                     }
                     Err(e) => {
                         warn!(
                             "Tool {} failed, returning error to LLM: {}",
-                            tool_call.fn_name, e
+                            tool_call.name, e
                         );
                         (format!("Error: {}", e), false)
                     }
@@ -986,7 +888,7 @@ impl GenAIBackend {
 
                 // Emit tool execution complete event
                 progress.on_progress(&ProgressEvent::ToolExecutionComplete {
-                    tool_name: tool_call.fn_name.clone(),
+                    tool_name: tool_call.name.clone(),
                     iteration,
                     execution_time: tool_start.elapsed(),
                     success,
@@ -996,23 +898,19 @@ impl GenAIBackend {
                 tool_cache.insert(cache_key, content.clone());
 
                 // Add tool response to conversation
-                let tool_response = ToolResponse {
-                    call_id: tool_call.call_id.clone(),
-                    content,
-                };
-                messages.push(tool_response.into());
+                messages.push(LLMChatMessage::tool_response(&tool_call.call_id, content));
             }
         }
     }
 
     /// Returns the human-readable name of this backend
     pub fn name(&self) -> &str {
-        self.provider.name()
+        self.llm_client.name()
     }
 
     /// Returns model information for this backend
     pub fn model_info(&self) -> Option<String> {
-        Some(self.model.clone())
+        self.llm_client.model_info()
     }
 }
 
@@ -1053,8 +951,9 @@ impl std::fmt::Debug for GenAIBackend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GenAIBackend")
             .field("provider", &self.provider)
-            .field("model", &self.model)
-            .field("timeout", &self.timeout)
+            .field("llm_client", &self.llm_client.name())
+            .field("model", &self.llm_client.model_info())
+            .field("max_tool_iterations", &self.max_tool_iterations)
             .field("max_tokens", &self.max_tokens)
             .finish()
     }
@@ -1098,8 +997,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(backend.name(), "Ollama");
-        assert_eq!(backend.model, "qwen2.5-coder:7b");
-        assert!(backend.model_info().is_some());
+        assert_eq!(backend.model_info(), Some("qwen2.5-coder:7b".to_string()));
     }
 
     #[tokio::test]
@@ -1115,7 +1013,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(backend.provider, Provider::Claude);
-        assert_eq!(backend.timeout, Duration::from_secs(120));
         assert_eq!(backend.max_tool_iterations, 5);
         assert_eq!(backend.max_tokens, Some(1024));
     }

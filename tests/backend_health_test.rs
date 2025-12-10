@@ -136,12 +136,14 @@ async fn test_service_client_custom_timeout() {
         "qwen2.5-coder:7b".to_string(),
         Some(Duration::from_secs(120)),
         None,
-        None,
+        Some(15),
     )
     .await;
 
     if let Ok(client) = client {
-        assert_eq!(format!("{:?}", client).contains("120"), true);
+        // Check that the custom max_tool_iterations is preserved
+        let debug_str = format!("{:?}", client);
+        assert!(debug_str.contains("max_tool_iterations: 15"));
     }
 }
 

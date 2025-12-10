@@ -3,6 +3,7 @@
 //! This module provides the ToolRegistry which creates genai Tool definitions
 //! with JSON schemas for all available repository analysis tools.
 
+use crate::llm::ToolDefinition;
 use genai::chat::Tool;
 use serde_json::json;
 
@@ -11,7 +12,7 @@ use super::definitions::*;
 pub struct ToolRegistry;
 
 impl ToolRegistry {
-    /// Create all available tools for repository analysis
+    /// Create all available tools for repository analysis (genai format)
     pub fn create_all_tools() -> Vec<Tool> {
         vec![
             Self::create_list_files_tool(),
@@ -22,6 +23,18 @@ impl ToolRegistry {
             Self::create_get_best_practices_tool(),
             Self::create_submit_detection_tool(),
         ]
+    }
+
+    /// Create all available tools as ToolDefinition (for LLMClient trait)
+    pub fn create_tool_definitions() -> Vec<ToolDefinition> {
+        Self::create_all_tools()
+            .into_iter()
+            .map(|tool| ToolDefinition {
+                name: tool.name,
+                description: tool.description.unwrap_or_default(),
+                parameters: tool.schema.unwrap_or(serde_json::json!({})),
+            })
+            .collect()
     }
 
     fn create_list_files_tool() -> Tool {

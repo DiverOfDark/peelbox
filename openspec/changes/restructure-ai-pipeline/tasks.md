@@ -109,13 +109,13 @@ Add progress handler trait and wire into existing detection flow.
 
 Extract LLM communication into trait. Existing GenAI logic becomes `GenAIClient`.
 
-- [ ] 7.1 Create `src/llm/mod.rs` module structure
-- [ ] 7.2 Define `LLMClient` trait in `src/llm/client.rs`
-- [ ] 7.3 Define `LLMResponse`, `ToolCall` types in `src/llm/types.rs`
-- [ ] 7.4 Extract existing genai logic into `GenAIClient` implementing `LLMClient`
-- [ ] 7.5 Update `GenAIBackend` to use `GenAIClient` via trait
-- [ ] 7.6 Add unit tests for `GenAIClient`
-- [ ] 7.7 Verify: `cargo build && cargo test` passes, detection unchanged
+- [x] 7.1 Create `src/llm/mod.rs` module structure
+- [x] 7.2 Define `LLMClient` trait in `src/llm/client.rs`
+- [x] 7.3 Define `LLMResponse`, `ToolCall` types in `src/llm/types.rs`
+- [x] 7.4 Extract existing genai logic into `GenAIClient` implementing `LLMClient`
+- [x] 7.5 Update `GenAIBackend` to use `GenAIClient` via trait (Provider methods made public)
+- [x] 7.6 Add unit tests for `GenAIClient`
+- [x] 7.7 Verify: `cargo build && cargo test` passes, detection unchanged
 
 **Deliverable:** LLM communication behind trait, GenAI is one implementation.
 

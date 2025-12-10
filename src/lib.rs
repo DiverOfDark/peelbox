@@ -5,10 +5,12 @@ pub mod config;
 pub mod detection;
 pub mod fs;
 pub mod languages;
+pub mod llm;
 pub mod output;
 pub mod progress;
 
 pub use ai::genai_backend::{BackendError, GenAIBackend, Provider};
+pub use llm::{GenAIClient, LLMClient};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};
