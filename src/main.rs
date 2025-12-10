@@ -134,25 +134,20 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     };
     debug!("Canonicalized repository path: {}", repo_path.display());
 
-    // Load configuration
-    let mut config = AipackConfig::default();
-
-    // Override provider if specified
-    config.provider = args.backend;
+    // Load configuration with CLI overrides
+    let default_config = AipackConfig::default();
+    let config = AipackConfig {
+        provider: args.backend,
+        model: args.model.clone().unwrap_or(default_config.model),
+        request_timeout_secs: args.timeout,
+        cache_enabled: !args.no_cache && default_config.cache_enabled,
+        ..default_config
+    };
     debug!("Provider set to: {:?}", config.provider);
-
-    // Override model if specified
-    if let Some(model) = &args.model {
-        config.model = model.clone();
-        debug!("Model overridden to: {}", model);
+    if args.model.is_some() {
+        debug!("Model overridden to: {}", config.model);
     }
-
-    // Override timeout
-    config.request_timeout_secs = args.timeout;
-
-    // Disable caching if requested
     if args.no_cache {
-        config.cache_enabled = false;
         debug!("Caching disabled");
     }
 

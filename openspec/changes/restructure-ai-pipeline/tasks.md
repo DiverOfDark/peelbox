@@ -125,10 +125,10 @@ Extract LLM communication into trait. Existing GenAI logic becomes `GenAIClient`
 
 Add MockLLMClient for testing detection logic without real LLM.
 
-- [ ] 8.1 Implement `MockLLMClient` with scripted responses in `src/llm/mock.rs`
-- [ ] 8.2 Add integration tests using `MockLLMClient` + `MockFileSystem`
-- [ ] 8.3 Test full detection flow with mocked dependencies
-- [ ] 8.4 Verify: `cargo test` passes with mock-based integration tests
+- [x] 8.1 Implement `MockLLMClient` with scripted responses in `src/llm/mock.rs`
+- [x] 8.2 Add integration tests using `MockLLMClient` + `MockFileSystem`
+- [x] 8.3 Test full detection flow with mocked dependencies
+- [x] 8.4 Verify: `cargo test` passes with mock-based integration tests
 
 **Deliverable:** Full detection testable without external dependencies.
 

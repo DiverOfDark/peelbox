@@ -30,6 +30,10 @@ impl FileMetadata {
     pub fn len(&self) -> u64 {
         self.size
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.size == 0
+    }
 }
 
 /// A directory entry returned by read_dir

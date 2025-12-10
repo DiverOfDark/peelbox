@@ -42,7 +42,7 @@ impl DockerfileGenerator {
             df.push_str(&format!("# Reasoning: {}\n", build.metadata.reasoning));
         }
 
-        df.push_str("\n");
+        df.push('\n');
     }
 
     fn add_build_stage(df: &mut String, build: &UniversalBuild) {
@@ -70,7 +70,7 @@ impl DockerfileGenerator {
             for (key, value) in &build.build.env {
                 df.push_str(&format!("ENV {}={}\n", key, value));
             }
-            df.push_str("\n");
+            df.push('\n');
         }
 
         // Infer working directory from first context entry
@@ -90,7 +90,7 @@ impl DockerfileGenerator {
             for ctx in &build.build.context {
                 df.push_str(&format!("COPY {} {}\n", ctx.from, ctx.to));
             }
-            df.push_str("\n");
+            df.push('\n');
         }
 
         // Build commands with cache mounts
@@ -118,7 +118,7 @@ impl DockerfileGenerator {
                 for cmd in &build.build.commands {
                     df.push_str(&format!("RUN {}\n", cmd));
                 }
-                df.push_str("\n");
+                df.push('\n');
             }
         }
     }
@@ -148,7 +148,7 @@ impl DockerfileGenerator {
             for (key, value) in &build.runtime.env {
                 df.push_str(&format!("ENV {}={}\n", key, value));
             }
-            df.push_str("\n");
+            df.push('\n');
         }
 
         // Copy artifacts from builder
@@ -160,7 +160,7 @@ impl DockerfileGenerator {
                     copy_spec.from, copy_spec.to
                 ));
             }
-            df.push_str("\n");
+            df.push('\n');
         }
 
         // Expose ports

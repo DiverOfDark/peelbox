@@ -5,10 +5,10 @@
 
 mod client;
 mod genai;
+mod mock;
 mod types;
 
 pub use client::LLMClient;
 pub use genai::GenAIClient;
-pub use types::{
-    ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition,
-};
+pub use mock::{MockLLMClient, MockResponse};
+pub use types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};

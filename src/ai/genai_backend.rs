@@ -376,6 +376,32 @@ impl GenAIBackend {
         Ok(backend)
     }
 
+    /// Creates a GenAI backend with a custom LLM client
+    ///
+    /// This constructor allows injecting a mock or custom LLM client,
+    /// which is useful for testing the detection logic without requiring
+    /// a real LLM backend.
+    ///
+    /// # Arguments
+    ///
+    /// * `llm_client` - Custom LLM client implementing the LLMClient trait
+    /// * `provider` - Provider type (used for logging)
+    /// * `max_tokens` - Optional maximum tokens for response
+    /// * `max_tool_iterations` - Optional maximum tool iterations (defaults to 10)
+    pub fn with_client(
+        llm_client: Arc<dyn LLMClient>,
+        provider: Provider,
+        max_tokens: Option<u32>,
+        max_tool_iterations: Option<usize>,
+    ) -> Self {
+        Self {
+            llm_client,
+            provider,
+            max_tool_iterations: max_tool_iterations.unwrap_or(10),
+            max_tokens,
+        }
+    }
+
     /// Validates that the requested model is available on the provider
     async fn validate_model(&self, model_name: &str) -> Result<(), BackendError> {
         // Check if provider supports model listing
