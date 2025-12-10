@@ -37,6 +37,7 @@
 use crate::ai::backend::BackendError;
 use crate::ai::genai_backend::GenAIBackend;
 use crate::config::AipackConfig;
+use crate::languages::LanguageRegistry;
 use crate::output::UniversalBuild;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -254,6 +255,9 @@ impl ServiceError {
 pub struct DetectionService {
     /// LLM backend for detection
     backend: Arc<GenAIBackend>,
+    /// Language registry for build system detection (used in future phases)
+    #[allow(dead_code)]
+    language_registry: LanguageRegistry,
 }
 
 impl std::fmt::Debug for DetectionService {
@@ -313,7 +317,12 @@ impl DetectionService {
             backend.name()
         );
 
-        Ok(Self { backend })
+        let language_registry = LanguageRegistry::with_defaults();
+
+        Ok(Self {
+            backend,
+            language_registry,
+        })
     }
 
     /// Detects build system for a repository
@@ -542,7 +551,10 @@ mod tests {
                 .unwrap(),
         );
 
-        let service = DetectionService { backend };
+        let service = DetectionService {
+            backend,
+            language_registry: LanguageRegistry::with_defaults(),
+        };
 
         let result = service.validate_repo_path(&PathBuf::from("/nonexistent/path"));
         assert!(result.is_err());
@@ -561,7 +573,10 @@ mod tests {
                 .unwrap(),
         );
 
-        let service = DetectionService { backend };
+        let service = DetectionService {
+            backend,
+            language_registry: LanguageRegistry::with_defaults(),
+        };
 
         let result = service.validate_repo_path(&file_path);
         assert!(result.is_err());
@@ -578,7 +593,10 @@ mod tests {
                 .unwrap(),
         );
 
-        let service = DetectionService { backend };
+        let service = DetectionService {
+            backend,
+            language_registry: LanguageRegistry::with_defaults(),
+        };
 
         let result = service.validate_repo_path(&temp_dir.path().to_path_buf());
         assert!(result.is_ok());

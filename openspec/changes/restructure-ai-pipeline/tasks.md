@@ -10,12 +10,12 @@ Old code is removed incrementally as new code takes over its responsibilities.
 Create the language registry and migrate one language (Rust) to prove the pattern.
 Existing detection continues to work; new registry runs in parallel for validation.
 
-- [ ] 1.1 Create `src/languages/mod.rs` with `LanguageDefinition` trait
-- [ ] 1.2 Create `src/languages/registry.rs` with `LanguageRegistry`
-- [ ] 1.3 Implement `src/languages/rust.rs` (extensions, manifests, detection, templates)
-- [ ] 1.4 Add unit tests for Rust language definition
-- [ ] 1.5 Wire `LanguageRegistry` into `DetectionService` (unused, just instantiated)
-- [ ] 1.6 Verify: `cargo build && cargo test` passes
+- [x] 1.1 Create `src/languages/mod.rs` with `LanguageDefinition` trait
+- [x] 1.2 Create `src/languages/registry.rs` with `LanguageRegistry`
+- [x] 1.3 Implement `src/languages/rust.rs` (extensions, manifests, detection, templates)
+- [x] 1.4 Add unit tests for Rust language definition
+- [x] 1.5 Wire `LanguageRegistry` into `DetectionService` (unused, just instantiated)
+- [x] 1.6 Verify: `cargo build && cargo test` passes
 
 **Deliverable:** New module compiles, existing behavior unchanged.
 
@@ -25,19 +25,19 @@ Existing detection continues to work; new registry runs in parallel for validati
 
 Add remaining languages. Still not used in production path, but fully tested.
 
-- [ ] 2.1 Implement `src/languages/java.rs` (Maven, Gradle)
-- [ ] 2.2 Implement `src/languages/kotlin.rs`
-- [ ] 2.3 Implement `src/languages/javascript.rs` (npm, yarn, pnpm, bun)
-- [ ] 2.4 Implement `src/languages/typescript.rs`
-- [ ] 2.5 Implement `src/languages/python.rs` (pip, poetry, pipenv)
-- [ ] 2.6 Implement `src/languages/go.rs`
-- [ ] 2.7 Implement `src/languages/dotnet.rs`
-- [ ] 2.8 Implement `src/languages/ruby.rs`
-- [ ] 2.9 Implement `src/languages/php.rs`
-- [ ] 2.10 Implement `src/languages/cpp.rs`
-- [ ] 2.11 Implement `src/languages/elixir.rs`
-- [ ] 2.12 Add integration test: registry detects same as current code for test repos
-- [ ] 2.13 Verify: `cargo build && cargo test` passes
+- [x] 2.1 Implement `src/languages/java.rs` (Maven, Gradle)
+- [x] 2.2 Implement `src/languages/kotlin.rs`
+- [x] 2.3 Implement `src/languages/javascript.rs` (npm, yarn, pnpm, bun)
+- [x] 2.4 Implement `src/languages/typescript.rs`
+- [x] 2.5 Implement `src/languages/python.rs` (pip, poetry, pipenv)
+- [x] 2.6 Implement `src/languages/go.rs`
+- [x] 2.7 Implement `src/languages/dotnet.rs`
+- [x] 2.8 Implement `src/languages/ruby.rs`
+- [x] 2.9 Implement `src/languages/php.rs`
+- [x] 2.10 Implement `src/languages/cpp.rs`
+- [x] 2.11 Implement `src/languages/elixir.rs`
+- [x] 2.12 Add integration test: registry detects same as current code for test repos
+- [x] 2.13 Verify: `cargo build && cargo test` passes
 
 **Deliverable:** Full language registry, tested against current detection.
 
@@ -47,12 +47,12 @@ Add remaining languages. Still not used in production path, but fully tested.
 
 Create FileSystem trait and RealFileSystem. Wire into existing tool executor.
 
-- [ ] 3.1 Create `src/fs/mod.rs` module structure
-- [ ] 3.2 Define `FileSystem` trait in `src/fs/trait.rs`
-- [ ] 3.3 Implement `RealFileSystem` in `src/fs/real.rs`
+- [x] 3.1 Create `src/fs/mod.rs` module structure
+- [x] 3.2 Define `FileSystem` trait in `src/fs/trait.rs`
+- [x] 3.3 Implement `RealFileSystem` in `src/fs/real.rs`
 - [ ] 3.4 Update existing `ToolExecutor` to accept `&dyn FileSystem` parameter
 - [ ] 3.5 Pass `RealFileSystem` from current call sites
-- [ ] 3.6 Add unit tests for `RealFileSystem`
+- [x] 3.6 Add unit tests for `RealFileSystem`
 - [ ] 3.7 Verify: `cargo build && cargo test` passes, detection still works
 
 **Deliverable:** Tools use FileSystem trait, production uses RealFileSystem.
@@ -63,7 +63,7 @@ Create FileSystem trait and RealFileSystem. Wire into existing tool executor.
 
 Add MockFileSystem and use it to test existing tools.
 
-- [ ] 4.1 Implement `MockFileSystem` in `src/fs/mock.rs`
+- [x] 4.1 Implement `MockFileSystem` in `src/fs/mock.rs`
 - [ ] 4.2 Add unit tests for each existing tool using `MockFileSystem`
 - [ ] 4.3 Verify: `cargo test` passes with new tool tests
 

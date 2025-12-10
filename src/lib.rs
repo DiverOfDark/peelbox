@@ -2,6 +2,8 @@ pub mod ai;
 pub mod cli;
 pub mod config;
 pub mod detection;
+pub mod fs;
+pub mod languages;
 pub mod output;
 
 pub use ai::genai_backend::{BackendError, GenAIBackend, Provider};
@@ -9,6 +11,8 @@ pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};
 pub use detection::types::{GitInfo, RepositoryContext};
+pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
+pub use languages::{LanguageDefinition, LanguageRegistry};
 pub use output::schema::UniversalBuild;
 
 pub fn init_default() {
