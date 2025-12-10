@@ -39,6 +39,7 @@ use crate::ai::genai_backend::GenAIBackend;
 use crate::config::AipackConfig;
 use crate::languages::LanguageRegistry;
 use crate::output::UniversalBuild;
+use crate::progress::ProgressHandler;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -373,6 +374,23 @@ impl DetectionService {
     /// # }
     /// ```
     pub async fn detect(&self, repo_path: PathBuf) -> Result<UniversalBuild, ServiceError> {
+        self.detect_with_progress(repo_path, None).await
+    }
+
+    /// Detects build system for a repository with progress reporting
+    ///
+    /// Same as `detect()` but accepts an optional progress handler for
+    /// reporting detection progress events.
+    ///
+    /// # Arguments
+    ///
+    /// * `repo_path` - Path to the repository root directory
+    /// * `progress` - Optional progress handler for receiving progress events
+    pub async fn detect_with_progress(
+        &self,
+        repo_path: PathBuf,
+        progress: Option<Arc<dyn ProgressHandler>>,
+    ) -> Result<UniversalBuild, ServiceError> {
         let start = Instant::now();
 
         // Validate repository path
@@ -400,7 +418,10 @@ impl DetectionService {
         };
 
         // Delegate to backend for tool-based detection
-        let result = self.backend.detect(repo_path, bootstrap_context).await?;
+        let result = self
+            .backend
+            .detect(repo_path, bootstrap_context, progress)
+            .await?;
 
         let elapsed = start.elapsed();
 

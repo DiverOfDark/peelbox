@@ -3,12 +3,14 @@ use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
+use aipack::progress::{LoggingHandler, ProgressHandler};
 use aipack::VERSION;
 
 use clap::Parser;
 use std::collections::HashMap;
 use std::env;
 use std::process;
+use std::sync::Arc;
 use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -26,7 +28,7 @@ async fn main() {
 
     // Execute the appropriate command
     let exit_code = match &args.command {
-        Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet).await,
+        Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet, args.verbose).await,
         Commands::Health(health_args) => handle_health(health_args).await,
     };
 
@@ -88,7 +90,7 @@ fn parse_level(level_str: &str) -> Level {
     }
 }
 
-async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
+async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     info!("Starting build system detection");
 
     // Determine repository path (default to current directory)
@@ -210,7 +212,15 @@ async fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
 
     // Perform detection
     info!("Analyzing repository: {}", repo_path.display());
-    let result = match service.detect(repo_path.clone()).await {
+
+    // Create progress handler if verbose mode is enabled
+    let progress: Option<Arc<dyn ProgressHandler>> = if verbose {
+        Some(Arc::new(LoggingHandler))
+    } else {
+        None
+    };
+
+    let result = match service.detect_with_progress(repo_path.clone(), progress).await {
         Ok(r) => r,
         Err(e) => {
             error!("Detection failed: {}", e);

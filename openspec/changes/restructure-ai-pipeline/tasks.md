@@ -92,14 +92,14 @@ Create bootstrap scanner using LanguageRegistry. Inject into system prompt.
 
 Add progress handler trait and wire into existing detection flow.
 
-- [ ] 6.1 Create `src/progress/mod.rs` module structure
-- [ ] 6.2 Define `ProgressHandler` trait in `src/progress/handler.rs`
-- [ ] 6.3 Implement `NoOpHandler` (default)
-- [ ] 6.4 Implement `LoggingHandler` in `src/progress/logging.rs`
-- [ ] 6.5 Add `progress: Option<&dyn ProgressHandler>` to `GenAIBackend::detect()`
-- [ ] 6.6 Emit progress events from existing detection loop
-- [ ] 6.7 Wire `--verbose` CLI flag to use `LoggingHandler`
-- [ ] 6.8 Verify: `cargo build && cargo test` passes, `--verbose` shows progress
+- [x] 6.1 Create `src/progress/mod.rs` module structure
+- [x] 6.2 Define `ProgressHandler` trait in `src/progress/handler.rs`
+- [x] 6.3 Implement `NoOpHandler` (default)
+- [x] 6.4 Implement `LoggingHandler` in `src/progress/logging.rs`
+- [x] 6.5 Add `progress: Option<Arc<dyn ProgressHandler>>` to `GenAIBackend::detect()`
+- [x] 6.6 Emit progress events from existing detection loop
+- [x] 6.7 Wire `--verbose` CLI flag to use `LoggingHandler`
+- [x] 6.8 Verify: `cargo build && cargo test` passes, `--verbose` shows progress
 
 **Deliverable:** Progress events emitted during detection, visible with --verbose.
 

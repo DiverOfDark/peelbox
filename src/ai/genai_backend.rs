@@ -18,7 +18,7 @@
 //! ).await?;
 //!
 //! // Detect build system
-//! let result = client.detect(PathBuf::from("/path/to/repo"), None).await?;
+//! let result = client.detect(PathBuf::from("/path/to/repo"), None, None).await?;
 //! println!("Detected: {}", result.metadata.build_system);
 //! # Ok(())
 //! # }
@@ -27,6 +27,7 @@
 use crate::ai::backend::LLMBackend;
 use crate::detection::prompt::SYSTEM_PROMPT;
 use crate::output::UniversalBuild;
+use crate::progress::{NoOpHandler, ProgressEvent, ProgressHandler};
 use async_trait::async_trait;
 use clap::ValueEnum;
 use genai::adapter::AdapterKind;
@@ -40,6 +41,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
@@ -589,12 +591,20 @@ impl GenAIBackend {
     ///
     /// * `repo_path` - Path to the repository root directory
     /// * `bootstrap_context` - Optional pre-scanned repository analysis to guide detection
+    /// * `progress` - Optional progress handler for reporting detection progress
     pub async fn detect(
         &self,
         repo_path: PathBuf,
         bootstrap_context: Option<crate::bootstrap::BootstrapContext>,
+        progress: Option<Arc<dyn ProgressHandler>>,
     ) -> Result<UniversalBuild, BackendError> {
+        let progress = progress.unwrap_or_else(|| Arc::new(NoOpHandler));
         use crate::detection::tools::{ToolExecutor, ToolRegistry};
+
+        // Emit Started event
+        progress.on_progress(&ProgressEvent::Started {
+            repo_path: repo_path.display().to_string(),
+        });
 
         info!(
             "Starting tool-based detection for repository: {} using {}",
@@ -613,6 +623,12 @@ impl GenAIBackend {
 
         // Build user message with optional bootstrap context
         let user_message = if let Some(ref context) = bootstrap_context {
+            // Emit bootstrap complete event
+            progress.on_progress(&ProgressEvent::BootstrapComplete {
+                languages_detected: context.detections.len(),
+                scan_time: Duration::from_millis(0), // Bootstrap was already done
+            });
+
             info!(
                 manifests = context.detections.len(),
                 "Using bootstrap context with {} pre-scanned detections",
@@ -652,25 +668,35 @@ impl GenAIBackend {
 
             // Check total elapsed time
             if start.elapsed() >= total_timeout {
-                error!(
+                let error_msg = format!(
                     "Detection timeout: exceeded total time limit of {} seconds",
                     total_timeout.as_secs()
                 );
+                error!("{}", error_msg);
+                progress.on_progress(&ProgressEvent::Failed {
+                    error: error_msg.clone(),
+                });
                 return Err(BackendError::TimeoutError {
                     seconds: total_timeout.as_secs(),
                 });
             }
 
             if iteration > max_iterations {
-                error!("Exceeded max iterations ({})", max_iterations);
-                return Err(BackendError::Other {
-                    message: format!("Exceeded max iterations ({})", max_iterations),
+                let error_msg = format!("Exceeded max iterations ({})", max_iterations);
+                error!("{}", error_msg);
+                progress.on_progress(&ProgressEvent::Failed {
+                    error: error_msg.clone(),
                 });
+                return Err(BackendError::Other { message: error_msg });
             }
 
             debug!("Iteration {}/{}", iteration, max_iterations);
 
+            // Emit LLM request started event
+            progress.on_progress(&ProgressEvent::LlmRequestStarted { iteration });
+
             // Create chat request with tools
+            let request_start = std::time::Instant::now();
             let request = ChatRequest::new(messages.clone()).with_tools(tools.clone());
 
             // Build options with max_tokens and stop sequences
@@ -714,17 +740,23 @@ impl GenAIBackend {
                 }
             };
 
+            let tool_calls = response.tool_calls();
+
+            // Emit LLM response received event
+            progress.on_progress(&ProgressEvent::LlmResponseReceived {
+                iteration,
+                tool_calls: tool_calls.len(),
+                response_time: request_start.elapsed(),
+            });
+
             debug!(
                 "{} responded with {} tool calls",
                 self.provider.name(),
-                response.tool_calls().len()
+                tool_calls.len()
             );
 
             // Add assistant message to conversation (may contain text + tool calls)
             messages.push(ChatMessage::assistant(response.content.clone()));
-
-            // Check for tool calls
-            let tool_calls = response.tool_calls();
 
             if tool_calls.is_empty() {
                 consecutive_zero_tool_calls += 1;
@@ -787,9 +819,22 @@ impl GenAIBackend {
                         // Parse and validate the UniversalBuild
                         match parse_detection_from_tool_call(&tool_call.fn_arguments) {
                             Ok(universal_build) => {
+                                // Emit validation started event
+                                progress.on_progress(&ProgressEvent::ValidationStarted);
+
                                 // Validate the UniversalBuild
                                 match universal_build.validate() {
                                     Ok(_) => {
+                                        // Emit validation complete and completed events
+                                        progress.on_progress(&ProgressEvent::ValidationComplete {
+                                            warnings: 0,
+                                            errors: 0,
+                                        });
+                                        progress.on_progress(&ProgressEvent::Completed {
+                                            total_iterations: iteration,
+                                            total_time: start.elapsed(),
+                                        });
+
                                         info!(
                                             "Detection submitted after {} iterations in {:.2}s",
                                             iteration,
@@ -913,24 +958,39 @@ impl GenAIBackend {
                     continue;
                 }
 
+                // Emit tool execution started event
+                progress.on_progress(&ProgressEvent::ToolExecutionStarted {
+                    tool_name: tool_call.fn_name.clone(),
+                    iteration,
+                });
+
                 // Execute the tool and convert errors to tool responses
+                let tool_start = std::time::Instant::now();
                 let result = executor
                     .execute(&tool_call.fn_name, tool_call.fn_arguments.clone())
                     .await;
 
-                let content = match result {
+                let (content, success) = match result {
                     Ok(output) => {
                         debug!("Tool {} returned {} bytes", tool_call.fn_name, output.len());
-                        output
+                        (output, true)
                     }
                     Err(e) => {
                         warn!(
                             "Tool {} failed, returning error to LLM: {}",
                             tool_call.fn_name, e
                         );
-                        format!("Error: {}", e)
+                        (format!("Error: {}", e), false)
                     }
                 };
+
+                // Emit tool execution complete event
+                progress.on_progress(&ProgressEvent::ToolExecutionComplete {
+                    tool_name: tool_call.fn_name.clone(),
+                    iteration,
+                    execution_time: tool_start.elapsed(),
+                    success,
+                });
 
                 // Cache the result
                 tool_cache.insert(cache_key, content.clone());
@@ -1006,8 +1066,9 @@ impl LLMBackend for GenAIBackend {
         &self,
         repo_path: PathBuf,
         bootstrap_context: Option<crate::bootstrap::BootstrapContext>,
+        progress: Option<Arc<dyn ProgressHandler>>,
     ) -> Result<UniversalBuild, BackendError> {
-        self.detect(repo_path, bootstrap_context).await
+        self.detect(repo_path, bootstrap_context, progress).await
     }
 
     fn name(&self) -> &str {

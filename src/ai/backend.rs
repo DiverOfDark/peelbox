@@ -5,8 +5,10 @@
 
 use crate::bootstrap::BootstrapContext;
 use crate::output::UniversalBuild;
+use crate::progress::ProgressHandler;
 use async_trait::async_trait;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Errors that can occur during backend operations
 pub use super::genai_backend::BackendError;
@@ -40,7 +42,7 @@ pub use super::genai_backend::BackendError;
 ///     "qwen2.5-coder:7b".to_string(),
 /// ).await?;
 ///
-/// let result = backend.detect(PathBuf::from("/path/to/repo"), None).await?;
+/// let result = backend.detect(PathBuf::from("/path/to/repo"), None, None).await?;
 /// println!("Detected: {}", result.metadata.build_system);
 /// # Ok(())
 /// # }
@@ -58,6 +60,7 @@ pub trait LLMBackend: Send + Sync {
     ///
     /// * `repo_path` - Path to the repository root directory
     /// * `bootstrap_context` - Optional pre-scanned repository analysis
+    /// * `progress` - Optional progress handler for reporting detection progress
     ///
     /// # Returns
     ///
@@ -75,6 +78,7 @@ pub trait LLMBackend: Send + Sync {
         &self,
         repo_path: PathBuf,
         bootstrap_context: Option<BootstrapContext>,
+        progress: Option<Arc<dyn ProgressHandler>>,
     ) -> Result<UniversalBuild, BackendError>;
 
     /// Returns the human-readable name of this backend
