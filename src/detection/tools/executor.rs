@@ -375,8 +375,7 @@ impl ToolExecutor {
         let universal_build: UniversalBuild = serde_json::from_value(args)
             .context("Failed to parse UniversalBuild from LLM response")?;
 
-        universal_build
-            .validate()
+        crate::validation::Validator::new().validate(&universal_build)
             .context("UniversalBuild validation failed")?;
 
         info!(

@@ -1,6 +1,6 @@
 //! Integration tests for bootstrap analysis
 
-use aipack::bootstrap::{BootstrapContext, BootstrapScanner};
+use aipack::bootstrap::BootstrapScanner;
 use std::fs;
 use tempfile::TempDir;
 

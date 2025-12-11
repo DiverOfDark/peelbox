@@ -161,13 +161,13 @@ Implement zero-config local inference using Candle. Falls back when no API keys 
 
 Extract validation logic into dedicated module. Wire into existing flow.
 
-- [ ] 10.1 Create `src/validation/mod.rs` module structure
-- [ ] 10.2 Define `ValidationRule` trait in `src/validation/rules.rs`
-- [ ] 10.3 Implement validation rules: `RequiredFieldsRule`, `NonEmptyCommandsRule`, `ValidImageNameRule`, `ConfidenceRangeRule`
-- [ ] 10.4 Implement `Validator` in `src/validation/validator.rs`
-- [ ] 10.5 Replace inline validation in `GenAIBackend` with `Validator`
-- [ ] 10.6 Add unit tests for each validation rule
-- [ ] 10.7 Verify: `cargo build && cargo test` passes, validation works
+- [x] 10.1 Create `src/validation/mod.rs` module structure
+- [x] 10.2 Define `ValidationRule` trait in `src/validation/rules.rs`
+- [x] 10.3 Implement validation rules: `RequiredFieldsRule`, `NonEmptyCommandsRule`, `ValidImageNameRule`, `ConfidenceRangeRule`
+- [x] 10.4 Implement `Validator` in `src/validation/validator.rs`
+- [x] 10.5 Replace inline validation in `UniversalBuild::validate()` with `Validator`
+- [x] 10.6 Add unit tests for each validation rule
+- [x] 10.7 Verify: `cargo build && cargo test` passes, validation works
 
 **Deliverable:** Validation extracted, rules are testable individually.
 

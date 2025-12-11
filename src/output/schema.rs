@@ -159,82 +159,6 @@ impl UniversalBuild {
     pub fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(self).context("Failed to serialize UniversalBuild to YAML")
     }
-
-    /// Validate the UniversalBuild structure
-    ///
-    /// Checks:
-    /// - Version format
-    /// - Confidence score range (0.0-1.0)
-    /// - Required fields are non-empty
-    /// - Context has even number of elements (source/dest pairs)
-    ///
-    /// # Returns
-    /// Ok(()) if valid, Err otherwise
-    pub fn validate(&self) -> Result<()> {
-        // Validate version format
-        if self.version.is_empty() {
-            anyhow::bail!("Version cannot be empty");
-        }
-
-        // Validate confidence score
-        if !(0.0..=1.0).contains(&self.metadata.confidence) {
-            anyhow::bail!(
-                "Confidence score must be between 0.0 and 1.0, got {}",
-                self.metadata.confidence
-            );
-        }
-
-        // Validate required metadata fields
-        if self.metadata.language.is_empty() {
-            anyhow::bail!("Language cannot be empty");
-        }
-        if self.metadata.build_system.is_empty() {
-            anyhow::bail!("Build system cannot be empty");
-        }
-
-        // Validate build stage
-        if self.build.base.is_empty() {
-            anyhow::bail!("Build base image cannot be empty");
-        }
-        if self.build.commands.is_empty() {
-            anyhow::bail!("Build commands cannot be empty");
-        }
-        if self.build.context.is_empty() {
-            anyhow::bail!("Build context cannot be empty");
-        }
-        for (i, context_spec) in self.build.context.iter().enumerate() {
-            if context_spec.from.is_empty() {
-                anyhow::bail!("Build context[{}] 'from' path cannot be empty", i);
-            }
-            if context_spec.to.is_empty() {
-                anyhow::bail!("Build context[{}] 'to' path cannot be empty", i);
-            }
-        }
-        if self.build.artifacts.is_empty() {
-            anyhow::bail!("Build artifacts cannot be empty");
-        }
-
-        // Validate runtime stage
-        if self.runtime.base.is_empty() {
-            anyhow::bail!("Runtime base image cannot be empty");
-        }
-        if self.runtime.copy.is_empty() {
-            anyhow::bail!("Runtime copy specifications cannot be empty");
-        }
-        for (i, copy_spec) in self.runtime.copy.iter().enumerate() {
-            if copy_spec.from.is_empty() {
-                anyhow::bail!("Runtime copy[{}] 'from' path cannot be empty", i);
-            }
-            if copy_spec.to.is_empty() {
-                anyhow::bail!("Runtime copy[{}] 'to' path cannot be empty", i);
-            }
-        }
-        if self.runtime.command.is_empty() {
-            anyhow::bail!("Runtime command cannot be empty");
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -280,7 +204,7 @@ mod tests {
     #[test]
     fn test_valid_build() {
         let build = create_minimal_valid_build();
-        assert!(build.validate().is_ok());
+        assert!(crate::validation::Validator::new().validate(&build).is_ok());
     }
 
     #[test]
@@ -293,61 +217,6 @@ mod tests {
         assert!(yaml_str.contains("metadata:"));
         assert!(yaml_str.contains("build:"));
         assert!(yaml_str.contains("runtime:"));
-    }
-
-    #[test]
-    fn test_invalid_confidence() {
-        let mut build = create_minimal_valid_build();
-        build.metadata.confidence = 1.5;
-        assert!(build.validate().is_err());
-    }
-
-    #[test]
-    fn test_empty_version() {
-        let mut build = create_minimal_valid_build();
-        build.version = "".to_string();
-        assert!(build.validate().is_err());
-    }
-
-    #[test]
-    fn test_empty_language() {
-        let mut build = create_minimal_valid_build();
-        build.metadata.language = "".to_string();
-        assert!(build.validate().is_err());
-    }
-
-    #[test]
-    fn test_empty_build_commands() {
-        let mut build = create_minimal_valid_build();
-        build.build.commands = vec![];
-        assert!(build.validate().is_err());
-    }
-
-    #[test]
-    fn test_invalid_context_empty_from() {
-        let mut build = create_minimal_valid_build();
-        build.build.context = vec![ContextSpec {
-            from: "".to_string(),
-            to: "/app".to_string(),
-        }];
-        assert!(build.validate().is_err());
-    }
-
-    #[test]
-    fn test_invalid_context_empty_to() {
-        let mut build = create_minimal_valid_build();
-        build.build.context = vec![ContextSpec {
-            from: ".".to_string(),
-            to: "".to_string(),
-        }];
-        assert!(build.validate().is_err());
-    }
-
-    #[test]
-    fn test_empty_runtime_copy() {
-        let mut build = create_minimal_valid_build();
-        build.runtime.copy = vec![];
-        assert!(build.validate().is_err());
     }
 
     #[test]
@@ -553,7 +422,7 @@ mod tests {
             },
         };
 
-        let validation_result = minimal_build.validate();
+        let validation_result = crate::validation::Validator::new().validate(&minimal_build);
         assert!(validation_result.is_err());
     }
 
@@ -588,7 +457,7 @@ mod tests {
         assert!(result.is_ok());
 
         let build = result.unwrap();
-        assert!(build.validate().is_ok());
+        assert!(crate::validation::Validator::new().validate(&build).is_ok());
         assert_eq!(build.metadata.reasoning, "");
         assert!(build.build.packages.is_empty());
         assert!(build.runtime.ports.is_empty());

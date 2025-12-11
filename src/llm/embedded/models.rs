@@ -84,6 +84,14 @@ impl ModelSelector {
     ///
     /// Returns None if no model fits (less than 1GB RAM available)
     pub fn select(capabilities: &HardwareCapabilities) -> Option<&'static EmbeddedModel> {
+        // Check for environment variable override (for testing/CI)
+        if let Ok(force_smallest) = std::env::var("AIPACK_FORCE_SMALLEST_MODEL") {
+            if force_smallest == "1" || force_smallest.to_lowercase() == "true" {
+                info!("AIPACK_FORCE_SMALLEST_MODEL set, using smallest model for testing");
+                return Some(Self::smallest());
+            }
+        }
+
         let available_gb = capabilities.available_ram_gb();
 
         // Reserve some RAM for the system (at least 2GB or 25% of total)

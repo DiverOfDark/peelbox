@@ -764,7 +764,7 @@ impl GenAIBackend {
                                 progress.on_progress(&ProgressEvent::ValidationStarted);
 
                                 // Validate the UniversalBuild
-                                match universal_build.validate() {
+                                match crate::validation::Validator::new().validate(&universal_build) {
                                     Ok(_) => {
                                         // Emit validation complete and completed events
                                         progress.on_progress(&ProgressEvent::ValidationComplete {
@@ -975,7 +975,7 @@ fn parse_detection_from_tool_call(
     );
 
     // Validate the UniversalBuild
-    universal_build.validate().map_err(|e| {
+    crate::validation::Validator::new().validate(&universal_build).map_err(|e| {
         error!("UniversalBuild validation failed: {}", e);
         BackendError::ParseError {
             message: format!("UniversalBuild validation failed: {}", e),

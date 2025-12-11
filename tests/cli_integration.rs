@@ -10,6 +10,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use serial_test::serial;
 use tempfile::TempDir;
 
 /// Helper to get the path to the aipack binary
@@ -151,12 +152,15 @@ fn test_detect_file_instead_of_directory() {
 }
 
 #[test]
+#[serial]
 fn test_detect_json_format() {
-    // This test requires Ollama to be running, so we skip if it's not available
+    // Use embedded provider with smallest model for fast testing
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(aipack_bin())
+        .env("AIPACK_PROVIDER", "embedded")
+        .env("AIPACK_FORCE_SMALLEST_MODEL", "true")
         .arg("detect")
         .arg(repo_path)
         .arg("--format")
@@ -176,11 +180,15 @@ fn test_detect_json_format() {
 }
 
 #[test]
+#[serial]
 fn test_detect_yaml_format() {
+    // Use embedded provider with smallest model for fast testing
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(aipack_bin())
+        .env("AIPACK_PROVIDER", "embedded")
+        .env("AIPACK_FORCE_SMALLEST_MODEL", "true")
         .arg("detect")
         .arg(repo_path)
         .arg("--format")
@@ -199,12 +207,15 @@ fn test_detect_yaml_format() {
 }
 
 #[test]
+#[serial]
 fn test_detect_with_output_file() {
+    // Use embedded provider for testing (auto-selects model based on available RAM)
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
     let output_file = temp_dir.path().join("output.json");
 
     let output = Command::new(aipack_bin())
+        .env("AIPACK_PROVIDER", "embedded")
         .arg("detect")
         .arg(repo_path)
         .arg("--format")
@@ -281,11 +292,15 @@ fn test_invalid_backend() {
 }
 
 #[test]
+#[serial]
 fn test_detect_with_timeout() {
+    // Use embedded provider with smallest model for fast testing
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(aipack_bin())
+        .env("AIPACK_PROVIDER", "embedded")
+        .env("AIPACK_FORCE_SMALLEST_MODEL", "true")
         .arg("detect")
         .arg(repo_path)
         .arg("--timeout")
@@ -321,11 +336,15 @@ fn test_health_with_specific_backend() {
 }
 
 #[test]
+#[serial]
 fn test_detect_no_cache_flag() {
+    // Use embedded provider with smallest model for fast testing
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(aipack_bin())
+        .env("AIPACK_PROVIDER", "embedded")
+        .env("AIPACK_FORCE_SMALLEST_MODEL", "true")
         .arg("detect")
         .arg(repo_path)
         .arg("--no-cache")

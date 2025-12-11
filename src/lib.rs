@@ -8,6 +8,7 @@ pub mod languages;
 pub mod llm;
 pub mod output;
 pub mod progress;
+pub mod validation;
 
 pub use ai::genai_backend::{BackendError, GenAIBackend, Provider};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
@@ -19,6 +20,7 @@ pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::{LanguageDefinition, LanguageRegistry};
 pub use output::schema::UniversalBuild;
 pub use progress::{LoggingHandler, NoOpHandler, ProgressEvent, ProgressHandler};
+pub use validation::{ValidationRule, Validator};
 
 pub fn init_default() {
     use std::sync::Once;

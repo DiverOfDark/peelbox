@@ -618,6 +618,9 @@ AIPACK_MAX_FILE_SIZE=1048576       # Max file size to read in bytes (default: 1M
 # Logging
 AIPACK_LOG_LEVEL=info              # "trace", "debug", "info", "warn", or "error"
 RUST_LOG=aipack=debug,info         # Structured logging (overrides AIPACK_LOG_LEVEL)
+
+# Testing/CI
+AIPACK_FORCE_SMALLEST_MODEL=true   # Force smallest embedded model (0.5B) for testing/CI
 ```
 
 ### LLM Self-Reasoning Loop Prevention

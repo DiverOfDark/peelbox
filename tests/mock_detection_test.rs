@@ -4,7 +4,7 @@
 
 use aipack::fs::MockFileSystem;
 use aipack::llm::{MockLLMClient, MockResponse};
-use aipack::{FileSystem, LLMClient};
+use aipack::{FileSystem, LLMClient, Validator};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -179,7 +179,7 @@ async fn test_universal_build_validation() {
         serde_json::from_value(build).expect("Should parse as UniversalBuild");
 
     // Validate the build
-    assert!(parsed.validate().is_ok());
+    assert!(Validator::new().validate(&parsed).is_ok());
 
     // Check key fields
     assert_eq!(parsed.metadata.language, "rust");
