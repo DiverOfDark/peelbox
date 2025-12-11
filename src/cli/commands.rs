@@ -89,15 +89,14 @@ pub struct DetectArgs {
     )]
     pub format: OutputFormatArg,
 
-    /// Force specific backend
+    /// Force specific backend (overrides automatic selection)
     #[arg(
         short = 'b',
         long,
         value_enum,
-        default_value = "ollama",
-        help = "AI backend provider to use for detection"
+        help = "Force a specific AI backend provider (by default, the best available is auto-selected)"
     )]
-    pub backend: Provider,
+    pub backend: Option<Provider>,
 
     /// Model name
     #[arg(
@@ -199,7 +198,7 @@ mod tests {
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Human);
-                assert_eq!(detect_args.backend, Provider::Ollama);
+                assert!(detect_args.backend.is_none()); // Auto-selection by default
                 assert_eq!(detect_args.timeout, 60);
                 assert!(!detect_args.verbose_output);
                 assert!(!detect_args.no_cache);
@@ -243,7 +242,7 @@ mod tests {
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Json);
-                assert_eq!(detect_args.backend, Provider::Ollama);
+                assert_eq!(detect_args.backend, Some(Provider::Ollama));
                 assert_eq!(detect_args.model, Some("qwen:14b".to_string()));
                 assert_eq!(detect_args.timeout, 120);
                 assert!(detect_args.verbose_output);

@@ -146,10 +146,26 @@ cargo install aipack
 
 ```bash
 git clone https://github.com/diverofdark/aipack.git
-cd 
+cd aipack
+
+# CPU-only build (default, smallest binary)
 cargo build --release
+
+# Build with CUDA support (requires NVIDIA CUDA Toolkit)
+cargo build --release --features cuda
+
+# Build with Metal support (macOS only, for Apple Silicon GPU acceleration)
+cargo build --release --features metal
+
+# Install
 sudo install -m 755 target/release/aipack /usr/local/bin/
 ```
+
+#### Build Features
+
+- **Default (CPU-only)**: Smallest binary, works everywhere, uses CPU for embedded LLM inference
+- **`cuda`**: Enables NVIDIA GPU acceleration for embedded LLM (requires CUDA Toolkit 11.0+)
+- **`metal`**: Enables Apple Silicon GPU acceleration for embedded LLM (macOS only)
 
 ### Verify Installation
 

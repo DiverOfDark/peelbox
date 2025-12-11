@@ -138,20 +138,22 @@ Add MockLLMClient for testing detection logic without real LLM.
 
 Implement zero-config local inference using Candle. Falls back when no API keys or Ollama available.
 
-- [ ] 9.1 Add Candle dependencies to `Cargo.toml` with feature flags (`embedded-llm`, `cuda`, `metal`)
-- [ ] 9.2 Create `src/llm/embedded/mod.rs` module structure
-- [ ] 9.3 Implement `HardwareDetector` in `src/llm/embedded/hardware.rs` (RAM, CUDA, Metal detection)
-- [ ] 9.4 Implement `ModelSelector` in `src/llm/embedded/models.rs` (select model by available RAM)
-- [ ] 9.5 Implement `ModelDownloader` in `src/llm/embedded/download.rs` (HuggingFace hub integration)
-- [ ] 9.6 Implement interactive download prompt (skip in CI, detect via `std::io::stdin().is_terminal()`)
-- [ ] 9.7 Implement `EmbeddedClient` in `src/llm/embedded/client.rs` implementing `LLMClient`
-- [ ] 9.8 Add `select_llm_client()` function with provider fallback chain (env → Ollama → embedded)
-- [ ] 9.9 Wire `select_llm_client()` into CLI default behavior
-- [ ] 9.10 Add unit tests for hardware detection and model selection
-- [ ] 9.11 Add integration test with small model (1.5B) for CI
-- [ ] 9.12 Verify: `cargo build && cargo test` passes, `aipack detect` works without any config
+- [x] 9.1 Add Candle dependencies to `Cargo.toml` with feature flags (`embedded-llm`, `cuda`, `metal`)
+- [x] 9.2 Create `src/llm/embedded/mod.rs` module structure
+- [x] 9.3 Implement `HardwareDetector` in `src/llm/embedded/hardware.rs` (RAM, CUDA, Metal detection)
+- [x] 9.4 Implement `ModelSelector` in `src/llm/embedded/models.rs` (select model by available RAM)
+- [x] 9.5 Implement `ModelDownloader` in `src/llm/embedded/download.rs` (HuggingFace hub integration)
+- [x] 9.6 Implement interactive download prompt (skip in CI, detect via `std::io::stdin().is_terminal()`)
+- [x] 9.7 Implement `EmbeddedClient` in `src/llm/embedded/client.rs` implementing `LLMClient`
+- [x] 9.8 Add `select_llm_client()` function with provider fallback chain (env → Ollama → embedded)
+- [x] 9.9 Wire `select_llm_client()` into CLI default behavior
+- [x] 9.10 Add unit tests for hardware detection and model selection
+- [x] 9.11 Add integration test with small model (1.5B) for CI
+- [x] 9.12 Verify: `cargo build && cargo test` passes, `aipack detect` works without any config
 
 **Deliverable:** Zero-config local inference works out of the box.
+
+**Note:** Building with `--features embedded-llm` requires a C++ compiler for tokenizers native dependencies.
 
 ---
 

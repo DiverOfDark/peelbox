@@ -402,6 +402,19 @@ impl GenAIBackend {
         }
     }
 
+    /// Converts this backend into its underlying LLM client
+    ///
+    /// This consumes the backend and returns the LLM client for use
+    /// in other contexts (e.g., provider selection fallback chain).
+    pub fn into_llm_client(self) -> Arc<dyn LLMClient> {
+        self.llm_client
+    }
+
+    /// Returns a reference to the underlying LLM client
+    pub fn llm_client(&self) -> &Arc<dyn LLMClient> {
+        &self.llm_client
+    }
+
     /// Validates that the requested model is available on the provider
     async fn validate_model(&self, model_name: &str) -> Result<(), BackendError> {
         // Check if provider supports model listing

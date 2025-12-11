@@ -326,6 +326,42 @@ impl DetectionService {
         })
     }
 
+    /// Creates a new detection service with a pre-configured backend
+    ///
+    /// This constructor allows using a custom backend, useful for:
+    /// - Automatic backend selection via `select_llm_client()`
+    /// - Testing with mock backends
+    /// - Custom LLM client configurations
+    ///
+    /// # Arguments
+    ///
+    /// * `backend` - Pre-configured GenAI backend
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use aipack::detection::service::DetectionService;
+    /// use aipack::ai::genai_backend::{GenAIBackend, Provider};
+    /// use std::sync::Arc;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let backend = GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string()).await?;
+    /// let service = DetectionService::with_backend(Arc::new(backend));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_backend(backend: Arc<GenAIBackend>) -> Self {
+        info!(
+            "Detection service initialized with backend: {}",
+            backend.name()
+        );
+
+        Self {
+            backend,
+            language_registry: LanguageRegistry::with_defaults(),
+        }
+    }
+
     /// Detects build system for a repository
     ///
     /// This is the main entry point for detection. It:

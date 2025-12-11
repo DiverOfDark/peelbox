@@ -3,6 +3,7 @@ use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
+use aipack::llm::select_llm_client;
 use aipack::progress::{LoggingHandler, ProgressHandler};
 use aipack::VERSION;
 
@@ -137,13 +138,15 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     // Load configuration with CLI overrides
     let default_config = AipackConfig::default();
     let config = AipackConfig {
-        provider: args.backend,
+        provider: args.backend.unwrap_or(default_config.provider),
         model: args.model.clone().unwrap_or(default_config.model),
         request_timeout_secs: args.timeout,
         cache_enabled: !args.no_cache && default_config.cache_enabled,
         ..default_config
     };
-    debug!("Provider set to: {:?}", config.provider);
+    if args.backend.is_some() {
+        debug!("Provider explicitly set to: {:?}", config.provider);
+    }
     if args.model.is_some() {
         debug!("Model overridden to: {}", config.model);
     }
@@ -161,39 +164,75 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
     // Create detection service
     info!("Initializing detection service");
-    let service = match DetectionService::new(&config).await {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Failed to initialize detection service: {}", e);
-            eprintln!("Failed to initialize detection service: {}", e);
-            eprintln!("\nPossible solutions:");
-            match config.provider {
-                Provider::Ollama => {
-                    eprintln!("  - Ensure Ollama is running: ollama serve");
-                    eprintln!("  - Check OLLAMA_HOST environment variable (default: http://localhost:11434)");
-                    eprintln!(
-                        "  - Try a different provider: --backend openai, --backend claude, etc."
-                    );
+    let service = if args.backend.is_some() {
+        // Use explicitly specified backend
+        debug!("Using explicitly specified backend: {:?}", config.provider);
+        match DetectionService::new(&config).await {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Failed to initialize detection service: {}", e);
+                eprintln!("Failed to initialize detection service: {}", e);
+                eprintln!("\nPossible solutions:");
+                match config.provider {
+                    Provider::Ollama => {
+                        eprintln!("  - Ensure Ollama is running: ollama serve");
+                        eprintln!("  - Check OLLAMA_HOST environment variable (default: http://localhost:11434)");
+                        eprintln!(
+                            "  - Try a different provider: --backend openai, --backend claude, etc."
+                        );
+                    }
+                    Provider::OpenAI => {
+                        eprintln!("  - Set OPENAI_API_KEY environment variable");
+                        eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints (e.g., Azure OpenAI)");
+                    }
+                    Provider::Claude => {
+                        eprintln!("  - Set ANTHROPIC_API_KEY environment variable");
+                    }
+                    Provider::Gemini => {
+                        eprintln!("  - Set GOOGLE_API_KEY environment variable");
+                    }
+                    Provider::Grok => {
+                        eprintln!("  - Set XAI_API_KEY environment variable");
+                    }
+                    Provider::Groq => {
+                        eprintln!("  - Set GROQ_API_KEY environment variable");
+                    }
                 }
-                Provider::OpenAI => {
-                    eprintln!("  - Set OPENAI_API_KEY environment variable");
-                    eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints (e.g., Azure OpenAI)");
-                }
-                Provider::Claude => {
-                    eprintln!("  - Set ANTHROPIC_API_KEY environment variable");
-                }
-                Provider::Gemini => {
-                    eprintln!("  - Set GOOGLE_API_KEY environment variable");
-                }
-                Provider::Grok => {
-                    eprintln!("  - Set XAI_API_KEY environment variable");
-                }
-                Provider::Groq => {
-                    eprintln!("  - Set GROQ_API_KEY environment variable");
-                }
+                eprintln!("  - Run 'aipack health' to check backend availability");
+                eprintln!("  - Or omit --backend to automatically select an available backend");
+                return 1;
             }
-            eprintln!("  - Run 'aipack health' to check backend availability");
-            return 1;
+        }
+    } else {
+        // Default: automatic backend selection
+        info!("Auto-selecting best available backend");
+        let interactive = atty::is(atty::Stream::Stdout);
+
+        match select_llm_client(&config, interactive).await {
+            Ok(selected) => {
+                info!("Auto-selected backend: {}", selected.description);
+                if !quiet {
+                    eprintln!("Using: {}", selected.description);
+                }
+
+                // Create GenAIBackend with the selected client
+                let backend = aipack::ai::genai_backend::GenAIBackend::with_client(
+                    selected.client,
+                    selected.provider,
+                    Some(config.max_tokens as u32),
+                    Some(config.max_tool_iterations),
+                );
+                DetectionService::with_backend(Arc::new(backend))
+            }
+            Err(e) => {
+                error!("Failed to auto-select backend: {}", e);
+                eprintln!("Failed to auto-select backend: {}", e);
+                eprintln!("\nNo LLM backend available. Please either:");
+                eprintln!("  - Set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)");
+                eprintln!("  - Start Ollama locally (ollama serve)");
+                eprintln!("  - Ensure sufficient RAM for embedded LLM (minimum 3GB available)");
+                return 1;
+            }
         }
     };
 

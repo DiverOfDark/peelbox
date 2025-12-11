@@ -185,7 +185,7 @@ fn test_cli_parsing_detect_default() {
     match args.command {
         Commands::Detect(detect_args) => {
             assert_eq!(detect_args.format, OutputFormatArg::Human);
-            assert_eq!(detect_args.backend, Provider::Ollama);
+            assert!(detect_args.backend.is_none()); // Auto-selection by default
             assert_eq!(detect_args.timeout, 60);
             assert!(detect_args.repository_path.is_none());
         }
@@ -214,7 +214,7 @@ fn test_cli_parsing_detect_with_options() {
                 Some(PathBuf::from("/tmp/repo"))
             );
             assert_eq!(detect_args.format, OutputFormatArg::Json);
-            assert_eq!(detect_args.backend, Provider::Ollama);
+            assert_eq!(detect_args.backend, Some(Provider::Ollama));
             assert_eq!(detect_args.timeout, 120);
         }
         _ => panic!("Expected Detect command"),
