@@ -325,7 +325,7 @@ fn test_config_error_display() {
 
 #[test]
 fn test_backend_error_display() {
-    use aipack::ai::genai_backend::BackendError;
+    use aipack::ai::error::BackendError;
 
     let error = BackendError::TimeoutError { seconds: 30 };
     assert!(format!("{}", error).contains("30 seconds"));
@@ -363,12 +363,12 @@ fn test_error_types_implement_error_trait() {
     is_error::<ServiceError>();
     is_error::<AnalysisError>();
     is_error::<ConfigError>();
-    is_error::<aipack::ai::genai_backend::BackendError>();
+    is_error::<aipack::ai::error::BackendError>();
 }
 
 #[test]
 fn test_error_chain_propagation() {
-    use aipack::ai::genai_backend::BackendError;
+    use aipack::ai::error::BackendError;
 
     // Test that BackendError converts to ServiceError
     let backend_error = BackendError::TimeoutError { seconds: 30 };

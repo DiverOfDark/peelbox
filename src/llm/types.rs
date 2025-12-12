@@ -21,7 +21,7 @@ pub enum MessageRole {
 }
 
 /// A message in the conversation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ChatMessage {
     /// Role of the message sender
     pub role: MessageRole,
@@ -88,7 +88,7 @@ impl ChatMessage {
 }
 
 /// A tool call requested by the LLM
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolCall {
     /// Unique identifier for this tool call
     pub call_id: String,
@@ -162,14 +162,33 @@ impl LLMRequest {
 }
 
 /// Response from the LLM
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMResponse {
     /// Text content of the response
     pub content: String,
     /// Tool calls requested by the LLM
     pub tool_calls: Vec<ToolCall>,
-    /// Time taken for the request
+    /// Time taken for the request (serialized as milliseconds)
+    #[serde(
+        serialize_with = "serialize_duration",
+        deserialize_with = "deserialize_duration"
+    )]
     pub response_time: Duration,
+}
+
+fn serialize_duration<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_u64(duration.as_millis() as u64)
+}
+
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let millis = u64::deserialize(deserializer)?;
+    Ok(Duration::from_millis(millis))
 }
 
 impl LLMResponse {

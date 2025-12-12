@@ -7,6 +7,7 @@ mod client;
 pub mod embedded;
 mod genai;
 mod mock;
+mod recording;
 mod selector;
 mod types;
 
@@ -17,5 +18,6 @@ pub use embedded::{
 };
 pub use genai::GenAIClient;
 pub use mock::{MockLLMClient, MockResponse};
+pub use recording::{RecordedExchange, RecordedRequest, RecordingLLMClient, RecordingMode};
 pub use selector::{select_llm_client, SelectedClient};
 pub use types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};

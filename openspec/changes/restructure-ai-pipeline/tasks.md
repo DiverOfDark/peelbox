@@ -266,16 +266,16 @@ Create minimal test repositories for E2E testing.
 
 Implement request-response recording for deterministic testing.
 
-- [ ] 16.1 Create `src/llm/recording.rs` module
-- [ ] 16.2 Define `RecordingMode` enum (Record, Replay, Auto)
-- [ ] 16.3 Define `RecordedExchange` and `RecordedRequest` types
-- [ ] 16.4 Implement `RecordingLLMClient` wrapping any `LLMClient`
-- [ ] 16.5 Implement request hashing (canonical JSON → MD5)
-- [ ] 16.6 Implement recording file I/O (JSON format)
-- [ ] 16.7 Add `AIPACK_RECORDING_MODE` environment variable support
-- [ ] 16.8 Add `AIPACK_RECORDINGS_DIR` environment variable support
-- [ ] 16.9 Add unit tests for recording/replay logic
-- [ ] 16.10 Verify: `cargo build && cargo test` passes
+- [x] 16.1 Create `src/llm/recording.rs` module
+- [x] 16.2 Define `RecordingMode` enum (Record, Replay, Auto)
+- [x] 16.3 Define `RecordedExchange` and `RecordedRequest` types
+- [x] 16.4 Implement `RecordingLLMClient` wrapping any `LLMClient`
+- [x] 16.5 Implement request hashing (canonical JSON → MD5)
+- [x] 16.6 Implement recording file I/O (JSON format)
+- [x] 16.7 Add `AIPACK_RECORDING_MODE` environment variable support
+- [x] 16.8 Add `AIPACK_RECORDINGS_DIR` environment variable support
+- [x] 16.9 Add unit tests for recording/replay logic
+- [x] 16.10 Verify: `cargo build && cargo test` passes
 
 **Deliverable:** LLM responses can be recorded and replayed deterministically.
 

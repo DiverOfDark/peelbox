@@ -3,10 +3,10 @@
 //! Tests backend availability checking, configuration validation,
 //! and health status reporting.
 
-use genai::adapter::AdapterKind;
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
 use aipack::llm::GenAIClient;
+use genai::adapter::AdapterKind;
 use std::env;
 use std::time::Duration;
 
@@ -290,7 +290,7 @@ fn test_config_display_formatting() {
 
 #[test]
 fn test_backend_error_types() {
-    use aipack::ai::genai_backend::BackendError;
+    use aipack::ai::error::BackendError;
 
     // Test TimeoutError
     let error = BackendError::TimeoutError { seconds: 30 };
@@ -371,7 +371,7 @@ fn test_backend_error_types() {
 
 #[test]
 fn test_backend_error_implements_error_trait() {
-    use aipack::ai::genai_backend::BackendError;
+    use aipack::ai::error::BackendError;
     use std::error::Error;
 
     let error = BackendError::TimeoutError { seconds: 30 };
