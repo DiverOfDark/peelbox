@@ -245,7 +245,7 @@ impl ServiceError {
 /// ```text
 /// DetectionService
 ///   └── GenAIBackend (multi-provider with tool-based detection)
-///         ├── ToolExecutor (on-demand file access)
+///         ├── ToolSystem (tool execution with caching)
 ///         ├── Iterative LLM conversation
 ///         └── Supports: Ollama, OpenAI, Claude, Gemini, Grok, Groq
 /// ```

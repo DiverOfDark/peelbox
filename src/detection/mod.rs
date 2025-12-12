@@ -6,7 +6,6 @@
 pub mod analyzer;
 pub mod prompt;
 pub mod service;
-pub mod tools;
 pub mod types;
 
 // Re-export commonly used types

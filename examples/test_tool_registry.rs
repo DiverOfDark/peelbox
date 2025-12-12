@@ -1,19 +1,21 @@
-use aipack::detection::tools::ToolRegistry;
+use aipack::tools::ToolRegistry;
+use std::path::PathBuf;
 
 fn main() {
     println!("Creating all tools from ToolRegistry...\n");
 
-    let tools = ToolRegistry::create_all_tools();
-    println!("Total tools created: {}\n", tools.len());
+    let repo_path = PathBuf::from(".");
+    let registry = ToolRegistry::new(repo_path)
+        .expect("Failed to create tool registry");
 
-    for tool in tools {
-        println!("Tool: {}", tool.name);
-        if let Some(desc) = &tool.description {
-            println!("  Description: {}", desc);
-        }
-        if let Some(schema) = &tool.schema {
-            println!("  Schema type: {}", schema["type"]);
-            if let Some(required) = schema["required"].as_array() {
+    println!("Total tools registered: {}\n", registry.len());
+
+    let tool_definitions = registry.as_tool_definitions();
+    for def in tool_definitions {
+        println!("Tool: {}", def.name);
+        println!("  Description: {}", def.description);
+        if let Some(schema_obj) = def.parameters.as_object() {
+            if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
                 println!("  Required parameters: {}", required.len());
             }
         }

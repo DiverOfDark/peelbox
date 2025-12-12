@@ -177,15 +177,15 @@ Extract validation logic into dedicated module. Wire into existing flow.
 
 Restructure tools with proper trait, registry, and caching.
 
-- [ ] 11.1 Create `src/tools/mod.rs` module structure
-- [ ] 11.2 Define `Tool` trait in `src/tools/trait.rs`
-- [ ] 11.3 Migrate existing tools to implement `Tool` trait
-- [ ] 11.4 Implement `ToolRegistry` in `src/tools/registry.rs`
-- [ ] 11.5 Implement `ToolCache` in `src/tools/cache.rs`
-- [ ] 11.6 Implement `ToolSystem` facade in `src/tools/system.rs`
-- [ ] 11.7 Update `GenAIBackend` to use `ToolSystem`
-- [ ] 11.8 Remove `src/detection/tools/` (replaced by `src/tools/`)
-- [ ] 11.9 Verify: `cargo build && cargo test` passes, tools work
+- [x] 11.1 Create `src/tools/mod.rs` module structure
+- [x] 11.2 Define `Tool` trait in `src/tools/trait_def.rs`
+- [x] 11.3 Migrate existing tools to implement `Tool` trait
+- [x] 11.4 Implement `ToolRegistry` in `src/tools/registry.rs`
+- [x] 11.5 Implement `ToolCache` in `src/tools/cache.rs`
+- [x] 11.6 Implement `ToolSystem` facade in `src/tools/system.rs`
+- [x] 11.7 Update `GenAIBackend` to use `ToolSystem`
+- [x] 11.8 Remove `src/detection/tools/` (replaced by `src/tools/`)
+- [x] 11.9 Verify: `cargo build && cargo test` passes, tools work
 
 **Deliverable:** Tools behind clean abstraction with caching. Old tool code removed.
 

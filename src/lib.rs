@@ -8,6 +8,7 @@ pub mod languages;
 pub mod llm;
 pub mod output;
 pub mod progress;
+pub mod tools;
 pub mod validation;
 
 pub use ai::genai_backend::{BackendError, GenAIBackend, Provider};
@@ -20,6 +21,7 @@ pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::{LanguageDefinition, LanguageRegistry};
 pub use output::schema::UniversalBuild;
 pub use progress::{LoggingHandler, NoOpHandler, ProgressEvent, ProgressHandler};
+pub use tools::{Tool, ToolRegistry, ToolCache, ToolSystem};
 pub use validation::{ValidationRule, Validator};
 
 pub fn init_default() {

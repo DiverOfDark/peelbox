@@ -1,0 +1,219 @@
+//! Tool system facade
+//!
+//! Provides a unified interface for tool execution with caching.
+
+use anyhow::{anyhow, Result};
+use serde_json::Value;
+use std::path::PathBuf;
+use tracing::{debug, info, warn};
+
+use crate::llm::ToolDefinition;
+use super::cache::ToolCache;
+use super::registry::ToolRegistry;
+
+/// Unified tool execution system with caching
+pub struct ToolSystem {
+    registry: ToolRegistry,
+    cache: ToolCache,
+}
+
+impl ToolSystem {
+    /// Create a new tool system for the given repository
+    pub fn new(repo_path: PathBuf) -> Result<Self> {
+        Ok(Self {
+            registry: ToolRegistry::new(repo_path)?,
+            cache: ToolCache::new(),
+        })
+    }
+
+    /// Execute a tool by name with the given arguments
+    ///
+    /// Results are cached to avoid redundant operations.
+    pub async fn execute(&self, tool_name: &str, arguments: Value) -> Result<String> {
+        info!(tool = tool_name, args = ?arguments, "Executing tool");
+
+        if let Some(cached) = self.cache.get(tool_name, &arguments) {
+            debug!(tool = tool_name, "Tool result found in cache");
+            return Ok(cached);
+        }
+
+        let tool = self
+            .registry
+            .get_tool(tool_name)
+            .ok_or_else(|| anyhow!("Unknown tool: {}", tool_name))?;
+
+        let result = tool.execute(arguments.clone()).await;
+
+        match &result {
+            Ok(output) => {
+                let output_len = output.len();
+                info!(tool = tool_name, output_len, "Tool execution completed");
+                debug!(
+                    tool = tool_name,
+                    output_preview = &output[..output.len().min(200)],
+                    "Tool output preview"
+                );
+
+                self.cache.insert(tool_name, &arguments, output.clone());
+            }
+            Err(e) => {
+                warn!(tool = tool_name, error = %e, "Tool execution failed");
+            }
+        }
+
+        result
+    }
+
+    /// Get all tools as ToolDefinition for LLMClient trait
+    pub fn as_tool_definitions(&self) -> Vec<ToolDefinition> {
+        self.registry.as_tool_definitions()
+    }
+
+    /// Clear the cache
+    pub fn clear_cache(&self) {
+        self.cache.clear();
+    }
+
+    /// Get available tool names
+    pub fn tool_names(&self) -> Vec<&str> {
+        self.registry.tool_names()
+    }
+
+    /// Number of registered tools
+    pub fn tool_count(&self) -> usize {
+        self.registry.len()
+    }
+
+    /// Number of cached results
+    pub fn cache_size(&self) -> usize {
+        self.cache.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn create_test_repo() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let base = dir.path();
+
+        fs::create_dir(base.join("src")).unwrap();
+        fs::write(base.join("src/main.rs"), "fn main() {}").unwrap();
+        fs::write(base.join("Cargo.toml"), "[package]\nname = \"test\"\n").unwrap();
+
+        dir
+    }
+
+    #[tokio::test]
+    async fn test_tool_system_creation() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        assert_eq!(system.tool_count(), 7);
+        assert_eq!(system.cache_size(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_execute_list_files() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        let result = system
+            .execute("list_files", json!({"path": "."}))
+            .await
+            .unwrap();
+
+        assert!(result.contains("Cargo.toml"));
+        assert!(result.contains("src/main.rs"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_read_file() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        let result = system
+            .execute("read_file", json!({"path": "Cargo.toml"}))
+            .await
+            .unwrap();
+
+        assert!(result.contains("[package]"));
+        assert!(result.contains("name = \"test\""));
+    }
+
+    #[tokio::test]
+    async fn test_caching() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        assert_eq!(system.cache_size(), 0);
+
+        let args = json!({"path": "."});
+        let result1 = system.execute("list_files", args.clone()).await.unwrap();
+
+        assert_eq!(system.cache_size(), 1);
+
+        let result2 = system.execute("list_files", args).await.unwrap();
+
+        assert_eq!(result1, result2);
+        assert_eq!(system.cache_size(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_clear_cache() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        system
+            .execute("list_files", json!({"path": "."}))
+            .await
+            .unwrap();
+
+        assert_eq!(system.cache_size(), 1);
+
+        system.clear_cache();
+
+        assert_eq!(system.cache_size(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_tool() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        let result = system.execute("nonexistent", json!({})).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unknown tool"));
+    }
+
+    #[tokio::test]
+    async fn test_tool_names() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        let names = system.tool_names();
+        assert_eq!(names.len(), 7);
+        assert!(names.contains(&"list_files"));
+        assert!(names.contains(&"read_file"));
+        assert!(names.contains(&"submit_detection"));
+    }
+
+    #[tokio::test]
+    async fn test_as_tool_definitions() {
+        let temp_dir = create_test_repo();
+        let system = ToolSystem::new(temp_dir.path().to_path_buf()).unwrap();
+
+        let definitions = system.as_tool_definitions();
+        assert_eq!(definitions.len(), 7);
+
+        for def in definitions {
+            assert!(!def.name.is_empty());
+            assert!(!def.description.is_empty());
+        }
+    }
+}

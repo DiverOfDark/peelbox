@@ -34,10 +34,7 @@ use clap::ValueEnum;
 use genai::adapter::AdapterKind;
 use reqwest;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
 use std::fmt;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -571,7 +568,7 @@ impl GenAIBackend {
         progress: Option<Arc<dyn ProgressHandler>>,
     ) -> Result<UniversalBuild, BackendError> {
         let progress = progress.unwrap_or_else(|| Arc::new(NoOpHandler));
-        use crate::detection::tools::{ToolExecutor, ToolRegistry};
+        use crate::tools::ToolSystem;
 
         // Emit Started event
         progress.on_progress(&ProgressEvent::Started {
@@ -584,13 +581,13 @@ impl GenAIBackend {
             self.llm_client.name()
         );
 
-        // Create tool executor
-        let executor = ToolExecutor::new(repo_path.clone()).map_err(|e| BackendError::Other {
-            message: format!("Failed to create tool executor: {}", e),
+        // Create tool system
+        let tool_system = ToolSystem::new(repo_path.clone()).map_err(|e| BackendError::Other {
+            message: format!("Failed to create tool system: {}", e),
         })?;
 
         // Get all tools as ToolDefinition
-        let tools = ToolRegistry::create_tool_definitions();
+        let tools = tool_system.as_tool_definitions();
         debug!("Initialized {} tools for detection", tools.len());
 
         // Build user message with optional bootstrap context
@@ -630,9 +627,6 @@ impl GenAIBackend {
         // Track consecutive zero tool call responses for retry logic
         let mut consecutive_zero_tool_calls = 0;
         const MAX_CONSECUTIVE_ZERO_TOOL_CALLS: usize = 2;
-
-        // Tool call cache: hash(tool_name + arguments) -> execution result
-        let mut tool_cache: HashMap<u64, String> = HashMap::new();
 
         loop {
             iteration += 1;
@@ -882,23 +876,6 @@ impl GenAIBackend {
                     has_read_file = true;
                 }
 
-                // Create cache key from tool name + arguments
-                let mut hasher = DefaultHasher::new();
-                tool_call.name.hash(&mut hasher);
-                serde_json::to_string(&tool_call.arguments)
-                    .unwrap_or_default()
-                    .hash(&mut hasher);
-                let cache_key = hasher.finish();
-
-                // Check if this tool call has already been executed
-                if tool_cache.contains_key(&cache_key) {
-                    debug!(
-                        "Tool {} with same arguments already executed - skipping (idempotent)",
-                        tool_call.name
-                    );
-                    continue;
-                }
-
                 // Emit tool execution started event
                 progress.on_progress(&ProgressEvent::ToolExecutionStarted {
                     tool_name: tool_call.name.clone(),
@@ -907,7 +884,7 @@ impl GenAIBackend {
 
                 // Execute the tool and convert errors to tool responses
                 let tool_start = std::time::Instant::now();
-                let result = executor
+                let result = tool_system
                     .execute(&tool_call.name, tool_call.arguments.clone())
                     .await;
 
@@ -932,9 +909,6 @@ impl GenAIBackend {
                     execution_time: tool_start.elapsed(),
                     success,
                 });
-
-                // Cache the result
-                tool_cache.insert(cache_key, content.clone());
 
                 // Add tool response to conversation
                 messages.push(LLMChatMessage::tool_response(&tool_call.call_id, content));
