@@ -244,19 +244,19 @@ Extract detection loop into AnalysisPipeline. Replace GenAIBackend internals.
 
 Create minimal test repositories for E2E testing.
 
-- [ ] 15.1 Create `tests/fixtures/` directory structure
-- [ ] 15.2 Create single-language fixtures: rust-cargo, rust-workspace
-- [ ] 15.3 Create single-language fixtures: node-npm, node-yarn, node-pnpm
-- [ ] 15.4 Create single-language fixtures: python-pip, python-poetry
-- [ ] 15.5 Create single-language fixtures: java-maven, java-gradle, kotlin-gradle
-- [ ] 15.6 Create single-language fixtures: go-mod, dotnet-csproj
-- [ ] 15.7 Create monorepo fixtures: npm-workspaces, turborepo
-- [ ] 15.8 Create monorepo fixtures: cargo-workspace, gradle-multiproject
-- [ ] 15.9 Create monorepo fixtures: maven-multimodule, polyglot
-- [ ] 15.10 Create edge-case fixtures: empty-repo, no-manifest, multiple-manifests
-- [ ] 15.11 Create edge-case fixtures: nested-projects, vendor-heavy
-- [ ] 15.12 Create `tests/fixtures/expected/` with expected JSON outputs
-- [ ] 15.13 Verify: all fixtures are minimal but representative
+- [x] 15.1 Create `tests/fixtures/` directory structure
+- [x] 15.2 Create single-language fixtures: rust-cargo, rust-workspace
+- [x] 15.3 Create single-language fixtures: node-npm, node-yarn, node-pnpm
+- [x] 15.4 Create single-language fixtures: python-pip, python-poetry
+- [x] 15.5 Create single-language fixtures: java-maven, java-gradle, kotlin-gradle
+- [x] 15.6 Create single-language fixtures: go-mod, dotnet-csproj
+- [x] 15.7 Create monorepo fixtures: npm-workspaces, turborepo
+- [x] 15.8 Create monorepo fixtures: cargo-workspace, gradle-multiproject
+- [x] 15.9 Create monorepo fixtures: maven-multimodule, polyglot
+- [x] 15.10 Create edge-case fixtures: empty-repo, no-manifest, multiple-manifests
+- [x] 15.11 Create edge-case fixtures: nested-projects, vendor-heavy
+- [x] 15.12 Create `tests/fixtures/expected/` with expected JSON outputs
+- [x] 15.13 Verify: all fixtures are minimal but representative
 
 **Deliverable:** Comprehensive test fixture library covering common and edge cases.
 
