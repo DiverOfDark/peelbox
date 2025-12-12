@@ -22,12 +22,12 @@ impl ToolRegistry {
         let language_registry = Arc::new(LanguageRegistry::with_defaults());
 
         let tools: Vec<Arc<dyn Tool>> = vec![
-            Arc::new(ListFilesTool::new(repo_path.clone(), language_registry.clone())?),
-            Arc::new(ReadFileTool::new(repo_path.clone(), language_registry.clone())?),
-            Arc::new(SearchFilesTool::new(repo_path.clone(), language_registry.clone())?),
-            Arc::new(GetFileTreeTool::new(repo_path.clone(), language_registry.clone())?),
-            Arc::new(GrepContentTool::new(repo_path, language_registry)?),
-            Arc::new(GetBestPracticesTool),
+            Arc::new(ListFilesTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
+            Arc::new(ReadFileTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
+            Arc::new(SearchFilesTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
+            Arc::new(GetFileTreeTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
+            Arc::new(GrepContentTool::new(repo_path, Arc::clone(&language_registry))?),
+            Arc::new(GetBestPracticesTool::new(Arc::clone(&language_registry))),
             Arc::new(SubmitDetectionTool),
         ];
 

@@ -195,11 +195,11 @@ Restructure tools with proper trait, registry, and caching.
 
 Update best practices tool to use LanguageRegistry instead of hardcoded templates.
 
-- [ ] 12.1 Update `GetBestPracticesTool` to accept `&LanguageRegistry`
-- [ ] 12.2 Implement `best_practices()` lookup via registry
-- [ ] 12.3 Remove old hardcoded template code
-- [ ] 12.4 Add tests for best practices with various languages
-- [ ] 12.5 Verify: `cargo build && cargo test` passes
+- [x] 12.1 Update `GetBestPracticesTool` to accept `&LanguageRegistry`
+- [x] 12.2 Implement `best_practices()` lookup via registry
+- [x] 12.3 Remove old hardcoded template code
+- [x] 12.4 Add tests for best practices with various languages
+- [x] 12.5 Verify: `cargo build && cargo test` passes
 
 **Deliverable:** Best practices served from language definitions.
 

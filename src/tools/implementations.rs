@@ -17,7 +17,6 @@ use walkdir::WalkDir;
 
 use crate::languages::LanguageRegistry;
 use crate::output::UniversalBuild;
-use super::best_practices::BestPractices;
 use super::trait_def::Tool;
 
 const MAX_FILE_SIZE: u64 = 1024 * 1024;
@@ -633,7 +632,15 @@ impl Tool for GrepContentTool {
 }
 
 /// Get best practices tool
-pub struct GetBestPracticesTool;
+pub struct GetBestPracticesTool {
+    language_registry: Arc<LanguageRegistry>,
+}
+
+impl GetBestPracticesTool {
+    pub fn new(language_registry: Arc<LanguageRegistry>) -> Self {
+        Self { language_registry }
+    }
+}
 
 #[async_trait]
 impl Tool for GetBestPracticesTool {
@@ -651,11 +658,11 @@ impl Tool for GetBestPracticesTool {
             "properties": {
                 "language": {
                     "type": "string",
-                    "description": "Programming language (e.g., 'Rust', 'JavaScript', 'TypeScript', 'Java', 'Python', 'Go', 'C++', '.NET', 'Ruby')"
+                    "description": "Programming language (e.g., 'Rust', 'JavaScript', 'Java', 'Python', 'Go', 'C++', '.NET', 'Ruby')"
                 },
                 "build_system": {
                     "type": "string",
-                    "description": "Build system/package manager (e.g., 'cargo', 'npm', 'yarn', 'pnpm', 'bun', 'maven', 'gradle', 'pip', 'poetry', 'pipenv', 'go mod', 'cmake', 'make', 'dotnet', 'bundler')"
+                    "description": "Build system/package manager (e.g., 'cargo', 'npm', 'yarn', 'pnpm', 'bun', 'maven', 'gradle', 'pip', 'poetry', 'pipenv', 'go', 'cmake', 'make', 'dotnet', 'bundler')"
                 }
             },
             "required": ["language", "build_system"]
@@ -672,10 +679,20 @@ impl Tool for GetBestPracticesTool {
 
         debug!(language, build_system, "get_best_practices parameters");
 
-        let template = BestPractices::get_template(language, build_system).context(format!(
-            "Failed to get best practices template for {} + {}",
-            language, build_system
-        ))?;
+        let lang_def = self
+            .language_registry
+            .get_language(language)
+            .ok_or_else(|| anyhow!("Language '{}' not found in registry", language))?;
+
+        let template = lang_def
+            .build_template(build_system)
+            .ok_or_else(|| {
+                anyhow!(
+                    "No template found for language '{}' with build system '{}'",
+                    language,
+                    build_system
+                )
+            })?;
 
         info!(
             language,

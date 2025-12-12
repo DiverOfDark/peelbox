@@ -34,7 +34,7 @@ pub struct LanguageDetection {
 }
 
 /// Build template for container image generation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct BuildTemplate {
     pub build_image: String,
     pub runtime_image: String,

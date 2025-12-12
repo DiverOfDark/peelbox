@@ -8,10 +8,8 @@ pub mod registry;
 pub mod cache;
 pub mod system;
 pub mod implementations;
-pub mod best_practices;
 
 pub use trait_def::Tool;
 pub use registry::ToolRegistry;
 pub use cache::ToolCache;
 pub use system::ToolSystem;
-pub use best_practices::BestPractices;
