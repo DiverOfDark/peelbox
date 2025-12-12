@@ -117,7 +117,9 @@ async fn test_mock_client_sequence() {
         // Third: LLM asks for best practices
         MockResponse::with_tool_calls(
             "This is a Rust project, let me get best practices",
-            vec![MockLLMClient::get_best_practices_call("call_3", "rust", "cargo")],
+            vec![MockLLMClient::get_best_practices_call(
+                "call_3", "rust", "cargo",
+            )],
         ),
         // Fourth: LLM submits detection
         MockResponse::with_tool_calls(
@@ -285,7 +287,11 @@ async fn test_full_detection_flow_with_mock() {
     let result = backend.detect(repo_path, None, None).await;
 
     // Verify result
-    assert!(result.is_ok(), "Detection should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Detection should succeed: {:?}",
+        result.err()
+    );
     let universal_build = result.unwrap();
 
     // Verify the detected build system
@@ -293,7 +299,10 @@ async fn test_full_detection_flow_with_mock() {
     assert_eq!(universal_build.metadata.build_system, "cargo");
     assert!(universal_build.metadata.confidence >= 0.9);
     assert_eq!(universal_build.build.base, "rust:1.75");
-    assert!(universal_build.build.commands.contains(&"cargo build --release".to_string()));
+    assert!(universal_build
+        .build
+        .commands
+        .contains(&"cargo build --release".to_string()));
 }
 
 /// Integration test: Detection flow with multiple tool calls
@@ -329,7 +338,9 @@ async fn test_detection_flow_multiple_iterations() {
     // Fourth response: LLM gets best practices
     mock_client.add_response(MockResponse::with_tool_calls(
         "This is a Rust project, let me get best practices.",
-        vec![MockLLMClient::get_best_practices_call("call_4", "rust", "cargo")],
+        vec![MockLLMClient::get_best_practices_call(
+            "call_4", "rust", "cargo",
+        )],
     ));
 
     // Fifth response: LLM submits detection
@@ -350,7 +361,11 @@ async fn test_detection_flow_multiple_iterations() {
 
     let result = backend.detect(repo_path, None, None).await;
 
-    assert!(result.is_ok(), "Detection should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Detection should succeed: {:?}",
+        result.err()
+    );
     let universal_build = result.unwrap();
     assert_eq!(universal_build.metadata.language, "rust");
     assert_eq!(universal_build.metadata.build_system, "cargo");

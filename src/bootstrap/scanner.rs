@@ -184,9 +184,7 @@ impl BootstrapScanner {
 
         info!(
             detections_found = detections.len(),
-            files_scanned,
-            scan_time_ms,
-            "Bootstrap scan completed"
+            files_scanned, scan_time_ms, "Bootstrap scan completed"
         );
 
         Ok(BootstrapContext::from_detections(
@@ -320,7 +318,11 @@ mod tests {
 
         assert!(context.detections.len() >= 2);
 
-        let languages: Vec<&str> = context.detections.iter().map(|d| d.language.as_str()).collect();
+        let languages: Vec<&str> = context
+            .detections
+            .iter()
+            .map(|d| d.language.as_str())
+            .collect();
         assert!(languages.contains(&"Rust"));
         assert!(languages.contains(&"JavaScript"));
     }
@@ -415,7 +417,11 @@ mod tests {
         let base = dir.path();
 
         // Create .gitignore with custom_build directory
-        fs::write(base.join(".gitignore"), "custom_build/\n# comment\nsome_cache\n").unwrap();
+        fs::write(
+            base.join(".gitignore"),
+            "custom_build/\n# comment\nsome_cache\n",
+        )
+        .unwrap();
 
         // Create root package.json
         fs::File::create(base.join("package.json"))

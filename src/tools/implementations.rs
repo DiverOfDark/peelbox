@@ -15,9 +15,9 @@ use std::sync::Arc;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
+use super::trait_def::Tool;
 use crate::languages::LanguageRegistry;
 use crate::output::UniversalBuild;
-use super::trait_def::Tool;
 
 const MAX_FILE_SIZE: u64 = 1024 * 1024;
 const DEFAULT_MAX_LINES: usize = 500;
@@ -56,7 +56,10 @@ impl ToolHelpers {
             .canonicalize()
             .context("Failed to canonicalize repository path")?;
 
-        Ok(Self { repo_path, language_registry })
+        Ok(Self {
+            repo_path,
+            language_registry,
+        })
     }
 
     pub fn validate_path(&self, path: &str) -> Result<PathBuf> {
@@ -228,7 +231,10 @@ impl Tool for ListFilesTool {
         let glob_pattern = pattern.map(Pattern::new).transpose()?;
 
         let mut results = Vec::new();
-        for entry in walker.into_iter().filter_entry(|e| !self.helpers.is_ignored(e.path())) {
+        for entry in walker
+            .into_iter()
+            .filter_entry(|e| !self.helpers.is_ignored(e.path()))
+        {
             let entry = entry.context("Failed to read directory entry")?;
             let path_obj = entry.path();
 
@@ -338,8 +344,7 @@ impl Tool for ReadFileTool {
 
         debug!(
             lines_returned = lines.len(),
-            total_lines,
-            "read_file completed"
+            total_lines, "read_file completed"
         );
 
         let result = lines.join("\n");
@@ -684,20 +689,17 @@ impl Tool for GetBestPracticesTool {
             .get_language(language)
             .ok_or_else(|| anyhow!("Language '{}' not found in registry", language))?;
 
-        let template = lang_def
-            .build_template(build_system)
-            .ok_or_else(|| {
-                anyhow!(
-                    "No template found for language '{}' with build system '{}'",
-                    language,
-                    build_system
-                )
-            })?;
+        let template = lang_def.build_template(build_system).ok_or_else(|| {
+            anyhow!(
+                "No template found for language '{}' with build system '{}'",
+                language,
+                build_system
+            )
+        })?;
 
         info!(
             language,
-            build_system,
-            "Best practices template retrieved successfully"
+            build_system, "Best practices template retrieved successfully"
         );
 
         serde_json::to_string_pretty(&template)
@@ -750,7 +752,6 @@ impl Tool for SubmitDetectionTool {
             "UniversalBuild validated successfully"
         );
 
-        serde_json::to_string_pretty(&universal_build)
-            .context("Failed to serialize UniversalBuild")
+        serde_json::to_string_pretty(&universal_build).context("Failed to serialize UniversalBuild")
     }
 }

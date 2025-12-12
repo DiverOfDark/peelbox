@@ -22,7 +22,11 @@ impl LanguageDefinition for RustLanguage {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         if manifest_name != "Cargo.toml" {
             return None;
         }
@@ -174,7 +178,9 @@ members = ["crate1", "crate2"]
         let t = template.unwrap();
         assert_eq!(t.build_image, "rust:1.75");
         assert_eq!(t.runtime_image, "debian:bookworm-slim");
-        assert!(t.build_commands.contains(&"cargo build --release".to_string()));
+        assert!(t
+            .build_commands
+            .contains(&"cargo build --release".to_string()));
     }
 
     #[test]

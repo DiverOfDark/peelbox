@@ -254,7 +254,10 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         None
     };
 
-    let result = match service.detect_with_progress(repo_path.clone(), progress).await {
+    let result = match service
+        .detect_with_progress(repo_path.clone(), progress)
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             error!("Detection failed: {}", e);

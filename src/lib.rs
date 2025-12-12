@@ -13,17 +13,17 @@ pub mod tools;
 pub mod validation;
 
 pub use ai::genai_backend::{BackendError, GenAIBackend, Provider};
-pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};
 pub use detection::types::{GitInfo, RepositoryContext};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::{LanguageDefinition, LanguageRegistry};
+pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
 pub use pipeline::{PipelineConfig, PipelineContext};
 pub use progress::{LoggingHandler, NoOpHandler, ProgressEvent, ProgressHandler};
-pub use tools::{Tool, ToolRegistry, ToolCache, ToolSystem};
+pub use tools::{Tool, ToolCache, ToolRegistry, ToolSystem};
 pub use validation::{ValidationRule, Validator};
 
 pub fn init_default() {

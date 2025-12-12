@@ -22,7 +22,11 @@ impl LanguageDefinition for GoLanguage {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         if manifest_name != "go.mod" {
             return None;
         }

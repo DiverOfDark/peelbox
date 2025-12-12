@@ -35,7 +35,10 @@ fn default_version() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UniversalBuild {
     /// Schema version (e.g., "1.0")
-    #[serde(default = "default_version", deserialize_with = "deserialize_null_default_version")]
+    #[serde(
+        default = "default_version",
+        deserialize_with = "deserialize_null_default_version"
+    )]
     pub version: String,
     /// Project metadata and detection information
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -253,10 +256,16 @@ mod tests {
     fn test_display_shows_all_fields() {
         let mut build = create_minimal_valid_build();
         build.build.packages = vec!["pkg-config".to_string(), "libssl-dev".to_string()];
-        build.build.env.insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
+        build
+            .build
+            .env
+            .insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
         build.build.cache = vec!["/cache/cargo".to_string()];
         build.runtime.packages = vec!["ca-certificates".to_string()];
-        build.runtime.env.insert("PORT".to_string(), "8080".to_string());
+        build
+            .runtime
+            .env
+            .insert("PORT".to_string(), "8080".to_string());
         build.runtime.ports = vec![8080, 8443];
 
         let display = format!("{}", build);

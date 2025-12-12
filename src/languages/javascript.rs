@@ -59,7 +59,11 @@ impl LanguageDefinition for JavaScriptLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         match manifest_name {
             "bun.lockb" => Some(DetectionResult {
                 build_system: "bun".to_string(),
@@ -172,7 +176,15 @@ impl LanguageDefinition for JavaScriptLanguage {
     }
 
     fn excluded_dirs(&self) -> &[&str] {
-        &["node_modules", "dist", "build", "out", ".next", ".nuxt", "coverage"]
+        &[
+            "node_modules",
+            "dist",
+            "build",
+            "out",
+            ".next",
+            ".nuxt",
+            "coverage",
+        ]
     }
 
     fn workspace_configs(&self) -> &[&str] {

@@ -34,11 +34,12 @@ impl EmbeddedClient {
     pub async fn new(interactive: bool) -> Result<Self> {
         let capabilities = HardwareDetector::detect();
 
-        let model_info = ModelSelector::select(&capabilities)
-            .ok_or_else(|| anyhow::anyhow!(
+        let model_info = ModelSelector::select(&capabilities).ok_or_else(|| {
+            anyhow::anyhow!(
                 "Insufficient RAM for embedded LLM. Need at least 3GB available (have {:.1}GB)",
                 capabilities.available_ram_gb()
-            ))?;
+            )
+        })?;
 
         Self::with_model(model_info, &capabilities, interactive).await
     }
@@ -104,7 +105,9 @@ impl EmbeddedClient {
                 }
                 #[cfg(not(feature = "metal"))]
                 {
-                    warn!("Metal detected but not compiled with metal feature, falling back to CPU");
+                    warn!(
+                        "Metal detected but not compiled with metal feature, falling back to CPU"
+                    );
                     Ok(Device::Cpu)
                 }
             }
@@ -116,8 +119,7 @@ impl EmbeddedClient {
     fn load_gguf_model(model_path: &std::path::Path, device: &Device) -> Result<QuantizedQwen2> {
         debug!("Loading GGUF model from: {}", model_path.display());
 
-        let mut file = std::fs::File::open(model_path)
-            .context("Failed to open GGUF model file")?;
+        let mut file = std::fs::File::open(model_path).context("Failed to open GGUF model file")?;
 
         let content = gguf_file::Content::read(&mut file)
             .map_err(|e| anyhow::anyhow!("Failed to read GGUF file: {}", e))?;
@@ -137,7 +139,8 @@ impl EmbeddedClient {
         let start = Instant::now();
 
         // Tokenize input
-        let encoding = self.tokenizer
+        let encoding = self
+            .tokenizer
             .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("Tokenization failed: {}", e))?;
 
@@ -147,8 +150,7 @@ impl EmbeddedClient {
         debug!("Input tokens: {}", input_len);
 
         // Create tensor
-        let input_tensor = Tensor::new(input_ids.as_slice(), &self.device)?
-            .unsqueeze(0)?;
+        let input_tensor = Tensor::new(input_ids.as_slice(), &self.device)?.unsqueeze(0)?;
 
         // Generate tokens
         let mut model = self.model.lock().await;
@@ -179,7 +181,8 @@ impl EmbeddedClient {
         }
 
         // Decode output
-        let output = self.tokenizer
+        let output = self
+            .tokenizer
             .decode(&generated_tokens, true)
             .map_err(|e| anyhow::anyhow!("Decoding failed: {}", e))?;
 
@@ -280,11 +283,12 @@ impl LLMClient for EmbeddedClient {
         debug!("Max tokens: {}", max_tokens);
 
         // Generate response
-        let output = self.generate(&prompt, max_tokens).await.map_err(|e| {
-            BackendError::Other {
+        let output = self
+            .generate(&prompt, max_tokens)
+            .await
+            .map_err(|e| BackendError::Other {
                 message: format!("Embedded LLM generation failed: {}", e),
-            }
-        })?;
+            })?;
 
         debug!("=== LLM Response ===");
         debug!("Response length: {} chars", output.len());
@@ -321,7 +325,10 @@ impl LLMClient for EmbeddedClient {
     }
 
     fn model_info(&self) -> Option<String> {
-        Some(format!("{} ({})", self.model_info.display_name, self.model_info.params))
+        Some(format!(
+            "{} ({})",
+            self.model_info.display_name, self.model_info.params
+        ))
     }
 }
 

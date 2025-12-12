@@ -39,7 +39,11 @@ impl LanguageDefinition for DotNetLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         let is_dotnet = manifest_name.ends_with(".csproj")
             || manifest_name.ends_with(".fsproj")
             || manifest_name.ends_with(".vbproj")

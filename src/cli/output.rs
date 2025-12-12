@@ -24,7 +24,8 @@ impl OutputFormatter {
 
     pub fn format(&self, result: &UniversalBuild) -> Result<String> {
         match self.format {
-            OutputFormat::Json => serde_json::to_string_pretty(result).context("Failed to serialize UniversalBuild to JSON"),
+            OutputFormat::Json => serde_json::to_string_pretty(result)
+                .context("Failed to serialize UniversalBuild to JSON"),
             OutputFormat::Yaml => result.to_yaml(),
             OutputFormat::Human => Ok(format!("{}", result)),
             OutputFormat::Dockerfile => result.to_dockerfile(),
@@ -33,12 +34,13 @@ impl OutputFormatter {
 
     pub fn format_health(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
         match self.format {
-            OutputFormat::Json => {
-                serde_json::to_string_pretty(health_results)
-                    .context("Failed to serialize health status to JSON")
+            OutputFormat::Json => serde_json::to_string_pretty(health_results)
+                .context("Failed to serialize health status to JSON"),
+            OutputFormat::Yaml => serde_yaml::to_string(health_results)
+                .context("Failed to serialize health status to YAML"),
+            OutputFormat::Human | OutputFormat::Dockerfile => {
+                self.format_health_human(health_results)
             }
-            OutputFormat::Yaml => serde_yaml::to_string(health_results).context("Failed to serialize health status to YAML"),
-            OutputFormat::Human | OutputFormat::Dockerfile => self.format_health_human(health_results),
         }
     }
 
@@ -50,7 +52,9 @@ impl OutputFormatter {
         match self.format {
             OutputFormat::Json => self.format_health_with_env_vars_json(health_results, env_vars),
             OutputFormat::Yaml => self.format_health_with_env_vars_yaml(health_results, env_vars),
-            OutputFormat::Human | OutputFormat::Dockerfile => self.format_health_with_env_vars_human(health_results, env_vars),
+            OutputFormat::Human | OutputFormat::Dockerfile => {
+                self.format_health_with_env_vars_human(health_results, env_vars)
+            }
         }
     }
 

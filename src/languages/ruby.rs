@@ -29,7 +29,11 @@ impl LanguageDefinition for RubyLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         match manifest_name {
             "Gemfile" => {
                 let mut confidence = 0.9;

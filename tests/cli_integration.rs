@@ -6,11 +6,11 @@
 //! - Error handling
 //! - Exit codes
 
+use serial_test::serial;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use serial_test::serial;
 use tempfile::TempDir;
 
 /// Helper to get the path to the aipack binary

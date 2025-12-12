@@ -7,9 +7,9 @@ use serde_json::Value;
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
 
-use crate::llm::ToolDefinition;
 use super::cache::ToolCache;
 use super::registry::ToolRegistry;
+use crate::llm::ToolDefinition;
 
 /// Unified tool execution system with caching
 pub struct ToolSystem {

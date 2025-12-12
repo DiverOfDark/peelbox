@@ -49,7 +49,11 @@ impl LanguageDefinition for JavaLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         match manifest_name {
             "pom.xml" => {
                 let mut confidence = 0.9;
@@ -134,9 +138,10 @@ impl LanguageDefinition for JavaLanguage {
         // Check pom.xml patterns
         if content.contains("<project") {
             // <maven.compiler.source>17</maven.compiler.source>
-            if let Some(caps) = Regex::new(r"<maven\.compiler\.source>(\d+)</maven\.compiler\.source>")
-                .ok()
-                .and_then(|re| re.captures(content))
+            if let Some(caps) =
+                Regex::new(r"<maven\.compiler\.source>(\d+)</maven\.compiler\.source>")
+                    .ok()
+                    .and_then(|re| re.captures(content))
             {
                 return Some(caps.get(1)?.as_str().to_string());
             }
@@ -158,9 +163,10 @@ impl LanguageDefinition for JavaLanguage {
 
         // Check build.gradle(.kts) patterns
         // sourceCompatibility = JavaVersion.VERSION_17 or "17"
-        if let Some(caps) = Regex::new(r#"sourceCompatibility\s*=\s*(?:JavaVersion\.VERSION_)?["']?(\d+)"#)
-            .ok()
-            .and_then(|re| re.captures(content))
+        if let Some(caps) =
+            Regex::new(r#"sourceCompatibility\s*=\s*(?:JavaVersion\.VERSION_)?["']?(\d+)"#)
+                .ok()
+                .and_then(|re| re.captures(content))
         {
             return Some(caps.get(1)?.as_str().to_string());
         }
@@ -304,7 +310,8 @@ mod tests {
     #[test]
     fn test_detect_version_pom_java_version() {
         let lang = JavaLanguage;
-        let content = r#"<project><properties><java.version>21</java.version></properties></project>"#;
+        let content =
+            r#"<project><properties><java.version>21</java.version></properties></project>"#;
         assert_eq!(lang.detect_version(Some(content)), Some("21".to_string()));
     }
 

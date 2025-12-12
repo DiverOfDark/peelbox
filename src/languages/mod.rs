@@ -58,7 +58,11 @@ pub trait LanguageDefinition: Send + Sync {
     fn manifest_files(&self) -> &[ManifestPattern];
 
     /// Detect if a manifest file belongs to this language and return build system info
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult>;
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult>;
 
     /// Get best practices template for a specific build system
     fn build_template(&self, build_system: &str) -> Option<BuildTemplate>;

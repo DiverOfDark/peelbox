@@ -55,7 +55,10 @@ mod tests {
     #[async_trait]
     impl LLMClient for TestClient {
         async fn chat(&self, _request: LLMRequest) -> Result<LLMResponse, BackendError> {
-            Ok(LLMResponse::text("Test response", Duration::from_millis(10)))
+            Ok(LLMResponse::text(
+                "Test response",
+                Duration::from_millis(10),
+            ))
         }
 
         fn name(&self) -> &str {

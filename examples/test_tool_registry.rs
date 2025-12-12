@@ -5,8 +5,7 @@ fn main() {
     println!("Creating all tools from ToolRegistry...\n");
 
     let repo_path = PathBuf::from(".");
-    let registry = ToolRegistry::new(repo_path)
-        .expect("Failed to create tool registry");
+    let registry = ToolRegistry::new(repo_path).expect("Failed to create tool registry");
 
     println!("Total tools registered: {}\n", registry.len());
 

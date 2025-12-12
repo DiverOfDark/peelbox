@@ -2,9 +2,9 @@
 //!
 //! Caches tool execution results to avoid redundant operations.
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use serde_json::Value;
 
 /// Cache key combining tool name and arguments
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -117,8 +117,16 @@ mod tests {
     fn test_cache_clear() {
         let cache = ToolCache::new();
 
-        cache.insert("list_files", &json!({"path": "src"}), "file1.rs".to_string());
-        cache.insert("read_file", &json!({"path": "README.md"}), "content".to_string());
+        cache.insert(
+            "list_files",
+            &json!({"path": "src"}),
+            "file1.rs".to_string(),
+        );
+        cache.insert(
+            "read_file",
+            &json!({"path": "README.md"}),
+            "content".to_string(),
+        );
 
         assert_eq!(cache.len(), 2);
 

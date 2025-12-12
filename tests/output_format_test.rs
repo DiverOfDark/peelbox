@@ -435,8 +435,14 @@ fn test_json_special_characters_escaped() {
 
     // Should be valid JSON with escaped characters
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-    assert!(parsed["metadata"]["reasoning"].as_str().unwrap().contains("quoted"));
-    assert!(parsed["metadata"]["reasoning"].as_str().unwrap().contains("backslash"));
+    assert!(parsed["metadata"]["reasoning"]
+        .as_str()
+        .unwrap()
+        .contains("quoted"));
+    assert!(parsed["metadata"]["reasoning"]
+        .as_str()
+        .unwrap()
+        .contains("backslash"));
 }
 
 #[test]
@@ -449,7 +455,10 @@ fn test_yaml_special_characters() {
 
     // Should be valid YAML
     let parsed: serde_yaml::Value = serde_yaml::from_str(&output).unwrap();
-    assert!(parsed["metadata"]["reasoning"].as_str().unwrap().contains("Multi-line"));
+    assert!(parsed["metadata"]["reasoning"]
+        .as_str()
+        .unwrap()
+        .contains("Multi-line"));
 }
 
 #[test]

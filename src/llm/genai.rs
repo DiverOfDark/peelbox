@@ -8,8 +8,8 @@ use super::types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, 
 use crate::ai::genai_backend::{BackendError, Provider};
 use async_trait::async_trait;
 use genai::chat::{
-    ChatMessage as GenAIChatMessage, ChatOptions, ChatRequest as GenAIChatRequest,
-    MessageContent, Tool as GenAITool, ToolResponse,
+    ChatMessage as GenAIChatMessage, ChatOptions, ChatRequest as GenAIChatRequest, MessageContent,
+    Tool as GenAITool, ToolResponse,
 };
 use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
 use genai::{Client, ModelIden, ServiceTarget};
@@ -145,8 +145,11 @@ impl LLMClient for GenAIClient {
         let start = std::time::Instant::now();
 
         // Convert messages
-        let messages: Vec<GenAIChatMessage> =
-            request.messages.iter().map(|m| self.convert_message(m)).collect();
+        let messages: Vec<GenAIChatMessage> = request
+            .messages
+            .iter()
+            .map(|m| self.convert_message(m))
+            .collect();
 
         // Convert tools
         let tools: Vec<GenAITool> = request.tools.iter().map(|t| self.convert_tool(t)).collect();
@@ -208,7 +211,11 @@ impl LLMClient for GenAIClient {
             })
             .collect();
 
-        Ok(LLMResponse::with_tool_calls(content, tool_calls, start.elapsed()))
+        Ok(LLMResponse::with_tool_calls(
+            content,
+            tool_calls,
+            start.elapsed(),
+        ))
     }
 
     fn name(&self) -> &str {

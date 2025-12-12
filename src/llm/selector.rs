@@ -125,7 +125,9 @@ async fn try_ollama(config: &AipackConfig) -> Option<SelectedClient> {
 async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
     match EmbeddedClient::new(interactive).await {
         Ok(client) => {
-            let model_info = client.model_info().unwrap_or_else(|| "embedded".to_string());
+            let model_info = client
+                .model_info()
+                .unwrap_or_else(|| "embedded".to_string());
             info!("Using embedded LLM: {}", model_info);
             Some(SelectedClient {
                 client: Arc::new(client),
@@ -154,8 +156,8 @@ fn provider_has_credentials(provider: Provider) -> bool {
 
 /// Check if Ollama is running locally
 async fn is_ollama_available() -> bool {
-    let base_url = std::env::var("OLLAMA_HOST")
-        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let base_url =
+        std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://localhost:11434".to_string());
 
     let url = format!("{}/api/tags", base_url);
 

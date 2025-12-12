@@ -259,7 +259,10 @@ mod tests {
         let context = BootstrapContext::from_detections(detections, false, 50);
 
         assert_eq!(context.workspace.root_manifests.len(), 2);
-        assert!(context.workspace.root_manifests.contains(&"Cargo.toml".to_string()));
+        assert!(context
+            .workspace
+            .root_manifests
+            .contains(&"Cargo.toml".to_string()));
         assert_eq!(context.workspace.max_depth, 2);
     }
 

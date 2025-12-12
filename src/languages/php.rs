@@ -29,7 +29,11 @@ impl LanguageDefinition for PhpLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         match manifest_name {
             "composer.json" => {
                 let mut confidence = 0.9;
@@ -61,9 +65,7 @@ impl LanguageDefinition for PhpLanguage {
             runtime_image: "php:8.2-fpm".to_string(),
             build_packages: vec![],
             runtime_packages: vec![],
-            build_commands: vec![
-                "composer install --no-dev --optimize-autoloader".to_string(),
-            ],
+            build_commands: vec!["composer install --no-dev --optimize-autoloader".to_string()],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
             artifacts: vec!["vendor/".to_string(), "public/".to_string()],
             common_ports: vec![9000, 80],

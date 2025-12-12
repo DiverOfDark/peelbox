@@ -608,7 +608,8 @@ impl GenAIBackend {
                 context.format_for_prompt()
             )
         } else {
-            "Analyze the repository. All file paths are relative to the repository root.".to_string()
+            "Analyze the repository. All file paths are relative to the repository root."
+                .to_string()
         };
 
         // Initial conversation using our LLM types
@@ -691,7 +692,10 @@ impl GenAIBackend {
                         arguments: tc.arguments.clone(),
                     })
                     .collect();
-                messages.push(LLMChatMessage::assistant_with_tools(&response.content, llm_tool_calls));
+                messages.push(LLMChatMessage::assistant_with_tools(
+                    &response.content,
+                    llm_tool_calls,
+                ));
             }
 
             if tool_calls.is_empty() {
@@ -758,7 +762,8 @@ impl GenAIBackend {
                                 progress.on_progress(&ProgressEvent::ValidationStarted);
 
                                 // Validate the UniversalBuild
-                                match crate::validation::Validator::new().validate(&universal_build) {
+                                match crate::validation::Validator::new().validate(&universal_build)
+                                {
                                     Ok(_) => {
                                         // Emit validation complete and completed events
                                         progress.on_progress(&ProgressEvent::ValidationComplete {
@@ -949,13 +954,15 @@ fn parse_detection_from_tool_call(
     );
 
     // Validate the UniversalBuild
-    crate::validation::Validator::new().validate(&universal_build).map_err(|e| {
-        error!("UniversalBuild validation failed: {}", e);
-        BackendError::ParseError {
-            message: format!("UniversalBuild validation failed: {}", e),
-            context: format!("{:?}", arguments),
-        }
-    })?;
+    crate::validation::Validator::new()
+        .validate(&universal_build)
+        .map_err(|e| {
+            error!("UniversalBuild validation failed: {}", e);
+            BackendError::ParseError {
+                message: format!("UniversalBuild validation failed: {}", e),
+                context: format!("{:?}", arguments),
+            }
+        })?;
 
     Ok(universal_build)
 }

@@ -110,5 +110,4 @@ mod tests {
         assert!(!context.has_file("package.json"));
         assert!(context.readme_content.is_some());
     }
-
 }

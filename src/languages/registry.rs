@@ -120,10 +120,7 @@ impl LanguageRegistry {
     }
 
     /// Detect all languages in a repository from a list of manifest files
-    pub fn detect_all(
-        &self,
-        manifests: &[(String, Option<String>)],
-    ) -> Vec<LanguageDetection> {
+    pub fn detect_all(&self, manifests: &[(String, Option<String>)]) -> Vec<LanguageDetection> {
         let mut detections = Vec::new();
 
         for (path, content) in manifests {

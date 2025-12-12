@@ -44,7 +44,11 @@ impl LanguageDefinition for PythonLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         match manifest_name {
             "pyproject.toml" => {
                 let mut build_system = "pip".to_string();
@@ -71,7 +75,10 @@ impl LanguageDefinition for PythonLanguage {
             "requirements.txt" => {
                 let mut confidence = 0.9;
                 if let Some(content) = manifest_content {
-                    if content.lines().any(|l| !l.trim().is_empty() && !l.starts_with('#')) {
+                    if content
+                        .lines()
+                        .any(|l| !l.trim().is_empty() && !l.starts_with('#'))
+                    {
                         confidence = 1.0;
                     }
                 }
@@ -112,10 +119,7 @@ impl LanguageDefinition for PythonLanguage {
                     "pip install poetry".to_string(),
                     "poetry install --no-dev".to_string(),
                 ],
-                cache_paths: vec![
-                    ".venv/".to_string(),
-                    "/root/.cache/pypoetry/".to_string(),
-                ],
+                cache_paths: vec![".venv/".to_string(), "/root/.cache/pypoetry/".to_string()],
                 artifacts: vec!["dist/".to_string(), ".venv/".to_string()],
                 common_ports: vec![8000, 5000],
             }),
@@ -144,7 +148,17 @@ impl LanguageDefinition for PythonLanguage {
     }
 
     fn excluded_dirs(&self) -> &[&str] {
-        &["__pycache__", ".venv", "venv", ".tox", ".pytest_cache", ".mypy_cache", "dist", "build", "*.egg-info"]
+        &[
+            "__pycache__",
+            ".venv",
+            "venv",
+            ".tox",
+            ".pytest_cache",
+            ".mypy_cache",
+            "dist",
+            "build",
+            "*.egg-info",
+        ]
     }
 
     fn workspace_configs(&self) -> &[&str] {
@@ -304,6 +318,9 @@ python_version = "3.10"
     #[test]
     fn test_detect_version_file() {
         let lang = PythonLanguage;
-        assert_eq!(lang.detect_version(Some("3.11.4")), Some("3.11".to_string()));
+        assert_eq!(
+            lang.detect_version(Some("3.11.4")),
+            Some("3.11".to_string())
+        );
     }
 }

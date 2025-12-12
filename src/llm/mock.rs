@@ -153,14 +153,14 @@ impl Default for MockLLMClient {
 #[async_trait]
 impl LLMClient for MockLLMClient {
     async fn chat(&self, _request: LLMRequest) -> Result<LLMResponse, BackendError> {
-        let response = self
-            .responses
-            .lock()
-            .unwrap()
-            .pop_front()
-            .ok_or_else(|| BackendError::Other {
-                message: "MockLLMClient: No more responses in queue".to_string(),
-            })?;
+        let response =
+            self.responses
+                .lock()
+                .unwrap()
+                .pop_front()
+                .ok_or_else(|| BackendError::Other {
+                    message: "MockLLMClient: No more responses in queue".to_string(),
+                })?;
 
         // Return error if configured
         if let Some(error) = response.error {
@@ -201,10 +201,7 @@ mod tests {
         let client = MockLLMClient::new();
         client.add_response(MockResponse::text("Hello!"));
 
-        let response = client
-            .chat(LLMRequest::new(vec![]))
-            .await
-            .unwrap();
+        let response = client.chat(LLMRequest::new(vec![])).await.unwrap();
 
         assert_eq!(response.content, "Hello!");
         assert!(response.tool_calls.is_empty());
@@ -220,10 +217,7 @@ mod tests {
             vec![tool_call],
         ));
 
-        let response = client
-            .chat(LLMRequest::new(vec![]))
-            .await
-            .unwrap();
+        let response = client.chat(LLMRequest::new(vec![])).await.unwrap();
 
         assert_eq!(response.tool_calls.len(), 1);
         assert_eq!(response.tool_calls[0].name, "read_file");
@@ -232,7 +226,9 @@ mod tests {
     #[tokio::test]
     async fn test_mock_client_error() {
         let client = MockLLMClient::new();
-        client.add_response(MockResponse::error(BackendError::TimeoutError { seconds: 30 }));
+        client.add_response(MockResponse::error(BackendError::TimeoutError {
+            seconds: 30,
+        }));
 
         let result = client.chat(LLMRequest::new(vec![])).await;
 

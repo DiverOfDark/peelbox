@@ -6,10 +6,10 @@ use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use super::implementations::*;
+use super::trait_def::Tool;
 use crate::languages::LanguageRegistry;
 use crate::llm::ToolDefinition;
-use super::trait_def::Tool;
-use super::implementations::*;
 
 /// Registry of all available tools
 pub struct ToolRegistry {
@@ -22,11 +22,26 @@ impl ToolRegistry {
         let language_registry = Arc::new(LanguageRegistry::with_defaults());
 
         let tools: Vec<Arc<dyn Tool>> = vec![
-            Arc::new(ListFilesTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
-            Arc::new(ReadFileTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
-            Arc::new(SearchFilesTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
-            Arc::new(GetFileTreeTool::new(repo_path.clone(), Arc::clone(&language_registry))?),
-            Arc::new(GrepContentTool::new(repo_path, Arc::clone(&language_registry))?),
+            Arc::new(ListFilesTool::new(
+                repo_path.clone(),
+                Arc::clone(&language_registry),
+            )?),
+            Arc::new(ReadFileTool::new(
+                repo_path.clone(),
+                Arc::clone(&language_registry),
+            )?),
+            Arc::new(SearchFilesTool::new(
+                repo_path.clone(),
+                Arc::clone(&language_registry),
+            )?),
+            Arc::new(GetFileTreeTool::new(
+                repo_path.clone(),
+                Arc::clone(&language_registry),
+            )?),
+            Arc::new(GrepContentTool::new(
+                repo_path,
+                Arc::clone(&language_registry),
+            )?),
             Arc::new(GetBestPracticesTool::new(Arc::clone(&language_registry))),
             Arc::new(SubmitDetectionTool),
         ];
@@ -48,10 +63,7 @@ impl ToolRegistry {
 
     /// Get a tool by name
     pub fn get_tool(&self, name: &str) -> Option<Arc<dyn Tool>> {
-        self.tools
-            .iter()
-            .find(|t| t.name() == name)
-            .cloned()
+        self.tools.iter().find(|t| t.name() == name).cloned()
     }
 
     /// Get all registered tool names

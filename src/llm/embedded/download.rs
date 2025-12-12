@@ -30,8 +30,7 @@ impl ModelDownloader {
 
     /// Creates a downloader with a custom cache directory
     pub fn with_cache_dir(cache_dir: PathBuf) -> Result<Self> {
-        std::fs::create_dir_all(&cache_dir)
-            .context("Failed to create model cache directory")?;
+        std::fs::create_dir_all(&cache_dir).context("Failed to create model cache directory")?;
 
         let api = Api::new().context("Failed to initialize HuggingFace Hub API")?;
 
@@ -50,7 +49,9 @@ impl ModelDownloader {
 
     /// Get the local path to a downloaded model, if it exists
     pub fn model_path(&self, model: &EmbeddedModel) -> Option<PathBuf> {
-        let repo = self.api.repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
+        let repo = self
+            .api
+            .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
 
         // Try to get the file without downloading
         match repo.get(model.filename) {
@@ -72,7 +73,11 @@ impl ModelDownloader {
     pub fn download(&self, model: &EmbeddedModel, interactive: bool) -> Result<Vec<PathBuf>> {
         // Check if model already downloaded
         let model_paths = if let Some(paths) = self.model_paths(model) {
-            info!("Model {} already downloaded ({} files)", model.display_name, paths.len());
+            info!(
+                "Model {} already downloaded ({} files)",
+                model.display_name,
+                paths.len()
+            );
             paths
         } else {
             // Prompt for confirmation if interactive
@@ -85,7 +90,9 @@ impl ModelDownloader {
                 model.display_name, model.params, model.repo_id
             );
 
-            let repo = self.api.repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
+            let repo = self
+                .api
+                .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
 
             // Check if model is sharded by looking for index file
             let files_to_download = self.get_model_files(model)?;
@@ -117,14 +124,16 @@ impl ModelDownloader {
             return Ok(vec![model.filename.to_string()]);
         }
 
-        let repo = self.api.repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
+        let repo = self
+            .api
+            .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
 
         // Try to get the index file for sharded safetensors models
         if let Ok(index_path) = repo.get("model.safetensors.index.json") {
-            let index_content = std::fs::read_to_string(&index_path)
-                .context("Failed to read model index file")?;
-            let index: serde_json::Value = serde_json::from_str(&index_content)
-                .context("Failed to parse model index file")?;
+            let index_content =
+                std::fs::read_to_string(&index_path).context("Failed to read model index file")?;
+            let index: serde_json::Value =
+                serde_json::from_str(&index_content).context("Failed to parse model index file")?;
 
             if let Some(weight_map) = index.get("weight_map").and_then(|w| w.as_object()) {
                 // Collect unique file names from weight_map
@@ -147,7 +156,9 @@ impl ModelDownloader {
 
     /// Get cached model paths if already downloaded
     fn model_paths(&self, model: &EmbeddedModel) -> Option<Vec<PathBuf>> {
-        let repo = self.api.repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
+        let repo = self
+            .api
+            .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
 
         // Get list of files to check
         let files = self.get_model_files(model).ok()?;
@@ -183,12 +194,18 @@ impl ModelDownloader {
     fn download_tokenizer(&self, model: &EmbeddedModel) -> Result<PathBuf> {
         info!("Downloading tokenizer from {}", model.tokenizer_repo);
 
-        let repo = self.api.repo(Repo::new(model.tokenizer_repo.to_string(), RepoType::Model));
+        let repo = self
+            .api
+            .repo(Repo::new(model.tokenizer_repo.to_string(), RepoType::Model));
 
         // Download tokenizer.json
-        let tokenizer_path = repo
-            .get("tokenizer.json")
-            .map_err(|e| anyhow::anyhow!("Failed to download tokenizer.json from {}: {}", model.tokenizer_repo, e))?;
+        let tokenizer_path = repo.get("tokenizer.json").map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to download tokenizer.json from {}: {}",
+                model.tokenizer_repo,
+                e
+            )
+        })?;
 
         info!("Tokenizer downloaded to: {}", tokenizer_path.display());
 
@@ -197,7 +214,9 @@ impl ModelDownloader {
 
     /// Get the tokenizer path for a model
     pub fn tokenizer_path(&self, model: &EmbeddedModel) -> Option<PathBuf> {
-        let repo = self.api.repo(Repo::new(model.tokenizer_repo.to_string(), RepoType::Model));
+        let repo = self
+            .api
+            .repo(Repo::new(model.tokenizer_repo.to_string(), RepoType::Model));
 
         match repo.get("tokenizer.json") {
             Ok(path) if path.exists() => Some(path),
@@ -207,7 +226,9 @@ impl ModelDownloader {
 
     /// Get the config path for a model
     pub fn config_path(&self, model: &EmbeddedModel) -> Option<PathBuf> {
-        let repo = self.api.repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
+        let repo = self
+            .api
+            .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
 
         match repo.get("config.json") {
             Ok(path) if path.exists() => Some(path),
@@ -220,7 +241,10 @@ impl ModelDownloader {
         println!();
         println!("aipack needs to download an embedded LLM model for local inference.");
         println!();
-        println!("  Model: {} ({} parameters)", model.display_name, model.params);
+        println!(
+            "  Model: {} ({} parameters)",
+            model.display_name, model.params
+        );
         println!("  Requires: ~{:.1} GB RAM", model.ram_required_gb);
         println!("  Source: huggingface.co/{}", model.repo_id);
         println!();

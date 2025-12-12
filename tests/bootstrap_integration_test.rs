@@ -179,7 +179,10 @@ fn test_context_generation_node() {
         context.summary.primary_language,
         Some("JavaScript".to_string())
     );
-    assert_eq!(context.summary.primary_build_system, Some("npm".to_string()));
+    assert_eq!(
+        context.summary.primary_build_system,
+        Some("npm".to_string())
+    );
 }
 
 #[test]

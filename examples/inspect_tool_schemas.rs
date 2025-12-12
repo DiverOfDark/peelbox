@@ -7,8 +7,7 @@ fn main() {
     println!();
 
     let repo_path = PathBuf::from(".");
-    let registry = ToolRegistry::new(repo_path)
-        .expect("Failed to create tool registry");
+    let registry = ToolRegistry::new(repo_path).expect("Failed to create tool registry");
 
     let tool_definitions = registry.as_tool_definitions();
 

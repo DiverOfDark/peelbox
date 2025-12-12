@@ -33,7 +33,11 @@ impl LanguageDefinition for CppLanguage {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<DetectionResult> {
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
         match manifest_name {
             "CMakeLists.txt" => {
                 let mut confidence = 0.9;
@@ -114,7 +118,12 @@ impl LanguageDefinition for CppLanguage {
     }
 
     fn excluded_dirs(&self) -> &[&str] {
-        &["build", "builddir", "cmake-build-debug", "cmake-build-release"]
+        &[
+            "build",
+            "builddir",
+            "cmake-build-debug",
+            "cmake-build-release",
+        ]
     }
 
     fn workspace_configs(&self) -> &[&str] {

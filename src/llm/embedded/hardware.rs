@@ -132,7 +132,10 @@ impl HardwareDetector {
                 };
 
                 if let Some(bytes) = memory_bytes {
-                    info!("CUDA device detected with {:.2} GB memory", bytes as f64 / (1024.0 * 1024.0 * 1024.0));
+                    info!(
+                        "CUDA device detected with {:.2} GB memory",
+                        bytes as f64 / (1024.0 * 1024.0 * 1024.0)
+                    );
                 } else {
                     info!("CUDA device detected (memory info unavailable)");
                 }
@@ -193,7 +196,7 @@ mod tests {
     #[test]
     fn test_ram_gb_conversion() {
         let caps = HardwareCapabilities {
-            total_ram_bytes: 16 * 1024 * 1024 * 1024, // 16 GB
+            total_ram_bytes: 16 * 1024 * 1024 * 1024,    // 16 GB
             available_ram_bytes: 8 * 1024 * 1024 * 1024, // 8 GB
             cuda_available: false,
             cuda_memory_bytes: None,

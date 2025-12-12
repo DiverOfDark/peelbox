@@ -1,5 +1,5 @@
-use anyhow::Result;
 use crate::output::schema::UniversalBuild;
+use anyhow::Result;
 
 /// Generates Dockerfiles from UniversalBuild specifications
 pub struct DockerfileGenerator;
@@ -35,8 +35,14 @@ impl DockerfileGenerator {
         }
 
         df.push_str(&format!("# Language: {}\n", build.metadata.language));
-        df.push_str(&format!("# Build system: {}\n", build.metadata.build_system));
-        df.push_str(&format!("# Confidence: {:.0}%\n", build.metadata.confidence * 100.0));
+        df.push_str(&format!(
+            "# Build system: {}\n",
+            build.metadata.build_system
+        ));
+        df.push_str(&format!(
+            "# Confidence: {:.0}%\n",
+            build.metadata.confidence * 100.0
+        ));
 
         if !build.metadata.reasoning.is_empty() {
             df.push_str(&format!("# Reasoning: {}\n", build.metadata.reasoning));
@@ -46,9 +52,13 @@ impl DockerfileGenerator {
     }
 
     fn add_build_stage(df: &mut String, build: &UniversalBuild) {
-        df.push_str("# =============================================================================\n");
+        df.push_str(
+            "# =============================================================================\n",
+        );
         df.push_str("# Build Stage\n");
-        df.push_str("# =============================================================================\n");
+        df.push_str(
+            "# =============================================================================\n",
+        );
         df.push_str(&format!("FROM {} AS builder\n\n", build.build.base));
 
         // Install build dependencies
@@ -74,7 +84,9 @@ impl DockerfileGenerator {
         }
 
         // Infer working directory from first context entry
-        let workdir = build.build.context
+        let workdir = build
+            .build
+            .context
             .first()
             .map(|ctx| ctx.to.as_str())
             .unwrap_or("/app");
@@ -101,7 +113,10 @@ impl DockerfileGenerator {
                 // Use cache mounts for build
                 df.push_str("RUN");
                 for cache_path in &build.build.cache {
-                    df.push_str(&format!(" \\\n    --mount=type=cache,target={}", cache_path));
+                    df.push_str(&format!(
+                        " \\\n    --mount=type=cache,target={}",
+                        cache_path
+                    ));
                 }
                 df.push_str(" \\\n    ");
 
@@ -124,9 +139,13 @@ impl DockerfileGenerator {
     }
 
     fn add_runtime_stage(df: &mut String, build: &UniversalBuild) {
-        df.push_str("# =============================================================================\n");
+        df.push_str(
+            "# =============================================================================\n",
+        );
         df.push_str("# Runtime Stage\n");
-        df.push_str("# =============================================================================\n");
+        df.push_str(
+            "# =============================================================================\n",
+        );
         df.push_str(&format!("FROM {}\n\n", build.runtime.base));
 
         // Install runtime dependencies
@@ -246,7 +265,9 @@ mod tests {
         assert!(dockerfile.contains("FROM debian:bookworm-slim"));
         assert!(dockerfile.contains("COPY . /app"));
         assert!(dockerfile.contains("RUN cargo build --release"));
-        assert!(dockerfile.contains("COPY --from=builder /app/target/release/app /usr/local/bin/app"));
+        assert!(
+            dockerfile.contains("COPY --from=builder /app/target/release/app /usr/local/bin/app")
+        );
         assert!(dockerfile.contains("CMD [\"/usr/local/bin/app\"]"));
     }
 
@@ -268,8 +289,14 @@ mod tests {
     #[test]
     fn test_with_env_vars() {
         let mut build = create_minimal_build();
-        build.build.env.insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
-        build.runtime.env.insert("PORT".to_string(), "8080".to_string());
+        build
+            .build
+            .env
+            .insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
+        build
+            .runtime
+            .env
+            .insert("PORT".to_string(), "8080".to_string());
 
         let dockerfile = DockerfileGenerator::generate(&build).unwrap();
 
