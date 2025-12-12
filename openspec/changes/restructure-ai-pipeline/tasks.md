@@ -209,12 +209,12 @@ Update best practices tool to use LanguageRegistry instead of hardcoded template
 
 Create PipelineContext to own long-lived dependencies.
 
-- [ ] 13.1 Create `src/pipeline/mod.rs` module structure
-- [ ] 13.2 Define `PipelineConfig` in `src/pipeline/config.rs`
-- [ ] 13.3 Implement `PipelineContext` owning LLMClient, FileSystem, LanguageRegistry, Validator
-- [ ] 13.4 Update `DetectionService` to own `PipelineContext`
-- [ ] 13.5 Add `PipelineContext::with_mocks()` for testing
-- [ ] 13.6 Verify: `cargo build && cargo test` passes
+- [x] 13.1 Create `src/pipeline/mod.rs` module structure
+- [x] 13.2 Define `PipelineConfig` in `src/pipeline/config.rs`
+- [x] 13.3 Implement `PipelineContext` owning LLMClient, FileSystem, LanguageRegistry, Validator
+- [x] 13.4 Update `DetectionService` to own `PipelineContext`
+- [x] 13.5 Add `PipelineContext::with_mocks()` for testing
+- [x] 13.6 Verify: `cargo build && cargo test` passes
 
 **Deliverable:** Dependencies centralized in context, easy to inject mocks.
 

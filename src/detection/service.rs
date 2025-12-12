@@ -256,9 +256,8 @@ impl ServiceError {
 pub struct DetectionService {
     /// LLM backend for detection
     backend: Arc<GenAIBackend>,
-    /// Language registry for build system detection (used in future phases)
-    #[allow(dead_code)]
-    language_registry: LanguageRegistry,
+    /// Pipeline context (owns all dependencies when using context-based construction)
+    context: Option<crate::pipeline::PipelineContext>,
 }
 
 impl std::fmt::Debug for DetectionService {
@@ -318,11 +317,9 @@ impl DetectionService {
             backend.name()
         );
 
-        let language_registry = LanguageRegistry::with_defaults();
-
         Ok(Self {
             backend,
-            language_registry,
+            context: None,
         })
     }
 
@@ -358,7 +355,47 @@ impl DetectionService {
 
         Self {
             backend,
-            language_registry: LanguageRegistry::with_defaults(),
+            context: None,
+        }
+    }
+
+    /// Creates a new detection service with a pipeline context
+    ///
+    /// This constructor uses a complete PipelineContext which owns all dependencies.
+    /// This will be the primary constructor once AnalysisPipeline is introduced in Phase 14.
+    ///
+    /// # Arguments
+    ///
+    /// * `context` - Pipeline context owning all dependencies
+    /// * `backend` - LLM backend for detection
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use aipack::detection::service::DetectionService;
+    /// use aipack::pipeline::PipelineContext;
+    /// use aipack::ai::genai_backend::{GenAIBackend, Provider};
+    /// use std::sync::Arc;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let backend = GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string()).await?;
+    /// let (context, _temp_dir) = PipelineContext::with_mocks();
+    /// let service = DetectionService::with_context(context, Arc::new(backend));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_context(
+        context: crate::pipeline::PipelineContext,
+        backend: Arc<GenAIBackend>,
+    ) -> Self {
+        info!(
+            "Detection service initialized with pipeline context and backend: {}",
+            backend.name()
+        );
+
+        Self {
+            backend,
+            context: Some(context),
         }
     }
 
@@ -472,6 +509,14 @@ impl DetectionService {
         Ok(result)
     }
 
+    /// Get the language registry from context or create a default one
+    fn language_registry(&self) -> LanguageRegistry {
+        self.context
+            .as_ref()
+            .map(|ctx| (*ctx.language_registry).clone())
+            .unwrap_or_else(|| LanguageRegistry::with_defaults())
+    }
+
     /// Runs bootstrap scan to pre-analyze repository
     fn run_bootstrap_scan(
         &self,
@@ -479,8 +524,9 @@ impl DetectionService {
     ) -> Result<crate::bootstrap::BootstrapContext, ServiceError> {
         use crate::bootstrap::BootstrapScanner;
 
+        let language_registry = self.language_registry();
         let scanner =
-            BootstrapScanner::with_registry(repo_path.to_path_buf(), self.language_registry.clone())
+            BootstrapScanner::with_registry(repo_path.to_path_buf(), language_registry)
                 .map_err(|e| {
                     ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
                 })?;
@@ -608,7 +654,7 @@ mod tests {
 
         let service = DetectionService {
             backend,
-            language_registry: LanguageRegistry::with_defaults(),
+            context: None,
         };
 
         let result = service.validate_repo_path(&PathBuf::from("/nonexistent/path"));
@@ -630,7 +676,7 @@ mod tests {
 
         let service = DetectionService {
             backend,
-            language_registry: LanguageRegistry::with_defaults(),
+            context: None,
         };
 
         let result = service.validate_repo_path(&file_path);
@@ -650,10 +696,30 @@ mod tests {
 
         let service = DetectionService {
             backend,
-            language_registry: LanguageRegistry::with_defaults(),
+            context: None,
         };
 
         let result = service.validate_repo_path(&temp_dir.path().to_path_buf());
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_with_context() {
+        use crate::pipeline::PipelineContext;
+
+        let backend = Arc::new(
+            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
+                .await
+                .unwrap(),
+        );
+
+        let (context, _temp_dir) = PipelineContext::with_mocks();
+        let service = DetectionService::with_context(context, backend);
+
+        assert!(service.context.is_some());
+
+        // Verify the language registry from context is used
+        let registry = service.language_registry();
+        assert!(registry.get_language("rust").is_some());
     }
 }
