@@ -1,6 +1,5 @@
 //! Pipeline context for managing dependencies
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::fs::FileSystem;
@@ -11,6 +10,7 @@ use crate::validation::Validator;
 use super::config::PipelineConfig;
 
 /// Context that owns all long-lived pipeline dependencies
+#[derive(Clone)]
 pub struct PipelineContext {
     /// LLM client for communication
     pub llm_client: Arc<dyn LLMClient>,
@@ -26,9 +26,6 @@ pub struct PipelineContext {
 
     /// Pipeline configuration
     pub config: PipelineConfig,
-
-    /// Repository path
-    pub repo_path: PathBuf,
 }
 
 impl PipelineContext {
@@ -39,7 +36,6 @@ impl PipelineContext {
         language_registry: Arc<LanguageRegistry>,
         validator: Arc<Validator>,
         config: PipelineConfig,
-        repo_path: PathBuf,
     ) -> Self {
         Self {
             llm_client,
@@ -47,7 +43,6 @@ impl PipelineContext {
             language_registry,
             validator,
             config,
-            repo_path,
         }
     }
 
@@ -57,7 +52,6 @@ impl PipelineContext {
         file_system: Arc<dyn FileSystem>,
         language_registry: Arc<LanguageRegistry>,
         config: PipelineConfig,
-        repo_path: PathBuf,
     ) -> Self {
         Self::new(
             llm_client,
@@ -65,7 +59,6 @@ impl PipelineContext {
             language_registry,
             Arc::new(Validator::new()),
             config,
-            repo_path,
         )
     }
 }
@@ -75,14 +68,12 @@ mod tests {
     use super::*;
     use crate::fs::{MockFileSystem, RealFileSystem};
     use crate::llm::MockLLMClient;
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     impl PipelineContext {
         /// Create a context with mocks for testing
         pub fn with_mocks() -> (Self, TempDir) {
             let temp_dir = TempDir::new().unwrap();
-            let repo_path = temp_dir.path().to_path_buf();
 
             let llm_client = Arc::new(MockLLMClient::new());
             let file_system = Arc::new(MockFileSystem::new());
@@ -96,7 +87,6 @@ mod tests {
                 language_registry,
                 validator,
                 config,
-                repo_path,
             );
 
             (context, temp_dir)
@@ -110,7 +100,6 @@ mod tests {
         let language_registry = Arc::new(LanguageRegistry::with_defaults());
         let validator = Arc::new(Validator::new());
         let config = PipelineConfig::default();
-        let repo_path = PathBuf::from("/tmp/test");
 
         let context = PipelineContext::new(
             llm_client,
@@ -118,10 +107,12 @@ mod tests {
             language_registry,
             validator,
             config,
-            repo_path.clone(),
         );
 
-        assert_eq!(context.repo_path, repo_path);
+        assert_eq!(
+            context.config.max_iterations,
+            PipelineConfig::default().max_iterations
+        );
     }
 
     #[test]
@@ -130,22 +121,25 @@ mod tests {
         let file_system = Arc::new(RealFileSystem);
         let language_registry = Arc::new(LanguageRegistry::with_defaults());
         let config = PipelineConfig::default();
-        let repo_path = PathBuf::from("/tmp/test");
 
         let context = PipelineContext::with_default_validator(
             llm_client,
             file_system,
             language_registry,
             config,
-            repo_path.clone(),
         );
 
-        assert_eq!(context.repo_path, repo_path);
+        // Just verify it was created successfully
+        assert_eq!(
+            context.config.max_iterations,
+            PipelineConfig::default().max_iterations
+        );
     }
 
     #[test]
     fn test_with_mocks() {
         let (context, _temp_dir) = PipelineContext::with_mocks();
-        assert!(context.repo_path.exists());
+        // Just verify the context was created with mocks
+        assert!(context.language_registry.get_language("rust").is_some());
     }
 }

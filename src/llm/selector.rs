@@ -7,10 +7,10 @@
 //! 2. Ollama if running locally
 //! 3. Embedded LLM for zero-config local inference
 
-use crate::ai::genai_backend::{GenAIBackend, Provider};
 use crate::config::AipackConfig;
-use crate::llm::{EmbeddedClient, LLMClient};
+use crate::llm::{EmbeddedClient, GenAIClient, LLMClient};
 use anyhow::Result;
+use genai::adapter::AdapterKind;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -19,7 +19,7 @@ pub struct SelectedClient {
     /// The selected LLM client
     pub client: Arc<dyn LLMClient>,
     /// The provider that was selected
-    pub provider: Provider,
+    pub provider: AdapterKind,
     /// Human-readable description of the selection
     pub description: String,
 }
@@ -63,7 +63,7 @@ async fn try_configured_provider(config: &AipackConfig) -> Option<SelectedClient
     let provider = config.provider;
 
     // Skip Ollama here - it's handled by try_ollama with proper availability check
-    if provider == Provider::Ollama {
+    if provider == AdapterKind::Ollama {
         debug!("Skipping Ollama in configured provider check - will check availability separately");
         return None;
     }
@@ -74,11 +74,17 @@ async fn try_configured_provider(config: &AipackConfig) -> Option<SelectedClient
         return None;
     }
 
-    match GenAIBackend::new(provider, config.model.clone()).await {
-        Ok(backend) => {
+    match GenAIClient::new(
+        provider,
+        config.model.clone(),
+        std::time::Duration::from_secs(config.request_timeout_secs),
+    )
+    .await
+    {
+        Ok(client) => {
             info!("Using configured provider: {} ({})", provider, config.model);
             Some(SelectedClient {
-                client: backend.into_llm_client(),
+                client: Arc::new(client),
                 provider,
                 description: format!("{} ({})", provider, config.model),
             })
@@ -98,19 +104,25 @@ async fn try_ollama(config: &AipackConfig) -> Option<SelectedClient> {
         return None;
     }
 
-    let model = if config.provider == Provider::Ollama {
+    let model = if config.provider == AdapterKind::Ollama {
         config.model.clone()
     } else {
         // Use a sensible default model for Ollama
         "qwen2.5-coder:7b".to_string()
     };
 
-    match GenAIBackend::new(Provider::Ollama, model.clone()).await {
-        Ok(backend) => {
+    match GenAIClient::new(
+        AdapterKind::Ollama,
+        model.clone(),
+        std::time::Duration::from_secs(config.request_timeout_secs),
+    )
+    .await
+    {
+        Ok(client) => {
             info!("Using Ollama with model: {}", model);
             Some(SelectedClient {
-                client: backend.into_llm_client(),
-                provider: Provider::Ollama,
+                client: Arc::new(client),
+                provider: AdapterKind::Ollama,
                 description: format!("Ollama ({})", model),
             })
         }
@@ -131,7 +143,7 @@ async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
             info!("Using embedded LLM: {}", model_info);
             Some(SelectedClient {
                 client: Arc::new(client),
-                provider: Provider::Ollama, // Closest match for embedded
+                provider: AdapterKind::Ollama, // Closest match for embedded
                 description: format!("Embedded ({})", model_info),
             })
         }
@@ -143,14 +155,15 @@ async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
 }
 
 /// Check if provider has available credentials
-fn provider_has_credentials(provider: Provider) -> bool {
+fn provider_has_credentials(provider: AdapterKind) -> bool {
     match provider {
-        Provider::Ollama => true, // No credentials needed
-        Provider::OpenAI => std::env::var("OPENAI_API_KEY").is_ok(),
-        Provider::Claude => std::env::var("ANTHROPIC_API_KEY").is_ok(),
-        Provider::Gemini => std::env::var("GOOGLE_API_KEY").is_ok(),
-        Provider::Grok => std::env::var("XAI_API_KEY").is_ok(),
-        Provider::Groq => std::env::var("GROQ_API_KEY").is_ok(),
+        AdapterKind::Ollama => true, // No credentials needed
+        AdapterKind::OpenAI => std::env::var("OPENAI_API_KEY").is_ok(),
+        AdapterKind::Anthropic => std::env::var("ANTHROPIC_API_KEY").is_ok(),
+        AdapterKind::Gemini => std::env::var("GOOGLE_API_KEY").is_ok(),
+        AdapterKind::Xai => std::env::var("XAI_API_KEY").is_ok(),
+        AdapterKind::Groq => std::env::var("GROQ_API_KEY").is_ok(),
+        _ => false,
     }
 }
 
@@ -186,12 +199,12 @@ mod tests {
     #[test]
     fn test_provider_credentials_check() {
         // Ollama should always return true (no credentials needed)
-        assert!(provider_has_credentials(Provider::Ollama));
+        assert!(provider_has_credentials(AdapterKind::Ollama));
 
         // Cloud providers depend on environment variables
         // These tests just verify the function doesn't panic
-        let _ = provider_has_credentials(Provider::OpenAI);
-        let _ = provider_has_credentials(Provider::Claude);
-        let _ = provider_has_credentials(Provider::Gemini);
+        let _ = provider_has_credentials(AdapterKind::OpenAI);
+        let _ = provider_has_credentials(AdapterKind::Anthropic);
+        let _ = provider_has_credentials(AdapterKind::Gemini);
     }
 }

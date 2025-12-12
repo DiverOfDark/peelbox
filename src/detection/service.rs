@@ -34,11 +34,10 @@
 //! # }
 //! ```
 
-use crate::ai::backend::BackendError;
-use crate::ai::genai_backend::GenAIBackend;
-use crate::config::AipackConfig;
-use crate::languages::LanguageRegistry;
+use crate::ai::BackendError;
+use crate::llm::LLMClient;
 use crate::output::UniversalBuild;
+use crate::pipeline::PipelineContext;
 use crate::progress::ProgressHandler;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -244,7 +243,7 @@ impl ServiceError {
 ///
 /// ```text
 /// DetectionService
-///   └── GenAIBackend (multi-provider with tool-based detection)
+///   └── LLMClient (multi-provider with tool-based detection)
 ///         ├── ToolSystem (tool execution with caching)
 ///         ├── Iterative LLM conversation
 ///         └── Supports: Ollama, OpenAI, Claude, Gemini, Grok, Groq
@@ -254,149 +253,52 @@ impl ServiceError {
 ///
 /// This service is thread-safe and can be shared across threads using `Arc`.
 pub struct DetectionService {
-    /// LLM backend for detection
-    backend: Arc<GenAIBackend>,
-    /// Pipeline context (owns all dependencies when using context-based construction)
-    context: Option<crate::pipeline::PipelineContext>,
+    /// LLM client for detection
+    client: Arc<dyn LLMClient>,
+    /// Pipeline context (owns all dependencies)
+    context: Arc<PipelineContext>,
 }
 
 impl std::fmt::Debug for DetectionService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DetectionService")
-            .field("backend", &self.backend.name())
+            .field("client", &self.client.name())
             .finish()
     }
 }
 
 impl DetectionService {
-    /// Creates a new detection service from configuration
-    ///
-    /// This is the primary factory method that:
-    /// 1. Validates the configuration
-    /// 2. Creates the appropriate LLM backend
-    /// 3. Initializes the repository analyzer
+    /// Creates a new detection service
     ///
     /// # Arguments
     ///
-    /// * `config` - Application configuration
-    ///
-    /// # Returns
-    ///
-    /// A configured `DetectionService` ready for use
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError` if:
-    /// - Configuration is invalid
-    /// - Backend cannot be initialized
-    /// - Required credentials are missing
+    /// * `client` - LLM client for detection
+    /// * `context` - Pipeline context with dependencies
     ///
     /// # Example
     ///
     /// ```no_run
     /// use aipack::detection::service::DetectionService;
-    /// use aipack::AipackConfig;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = AipackConfig::default();
-    /// let service = DetectionService::new(&config).await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub async fn new(config: &AipackConfig) -> Result<Self, ServiceError> {
-        info!("Initializing detection service");
-
-        // Create backend directly from configuration
-        let backend = config
-            .create_backend()
-            .await
-            .map_err(|e| ServiceError::ConfigError(e.to_string()))?;
-
-        info!(
-            "Detection service initialized with backend: {}",
-            backend.name()
-        );
-
-        Ok(Self {
-            backend,
-            context: None,
-        })
-    }
-
-    /// Creates a new detection service with a pre-configured backend
-    ///
-    /// This constructor allows using a custom backend, useful for:
-    /// - Automatic backend selection via `select_llm_client()`
-    /// - Testing with mock backends
-    /// - Custom LLM client configurations
-    ///
-    /// # Arguments
-    ///
-    /// * `backend` - Pre-configured GenAI backend
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
-    /// use aipack::ai::genai_backend::{GenAIBackend, Provider};
-    /// use std::sync::Arc;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let backend = GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string()).await?;
-    /// let service = DetectionService::with_backend(Arc::new(backend));
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn with_backend(backend: Arc<GenAIBackend>) -> Self {
-        info!(
-            "Detection service initialized with backend: {}",
-            backend.name()
-        );
-
-        Self {
-            backend,
-            context: None,
-        }
-    }
-
-    /// Creates a new detection service with a pipeline context
-    ///
-    /// This constructor uses a complete PipelineContext which owns all dependencies.
-    /// This will be the primary constructor once AnalysisPipeline is introduced in Phase 14.
-    ///
-    /// # Arguments
-    ///
-    /// * `context` - Pipeline context owning all dependencies
-    /// * `backend` - LLM backend for detection
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
+    /// use aipack::llm::GenAIClient;
+    /// use aipack::ai::genai_backend::Provider;
     /// use aipack::pipeline::PipelineContext;
-    /// use aipack::ai::genai_backend::{GenAIBackend, Provider};
     /// use std::sync::Arc;
+    /// use std::time::Duration;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let backend = GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string()).await?;
+    /// let client = GenAIClient::new(AdapterKind::Ollama, "qwen2.5-coder:7b".to_string(), Duration::from_secs(30)).await?;
     /// let (context, _temp_dir) = PipelineContext::with_mocks();
-    /// let service = DetectionService::with_context(context, Arc::new(backend));
+    /// let service = DetectionService::new(Arc::new(client), Arc::new(context));
     /// # Ok(())
     /// # }
     /// ```
-    pub fn with_context(
-        context: crate::pipeline::PipelineContext,
-        backend: Arc<GenAIBackend>,
-    ) -> Self {
+    pub fn new(client: Arc<dyn LLMClient>, context: Arc<PipelineContext>) -> Self {
         info!(
-            "Detection service initialized with pipeline context and backend: {}",
-            backend.name()
+            "Detection service initialized with client: {}",
+            client.name()
         );
 
-        Self {
-            backend,
-            context: Some(context),
-        }
+        Self { client, context }
     }
 
     /// Detects build system for a repository
@@ -490,11 +392,19 @@ impl DetectionService {
             }
         };
 
-        // Delegate to backend for tool-based detection
-        let result = self
-            .backend
-            .detect(repo_path, bootstrap_context, progress)
-            .await?;
+        // Delegate to AnalysisPipeline for tool-based detection
+        use crate::pipeline::AnalysisPipeline;
+
+        let pipeline = AnalysisPipeline::new((*self.context).clone());
+        let result = pipeline
+            .analyze(repo_path.clone(), bootstrap_context, progress)
+            .await
+            .map_err(|e| {
+                use crate::ai::genai_backend::BackendError;
+                ServiceError::BackendError(BackendError::Other {
+                    message: e.to_string(),
+                })
+            })?;
 
         let elapsed = start.elapsed();
 
@@ -509,14 +419,6 @@ impl DetectionService {
         Ok(result)
     }
 
-    /// Get the language registry from context or create a default one
-    fn language_registry(&self) -> LanguageRegistry {
-        self.context
-            .as_ref()
-            .map(|ctx| (*ctx.language_registry).clone())
-            .unwrap_or_else(LanguageRegistry::with_defaults)
-    }
-
     /// Runs bootstrap scan to pre-analyze repository
     fn run_bootstrap_scan(
         &self,
@@ -524,8 +426,7 @@ impl DetectionService {
     ) -> Result<crate::bootstrap::BootstrapContext, ServiceError> {
         use crate::bootstrap::BootstrapScanner;
 
-        let language_registry = self.language_registry();
-        let scanner = BootstrapScanner::with_registry(repo_path.to_path_buf(), language_registry)
+        let scanner = BootstrapScanner::with_registry(repo_path.to_path_buf(), self.context.language_registry.clone())
             .map_err(|e| {
             ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
         })?;
@@ -596,7 +497,7 @@ impl DetectionService {
     /// # }
     /// ```
     pub fn backend_name(&self) -> &str {
-        self.backend.name()
+        self.client.name()
     }
 
     /// Returns model information for the backend
@@ -618,15 +519,17 @@ impl DetectionService {
     /// # }
     /// ```
     pub fn backend_model_info(&self) -> Option<String> {
-        self.backend.model_info()
+        self.client.model_info()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ai::genai_backend::{GenAIBackend, Provider};
+    use genai::adapter::AdapterKind;
+    use crate::llm::GenAIClient;
     use tempfile::TempDir;
+    use std::time::Duration;
 
     #[test]
     fn test_service_error_display() {
@@ -645,16 +548,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_not_exists() {
-        let backend = Arc::new(
-            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
-                .await
-                .unwrap(),
-        );
+        use crate::pipeline::PipelineContext;
 
-        let service = DetectionService {
-            backend,
-            context: None,
-        };
+        let client = Arc::new(
+            GenAIClient::new(
+                AdapterKind::Ollama,
+                "qwen2.5-coder:7b".to_string(),
+                Duration::from_secs(30),
+            )
+            .await
+            .unwrap(),
+        ) as Arc<dyn LLMClient>;
+
+        let (context, _temp_dir) = PipelineContext::with_mocks();
+        let service = DetectionService::new(client, Arc::new(context));
 
         let result = service.validate_repo_path(&PathBuf::from("/nonexistent/path"));
         assert!(result.is_err());
@@ -663,20 +570,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_is_file() {
+        use crate::pipeline::PipelineContext;
+
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("file.txt");
         std::fs::write(&file_path, "content").unwrap();
 
-        let backend = Arc::new(
-            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
-                .await
-                .unwrap(),
-        );
+        let client = Arc::new(
+            GenAIClient::new(
+                AdapterKind::Ollama,
+                "qwen2.5-coder:7b".to_string(),
+                Duration::from_secs(30),
+            )
+            .await
+            .unwrap(),
+        ) as Arc<dyn LLMClient>;
 
-        let service = DetectionService {
-            backend,
-            context: None,
-        };
+        let (context, _mock_temp_dir) = PipelineContext::with_mocks();
+        let service = DetectionService::new(client, Arc::new(context));
 
         let result = service.validate_repo_path(&file_path);
         assert!(result.is_err());
@@ -685,18 +596,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_success() {
+        use crate::pipeline::PipelineContext;
+
         let temp_dir = TempDir::new().unwrap();
 
-        let backend = Arc::new(
-            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
-                .await
-                .unwrap(),
-        );
+        let client = Arc::new(
+            GenAIClient::new(
+                AdapterKind::Ollama,
+                "qwen2.5-coder:7b".to_string(),
+                Duration::from_secs(30),
+            )
+            .await
+            .unwrap(),
+        ) as Arc<dyn LLMClient>;
 
-        let service = DetectionService {
-            backend,
-            context: None,
-        };
+        let (context, _mock_temp_dir) = PipelineContext::with_mocks();
+        let service = DetectionService::new(client, Arc::new(context));
 
         let result = service.validate_repo_path(&temp_dir.path().to_path_buf());
         assert!(result.is_ok());
@@ -706,19 +621,21 @@ mod tests {
     async fn test_with_context() {
         use crate::pipeline::PipelineContext;
 
-        let backend = Arc::new(
-            GenAIBackend::new(Provider::Ollama, "qwen2.5-coder:7b".to_string())
-                .await
-                .unwrap(),
-        );
+        let client = Arc::new(
+            GenAIClient::new(
+                AdapterKind::Ollama,
+                "qwen2.5-coder:7b".to_string(),
+                Duration::from_secs(30),
+            )
+            .await
+            .unwrap(),
+        ) as Arc<dyn LLMClient>;
 
         let (context, _temp_dir) = PipelineContext::with_mocks();
-        let service = DetectionService::with_context(context, backend);
-
-        assert!(service.context.is_some());
+        let service = DetectionService::new(client, Arc::new(context));
 
         // Verify the language registry from context is used
-        let registry = service.language_registry();
+        let registry = (*service.context.language_registry).clone();
         assert!(registry.get_language("rust").is_some());
     }
 }

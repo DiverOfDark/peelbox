@@ -247,11 +247,10 @@ async fn test_mock_client_exhausted() {
 /// This test exercises the complete detection pipeline:
 /// 1. Creates a temporary Rust project directory
 /// 2. Sets up MockLLMClient with scripted responses simulating LLM behavior
-/// 3. Runs detection using GenAIBackend with the mock client
+/// 3. Runs detection using DetectionService with the mock client
 /// 4. Verifies the detection result matches expected UniversalBuild
 #[tokio::test]
 async fn test_full_detection_flow_with_mock() {
-    use aipack::ai::genai_backend::{GenAIBackend, Provider};
     use std::sync::Arc;
 
     // Create a real temporary directory with a Rust project
@@ -275,16 +274,27 @@ async fn test_full_detection_flow_with_mock() {
         )],
     ));
 
-    // Create GenAIBackend with the mock client
-    let backend = GenAIBackend::with_client(
-        Arc::new(mock_client),
-        Provider::Ollama,
-        Some(1024),
-        Some(10),
-    );
+    // Create DetectionService with the mock client
+    use aipack::detection::service::DetectionService;
+    use aipack::fs::RealFileSystem;
+    use aipack::languages::LanguageRegistry;
+    use aipack::pipeline::{PipelineConfig, PipelineContext};
+    use aipack::validation::Validator;
+
+    let client: Arc<dyn aipack::llm::LLMClient> = Arc::new(mock_client);
+
+    let context = Arc::new(PipelineContext::new(
+        client.clone(),
+        Arc::new(RealFileSystem),
+        Arc::new(LanguageRegistry::with_defaults()),
+        Arc::new(Validator::new()),
+        PipelineConfig::default(),
+    ));
+
+    let service = DetectionService::new(client, context);
 
     // Run detection
-    let result = backend.detect(repo_path, None, None).await;
+    let result = service.detect(repo_path.clone()).await;
 
     // Verify result
     assert!(
@@ -311,7 +321,6 @@ async fn test_full_detection_flow_with_mock() {
 /// multiple tool calls before submitting detection.
 #[tokio::test]
 async fn test_detection_flow_multiple_iterations() {
-    use aipack::ai::genai_backend::{GenAIBackend, Provider};
     use std::sync::Arc;
 
     let (_temp_dir, repo_path) = create_rust_project_fs();
@@ -352,14 +361,26 @@ async fn test_detection_flow_multiple_iterations() {
         )],
     ));
 
-    let backend = GenAIBackend::with_client(
-        Arc::new(mock_client),
-        Provider::Ollama,
-        Some(1024),
-        Some(10),
-    );
+    // Create DetectionService with the mock client
+    use aipack::detection::service::DetectionService;
+    use aipack::fs::RealFileSystem;
+    use aipack::languages::LanguageRegistry;
+    use aipack::pipeline::{PipelineConfig, PipelineContext};
+    use aipack::validation::Validator;
 
-    let result = backend.detect(repo_path, None, None).await;
+    let client: Arc<dyn aipack::llm::LLMClient> = Arc::new(mock_client);
+
+    let context = Arc::new(PipelineContext::new(
+        client.clone(),
+        Arc::new(RealFileSystem),
+        Arc::new(LanguageRegistry::with_defaults()),
+        Arc::new(Validator::new()),
+        PipelineConfig::default(),
+    ));
+
+    let service = DetectionService::new(client, context);
+
+    let result = service.detect(repo_path.clone()).await;
 
     assert!(
         result.is_ok(),

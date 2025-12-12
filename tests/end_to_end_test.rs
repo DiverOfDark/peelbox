@@ -8,7 +8,6 @@
 //! - Output formatting
 //! - Error handling
 
-use aipack::ai::genai_backend::Provider;
 use aipack::cli::commands::{CliArgs, Commands, OutputFormatArg};
 use aipack::cli::output::{OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
@@ -18,6 +17,7 @@ use aipack::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
 use clap::Parser;
+use genai::adapter::AdapterKind;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -214,7 +214,7 @@ fn test_cli_parsing_detect_with_options() {
                 Some(PathBuf::from("/tmp/repo"))
             );
             assert_eq!(detect_args.format, OutputFormatArg::Json);
-            assert_eq!(detect_args.backend, Some(Provider::Ollama));
+            assert_eq!(detect_args.backend, Some(AdapterKind::Ollama));
             assert_eq!(detect_args.timeout, 120);
         }
         _ => panic!("Expected Detect command"),
@@ -248,12 +248,12 @@ fn test_configuration_loading_defaults() {
     // Provider is set via AIPACK_PROVIDER env var, defaults to Ollama
     assert!(matches!(
         config.provider,
-        aipack::ai::genai_backend::Provider::Ollama
-            | aipack::ai::genai_backend::Provider::OpenAI
-            | aipack::ai::genai_backend::Provider::Claude
-            | aipack::ai::genai_backend::Provider::Gemini
-            | aipack::ai::genai_backend::Provider::Grok
-            | aipack::ai::genai_backend::Provider::Groq
+        AdapterKind::Ollama
+            | AdapterKind::OpenAI
+            | AdapterKind::Anthropic
+            | AdapterKind::Gemini
+            | AdapterKind::Xai
+            | AdapterKind::Groq
     ));
     assert_eq!(config.model, "qwen2.5-coder:7b");
     assert!(config.cache_enabled);
@@ -262,7 +262,7 @@ fn test_configuration_loading_defaults() {
 #[test]
 fn test_configuration_validation_valid() {
     let config = AipackConfig {
-        provider: aipack::ai::genai_backend::Provider::Ollama,
+        provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),
@@ -590,7 +590,7 @@ async fn test_analyzer_respects_ignore_patterns() {
 #[test]
 fn test_config_display_map() {
     let config = AipackConfig {
-        provider: aipack::ai::genai_backend::Provider::Ollama,
+        provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: true,
         cache_dir: Some(PathBuf::from("/tmp/cache")),

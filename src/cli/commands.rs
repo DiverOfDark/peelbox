@@ -1,5 +1,5 @@
-use crate::ai::genai_backend::Provider;
 use clap::{Parser, Subcommand, ValueEnum};
+use genai::adapter::AdapterKind;
 use std::path::PathBuf;
 
 /// AI-powered buildkit frontend for intelligent build command detection
@@ -93,10 +93,10 @@ pub struct DetectArgs {
     #[arg(
         short = 'b',
         long,
-        value_enum,
+        value_parser = parse_adapter_kind,
         help = "Force a specific AI backend provider (by default, the best available is auto-selected)"
     )]
-    pub backend: Option<Provider>,
+    pub backend: Option<AdapterKind>,
 
     /// Model name
     #[arg(
@@ -141,10 +141,10 @@ pub struct HealthArgs {
     #[arg(
         short = 'b',
         long,
-        value_enum,
+        value_parser = parse_adapter_kind,
         help = "Specific backend to check (omit to check all)"
     )]
-    pub backend: Option<Provider>,
+    pub backend: Option<AdapterKind>,
 
     /// Output format
     #[arg(
@@ -178,6 +178,22 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
             OutputFormatArg::Human => super::output::OutputFormat::Human,
             OutputFormatArg::Dockerfile => super::output::OutputFormat::Dockerfile,
         }
+    }
+}
+
+/// Custom parser for AdapterKind from string
+fn parse_adapter_kind(s: &str) -> Result<AdapterKind, String> {
+    match s.to_lowercase().as_str() {
+        "ollama" => Ok(AdapterKind::Ollama),
+        "openai" => Ok(AdapterKind::OpenAI),
+        "claude" | "anthropic" => Ok(AdapterKind::Anthropic),
+        "gemini" => Ok(AdapterKind::Gemini),
+        "grok" | "xai" => Ok(AdapterKind::Xai),
+        "groq" => Ok(AdapterKind::Groq),
+        _ => Err(format!(
+            "Invalid provider: {}. Valid options: ollama, openai, claude, gemini, grok, groq",
+            s
+        )),
     }
 }
 
@@ -242,7 +258,7 @@ mod tests {
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Json);
-                assert_eq!(detect_args.backend, Some(Provider::Ollama));
+                assert_eq!(detect_args.backend, Some(AdapterKind::Ollama));
                 assert_eq!(detect_args.model, Some("qwen:14b".to_string()));
                 assert_eq!(detect_args.timeout, 120);
                 assert!(detect_args.verbose_output);
@@ -269,7 +285,7 @@ mod tests {
         let args = CliArgs::parse_from(&["aipack", "health", "--backend", "ollama"]);
         match args.command {
             Commands::Health(health_args) => {
-                assert_eq!(health_args.backend, Some(Provider::Ollama));
+                assert_eq!(health_args.backend, Some(AdapterKind::Ollama));
             }
             _ => panic!("Expected Health command"),
         }
@@ -296,12 +312,15 @@ mod tests {
     }
 
     #[test]
-    fn test_provider_display() {
-        assert_eq!(Provider::Ollama.to_string(), "ollama");
-        assert_eq!(Provider::OpenAI.to_string(), "openai");
-        assert_eq!(Provider::Claude.to_string(), "claude");
-        assert_eq!(Provider::Gemini.to_string(), "gemini");
-        assert_eq!(Provider::Grok.to_string(), "grok");
-        assert_eq!(Provider::Groq.to_string(), "groq");
+    fn test_adapter_kind_parsing() {
+        assert!(parse_adapter_kind("ollama").is_ok());
+        assert!(parse_adapter_kind("openai").is_ok());
+        assert!(parse_adapter_kind("claude").is_ok());
+        assert!(parse_adapter_kind("anthropic").is_ok());
+        assert!(parse_adapter_kind("gemini").is_ok());
+        assert!(parse_adapter_kind("grok").is_ok());
+        assert!(parse_adapter_kind("xai").is_ok());
+        assert!(parse_adapter_kind("groq").is_ok());
+        assert!(parse_adapter_kind("invalid").is_err());
     }
 }

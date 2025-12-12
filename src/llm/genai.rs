@@ -5,7 +5,9 @@
 
 use super::client::LLMClient;
 use super::types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};
-use crate::ai::genai_backend::{BackendError, Provider};
+use crate::ai::genai_backend::BackendError;
+use crate::ai::AdapterKindExt;
+use genai::adapter::AdapterKind;
 use async_trait::async_trait;
 use genai::chat::{
     ChatMessage as GenAIChatMessage, ChatOptions, ChatRequest as GenAIChatRequest, MessageContent,
@@ -26,7 +28,7 @@ pub struct GenAIClient {
     /// Model name
     model: String,
     /// Provider type
-    provider: Provider,
+    provider: AdapterKind,
     /// Request timeout
     timeout: Duration,
 }
@@ -40,7 +42,7 @@ impl GenAIClient {
     /// * `model` - Model name (without provider prefix)
     /// * `timeout` - Request timeout
     pub async fn new(
-        provider: Provider,
+        provider: AdapterKind,
         model: String,
         timeout: Duration,
     ) -> Result<Self, BackendError> {
@@ -69,7 +71,7 @@ impl GenAIClient {
                         AuthData::from_single("")
                     };
 
-                    let model_iden = ModelIden::new(provider_clone.adapter_kind(), &model_clone);
+                    let model_iden = ModelIden::new(provider_clone, &model_clone);
 
                     Ok(ServiceTarget {
                         endpoint,
@@ -243,16 +245,16 @@ mod tests {
 
     #[test]
     fn test_provider_methods() {
-        assert_eq!(Provider::Ollama.name(), "Ollama");
-        assert_eq!(Provider::Claude.name(), "Claude");
-        assert_eq!(Provider::OpenAI.api_key_env_var(), "OPENAI_API_KEY");
-        assert_eq!(Provider::Ollama.api_key_env_var(), "");
+        assert_eq!(AdapterKind::Ollama.name(), "Ollama");
+        assert_eq!(AdapterKind::Anthropic.name(), "Claude");
+        assert_eq!(AdapterKind::OpenAI.api_key_env_var(), "OPENAI_API_KEY");
+        assert_eq!(AdapterKind::Ollama.api_key_env_var(), "");
     }
 
     #[tokio::test]
     async fn test_genai_client_creation() {
         let client = GenAIClient::new(
-            Provider::Ollama,
+            AdapterKind::Ollama,
             "qwen2.5-coder:7b".to_string(),
             Duration::from_secs(30),
         )

@@ -1,11 +1,10 @@
-//! AI backend integrations
+//! AI backend types and errors
 //!
-//! This module provides a multi-provider GenAI backend that supports Claude, OpenAI,
-//! Gemini, Ollama, Grok, and Groq for build system detection.
+//! This module defines types for working with multiple LLM providers
+//! including provider selection and error handling.
 
-pub mod backend;
 pub mod genai_backend;
 
 // Re-export commonly used types
-pub use backend::{BackendError, LLMBackend};
-pub use genai_backend::{GenAIBackend, Provider};
+pub use genai::adapter::AdapterKind;
+pub use genai_backend::{AdapterKindExt, BackendError};

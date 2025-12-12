@@ -4,6 +4,7 @@ use super::{BootstrapContext, LanguageDetection};
 use crate::languages::LanguageRegistry;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
@@ -32,7 +33,7 @@ impl Default for ScanConfig {
 /// Bootstrap scanner that uses LanguageRegistry for detection
 pub struct BootstrapScanner {
     repo_path: PathBuf,
-    registry: LanguageRegistry,
+    registry: Arc<LanguageRegistry>,
     config: ScanConfig,
     gitignore_dirs: Vec<String>,
 }
@@ -40,11 +41,11 @@ pub struct BootstrapScanner {
 impl BootstrapScanner {
     /// Creates a new scanner with default language registry
     pub fn new(repo_path: PathBuf) -> Result<Self> {
-        Self::with_registry(repo_path, LanguageRegistry::with_defaults())
+        Self::with_registry(repo_path, Arc::new(LanguageRegistry::with_defaults()))
     }
 
     /// Creates a scanner with a custom language registry
-    pub fn with_registry(repo_path: PathBuf, registry: LanguageRegistry) -> Result<Self> {
+    pub fn with_registry(repo_path: PathBuf, registry: Arc<LanguageRegistry>) -> Result<Self> {
         if !repo_path.exists() {
             return Err(anyhow::anyhow!(
                 "Repository path does not exist: {:?}",

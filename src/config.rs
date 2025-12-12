@@ -1,9 +1,8 @@
-use crate::ai::genai_backend::{BackendError, GenAIBackend, Provider};
+use crate::ai::genai_backend::BackendError;
+use genai::adapter::AdapterKind;
 use std::env;
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use thiserror::Error;
 
 const DEFAULT_OLLAMA_MODEL: &str = "qwen2.5-coder:7b";
@@ -36,7 +35,7 @@ pub enum ConfigError {
 
 #[derive(Debug, Clone)]
 pub struct AipackConfig {
-    pub provider: Provider,
+    pub provider: AdapterKind,
     pub model: String,
     pub cache_enabled: bool,
     pub cache_dir: Option<PathBuf>,
@@ -54,20 +53,20 @@ impl Default for AipackConfig {
         let provider = env::var("AIPACK_PROVIDER")
             .ok()
             .and_then(|s| match s.to_lowercase().as_str() {
-                "ollama" => Some(Provider::Ollama),
-                "openai" => Some(Provider::OpenAI),
-                "claude" => Some(Provider::Claude),
-                "gemini" => Some(Provider::Gemini),
-                "grok" => Some(Provider::Grok),
-                "groq" => Some(Provider::Groq),
+                "ollama" => Some(AdapterKind::Ollama),
+                "openai" => Some(AdapterKind::OpenAI),
+                "claude" => Some(AdapterKind::Anthropic),
+                "gemini" => Some(AdapterKind::Gemini),
+                "grok" => Some(AdapterKind::Xai),
+                "groq" => Some(AdapterKind::Groq),
                 _ => None,
             })
-            .unwrap_or(Provider::Ollama);
+            .unwrap_or(AdapterKind::Ollama);
 
         let model = env::var("AIPACK_MODEL")
             .ok()
             .unwrap_or_else(|| match provider {
-                Provider::Ollama => DEFAULT_OLLAMA_MODEL.to_string(),
+                AdapterKind::Ollama => DEFAULT_OLLAMA_MODEL.to_string(),
                 _ => "default-model".to_string(),
             });
 
@@ -218,19 +217,6 @@ impl AipackConfig {
         Ok(())
     }
 
-    pub async fn create_backend(&self) -> Result<Arc<GenAIBackend>, ConfigError> {
-        let timeout = Duration::from_secs(self.request_timeout_secs);
-        let model = self.model.clone();
-        let client = GenAIBackend::with_config(
-            self.provider,
-            model,
-            Some(timeout),
-            Some(self.max_tokens as u32),
-            Some(self.max_tool_iterations),
-        )
-        .await?;
-        Ok(Arc::new(client))
-    }
 
     pub fn cache_path(&self, repo_name: &str) -> PathBuf {
         let cache_dir = self
@@ -337,7 +323,7 @@ mod tests {
 
         let config = AipackConfig::default();
 
-        assert!(matches!(config.provider, Provider::Ollama));
+        assert!(matches!(config.provider, AdapterKind::Ollama));
         assert_eq!(config.model, DEFAULT_OLLAMA_MODEL);
         assert_eq!(config.cache_enabled, DEFAULT_CACHE_ENABLED);
         assert_eq!(config.request_timeout_secs, DEFAULT_REQUEST_TIMEOUT_SECS);
@@ -363,7 +349,7 @@ mod tests {
 
         let config = AipackConfig::default();
 
-        assert!(matches!(config.provider, Provider::Claude));
+        assert!(matches!(config.provider, AdapterKind::Anthropic));
         assert_eq!(config.model, "custom-model");
         assert_eq!(config.log_level, "debug");
         assert!(!config.cache_enabled);
@@ -375,7 +361,7 @@ mod tests {
     #[test]
     fn test_configuration_validation_valid() {
         let config = AipackConfig {
-            provider: Provider::Ollama,
+            provider: AdapterKind::Ollama,
             model: "qwen:7b".to_string(),
             cache_enabled: true,
             cache_dir: Some(PathBuf::from("/tmp/cache")),
@@ -432,7 +418,7 @@ mod tests {
     #[test]
     fn test_cache_path() {
         let config = AipackConfig {
-            provider: Provider::Ollama,
+            provider: AdapterKind::Ollama,
             model: "qwen:7b".to_string(),
             cache_enabled: true,
             cache_dir: Some(PathBuf::from("/tmp/cache")),
@@ -452,7 +438,7 @@ mod tests {
     #[test]
     fn test_cache_path_sanitizes_special_chars() {
         let config = AipackConfig {
-            provider: Provider::Ollama,
+            provider: AdapterKind::Ollama,
             model: "qwen:7b".to_string(),
             cache_enabled: true,
             cache_dir: Some(PathBuf::from("/tmp/cache")),

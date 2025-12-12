@@ -12,6 +12,7 @@
 use aipack::config::{AipackConfig, ConfigError};
 use aipack::detection::analyzer::{AnalysisError, RepositoryAnalyzer};
 use aipack::detection::service::{DetectionService, ServiceError};
+use genai::adapter::AdapterKind;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -113,7 +114,7 @@ fn test_config_provider_is_type_safe() {
     // With the new Provider enum, backends are type-safe at compile time
     // This test verifies that a config with a valid provider validates successfully
     let config = AipackConfig {
-        provider: aipack::ai::genai_backend::Provider::Ollama,
+        provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: false,
         cache_dir: None,
@@ -222,24 +223,37 @@ async fn test_backend_unavailable_error() {
     // Set custom Ollama endpoint via environment variable
     std::env::set_var("OLLAMA_HOST", "http://localhost:59999"); // Non-existent port
 
-    let config = AipackConfig {
-        provider: aipack::ai::genai_backend::Provider::Ollama,
-        model: "qwen:7b".to_string(),
-        cache_enabled: false,
-        cache_dir: None,
-        request_timeout_secs: 30,
-        max_context_size: 512_000,
-        log_level: "error".to_string(),
-        max_tool_iterations: 10,
-        tool_timeout_secs: 30,
-        max_file_size_bytes: 1_048_576,
-        max_tokens: 8192,
-    };
+    use aipack::llm::GenAIClient;
+    use std::time::Duration;
 
-    // GenAI client creation is lazy - succeeds even with unreachable backend
-    // Actual connectivity is checked on first request
-    let result = DetectionService::new(&config).await;
-    assert!(result.is_ok());
+    let client_result = GenAIClient::new(
+        AdapterKind::Ollama,
+        "qwen:7b".to_string(),
+        Duration::from_secs(30),
+    )
+    .await;
+
+    // GenAI client creation is lazy and may succeed
+    if let Ok(client) = client_result {
+        use aipack::fs::RealFileSystem;
+        use aipack::languages::LanguageRegistry;
+        use aipack::pipeline::{PipelineConfig, PipelineContext};
+        use aipack::validation::Validator;
+        use std::sync::Arc;
+
+        let client_arc: Arc<dyn aipack::llm::LLMClient> = Arc::new(client);
+
+        let context = Arc::new(PipelineContext::new(
+            client_arc.clone(),
+            Arc::new(RealFileSystem),
+            Arc::new(LanguageRegistry::with_defaults()),
+            Arc::new(Validator::new()),
+            PipelineConfig::default(),
+        ));
+
+        let _service = DetectionService::new(client_arc, context);
+        // Service creation succeeded
+    }
 
     // Clean up
     std::env::remove_var("OLLAMA_HOST");

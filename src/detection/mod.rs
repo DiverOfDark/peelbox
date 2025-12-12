@@ -4,12 +4,10 @@
 //! including context gathering and result processing.
 
 pub mod analyzer;
-pub mod prompt;
 pub mod service;
 pub mod types;
 
 // Re-export commonly used types
 pub use analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
-pub use prompt::SYSTEM_PROMPT;
 pub use service::{DetectionService, ServiceError};
 pub use types::{GitInfo, RepositoryContext};

@@ -1,4 +1,4 @@
-use aipack::ai::genai_backend::Provider;
+use genai::adapter::AdapterKind;
 use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
@@ -167,42 +167,72 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     let service = if args.backend.is_some() {
         // Use explicitly specified backend
         debug!("Using explicitly specified backend: {:?}", config.provider);
-        match DetectionService::new(&config).await {
-            Ok(s) => s,
+
+        use aipack::llm::GenAIClient;
+        use std::time::Duration;
+
+        let client = match GenAIClient::new(
+            config.provider,
+            config.model.clone(),
+            Duration::from_secs(config.request_timeout_secs),
+        )
+        .await
+        {
+            Ok(c) => Arc::new(c) as Arc<dyn aipack::llm::LLMClient>,
             Err(e) => {
-                error!("Failed to initialize detection service: {}", e);
-                eprintln!("Failed to initialize detection service: {}", e);
+                error!("Failed to initialize backend: {}", e);
+                eprintln!("Failed to initialize backend: {}", e);
                 eprintln!("\nPossible solutions:");
                 match config.provider {
-                    Provider::Ollama => {
+                    AdapterKind::Ollama => {
                         eprintln!("  - Ensure Ollama is running: ollama serve");
                         eprintln!("  - Check OLLAMA_HOST environment variable (default: http://localhost:11434)");
                         eprintln!(
                             "  - Try a different provider: --backend openai, --backend claude, etc."
                         );
                     }
-                    Provider::OpenAI => {
+                    AdapterKind::OpenAI => {
                         eprintln!("  - Set OPENAI_API_KEY environment variable");
                         eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints (e.g., Azure OpenAI)");
                     }
-                    Provider::Claude => {
+                    AdapterKind::Anthropic => {
                         eprintln!("  - Set ANTHROPIC_API_KEY environment variable");
                     }
-                    Provider::Gemini => {
+                    AdapterKind::Gemini => {
                         eprintln!("  - Set GOOGLE_API_KEY environment variable");
                     }
-                    Provider::Grok => {
+                    AdapterKind::Xai => {
                         eprintln!("  - Set XAI_API_KEY environment variable");
                     }
-                    Provider::Groq => {
+                    AdapterKind::Groq => {
                         eprintln!("  - Set GROQ_API_KEY environment variable");
+                    }
+                    _ => {
+                        eprintln!("  - Check provider-specific environment variables");
+                        eprintln!("  - Refer to provider documentation for setup instructions");
                     }
                 }
                 eprintln!("  - Run 'aipack health' to check backend availability");
                 eprintln!("  - Or omit --backend to automatically select an available backend");
                 return 1;
             }
-        }
+        };
+
+        // Create pipeline context
+        use aipack::fs::RealFileSystem;
+        use aipack::languages::LanguageRegistry;
+        use aipack::pipeline::{PipelineConfig, PipelineContext};
+        use aipack::validation::Validator;
+
+        let context = Arc::new(PipelineContext::new(
+            client.clone(),
+            Arc::new(RealFileSystem),
+            Arc::new(LanguageRegistry::with_defaults()),
+            Arc::new(Validator::new()),
+            PipelineConfig::default(),
+        ));
+
+        DetectionService::new(client, context)
     } else {
         // Default: automatic backend selection
         info!("Auto-selecting best available backend");
@@ -215,14 +245,21 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
                     eprintln!("Using: {}", selected.description);
                 }
 
-                // Create GenAIBackend with the selected client
-                let backend = aipack::ai::genai_backend::GenAIBackend::with_client(
-                    selected.client,
-                    selected.provider,
-                    Some(config.max_tokens as u32),
-                    Some(config.max_tool_iterations),
-                );
-                DetectionService::with_backend(Arc::new(backend))
+                // Create pipeline context
+                use aipack::fs::RealFileSystem;
+                use aipack::languages::LanguageRegistry;
+                use aipack::pipeline::{PipelineConfig, PipelineContext};
+                use aipack::validation::Validator;
+
+                let context = Arc::new(PipelineContext::new(
+                    selected.client.clone(),
+                    Arc::new(RealFileSystem),
+                    Arc::new(LanguageRegistry::with_defaults()),
+                    Arc::new(Validator::new()),
+                    PipelineConfig::default(),
+                ));
+
+                DetectionService::new(selected.client, context)
             }
             Err(e) => {
                 error!("Failed to auto-select backend: {}", e);
@@ -438,17 +475,17 @@ async fn handle_health(args: &HealthArgs) -> i32 {
     let mut health_results = HashMap::new();
 
     // Determine which providers to check
-    let providers_to_check: Vec<Provider> = if let Some(provider) = args.backend {
+    let providers_to_check: Vec<AdapterKind> = if let Some(provider) = args.backend {
         vec![provider]
     } else {
         // Check all supported providers
         vec![
-            Provider::Ollama,
-            Provider::OpenAI,
-            Provider::Claude,
-            Provider::Gemini,
-            Provider::Grok,
-            Provider::Groq,
+            AdapterKind::Ollama,
+            AdapterKind::OpenAI,
+            AdapterKind::Anthropic,
+            AdapterKind::Gemini,
+            AdapterKind::Xai,
+            AdapterKind::Groq,
         ]
     };
 
@@ -457,7 +494,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
         debug!("Checking {} provider", provider_name);
 
         let status = match provider {
-            Provider::Ollama => {
+            AdapterKind::Ollama => {
                 // Check Ollama availability by attempting to connect
                 let ollama_host = env::var("OLLAMA_HOST")
                     .unwrap_or_else(|_| "http://localhost:11434".to_string());
@@ -480,7 +517,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     }
                 }
             }
-            Provider::OpenAI => {
+            AdapterKind::OpenAI => {
                 // Check if OpenAI API key is configured
                 match env::var("OPENAI_API_KEY") {
                     Ok(_) => {
@@ -494,7 +531,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     }
                 }
             }
-            Provider::Claude => {
+            AdapterKind::Anthropic => {
                 // Check if Anthropic API key is configured
                 match env::var("ANTHROPIC_API_KEY") {
                     Ok(_) => {
@@ -508,7 +545,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     }
                 }
             }
-            Provider::Gemini => {
+            AdapterKind::Gemini => {
                 // Check if Google API key is configured
                 match env::var("GOOGLE_API_KEY") {
                     Ok(_) => {
@@ -522,7 +559,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     }
                 }
             }
-            Provider::Grok => {
+            AdapterKind::Xai => {
                 // Check if xAI API key is configured
                 match env::var("XAI_API_KEY") {
                     Ok(_) => {
@@ -536,7 +573,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     }
                 }
             }
-            Provider::Groq => {
+            AdapterKind::Groq => {
                 // Check if Groq API key is configured
                 match env::var("GROQ_API_KEY") {
                     Ok(_) => {
@@ -549,6 +586,10 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                             .with_details("Set GROQ_API_KEY environment variable".to_string())
                     }
                 }
+            }
+            _ => {
+                // Unsupported provider
+                HealthStatus::unavailable(format!("Provider {:?} is not supported by aipack", provider))
             }
         };
 
