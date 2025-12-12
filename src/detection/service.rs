@@ -514,7 +514,7 @@ impl DetectionService {
         self.context
             .as_ref()
             .map(|ctx| (*ctx.language_registry).clone())
-            .unwrap_or_else(|| LanguageRegistry::with_defaults())
+            .unwrap_or_else(LanguageRegistry::with_defaults)
     }
 
     /// Runs bootstrap scan to pre-analyze repository
@@ -525,11 +525,10 @@ impl DetectionService {
         use crate::bootstrap::BootstrapScanner;
 
         let language_registry = self.language_registry();
-        let scanner =
-            BootstrapScanner::with_registry(repo_path.to_path_buf(), language_registry)
-                .map_err(|e| {
-                    ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
-                })?;
+        let scanner = BootstrapScanner::with_registry(repo_path.to_path_buf(), language_registry)
+            .map_err(|e| {
+            ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
+        })?;
 
         scanner
             .scan()
