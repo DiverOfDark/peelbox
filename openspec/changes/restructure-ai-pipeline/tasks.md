@@ -224,17 +224,17 @@ Create PipelineContext to own long-lived dependencies.
 
 Extract detection loop into AnalysisPipeline. Replace GenAIBackend internals.
 
-- [ ] 14.1 Implement `AnalysisPipeline` in `src/pipeline/analysis.rs`
-- [ ] 14.2 Move detection loop logic from `GenAIBackend` to `AnalysisPipeline`
-- [ ] 14.3 Integrate bootstrap, progress, tools, validation in pipeline
-- [ ] 14.4 Update `DetectionService::detect()` to use `AnalysisPipeline`
-- [ ] 14.5 Remove `GenAIBackend::detect()` method (now in pipeline)
-- [ ] 14.6 Remove `src/detection/prompt.rs` (replaced by bootstrap)
-- [ ] 14.7 Clean up `src/detection/mod.rs` exports
-- [ ] 14.8 Remove unused types from `src/ai/`
-- [ ] 14.9 Add integration tests for `AnalysisPipeline`
-- [ ] 14.10 Run `cargo fmt && cargo clippy`
-- [ ] 14.11 Verify: `cargo build && cargo test && cargo clippy` passes, CLI works
+- [x] 14.1 Implement `AnalysisPipeline` in `src/pipeline/analysis.rs`
+- [x] 14.2 Move detection loop logic from `GenAIBackend` to `AnalysisPipeline`
+- [x] 14.3 Integrate bootstrap, progress, tools, validation in pipeline
+- [x] 14.4 Update `DetectionService::detect()` to use `AnalysisPipeline`
+- [x] 14.5 Remove `GenAIBackend::detect()` method (now in pipeline)
+- [x] 14.6 Remove `src/detection/prompt.rs` (replaced by bootstrap)
+- [x] 14.7 Clean up `src/detection/mod.rs` exports
+- [x] 14.8 Remove unused types from `src/ai/`
+- [x] 14.9 Add integration tests for `AnalysisPipeline`
+- [x] 14.10 Run `cargo fmt && cargo clippy`
+- [x] 14.11 Verify: `cargo build && cargo test && cargo clippy` passes, CLI works
 
 **Deliverable:** Clean pipeline orchestration, old monolithic code removed.
 
