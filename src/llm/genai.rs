@@ -5,8 +5,7 @@
 
 use super::client::LLMClient;
 use super::types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};
-use crate::ai::genai_backend::BackendError;
-use crate::ai::AdapterKindExt;
+use crate::ai::error::BackendError;
 use genai::adapter::AdapterKind;
 use async_trait::async_trait;
 use genai::chat::{
@@ -46,12 +45,12 @@ impl GenAIClient {
         model: String,
         timeout: Duration,
     ) -> Result<Self, BackendError> {
-        let custom_endpoint = provider.custom_endpoint();
+        let custom_endpoint = std::env::var("AIPACK_API_BASE_URL").ok();
 
         let client = if let Some(endpoint_url) = custom_endpoint {
             debug!(
                 "Using custom endpoint for {}: {}",
-                provider.name(),
+                provider.as_str(),
                 endpoint_url
             );
 
@@ -64,11 +63,9 @@ impl GenAIClient {
                 {
                     let endpoint = Endpoint::from_owned(endpoint_clone.clone());
 
-                    let api_key_var = provider_clone.api_key_env_var();
-                    let auth = if !api_key_var.is_empty() {
-                        AuthData::from_env(api_key_var)
-                    } else {
-                        AuthData::from_single("")
+                    let auth = match provider_clone.default_key_env_name() {
+                        Some(api_key_var) => AuthData::from_env(api_key_var),
+                        None => AuthData::from_single(""),
                     };
 
                     let model_iden = ModelIden::new(provider_clone, &model_clone);
@@ -90,7 +87,7 @@ impl GenAIClient {
 
         debug!(
             "Creating GenAI client: provider={}, model={}",
-            provider.name(),
+            provider.as_str(),
             model,
         );
 
@@ -181,16 +178,16 @@ impl LLMClient for GenAIClient {
         {
             Ok(Ok(resp)) => resp,
             Ok(Err(e)) => {
-                error!("{} API error: {}", self.provider.name(), e);
+                error!("{} API error: {}", self.provider.as_str(), e);
                 return Err(BackendError::ApiError {
-                    message: format!("{} request failed: {}", self.provider.name(), e),
+                    message: format!("{} request failed: {}", self.provider.as_str(), e),
                     status_code: None,
                 });
             }
             Err(_) => {
                 error!(
                     "{} request timed out after {}s",
-                    self.provider.name(),
+                    self.provider.as_str(),
                     self.timeout.as_secs()
                 );
                 return Err(BackendError::TimeoutError {
@@ -221,7 +218,7 @@ impl LLMClient for GenAIClient {
     }
 
     fn name(&self) -> &str {
-        self.provider.name()
+        self.provider.as_str()
     }
 
     fn model_info(&self) -> Option<String> {
@@ -242,14 +239,6 @@ impl std::fmt::Debug for GenAIClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_provider_methods() {
-        assert_eq!(AdapterKind::Ollama.name(), "Ollama");
-        assert_eq!(AdapterKind::Anthropic.name(), "Claude");
-        assert_eq!(AdapterKind::OpenAI.api_key_env_var(), "OPENAI_API_KEY");
-        assert_eq!(AdapterKind::Ollama.api_key_env_var(), "");
-    }
 
     #[tokio::test]
     async fn test_genai_client_creation() {

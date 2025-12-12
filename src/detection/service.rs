@@ -280,7 +280,7 @@ impl DetectionService {
     /// ```no_run
     /// use aipack::detection::service::DetectionService;
     /// use aipack::llm::GenAIClient;
-    /// use aipack::ai::genai_backend::Provider;
+    /// use aipack::ai::error::Provider;
     /// use aipack::pipeline::PipelineContext;
     /// use std::sync::Arc;
     /// use std::time::Duration;
@@ -400,7 +400,7 @@ impl DetectionService {
             .analyze(repo_path.clone(), bootstrap_context, progress)
             .await
             .map_err(|e| {
-                use crate::ai::genai_backend::BackendError;
+                use crate::ai::error::BackendError;
                 ServiceError::BackendError(BackendError::Other {
                     message: e.to_string(),
                 })

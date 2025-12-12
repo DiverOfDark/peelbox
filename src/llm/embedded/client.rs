@@ -3,7 +3,7 @@
 use super::download::ModelDownloader;
 use super::hardware::{ComputeDevice, HardwareCapabilities, HardwareDetector};
 use super::models::{EmbeddedModel, ModelSelector};
-use crate::ai::genai_backend::BackendError;
+use crate::ai::error::BackendError;
 use crate::llm::client::LLMClient;
 use crate::llm::types::{LLMRequest, LLMResponse, MessageRole, ToolCall};
 use anyhow::{Context, Result};

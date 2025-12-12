@@ -12,7 +12,7 @@ pub mod progress;
 pub mod tools;
 pub mod validation;
 
-pub use ai::{AdapterKind, AdapterKindExt, BackendError};
+pub use ai::{AdapterKind, BackendError};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};

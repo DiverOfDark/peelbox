@@ -4,7 +4,7 @@
 //! must implement to provide chat completion capabilities.
 
 use super::types::{LLMRequest, LLMResponse};
-use crate::ai::genai_backend::BackendError;
+use crate::ai::error::BackendError;
 use async_trait::async_trait;
 
 /// Trait for LLM chat completion clients

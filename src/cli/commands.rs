@@ -183,18 +183,12 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
 
 /// Custom parser for AdapterKind from string
 fn parse_adapter_kind(s: &str) -> Result<AdapterKind, String> {
-    match s.to_lowercase().as_str() {
-        "ollama" => Ok(AdapterKind::Ollama),
-        "openai" => Ok(AdapterKind::OpenAI),
-        "claude" | "anthropic" => Ok(AdapterKind::Anthropic),
-        "gemini" => Ok(AdapterKind::Gemini),
-        "grok" | "xai" => Ok(AdapterKind::Xai),
-        "groq" => Ok(AdapterKind::Groq),
-        _ => Err(format!(
-            "Invalid provider: {}. Valid options: ollama, openai, claude, gemini, grok, groq",
+    AdapterKind::from_lower_str(&s.to_lowercase()).ok_or_else(|| {
+        format!(
+            "Invalid provider: {}. Valid options: ollama, openai, anthropic, gemini, xai, groq",
             s
-        )),
-    }
+        )
+    })
 }
 
 #[cfg(test)]
@@ -315,10 +309,8 @@ mod tests {
     fn test_adapter_kind_parsing() {
         assert!(parse_adapter_kind("ollama").is_ok());
         assert!(parse_adapter_kind("openai").is_ok());
-        assert!(parse_adapter_kind("claude").is_ok());
         assert!(parse_adapter_kind("anthropic").is_ok());
         assert!(parse_adapter_kind("gemini").is_ok());
-        assert!(parse_adapter_kind("grok").is_ok());
         assert!(parse_adapter_kind("xai").is_ok());
         assert!(parse_adapter_kind("groq").is_ok());
         assert!(parse_adapter_kind("invalid").is_err());

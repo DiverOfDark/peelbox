@@ -5,7 +5,7 @@
 
 use super::client::LLMClient;
 use super::types::{LLMRequest, LLMResponse, ToolCall};
-use crate::ai::genai_backend::BackendError;
+use crate::ai::error::BackendError;
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::Mutex;

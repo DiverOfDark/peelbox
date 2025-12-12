@@ -156,14 +156,9 @@ async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
 
 /// Check if provider has available credentials
 fn provider_has_credentials(provider: AdapterKind) -> bool {
-    match provider {
-        AdapterKind::Ollama => true, // No credentials needed
-        AdapterKind::OpenAI => std::env::var("OPENAI_API_KEY").is_ok(),
-        AdapterKind::Anthropic => std::env::var("ANTHROPIC_API_KEY").is_ok(),
-        AdapterKind::Gemini => std::env::var("GOOGLE_API_KEY").is_ok(),
-        AdapterKind::Xai => std::env::var("XAI_API_KEY").is_ok(),
-        AdapterKind::Groq => std::env::var("GROQ_API_KEY").is_ok(),
-        _ => false,
+    match provider.default_key_env_name() {
+        None => true, // No credentials needed (e.g., Ollama)
+        Some(env_var) => std::env::var(env_var).is_ok(),
     }
 }
 
