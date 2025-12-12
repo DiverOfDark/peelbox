@@ -426,8 +426,11 @@ impl DetectionService {
     ) -> Result<crate::bootstrap::BootstrapContext, ServiceError> {
         use crate::bootstrap::BootstrapScanner;
 
-        let scanner = BootstrapScanner::with_registry(repo_path.to_path_buf(), self.context.language_registry.clone())
-            .map_err(|e| {
+        let scanner = BootstrapScanner::with_registry(
+            repo_path.to_path_buf(),
+            self.context.language_registry.clone(),
+        )
+        .map_err(|e| {
             ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
         })?;
 
@@ -526,10 +529,10 @@ impl DetectionService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use genai::adapter::AdapterKind;
     use crate::llm::GenAIClient;
-    use tempfile::TempDir;
+    use genai::adapter::AdapterKind;
     use std::time::Duration;
+    use tempfile::TempDir;
 
     #[test]
     fn test_service_error_display() {

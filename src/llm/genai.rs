@@ -6,8 +6,8 @@
 use super::client::LLMClient;
 use super::types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};
 use crate::ai::error::BackendError;
-use genai::adapter::AdapterKind;
 use async_trait::async_trait;
+use genai::adapter::AdapterKind;
 use genai::chat::{
     ChatMessage as GenAIChatMessage, ChatOptions, ChatRequest as GenAIChatRequest, MessageContent,
     Tool as GenAITool, ToolResponse,

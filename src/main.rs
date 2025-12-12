@@ -1,4 +1,3 @@
-use genai::adapter::AdapterKind;
 use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
@@ -6,6 +5,7 @@ use aipack::detection::service::DetectionService;
 use aipack::llm::select_llm_client;
 use aipack::progress::{LoggingHandler, ProgressHandler};
 use aipack::VERSION;
+use genai::adapter::AdapterKind;
 
 use clap::Parser;
 use std::collections::HashMap;
@@ -589,7 +589,10 @@ async fn handle_health(args: &HealthArgs) -> i32 {
             }
             _ => {
                 // Unsupported provider
-                HealthStatus::unavailable(format!("Provider {:?} is not supported by aipack", provider))
+                HealthStatus::unavailable(format!(
+                    "Provider {:?} is not supported by aipack",
+                    provider
+                ))
             }
         };
 

@@ -1,12 +1,12 @@
 use aipack::detection::service::DetectionService;
+use aipack::llm::EmbeddedClient;
+use aipack::{
+    LanguageRegistry, PipelineConfig, PipelineContext, RealFileSystem, UniversalBuild, Validator,
+};
+use anyhow::Result;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use anyhow::Result;
-use genai::adapter::AdapterKind;
-use tracing::{info, warn};
-use aipack::{LanguageRegistry, PipelineConfig, PipelineContext, RealFileSystem, UniversalBuild, Validator};
-use aipack::llm::{EmbeddedClient, SelectedClient};
 
 /// Base directory for all test fixtures
 fn fixtures_dir() -> PathBuf {
@@ -52,26 +52,22 @@ async fn test_fixture(fixture_path: &Path, fixture_name: &str) -> Result<()> {
 
         // Compare key fields (allowing some flexibility in reasoning text)
         assert_eq!(
-            detected.metadata.language,
-            expected.metadata.language,
+            detected.metadata.language, expected.metadata.language,
             "Language mismatch for {}",
             fixture_name
         );
         assert_eq!(
-            detected.metadata.build_system,
-            expected.metadata.build_system,
+            detected.metadata.build_system, expected.metadata.build_system,
             "Build system mismatch for {}",
             fixture_name
         );
         assert_eq!(
-            detected.build.base,
-            expected.build.base,
+            detected.build.base, expected.build.base,
             "Build base image mismatch for {}",
             fixture_name
         );
         assert_eq!(
-            detected.runtime.base,
-            expected.runtime.base,
+            detected.runtime.base, expected.runtime.base,
             "Runtime base image mismatch for {}",
             fixture_name
         );
@@ -113,7 +109,9 @@ async fn test_rust_cargo() -> Result<()> {
 #[tokio::test]
 #[ignore]
 async fn test_rust_workspace() -> Result<()> {
-    let path = fixtures_dir().join("single-language").join("rust-workspace");
+    let path = fixtures_dir()
+        .join("single-language")
+        .join("rust-workspace");
     test_fixture(&path, "rust-workspace").await
 }
 

@@ -217,7 +217,6 @@ impl AipackConfig {
         Ok(())
     }
 
-
     pub fn cache_path(&self, repo_name: &str) -> PathBuf {
         let cache_dir = self
             .cache_dir
