@@ -81,7 +81,6 @@ pub struct RecordingLLMClient {
 }
 
 impl RecordingLLMClient {
-    /// Create a new recording client
     pub fn new(
         inner: Arc<dyn LLMClient>,
         mode: RecordingMode,

@@ -1,5 +1,3 @@
-//! Pipeline context for managing dependencies
-
 use std::sync::Arc;
 
 use crate::fs::FileSystem;
@@ -9,27 +7,16 @@ use crate::validation::Validator;
 
 use super::config::PipelineConfig;
 
-/// Context that owns all long-lived pipeline dependencies
 #[derive(Clone)]
 pub struct PipelineContext {
-    /// LLM client for communication
     pub llm_client: Arc<dyn LLMClient>,
-
-    /// File system abstraction
     pub file_system: Arc<dyn FileSystem>,
-
-    /// Language registry for detection
     pub language_registry: Arc<LanguageRegistry>,
-
-    /// Validator for build specifications
     pub validator: Arc<Validator>,
-
-    /// Pipeline configuration
     pub config: PipelineConfig,
 }
 
 impl PipelineContext {
-    /// Create a new pipeline context
     pub fn new(
         llm_client: Arc<dyn LLMClient>,
         file_system: Arc<dyn FileSystem>,
@@ -46,7 +33,6 @@ impl PipelineContext {
         }
     }
 
-    /// Create a context with default validator
     pub fn with_default_validator(
         llm_client: Arc<dyn LLMClient>,
         file_system: Arc<dyn FileSystem>,
@@ -71,7 +57,6 @@ mod tests {
     use tempfile::TempDir;
 
     impl PipelineContext {
-        /// Create a context with mocks for testing
         pub fn with_mocks() -> (Self, TempDir) {
             let temp_dir = TempDir::new().unwrap();
 

@@ -103,7 +103,6 @@ async fn try_ollama(config: &AipackConfig) -> Option<SelectedClient> {
     }
 }
 
-/// Try to use embedded LLM as last resort
 async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
     match EmbeddedClient::new(interactive).await {
         Ok(client) => {
@@ -124,7 +123,6 @@ async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
     }
 }
 
-/// Check if provider has available credentials
 fn provider_has_credentials(provider: AdapterKind) -> bool {
     match provider.default_key_env_name() {
         None => true, // No credentials needed (e.g., Ollama)
@@ -132,7 +130,6 @@ fn provider_has_credentials(provider: AdapterKind) -> bool {
     }
 }
 
-/// Check if Ollama is running locally
 async fn is_ollama_available() -> bool {
     let base_url =
         std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://localhost:11434".to_string());

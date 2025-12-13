@@ -28,7 +28,6 @@ pub struct CliArgs {
     )]
     pub verbose: bool,
 
-    /// Suppress all output except errors
     #[arg(
         short = 'q',
         long,
@@ -39,10 +38,8 @@ pub struct CliArgs {
     pub quiet: bool,
 }
 
-/// Available subcommands
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Detect build commands in a repository
     #[command(
         about = "Detect build commands in a repository",
         long_about = "Analyzes repository structure and configuration files to detect the \
@@ -55,7 +52,6 @@ pub enum Commands {
     )]
     Detect(DetectArgs),
 
-    /// Check backend availability
     #[command(
         about = "Check backend availability",
         long_about = "Checks the availability and health of configured AI backends.\n\n\
@@ -68,14 +64,12 @@ pub enum Commands {
 
 #[derive(Parser, Debug, Clone)]
 pub struct DetectArgs {
-    /// Path to repository to analyze (default: current directory)
     #[arg(
         value_name = "PATH",
         help = "Path to repository (defaults to current directory)"
     )]
     pub repository_path: Option<PathBuf>,
 
-    /// Output format
     #[arg(
         short = 'f',
         long,
@@ -85,7 +79,6 @@ pub struct DetectArgs {
     )]
     pub format: OutputFormatArg,
 
-    /// Force specific backend (overrides automatic selection)
     #[arg(
         short = 'b',
         long,
@@ -94,7 +87,6 @@ pub struct DetectArgs {
     )]
     pub backend: Option<AdapterKind>,
 
-    /// Model name
     #[arg(
         short = 'm',
         long,
@@ -103,7 +95,6 @@ pub struct DetectArgs {
     )]
     pub model: Option<String>,
 
-    /// Request timeout in seconds
     #[arg(
         long,
         value_name = "SECONDS",
@@ -112,15 +103,12 @@ pub struct DetectArgs {
     )]
     pub timeout: u64,
 
-    /// Include raw file contents in output
     #[arg(long, help = "Include raw file contents in verbose output")]
     pub verbose_output: bool,
 
-    /// Disable result caching
     #[arg(long, help = "Disable result caching")]
     pub no_cache: bool,
 
-    /// Write output to file instead of stdout
     #[arg(
         short = 'o',
         long,
@@ -130,10 +118,8 @@ pub struct DetectArgs {
     pub output: Option<PathBuf>,
 }
 
-/// Arguments for the health command
 #[derive(Parser, Debug, Clone)]
 pub struct HealthArgs {
-    /// Backend to check (omit to check all)
     #[arg(
         short = 'b',
         long,
@@ -142,7 +128,6 @@ pub struct HealthArgs {
     )]
     pub backend: Option<AdapterKind>,
 
-    /// Output format
     #[arg(
         short = 'f',
         long,
@@ -155,13 +140,9 @@ pub struct HealthArgs {
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormatArg {
-    /// JSON format
     Json,
-    /// YAML format
     Yaml,
-    /// Human-readable format
     Human,
-    /// Dockerfile format
     Dockerfile,
 }
 
@@ -176,7 +157,6 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
     }
 }
 
-/// Custom parser for AdapterKind from string
 fn parse_adapter_kind(s: &str) -> Result<AdapterKind, String> {
     AdapterKind::from_lower_str(&s.to_lowercase()).ok_or_else(|| {
         format!(

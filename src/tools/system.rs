@@ -55,27 +55,22 @@ impl ToolSystem {
         result
     }
 
-    /// Get all tools as ToolDefinition for LLMClient trait
     pub fn as_tool_definitions(&self) -> Vec<ToolDefinition> {
         self.registry.as_tool_definitions()
     }
 
-    /// Clear the cache
     pub fn clear_cache(&self) {
         self.cache.clear();
     }
 
-    /// Get available tool names
     pub fn tool_names(&self) -> Vec<&str> {
         self.registry.tool_names()
     }
 
-    /// Number of registered tools
     pub fn tool_count(&self) -> usize {
         self.registry.len()
     }
 
-    /// Number of cached results
     pub fn cache_size(&self) -> usize {
         self.cache.len()
     }

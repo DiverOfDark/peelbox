@@ -1,5 +1,3 @@
-//! Bootstrap scanner using LanguageRegistry for detection
-
 use super::{BootstrapContext, LanguageDetection};
 use crate::languages::LanguageRegistry;
 use anyhow::{Context, Result};
@@ -9,14 +7,10 @@ use std::time::Instant;
 use tracing::{debug, info, warn};
 use walkdir::WalkDir;
 
-/// Configuration for bootstrap scanning
 #[derive(Debug, Clone)]
 pub struct ScanConfig {
-    /// Maximum directory depth to scan
     pub max_depth: usize,
-    /// Maximum number of files to scan
     pub max_files: usize,
-    /// Read manifest content for better detection
     pub read_content: bool,
 }
 
@@ -30,7 +24,6 @@ impl Default for ScanConfig {
     }
 }
 
-/// Bootstrap scanner that uses LanguageRegistry for detection
 pub struct BootstrapScanner {
     repo_path: PathBuf,
     registry: Arc<LanguageRegistry>,
@@ -39,12 +32,10 @@ pub struct BootstrapScanner {
 }
 
 impl BootstrapScanner {
-    /// Creates a new scanner with default language registry
     pub fn new(repo_path: PathBuf) -> Result<Self> {
         Self::with_registry(repo_path, Arc::new(LanguageRegistry::with_defaults()))
     }
 
-    /// Creates a scanner with a custom language registry
     pub fn with_registry(repo_path: PathBuf, registry: Arc<LanguageRegistry>) -> Result<Self> {
         if !repo_path.exists() {
             return Err(anyhow::anyhow!(
@@ -79,7 +70,6 @@ impl BootstrapScanner {
         })
     }
 
-    /// Parse .gitignore file and extract directory patterns
     fn parse_gitignore(repo_path: &Path) -> Vec<String> {
         let gitignore_path = repo_path.join(".gitignore");
         if !gitignore_path.exists() {
@@ -95,17 +85,13 @@ impl BootstrapScanner {
             .lines()
             .filter_map(|line| {
                 let line = line.trim();
-                // Skip empty lines and comments
                 if line.is_empty() || line.starts_with('#') {
                     return None;
                 }
-                // Extract directory patterns (ending with / or simple names that are likely dirs)
                 let pattern = line.trim_start_matches('/').trim_end_matches('/');
-                // Skip patterns with wildcards or complex patterns
                 if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
                     return None;
                 }
-                // Only include simple directory names
                 if !pattern.contains('/') && !pattern.is_empty() {
                     Some(pattern.to_string())
                 } else {
@@ -115,13 +101,11 @@ impl BootstrapScanner {
             .collect()
     }
 
-    /// Configure scanning options
     pub fn with_config(mut self, config: ScanConfig) -> Self {
         self.config = config;
         self
     }
 
-    /// Scans the repository and returns bootstrap context
     pub fn scan(&self) -> Result<BootstrapContext> {
         let start = Instant::now();
 

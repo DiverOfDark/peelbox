@@ -30,7 +30,6 @@ pub struct LanguageDetection {
     pub manifest_path: String,
 }
 
-/// Build template for container image generation
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BuildTemplate {
     pub build_image: String,
@@ -43,47 +42,31 @@ pub struct BuildTemplate {
     pub common_ports: Vec<u16>,
 }
 
-/// Trait defining a programming language's build characteristics
 pub trait LanguageDefinition: Send + Sync {
-    /// Language name (e.g., "Rust", "JavaScript")
     fn name(&self) -> &str;
-
-    /// File extensions associated with this language
     fn extensions(&self) -> &[&str];
-
-    /// Manifest files that indicate this language's build systems
     fn manifest_files(&self) -> &[ManifestPattern];
-
-    /// Detect if a manifest file belongs to this language and return build system info
     fn detect(
         &self,
         manifest_name: &str,
         manifest_content: Option<&str>,
     ) -> Option<DetectionResult>;
-
-    /// Get best practices template for a specific build system
     fn build_template(&self, build_system: &str) -> Option<BuildTemplate>;
-
-    /// Get all supported build systems
     fn build_systems(&self) -> &[&str];
 
-    /// Directories to exclude from scanning (e.g., build outputs, caches)
     fn excluded_dirs(&self) -> &[&str] {
         &[]
     }
 
-    /// Workspace configuration files for monorepo detection
     fn workspace_configs(&self) -> &[&str] {
         &[]
     }
 
-    /// Detect runtime version from manifest content
     fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
         None
     }
 }
 
-/// Pattern for matching manifest files
 #[derive(Debug, Clone)]
 pub struct ManifestPattern {
     pub filename: &'static str,
@@ -91,7 +74,6 @@ pub struct ManifestPattern {
     pub priority: u8,
 }
 
-/// Result of language detection from a manifest
 #[derive(Debug, Clone)]
 pub struct DetectionResult {
     pub build_system: String,

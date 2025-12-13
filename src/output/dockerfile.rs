@@ -1,17 +1,9 @@
 use crate::output::schema::UniversalBuild;
 use anyhow::Result;
 
-/// Generates Dockerfiles from UniversalBuild specifications
 pub struct DockerfileGenerator;
 
 impl DockerfileGenerator {
-    /// Generates a multi-stage Dockerfile from a UniversalBuild specification
-    ///
-    /// Creates a Dockerfile with:
-    /// - Metadata comments (project info, confidence, reasoning)
-    /// - Build stage with dependencies, environment, and build commands
-    /// - Runtime stage with runtime dependencies and application setup
-    /// - Proper handling of cache mounts and ports
     pub fn generate(build: &UniversalBuild) -> Result<String> {
         let mut dockerfile = String::new();
 

@@ -43,7 +43,6 @@ impl ToolRegistry {
         Ok(Self { tools })
     }
 
-    /// Get all tools as ToolDefinition for LLMClient trait
     pub fn as_tool_definitions(&self) -> Vec<ToolDefinition> {
         self.tools
             .iter()
@@ -55,22 +54,18 @@ impl ToolRegistry {
             .collect()
     }
 
-    /// Get a tool by name
     pub fn get_tool(&self, name: &str) -> Option<Arc<dyn Tool>> {
         self.tools.iter().find(|t| t.name() == name).cloned()
     }
 
-    /// Get all registered tool names
     pub fn tool_names(&self) -> Vec<&str> {
         self.tools.iter().map(|t| t.name()).collect()
     }
 
-    /// Number of registered tools
     pub fn len(&self) -> usize {
         self.tools.len()
     }
 
-    /// Check if registry is empty
     pub fn is_empty(&self) -> bool {
         self.tools.is_empty()
     }

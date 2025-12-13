@@ -1,10 +1,7 @@
-//! Language registry for managing language definitions
-
 use super::{LanguageDefinition, LanguageDetection};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// Registry of language definitions for build system detection
 #[derive(Clone)]
 pub struct LanguageRegistry {
     languages: Vec<Arc<dyn LanguageDefinition>>,
@@ -12,7 +9,6 @@ pub struct LanguageRegistry {
 }
 
 impl LanguageRegistry {
-    /// Creates a new empty registry
     pub fn new() -> Self {
         Self {
             languages: Vec::new(),
@@ -20,7 +16,6 @@ impl LanguageRegistry {
         }
     }
 
-    /// Creates a registry with all default languages registered
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
         registry.register(Arc::new(super::RustLanguage));
@@ -36,7 +31,6 @@ impl LanguageRegistry {
         registry
     }
 
-    /// Get all excluded directories aggregated from all languages
     pub fn all_excluded_dirs(&self) -> Vec<&str> {
         let mut dirs: Vec<&str> = Vec::new();
         for lang in &self.languages {
@@ -46,7 +40,6 @@ impl LanguageRegistry {
                 }
             }
         }
-        // Add common dirs not language-specific
         for dir in &[".git", ".idea", ".vscode", "vendor"] {
             if !dirs.contains(dir) {
                 dirs.push(dir);
@@ -55,7 +48,6 @@ impl LanguageRegistry {
         dirs
     }
 
-    /// Get all workspace config files aggregated from all languages
     pub fn all_workspace_configs(&self) -> Vec<&str> {
         let mut configs: Vec<&str> = Vec::new();
         for lang in &self.languages {
@@ -68,7 +60,6 @@ impl LanguageRegistry {
         configs
     }
 
-    /// Register a language definition
     pub fn register(&mut self, language: Arc<dyn LanguageDefinition>) {
         let lang_idx = self.languages.len();
 
@@ -82,7 +73,6 @@ impl LanguageRegistry {
         self.languages.push(language);
     }
 
-    /// Detect language from a manifest filename and optional content
     pub fn detect(
         &self,
         manifest_name: &str,
@@ -119,7 +109,6 @@ impl LanguageRegistry {
         best_result.map(|(detection, _)| detection)
     }
 
-    /// Detect all languages in a repository from a list of manifest files
     pub fn detect_all(&self, manifests: &[(String, Option<String>)]) -> Vec<LanguageDetection> {
         let mut detections = Vec::new();
 

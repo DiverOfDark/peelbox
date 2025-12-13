@@ -35,7 +35,6 @@ You must call at least one tool on every response. Do not respond with only text
 When you have enough information, call submit_detection with your analysis.
 "#;
 
-/// Analysis pipeline error
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
     #[error("Tool system error: {0}")]
@@ -57,19 +56,15 @@ pub enum PipelineError {
     DetectionFailed(String),
 }
 
-/// Analysis pipeline that orchestrates the detection workflow
 pub struct AnalysisPipeline {
-    /// Pipeline context with all dependencies
     context: PipelineContext,
 }
 
 impl AnalysisPipeline {
-    /// Create a new analysis pipeline
     pub fn new(context: PipelineContext) -> Self {
         Self { context }
     }
 
-    /// Run the analysis pipeline
     pub async fn analyze(
         &self,
         repo_path: PathBuf,

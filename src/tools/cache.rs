@@ -23,20 +23,17 @@ pub struct ToolCache {
 }
 
 impl ToolCache {
-    /// Create a new empty cache
     pub fn new() -> Self {
         Self {
             cache: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    /// Get a cached result if available
     pub fn get(&self, tool_name: &str, arguments: &Value) -> Option<String> {
         let key = CacheKey::new(tool_name, arguments);
         self.cache.read().ok()?.get(&key).cloned()
     }
 
-    /// Store a result in the cache
     pub fn insert(&self, tool_name: &str, arguments: &Value, result: String) {
         let key = CacheKey::new(tool_name, arguments);
         if let Ok(mut cache) = self.cache.write() {
@@ -44,19 +41,16 @@ impl ToolCache {
         }
     }
 
-    /// Clear all cached results
     pub fn clear(&self) {
         if let Ok(mut cache) = self.cache.write() {
             cache.clear();
         }
     }
 
-    /// Get number of cached entries
     pub fn len(&self) -> usize {
         self.cache.read().map(|c| c.len()).unwrap_or(0)
     }
 
-    /// Check if cache is empty
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
