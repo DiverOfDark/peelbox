@@ -94,8 +94,8 @@ impl ModelSelector {
 
         let available_gb = capabilities.available_ram_gb();
 
-        // Reserve some RAM for the system (at least 2GB or 25% of total)
-        let system_reserve_gb = (capabilities.total_ram_gb() * 0.25).max(2.0);
+        // Reserve some RAM for the system (at least 2GB or 25% of available)
+        let system_reserve_gb = (available_gb * 0.25).max(2.0);
         let usable_gb = (available_gb - system_reserve_gb).max(0.0);
 
         debug!(

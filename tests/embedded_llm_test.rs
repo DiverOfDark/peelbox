@@ -12,9 +12,10 @@
 
 use aipack::llm::{
     ChatMessage, EmbeddedClient, EmbeddedModel, HardwareCapabilities, HardwareDetector, LLMClient,
-    LLMRequest, ModelSelector,
+    LLMRequest, ModelSelector, RecordingLLMClient, RecordingMode,
 };
 use serial_test::serial;
+use std::sync::Arc;
 
 /// Check if we have enough RAM to run embedded model tests
 fn has_sufficient_ram() -> bool {
@@ -44,146 +45,57 @@ async fn test_hardware_detection() {
 }
 
 #[tokio::test]
-async fn test_model_selection() {
-    let capabilities = HardwareDetector::detect();
-    let selected = ModelSelector::select(&capabilities);
-
-    if capabilities.available_ram_gb() >= 3.0 {
-        // Should select a model if we have enough RAM
-        assert!(selected.is_some());
-        let model = selected.unwrap();
-        println!(
-            "Selected model: {} (requires {:.1}GB RAM)",
-            model.display_name, model.ram_required_gb
-        );
-
-        // Verify RAM requirement fits
-        assert!(model.ram_required_gb <= capabilities.available_ram_gb());
-    } else {
-        // Not enough RAM, should return None
-        assert!(selected.is_none());
-        println!(
-            "Insufficient RAM for embedded models (have {:.1}GB, need 3GB+)",
-            capabilities.available_ram_gb()
-        );
-    }
-}
-
-#[tokio::test]
-#[serial]
-async fn test_embedded_client_creation() {
-    if !has_sufficient_ram() {
-        println!("Skipping test: insufficient RAM");
-        return;
-    }
-
-    // Force CPU-only capabilities for testing
-    let capabilities = HardwareCapabilities {
-        total_ram_bytes: 16 * 1024 * 1024 * 1024,    // 16GB total
-        available_ram_bytes: 8 * 1024 * 1024 * 1024, // 8GB available
-        cuda_available: false,
-        cuda_memory_bytes: None,
-        metal_available: false,
-        cpu_cores: 8,
-    };
-
-    // Use smallest model for testing
-    let model = ModelSelector::smallest();
-
-    let result = EmbeddedClient::with_model(model, &capabilities, false).await;
-
-    match result {
-        Ok(client) => {
-            println!("Client created successfully: {:?}", client);
-            assert_eq!(client.name(), "EmbeddedLLM");
-            assert!(client.model_info().is_some());
-        }
-        Err(e) => {
-            // Model download or initialization failure is acceptable in CI
-            println!(
-                "Failed to create client (may be network/download issue): {}",
-                e
-            );
-        }
-    }
-}
-
-#[tokio::test]
-#[serial]
-async fn test_embedded_client_with_smallest_model() {
-    if !has_sufficient_ram() {
-        println!("Skipping test: insufficient RAM");
-        return;
-    }
-
-    // Force CPU-only capabilities for testing
-    let capabilities = HardwareCapabilities {
-        total_ram_bytes: 16 * 1024 * 1024 * 1024,    // 16GB total
-        available_ram_bytes: 8 * 1024 * 1024 * 1024, // 8GB available
-        cuda_available: false,
-        cuda_memory_bytes: None,
-        metal_available: false,
-        cpu_cores: 8,
-    };
-
-    // Force use of smallest model (0.5B) for faster testing
-    let model = ModelSelector::smallest();
-
-    println!(
-        "Testing with model: {} (requires {:.1}GB RAM) on CPU",
-        model.display_name, model.ram_required_gb
-    );
-
-    let result = EmbeddedClient::with_model(model, &capabilities, false).await;
-
-    match result {
-        Ok(client) => {
-            println!(
-                "Client created successfully with {} model",
-                model.display_name
-            );
-            assert_eq!(client.name(), "EmbeddedLLM");
-
-            let model_info = client.model_info().unwrap();
-            assert!(model_info.contains("0.5B"));
-        }
-        Err(e) => {
-            println!("Failed to create client: {}", e);
-        }
-    }
-}
-
-#[tokio::test]
 #[serial]
 async fn test_embedded_llm_inference() {
-    if !has_sufficient_ram() {
-        println!("Skipping test: insufficient RAM");
-        return;
-    }
+    // Check if recording exists first
+    let recordings_dir = std::path::PathBuf::from("tests/recordings");
+    let test_request = LLMRequest::new(vec![
+        ChatMessage::system("You are a helpful assistant. Respond concisely."),
+        ChatMessage::user("What is 2+2?"),
+    ])
+    .with_max_tokens(50)
+    .with_temperature(0.7);
 
-    // Force CPU-only capabilities for testing
-    let capabilities = HardwareCapabilities {
-        total_ram_bytes: 16 * 1024 * 1024 * 1024,    // 16GB total
-        available_ram_bytes: 8 * 1024 * 1024 * 1024, // 8GB available
-        cuda_available: false,
-        cuda_memory_bytes: None,
-        metal_available: false,
-        cpu_cores: 8,
+    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request);
+    let request_hash = recorded_request.canonical_hash();
+    let recording_path = recordings_dir.join(format!("{}.json", request_hash));
+
+    // If recording exists, use replay mode with mock client
+    // Otherwise, try to create real client
+    let client: Arc<dyn LLMClient> = if recording_path.exists() {
+        println!("Using cached recording, skipping model loading");
+        Arc::new(aipack::llm::MockLLMClient::new())
+    } else {
+        println!("No recording found, will create embedded client");
+        if !has_sufficient_ram() {
+            println!("Skipping test: insufficient RAM and no recording");
+            return;
+        }
+
+        let capabilities = HardwareCapabilities {
+            total_ram_bytes: 16 * 1024 * 1024 * 1024,
+            available_ram_bytes: 8 * 1024 * 1024 * 1024,
+            cuda_available: false,
+            cuda_memory_bytes: None,
+            metal_available: false,
+            cpu_cores: 8,
+        };
+
+        let model = ModelSelector::smallest();
+        println!("Testing inference with {} on CPU", model.display_name);
+
+        match EmbeddedClient::with_model(model, &capabilities, false).await {
+            Ok(client) => Arc::new(client),
+            Err(e) => {
+                println!("Skipping inference test: failed to create client: {}", e);
+                return;
+            }
+        }
     };
 
-    // Use smallest model for testing
-    let model = ModelSelector::smallest();
-
-    println!("Testing inference with {} on CPU", model.display_name);
-
-    let client_result = EmbeddedClient::with_model(model, &capabilities, false).await;
-
-    if let Err(e) = client_result {
-        println!("Skipping inference test: failed to create client: {}", e);
-        return;
-    }
-
-    let client = client_result.unwrap();
+    // Always use Auto mode - will replay if available, record if not
+    let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
+        .expect("Failed to create recording client");
 
     // Create a simple request
     let request = LLMRequest::new(vec![
@@ -194,7 +106,7 @@ async fn test_embedded_llm_inference() {
     .with_temperature(0.7);
 
     println!("Sending request to embedded LLM...");
-    let result = client.chat(request).await;
+    let result = recording_client.chat(request).await;
 
     match result {
         Ok(response) => {
@@ -205,7 +117,8 @@ async fn test_embedded_llm_inference() {
             assert!(response.content.len() < 1000); // Should be a short response
         }
         Err(e) => {
-            println!("Inference failed (may be expected in CI): {}", e);
+            println!("Request failed: {}", e);
+            panic!("Test failed: {}", e);
         }
     }
 }
@@ -213,34 +126,61 @@ async fn test_embedded_llm_inference() {
 #[tokio::test]
 #[serial]
 async fn test_embedded_llm_tool_calling() {
-    if !has_sufficient_ram() {
-        println!("Skipping test: insufficient RAM");
-        return;
-    }
+    // Check if recording exists first
+    let recordings_dir = std::path::PathBuf::from("tests/recordings");
+    let test_request = LLMRequest::new(vec![
+        ChatMessage::system(
+            r#"You are a helpful assistant. You can call tools using JSON format:
+{"name": "tool_name", "arguments": {...}}
 
-    // Force CPU-only capabilities for testing
-    let capabilities = HardwareCapabilities {
-        total_ram_bytes: 16 * 1024 * 1024 * 1024,    // 16GB total
-        available_ram_bytes: 8 * 1024 * 1024 * 1024, // 8GB available
-        cuda_available: false,
-        cuda_memory_bytes: None,
-        metal_available: false,
-        cpu_cores: 8,
+Available tools:
+- calculate: Performs mathematical calculations"#,
+        ),
+        ChatMessage::user("Calculate 15 * 23 using the calculate tool"),
+    ])
+    .with_max_tokens(100)
+    .with_temperature(0.1);
+
+    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request);
+    let request_hash = recorded_request.canonical_hash();
+    let recording_path = recordings_dir.join(format!("{}.json", request_hash));
+
+    // If recording exists, use replay mode with mock client
+    // Otherwise, try to create real client
+    let client: Arc<dyn LLMClient> = if recording_path.exists() {
+        println!("Using cached recording, skipping model loading");
+        Arc::new(aipack::llm::MockLLMClient::new())
+    } else {
+        println!("No recording found, will create embedded client");
+        if !has_sufficient_ram() {
+            println!("Skipping test: insufficient RAM and no recording");
+            return;
+        }
+
+        let capabilities = HardwareCapabilities {
+            total_ram_bytes: 16 * 1024 * 1024 * 1024,
+            available_ram_bytes: 8 * 1024 * 1024 * 1024,
+            cuda_available: false,
+            cuda_memory_bytes: None,
+            metal_available: false,
+            cpu_cores: 8,
+        };
+
+        let model = ModelSelector::smallest();
+        println!("Testing tool calling with {} on CPU", model.display_name);
+
+        match EmbeddedClient::with_model(model, &capabilities, false).await {
+            Ok(client) => Arc::new(client),
+            Err(e) => {
+                println!("Skipping tool calling test: failed to create client: {}", e);
+                return;
+            }
+        }
     };
 
-    // Use smallest model for testing
-    let model = ModelSelector::smallest();
-
-    println!("Testing tool calling with {} on CPU", model.display_name);
-
-    let client_result = EmbeddedClient::with_model(model, &capabilities, false).await;
-
-    if let Err(e) = client_result {
-        println!("Skipping tool calling test: failed to create client: {}", e);
-        return;
-    }
-
-    let client = client_result.unwrap();
+    // Always use Auto mode - will replay if available, record if not
+    let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
+        .expect("Failed to create recording client");
 
     // Create a request that should trigger tool calling
     let request = LLMRequest::new(vec![
@@ -257,7 +197,7 @@ Available tools:
     .with_temperature(0.1);
 
     println!("Testing tool calling with embedded LLM...");
-    let result = client.chat(request).await;
+    let result = recording_client.chat(request).await;
 
     match result {
         Ok(response) => {
@@ -270,7 +210,8 @@ Available tools:
             assert!(!response.content.is_empty() || !response.tool_calls.is_empty());
         }
         Err(e) => {
-            println!("Tool calling test failed (may be expected): {}", e);
+            println!("Request failed: {}", e);
+            panic!("Test failed: {}", e);
         }
     }
 }

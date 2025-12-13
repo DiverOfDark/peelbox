@@ -2,7 +2,7 @@ use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
-use aipack::llm::select_llm_client;
+use aipack::llm::{select_llm_client, RecordingLLMClient, RecordingMode};
 use aipack::progress::{LoggingHandler, ProgressHandler};
 use aipack::VERSION;
 use genai::adapter::AdapterKind;
@@ -55,12 +55,12 @@ fn init_logging_from_args(args: &CliArgs) {
         };
 
         // Build the EnvFilter
-        let mut filter = EnvFilter::from_default_env()
-            .add_directive(format!("aipack={}", level).parse().unwrap());
+        let mut filter = EnvFilter::from_default_env();
 
-        // If RUST_LOG is not set, quiet down noisy dependencies
+        // If RUST_LOG is not set, apply sensible defaults
         if env::var("RUST_LOG").is_err() {
             filter = filter
+                .add_directive(format!("aipack={}", level).parse().unwrap())
                 .add_directive("h2=warn".parse().unwrap())
                 .add_directive("hyper=warn".parse().unwrap())
                 .add_directive("reqwest=warn".parse().unwrap());
@@ -162,6 +162,28 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         return 1;
     }
 
+    // Helper function to wrap client with recording support (only in test mode)
+    let wrap_with_recording =
+        |client: Arc<dyn aipack::llm::LLMClient>| -> Arc<dyn aipack::llm::LLMClient> {
+            // Only enable recording if AIPACK_ENABLE_RECORDING env var is set (for tests)
+            if std::env::var("AIPACK_ENABLE_RECORDING").is_ok() {
+                let recordings_dir = std::path::PathBuf::from("tests/recordings");
+                match RecordingLLMClient::new(client.clone(), RecordingMode::Auto, recordings_dir) {
+                    Ok(recording_client) => {
+                        debug!("Recording enabled, using tests/recordings/ directory");
+                        return Arc::new(recording_client) as Arc<dyn aipack::llm::LLMClient>;
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to enable recording: {}. Continuing without recording.",
+                            e
+                        );
+                    }
+                }
+            }
+            client
+        };
+
     // Create detection service
     info!("Initializing detection service");
     let service = if args.backend.is_some() {
@@ -178,7 +200,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         )
         .await
         {
-            Ok(c) => Arc::new(c) as Arc<dyn aipack::llm::LLMClient>,
+            Ok(c) => wrap_with_recording(Arc::new(c) as Arc<dyn aipack::llm::LLMClient>),
             Err(e) => {
                 error!("Failed to initialize backend: {}", e);
                 eprintln!("Failed to initialize backend: {}", e);
@@ -245,6 +267,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
                     eprintln!("Using: {}", selected.description);
                 }
 
+                let client = wrap_with_recording(selected.client);
+
                 // Create pipeline context
                 use aipack::fs::RealFileSystem;
                 use aipack::languages::LanguageRegistry;
@@ -252,14 +276,14 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
                 use aipack::validation::Validator;
 
                 let context = Arc::new(PipelineContext::new(
-                    selected.client.clone(),
+                    client.clone(),
                     Arc::new(RealFileSystem),
                     Arc::new(LanguageRegistry::with_defaults()),
                     Arc::new(Validator::new()),
                     PipelineConfig::default(),
                 ));
 
-                DetectionService::new(selected.client, context)
+                DetectionService::new(client, context)
             }
             Err(e) => {
                 error!("Failed to auto-select backend: {}", e);

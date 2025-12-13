@@ -70,15 +70,30 @@ impl EmbeddedClient {
         let tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {}", e))?;
 
-        // Load quantized GGUF model
-        let model = Self::load_gguf_model(&model_paths[0], &device)?;
+        // Load quantized GGUF model - try CUDA first, fallback to CPU if it fails
+        let (model, final_device) = match Self::load_gguf_model(&model_paths[0], &device) {
+            Ok(model) => (model, device),
+            Err(e) if !device.is_cpu() => {
+                warn!(
+                    "Failed to load model on {}: {}. Falling back to CPU",
+                    capabilities.best_device(),
+                    e
+                );
+                info!("Retrying model load on CPU for better quantized model compatibility");
+                let cpu_device = Device::Cpu;
+                let model = Self::load_gguf_model(&model_paths[0], &cpu_device)
+                    .context("Failed to load model on CPU fallback")?;
+                (model, cpu_device)
+            }
+            Err(e) => return Err(e),
+        };
 
         info!("Model loaded successfully");
 
         Ok(Self {
             model: Arc::new(Mutex::new(model)),
             tokenizer,
-            device,
+            device: final_device,
             model_info,
             max_tokens: 4096,
         })
@@ -272,11 +287,7 @@ impl LLMClient for EmbeddedClient {
 
         debug!("=== LLM Request ===");
         debug!("Prompt length: {} chars", prompt.len());
-        if prompt.len() < 2000 {
-            debug!("Full prompt:\n{}", prompt);
-        } else {
-            debug!("Prompt (first 1000 chars):\n{}...", &prompt[..1000]);
-        }
+        debug!("Full prompt:\n{}", prompt);
 
         // Calculate max tokens
         let max_tokens = request.max_tokens.unwrap_or(self.max_tokens as u32) as usize;
@@ -292,11 +303,7 @@ impl LLMClient for EmbeddedClient {
 
         debug!("=== LLM Response ===");
         debug!("Response length: {} chars", output.len());
-        if output.len() < 2000 {
-            debug!("Full response:\n{}", output);
-        } else {
-            debug!("Response (first 1000 chars):\n{}...", &output[..1000]);
-        }
+        debug!("Full response:\n{}", output);
 
         // Parse tool calls if any
         let tool_calls = self.parse_tool_calls(&output);

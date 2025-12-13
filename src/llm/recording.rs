@@ -20,8 +20,8 @@ pub enum RecordingMode {
 }
 
 impl RecordingMode {
-    /// Parse from environment variable or string
-    pub fn from_str(s: &str) -> Result<Self> {
+    /// Parse from string
+    pub fn parse(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "record" => Ok(RecordingMode::Record),
             "replay" => Ok(RecordingMode::Replay),
@@ -34,7 +34,7 @@ impl RecordingMode {
     pub fn from_env(default: RecordingMode) -> RecordingMode {
         std::env::var("AIPACK_RECORDING_MODE")
             .ok()
-            .and_then(|s| Self::from_str(&s).ok())
+            .and_then(|s| Self::parse(&s).ok())
             .unwrap_or(default)
     }
 }
@@ -48,6 +48,8 @@ pub struct RecordedExchange {
     pub request: RecordedRequest,
     /// The recorded response
     pub response: LLMResponse,
+    /// All intermediate responses during tool calling loop (for analysis)
+    pub intermediate_responses: Vec<LLMResponse>,
     /// Timestamp when recorded (ISO 8601)
     pub recorded_at: String,
 }
@@ -100,6 +102,8 @@ pub struct RecordingLLMClient {
     recordings_dir: PathBuf,
     /// In-memory cache of loaded recordings
     cache: HashMap<String, LLMResponse>,
+    /// Intermediate responses captured during tool-calling loop
+    intermediate_responses: std::sync::Mutex<Vec<LLMResponse>>,
 }
 
 impl RecordingLLMClient {
@@ -117,6 +121,7 @@ impl RecordingLLMClient {
             mode,
             recordings_dir,
             cache: HashMap::new(),
+            intermediate_responses: std::sync::Mutex::new(Vec::new()),
         })
     }
 
@@ -154,19 +159,27 @@ impl RecordingLLMClient {
     /// Save recording to disk
     fn save_recording(&self, request: &RecordedRequest, response: &LLMResponse) -> Result<()> {
         let request_hash = request.canonical_hash();
+
+        // Collect all intermediate responses
+        let intermediates = self.intermediate_responses.lock().unwrap().clone();
+
         let exchange = RecordedExchange {
             request_hash: request_hash.clone(),
             request: request.clone(),
             response: response.clone(),
+            intermediate_responses: intermediates,
             recorded_at: chrono::Utc::now().to_rfc3339(),
         };
 
+        // Save JSON recording
         let path = self.recording_path(&request_hash);
         let contents =
             serde_json::to_string_pretty(&exchange).context("Failed to serialize recording")?;
-
         std::fs::write(&path, contents)
             .with_context(|| format!("Failed to write recording: {}", path.display()))?;
+
+        // Clear intermediate responses for next recording
+        self.intermediate_responses.lock().unwrap().clear();
 
         Ok(())
     }
@@ -230,11 +243,24 @@ impl LLMClient for RecordingLLMClient {
                 // Always call the underlying client
                 let response = self.inner.chat(request).await?;
 
-                // Save recording
-                self.save_recording(&recorded_request, &response)
-                    .map_err(|e| BackendError::Other {
-                        message: format!("Failed to save recording: {}", e),
-                    })?;
+                // Store intermediate response for tool-calling loop analysis
+                self.intermediate_responses
+                    .lock()
+                    .unwrap()
+                    .push(response.clone());
+
+                // Only save recording on final submission (detect submit_detection tool call)
+                let is_final = response
+                    .tool_calls
+                    .iter()
+                    .any(|call| call.name == "submit_detection");
+
+                if is_final {
+                    self.save_recording(&recorded_request, &response)
+                        .map_err(|e| BackendError::Other {
+                            message: format!("Failed to save recording: {}", e),
+                        })?;
+                }
 
                 Ok(response)
             }
@@ -256,10 +282,25 @@ impl LLMClient for RecordingLLMClient {
 
                 // No recording found, call underlying client and record
                 let response = self.inner.chat(request).await?;
-                self.save_recording(&recorded_request, &response)
-                    .map_err(|e| BackendError::Other {
-                        message: format!("Failed to save recording: {}", e),
-                    })?;
+
+                // Store intermediate response for tool-calling loop analysis
+                self.intermediate_responses
+                    .lock()
+                    .unwrap()
+                    .push(response.clone());
+
+                // Only save recording on final submission (detect submit_detection tool call)
+                let is_final = response
+                    .tool_calls
+                    .iter()
+                    .any(|call| call.name == "submit_detection");
+
+                if is_final {
+                    self.save_recording(&recorded_request, &response)
+                        .map_err(|e| BackendError::Other {
+                            message: format!("Failed to save recording: {}", e),
+                        })?;
+                }
 
                 Ok(response)
             }
@@ -277,24 +318,21 @@ mod tests {
     use crate::llm::{MockLLMClient, MockResponse};
 
     #[test]
-    fn test_recording_mode_from_str() {
+    fn test_recording_mode_parse() {
         assert_eq!(
-            RecordingMode::from_str("record").unwrap(),
+            RecordingMode::parse("record").unwrap(),
             RecordingMode::Record
         );
         assert_eq!(
-            RecordingMode::from_str("replay").unwrap(),
+            RecordingMode::parse("replay").unwrap(),
             RecordingMode::Replay
         );
+        assert_eq!(RecordingMode::parse("auto").unwrap(), RecordingMode::Auto);
         assert_eq!(
-            RecordingMode::from_str("auto").unwrap(),
-            RecordingMode::Auto
-        );
-        assert_eq!(
-            RecordingMode::from_str("RECORD").unwrap(),
+            RecordingMode::parse("RECORD").unwrap(),
             RecordingMode::Record
         );
-        assert!(RecordingMode::from_str("invalid").is_err());
+        assert!(RecordingMode::parse("invalid").is_err());
     }
 
     #[test]
@@ -323,11 +361,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_recording_client_record_mode() {
+        use crate::llm::ToolCall;
+
         let temp_dir = tempfile::tempdir().unwrap();
         let recordings_dir = temp_dir.path().to_path_buf();
 
         let mock_client = Arc::new(MockLLMClient::new());
-        mock_client.add_response(MockResponse::text("Recorded response"));
+        // Response with submit_detection tool call to trigger recording
+        mock_client.add_response(MockResponse::with_tool_calls(
+            "Submitting detection".to_string(),
+            vec![ToolCall {
+                call_id: "1".to_string(),
+                name: "submit_detection".to_string(),
+                arguments: serde_json::json!({}),
+            }],
+        ));
 
         let recording_client =
             RecordingLLMClient::new(mock_client, RecordingMode::Record, recordings_dir.clone())
@@ -338,7 +386,7 @@ mod tests {
             .with_temperature(0.7);
 
         let response = recording_client.chat(request).await.unwrap();
-        assert_eq!(response.content, "Recorded response");
+        assert_eq!(response.content, "Submitting detection");
 
         // Check that recording was saved
         let recorded_request = RecordedRequest {
@@ -354,12 +402,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_recording_client_replay_mode() {
+        use crate::llm::ToolCall;
+
         let temp_dir = tempfile::tempdir().unwrap();
         let recordings_dir = temp_dir.path().to_path_buf();
 
         // First, record
         let mock_client = Arc::new(MockLLMClient::new());
-        mock_client.add_response(MockResponse::text("Recorded response"));
+        mock_client.add_response(MockResponse::with_tool_calls(
+            "Submitting detection".to_string(),
+            vec![ToolCall {
+                call_id: "1".to_string(),
+                name: "submit_detection".to_string(),
+                arguments: serde_json::json!({}),
+            }],
+        ));
 
         let recording_client =
             RecordingLLMClient::new(mock_client, RecordingMode::Record, recordings_dir.clone())
@@ -379,16 +436,25 @@ mod tests {
                 .unwrap();
 
         let response = replay_client.chat(request).await.unwrap();
-        assert_eq!(response.content, "Recorded response");
+        assert_eq!(response.content, "Submitting detection");
     }
 
     #[tokio::test]
     async fn test_recording_client_auto_mode() {
+        use crate::llm::ToolCall;
+
         let temp_dir = tempfile::tempdir().unwrap();
         let recordings_dir = temp_dir.path().to_path_buf();
 
         let mock_client = Arc::new(MockLLMClient::new());
-        mock_client.add_response(MockResponse::text("Auto response"));
+        mock_client.add_response(MockResponse::with_tool_calls(
+            "Submitting detection".to_string(),
+            vec![ToolCall {
+                call_id: "1".to_string(),
+                name: "submit_detection".to_string(),
+                arguments: serde_json::json!({}),
+            }],
+        ));
 
         let auto_client =
             RecordingLLMClient::new(mock_client, RecordingMode::Auto, recordings_dir.clone())
@@ -400,7 +466,7 @@ mod tests {
 
         // First call records
         let response1 = auto_client.chat(request.clone()).await.unwrap();
-        assert_eq!(response1.content, "Auto response");
+        assert_eq!(response1.content, "Submitting detection");
 
         // Second call replays (mock client won't be called again)
         let mock_client = Arc::new(MockLLMClient::new());
@@ -409,6 +475,6 @@ mod tests {
                 .unwrap();
 
         let response2 = auto_client2.chat(request).await.unwrap();
-        assert_eq!(response2.content, "Auto response");
+        assert_eq!(response2.content, "Submitting detection");
     }
 }
