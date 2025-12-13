@@ -190,19 +190,6 @@ impl LanguageDefinition for JavaLanguage {
         None
     }
 }
-
-/// Check if a Gradle build file contains Kotlin
-#[allow(dead_code)]
-pub fn is_kotlin_project(manifest_content: Option<&str>) -> bool {
-    if let Some(content) = manifest_content {
-        content.contains("kotlin(")
-            || content.contains("org.jetbrains.kotlin")
-            || content.contains("kotlin-stdlib")
-    } else {
-        false
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

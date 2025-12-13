@@ -237,20 +237,6 @@ impl LanguageDefinition for JavaScriptLanguage {
         None
     }
 }
-
-/// Check if a package.json indicates a TypeScript project
-#[allow(dead_code)]
-pub fn is_typescript_project(manifest_content: Option<&str>) -> bool {
-    if let Some(content) = manifest_content {
-        content.contains("\"typescript\"")
-            || content.contains("\"@types/")
-            || content.contains("\"ts-node\"")
-            || content.contains("tsconfig.json")
-    } else {
-        false
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
