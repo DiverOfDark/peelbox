@@ -14,15 +14,12 @@ use std::path::PathBuf;
                   (Ollama, OpenAI, Claude, Gemini, Grok, Groq) and output formats."
 )]
 pub struct CliArgs {
-    /// Subcommand to execute
     #[command(subcommand)]
     pub command: Commands,
 
-    /// Logging level (error, warn, info, debug, trace)
     #[arg(long, global = true, value_name = "LEVEL", help = "Set logging level")]
     pub log_level: Option<String>,
 
-    /// Enable verbose output (equivalent to --log-level debug)
     #[arg(
         short = 'v',
         long,
@@ -69,7 +66,6 @@ pub enum Commands {
     Health(HealthArgs),
 }
 
-/// Arguments for the detect command
 #[derive(Parser, Debug, Clone)]
 pub struct DetectArgs {
     /// Path to repository to analyze (default: current directory)
@@ -157,7 +153,6 @@ pub struct HealthArgs {
     pub format: OutputFormatArg,
 }
 
-/// Output format argument enum
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormatArg {
     /// JSON format

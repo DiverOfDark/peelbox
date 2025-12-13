@@ -1,13 +1,7 @@
-//! Build system detection
-//!
-//! This module handles repository analysis and build system detection,
-//! including context gathering and result processing.
-
 pub mod analyzer;
 pub mod service;
 pub mod types;
 
-// Re-export commonly used types
 pub use analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use service::{DetectionService, ServiceError};
 pub use types::{GitInfo, RepositoryContext};

@@ -1,8 +1,3 @@
-//! GenAI-based LLM client implementation
-//!
-//! This module provides an LLM client implementation using the `genai` crate,
-//! supporting multiple providers (Ollama, OpenAI, Claude, Gemini, Grok, Groq).
-
 use super::client::LLMClient;
 use super::types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};
 use crate::ai::error::BackendError;
@@ -17,16 +12,9 @@ use genai::{Client, ModelIden, ServiceTarget};
 use std::time::Duration;
 use tracing::{debug, error};
 
-/// GenAI-based LLM client supporting multiple providers
-///
-/// This client uses the `genai` crate to provide a unified interface across
-/// multiple LLM providers with tool calling support.
 pub struct GenAIClient {
-    /// GenAI client instance
     client: Client,
-    /// Model name
     model: String,
-    /// Provider type
     provider: AdapterKind,
     /// Request timeout
     timeout: Duration,

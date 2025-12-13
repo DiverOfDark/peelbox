@@ -1,5 +1,3 @@
-//! Language definitions and registry for build system detection
-
 mod cpp;
 mod dotnet;
 mod elixir;
@@ -24,7 +22,6 @@ pub use registry::LanguageRegistry;
 pub use ruby::RubyLanguage;
 pub use rust::RustLanguage;
 
-/// Information about a detected language/build system combination
 #[derive(Debug, Clone)]
 pub struct LanguageDetection {
     pub language: String,

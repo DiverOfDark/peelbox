@@ -1,8 +1,3 @@
-//! LLM client abstraction layer
-//!
-//! This module provides a trait-based abstraction for LLM communication,
-//! allowing different backends (GenAI, Mock, Embedded) to be used interchangeably.
-
 mod client;
 pub mod embedded;
 mod genai;

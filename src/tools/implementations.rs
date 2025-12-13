@@ -1,7 +1,3 @@
-//! Tool implementations
-//!
-//! Individual tool implementations that the LLM can use to explore repositories.
-
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use glob::Pattern;
@@ -34,7 +30,6 @@ struct TreeNode {
     children: Option<Vec<TreeNode>>,
 }
 
-/// Helper functions shared across tool implementations
 pub struct ToolHelpers {
     repo_path: PathBuf,
     language_registry: Arc<LanguageRegistry>,
@@ -169,7 +164,6 @@ impl ToolHelpers {
     }
 }
 
-/// List files tool
 pub struct ListFilesTool {
     helpers: ToolHelpers,
 }
@@ -265,7 +259,6 @@ impl Tool for ListFilesTool {
     }
 }
 
-/// Read file tool
 pub struct ReadFileTool {
     helpers: ToolHelpers,
 }
@@ -359,7 +352,6 @@ impl Tool for ReadFileTool {
     }
 }
 
-/// Search files tool
 pub struct SearchFilesTool {
     helpers: ToolHelpers,
 }
@@ -447,7 +439,6 @@ impl Tool for SearchFilesTool {
     }
 }
 
-/// Get file tree tool
 pub struct GetFileTreeTool {
     helpers: ToolHelpers,
 }
@@ -504,7 +495,6 @@ impl Tool for GetFileTreeTool {
     }
 }
 
-/// Grep content tool
 pub struct GrepContentTool {
     helpers: ToolHelpers,
 }
@@ -636,7 +626,6 @@ impl Tool for GrepContentTool {
     }
 }
 
-/// Get best practices tool
 pub struct GetBestPracticesTool {
     language_registry: Arc<LanguageRegistry>,
 }
@@ -707,7 +696,6 @@ impl Tool for GetBestPracticesTool {
     }
 }
 
-/// Submit detection tool
 pub struct SubmitDetectionTool;
 
 #[async_trait]

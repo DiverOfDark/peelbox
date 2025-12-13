@@ -1,33 +1,20 @@
-//! Bootstrap context types for LLM prompt enrichment
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Complete bootstrap context for LLM prompt injection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootstrapContext {
-    /// Summary of repository structure
     pub summary: RepoSummary,
-    /// Detected languages and build systems
     pub detections: Vec<LanguageDetection>,
-    /// Workspace structure information
     pub workspace: WorkspaceInfo,
-    /// Scan duration in milliseconds
     pub scan_time_ms: u64,
 }
 
-/// High-level repository summary
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoSummary {
-    /// Total manifest files discovered
     pub manifest_count: usize,
-    /// Primary detected language (highest confidence)
     pub primary_language: Option<String>,
-    /// Primary build system
     pub primary_build_system: Option<String>,
-    /// Whether this appears to be a monorepo
     pub is_monorepo: bool,
-    /// Manifest files at root level
     pub root_manifests: Vec<String>,
 }
 

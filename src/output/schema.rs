@@ -1,9 +1,3 @@
-//! UniversalBuild schema data structures
-//!
-//! This module defines the schema for the UniversalBuild format - a declarative
-//! container build specification that LLMs can generate to describe how to build
-//! and package applications for container deployment.
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
@@ -28,76 +22,52 @@ fn default_version() -> String {
     "1.0".to_string()
 }
 
-/// Main UniversalBuild structure representing a complete container build specification
-///
-/// This is the root structure that LLMs will generate to describe how to build
-/// and run an application in a container.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UniversalBuild {
-    /// Schema version (e.g., "1.0")
     #[serde(
         default = "default_version",
         deserialize_with = "deserialize_null_default_version"
     )]
     pub version: String,
-    /// Project metadata and detection information
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub metadata: BuildMetadata,
-    /// Build stage configuration
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub build: BuildStage,
-    /// Runtime stage configuration
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub runtime: RuntimeStage,
 }
 
-/// Metadata about the detected project and build system
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildMetadata {
-    /// Optional project name (if detected)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_name: Option<String>,
-    /// Detected programming language (e.g., "rust", "nodejs", "python")
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub language: String,
-    /// Detected build system (e.g., "cargo", "npm", "maven", "gradle")
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub build_system: String,
-    /// Confidence score from 0.0 to 1.0
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub confidence: f32,
-    /// Human-readable explanation of the detection reasoning
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub reasoning: String,
 }
 
-/// Build stage configuration - defines how to compile/build the application
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildStage {
-    /// Base Docker image for the build stage (e.g., "rust:1.75", "node:20")
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub base: String,
-    /// System packages to install (e.g., ["build-essential", "pkg-config"])
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
-    /// Environment variables for the build stage
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub env: HashMap<String, String>,
-    /// Build commands to execute in order
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub commands: Vec<String>,
-    /// Files/directories to copy from source as from/to pairs
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub context: Vec<ContextSpec>,
-    /// Directories to cache between builds (e.g., ["/usr/local/cargo/registry"])
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
-    /// Build artifacts to preserve (e.g., ["target/release/myapp"])
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub artifacts: Vec<String>,
 }
-
-/// Runtime stage configuration - defines the final container environment
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
     /// Base Docker image for runtime (e.g., "debian:bookworm-slim", "alpine:3.19")

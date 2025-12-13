@@ -1,8 +1,3 @@
-//! Mock LLM client for testing
-//!
-//! This module provides a mock LLM client that returns scripted responses,
-//! enabling testing of detection logic without requiring a real LLM.
-
 use super::client::LLMClient;
 use super::types::{LLMRequest, LLMResponse, ToolCall};
 use crate::ai::error::BackendError;
@@ -11,23 +6,14 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 use std::time::Duration;
 
-/// A mock LLM client that returns pre-configured responses
-///
-/// This client is useful for testing detection logic without requiring
-/// a real LLM backend. Responses are returned in the order they were added.
 pub struct MockLLMClient {
-    /// Queue of responses to return
     responses: Mutex<VecDeque<MockResponse>>,
-    /// Name for this mock client
     name: String,
 }
 
-/// A scripted response from the mock client
 #[derive(Debug, Clone)]
 pub struct MockResponse {
-    /// Text content of the response
     pub content: String,
-    /// Tool calls to include in the response
     pub tool_calls: Vec<ToolCall>,
     /// Optional error to return instead of a response
     pub error: Option<BackendError>,

@@ -1,5 +1,3 @@
-//! LLM request-response recording for deterministic testing
-
 use crate::ai::error::BackendError;
 use crate::llm::{ChatMessage, LLMClient, LLMRequest, LLMResponse};
 use anyhow::{Context, Result};
@@ -8,19 +6,14 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Recording mode for LLM interactions
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordingMode {
-    /// Record new exchanges and save to disk
     Record,
-    /// Replay from recorded exchanges, fail if not found
     Replay,
-    /// Replay if recording exists, otherwise record
     Auto,
 }
 
 impl RecordingMode {
-    /// Parse from string
     pub fn parse(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
             "record" => Ok(RecordingMode::Record),

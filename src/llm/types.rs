@@ -1,42 +1,26 @@
-//! LLM communication types
-//!
-//! This module defines the types used for LLM request/response communication,
-//! independent of any specific provider implementation.
-
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Role of a message in the conversation
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
-    /// System instructions
     System,
-    /// User message
     User,
-    /// Assistant (LLM) response
     Assistant,
-    /// Tool response
     Tool,
 }
 
-/// A message in the conversation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ChatMessage {
-    /// Role of the message sender
     pub role: MessageRole,
-    /// Text content of the message
     pub content: String,
-    /// Tool calls made by the assistant (only for Assistant role)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
-    /// Tool call ID this message responds to (only for Tool role)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
 }
 
 impl ChatMessage {
-    /// Creates a system message
     pub fn system(content: impl Into<String>) -> Self {
         Self {
             role: MessageRole::System,
@@ -46,7 +30,6 @@ impl ChatMessage {
         }
     }
 
-    /// Creates a user message
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: MessageRole::User,
@@ -56,7 +39,6 @@ impl ChatMessage {
         }
     }
 
-    /// Creates an assistant message
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: MessageRole::Assistant,
@@ -66,7 +48,6 @@ impl ChatMessage {
         }
     }
 
-    /// Creates an assistant message with tool calls
     pub fn assistant_with_tools(content: impl Into<String>, tool_calls: Vec<ToolCall>) -> Self {
         Self {
             role: MessageRole::Assistant,
@@ -76,7 +57,6 @@ impl ChatMessage {
         }
     }
 
-    /// Creates a tool response message
     pub fn tool_response(call_id: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             role: MessageRole::Tool,
@@ -87,14 +67,10 @@ impl ChatMessage {
     }
 }
 
-/// A tool call requested by the LLM
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolCall {
-    /// Unique identifier for this tool call
     pub call_id: String,
-    /// Name of the tool to call
     pub name: String,
-    /// Arguments to pass to the tool (JSON object)
     pub arguments: serde_json::Value,
 }
 

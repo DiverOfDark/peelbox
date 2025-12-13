@@ -1,7 +1,3 @@
-//! Tool system facade
-//!
-//! Provides a unified interface for tool execution with caching.
-
 use anyhow::{anyhow, Result};
 use serde_json::Value;
 use std::path::PathBuf;
@@ -11,14 +7,12 @@ use super::cache::ToolCache;
 use super::registry::ToolRegistry;
 use crate::llm::ToolDefinition;
 
-/// Unified tool execution system with caching
 pub struct ToolSystem {
     registry: ToolRegistry,
     cache: ToolCache,
 }
 
 impl ToolSystem {
-    /// Create a new tool system for the given repository
     pub fn new(repo_path: PathBuf) -> Result<Self> {
         Ok(Self {
             registry: ToolRegistry::new(repo_path)?,
@@ -26,9 +20,6 @@ impl ToolSystem {
         })
     }
 
-    /// Execute a tool by name with the given arguments
-    ///
-    /// Results are cached to avoid redundant operations.
     pub async fn execute(&self, tool_name: &str, arguments: Value) -> Result<String> {
         info!(tool = tool_name, args = ?arguments, "Executing tool");
 

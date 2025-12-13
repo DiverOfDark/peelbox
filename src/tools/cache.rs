@@ -1,12 +1,7 @@
-//! Tool result caching
-//!
-//! Caches tool execution results to avoid redundant operations.
-
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// Cache key combining tool name and arguments
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct CacheKey {
     tool_name: String,
@@ -22,7 +17,6 @@ impl CacheKey {
     }
 }
 
-/// Thread-safe cache for tool execution results
 #[derive(Clone)]
 pub struct ToolCache {
     cache: Arc<RwLock<HashMap<CacheKey, String>>>,
