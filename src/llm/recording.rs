@@ -1,5 +1,5 @@
 use crate::ai::error::BackendError;
-use crate::llm::{ChatMessage, LLMClient, LLMRequest, LLMResponse};
+use crate::llm::{ChatMessage, LLMClient, LLMRequest, LLMResponse, TestContext};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -48,7 +48,7 @@ pub struct RecordedRequest {
 }
 
 impl RecordedRequest {
-    pub fn from_llm_request(req: &LLMRequest) -> Self {
+    pub fn from_llm_request(req: &LLMRequest, model: Option<String>) -> Self {
         Self {
             messages: req.messages.clone(),
             tools: req
@@ -62,7 +62,7 @@ impl RecordedRequest {
                     })
                 })
                 .collect(),
-            model: None,
+            model,
         }
     }
 
@@ -77,7 +77,6 @@ pub struct RecordingLLMClient {
     mode: RecordingMode,
     recordings_dir: PathBuf,
     cache: HashMap<String, LLMResponse>,
-    intermediate_responses: std::sync::Mutex<Vec<LLMResponse>>,
 }
 
 impl RecordingLLMClient {
@@ -94,7 +93,6 @@ impl RecordingLLMClient {
             mode,
             recordings_dir,
             cache: HashMap::new(),
-            intermediate_responses: std::sync::Mutex::new(Vec::new()),
         })
     }
 
@@ -110,7 +108,12 @@ impl RecordingLLMClient {
 
     /// Get path to recording file for a request hash
     fn recording_path(&self, request_hash: &str) -> PathBuf {
-        self.recordings_dir.join(format!("{}.json", request_hash))
+        if let Some(test_name) = TestContext::current_test_name() {
+            self.recordings_dir
+                .join(format!("{}__{}.json", test_name, request_hash))
+        } else {
+            self.recordings_dir.join(format!("{}.json", request_hash))
+        }
     }
 
     /// Load recording from disk
@@ -133,14 +136,11 @@ impl RecordingLLMClient {
     fn save_recording(&self, request: &RecordedRequest, response: &LLMResponse) -> Result<()> {
         let request_hash = request.canonical_hash();
 
-        // Collect all intermediate responses
-        let intermediates = self.intermediate_responses.lock().unwrap().clone();
-
         let exchange = RecordedExchange {
             request_hash: request_hash.clone(),
             request: request.clone(),
             response: response.clone(),
-            intermediate_responses: intermediates,
+            intermediate_responses: vec![],
             recorded_at: chrono::Utc::now().to_rfc3339(),
         };
 
@@ -150,9 +150,6 @@ impl RecordingLLMClient {
             serde_json::to_string_pretty(&exchange).context("Failed to serialize recording")?;
         std::fs::write(&path, contents)
             .with_context(|| format!("Failed to write recording: {}", path.display()))?;
-
-        // Clear intermediate responses for next recording
-        self.intermediate_responses.lock().unwrap().clear();
 
         Ok(())
     }
@@ -185,7 +182,8 @@ impl RecordingLLMClient {
 #[async_trait::async_trait]
 impl LLMClient for RecordingLLMClient {
     async fn chat(&self, request: LLMRequest) -> Result<LLMResponse, BackendError> {
-        let recorded_request = RecordedRequest::from_llm_request(&request);
+        let model_info = self.inner.model_info();
+        let recorded_request = RecordedRequest::from_llm_request(&request, model_info);
         let request_hash = recorded_request.canonical_hash();
 
         match self.mode {
@@ -216,24 +214,11 @@ impl LLMClient for RecordingLLMClient {
                 // Always call the underlying client
                 let response = self.inner.chat(request).await?;
 
-                // Store intermediate response for tool-calling loop analysis
-                self.intermediate_responses
-                    .lock()
-                    .unwrap()
-                    .push(response.clone());
-
-                // Only save recording on final submission (detect submit_detection tool call)
-                let is_final = response
-                    .tool_calls
-                    .iter()
-                    .any(|call| call.name == "submit_detection");
-
-                if is_final {
-                    self.save_recording(&recorded_request, &response)
-                        .map_err(|e| BackendError::Other {
-                            message: format!("Failed to save recording: {}", e),
-                        })?;
-                }
+                // Always save recording for this specific request
+                self.save_recording(&recorded_request, &response)
+                    .map_err(|e| BackendError::Other {
+                        message: format!("Failed to save recording: {}", e),
+                    })?;
 
                 Ok(response)
             }
@@ -256,24 +241,11 @@ impl LLMClient for RecordingLLMClient {
                 // No recording found, call underlying client and record
                 let response = self.inner.chat(request).await?;
 
-                // Store intermediate response for tool-calling loop analysis
-                self.intermediate_responses
-                    .lock()
-                    .unwrap()
-                    .push(response.clone());
-
-                // Only save recording on final submission (detect submit_detection tool call)
-                let is_final = response
-                    .tool_calls
-                    .iter()
-                    .any(|call| call.name == "submit_detection");
-
-                if is_final {
-                    self.save_recording(&recorded_request, &response)
-                        .map_err(|e| BackendError::Other {
-                            message: format!("Failed to save recording: {}", e),
-                        })?;
-                }
+                // Always save recording for this specific request
+                self.save_recording(&recorded_request, &response)
+                    .map_err(|e| BackendError::Other {
+                        message: format!("Failed to save recording: {}", e),
+                    })?;
 
                 Ok(response)
             }
@@ -361,14 +333,17 @@ mod tests {
         let response = recording_client.chat(request).await.unwrap();
         assert_eq!(response.content, "Submitting detection");
 
-        // Check that recording was saved
+        // Check that recording was saved with test name prefix
         let recorded_request = RecordedRequest {
             messages: vec![ChatMessage::user("Test")],
             tools: vec![],
-            model: None,
+            model: Some("mock-model".to_string()),
         };
         let hash = recorded_request.canonical_hash();
-        let recording_path = recordings_dir.join(format!("{}.json", hash));
+
+        // Recording should include test name prefix
+        let test_name = TestContext::current_test_name().expect("Should be in test context");
+        let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, hash));
 
         assert!(recording_path.exists());
     }

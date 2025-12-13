@@ -7,5 +7,5 @@ pub trait Tool: Send + Sync {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn schema(&self) -> Value;
-    async fn execute(&self, arguments: Value) -> Result<String>;
+    async fn execute(&self, arguments: Value) -> Result<Value>;
 }

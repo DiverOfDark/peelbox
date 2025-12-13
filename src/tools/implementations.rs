@@ -205,7 +205,7 @@ impl Tool for ListFilesTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         let path = args["path"].as_str().unwrap_or(".").trim_start_matches('/');
         let pattern = args["pattern"].as_str();
         let max_depth = args["max_depth"].as_u64().map(|d| d as usize);
@@ -248,11 +248,10 @@ impl Tool for ListFilesTool {
 
         debug!(files_found = results.len(), "list_files completed");
 
-        if results.is_empty() {
-            Ok(format!("No files found in {}", path))
-        } else {
-            Ok(results.join("\n"))
-        }
+        Ok(json!({
+            "files": results,
+            "count": results.len()
+        }))
     }
 }
 
@@ -296,7 +295,7 @@ impl Tool for ReadFileTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         let path = args["path"]
             .as_str()
             .ok_or_else(|| anyhow!("Missing 'path' parameter"))?
@@ -338,14 +337,13 @@ impl Tool for ReadFileTool {
         );
 
         let result = lines.join("\n");
-        if total_lines > max_lines {
-            Ok(format!(
-                "{}\n\n[... truncated, showing {} of {} lines]",
-                result, max_lines, total_lines
-            ))
-        } else {
-            Ok(result)
-        }
+        Ok(json!({
+            "path": path,
+            "content": result,
+            "lines_shown": lines.len(),
+            "total_lines": total_lines,
+            "truncated": total_lines > max_lines
+        }))
     }
 }
 
@@ -389,7 +387,7 @@ impl Tool for SearchFilesTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         let pattern = args["pattern"]
             .as_str()
             .ok_or_else(|| anyhow!("Missing 'pattern' parameter"))?;
@@ -428,11 +426,12 @@ impl Tool for SearchFilesTool {
 
         debug!(files_found = results.len(), "search_files completed");
 
-        if results.is_empty() {
-            Ok(format!("No files found matching pattern: {}", pattern))
-        } else {
-            Ok(results.join("\n"))
-        }
+        Ok(json!({
+            "pattern": pattern,
+            "files": results,
+            "count": results.len(),
+            "max_results": max_results
+        }))
     }
 }
 
@@ -476,7 +475,7 @@ impl Tool for GetFileTreeTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         let path = args["path"].as_str().unwrap_or(".").trim_start_matches('/');
         let depth = args["depth"]
             .as_u64()
@@ -488,7 +487,7 @@ impl Tool for GetFileTreeTool {
         let target_path = self.helpers.validate_path(path)?;
         let tree_json = self.helpers.build_tree_json(&target_path, 0, depth)?;
 
-        serde_json::to_string_pretty(&tree_json).context("Failed to serialize file tree to JSON")
+        Ok(serde_json::to_value(tree_json).context("Failed to serialize file tree to JSON")?)
     }
 }
 
@@ -536,7 +535,7 @@ impl Tool for GrepContentTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         let pattern = args["pattern"]
             .as_str()
             .ok_or_else(|| anyhow!("Missing 'pattern' parameter"))?;
@@ -555,7 +554,6 @@ impl Tool for GrepContentTool {
         let file_glob = file_pattern.map(Pattern::new).transpose()?;
 
         let mut matches = Vec::new();
-        let mut match_count = 0;
 
         for entry in WalkDir::new(&self.helpers.repo_path)
             .into_iter()
@@ -600,26 +598,32 @@ impl Tool for GrepContentTool {
 
             for (line_num, line) in content.lines().enumerate() {
                 if regex.is_match(line) {
-                    matches.push(format!("{}:{}: {}", rel_path, line_num + 1, line));
-                    match_count += 1;
-                    if match_count >= max_matches {
-                        return Ok(matches.join("\n"));
+                    matches.push(json!({
+                        "file": rel_path.clone(),
+                        "line": line_num + 1,
+                        "content": line
+                    }));
+                    if matches.len() >= max_matches {
+                        break;
                     }
                 }
+            }
+
+            if matches.len() >= max_matches {
+                break;
             }
         }
 
         debug!(
             matches_found = matches.len(),
-            files_searched = match_count,
             "grep_content completed"
         );
 
-        if matches.is_empty() {
-            Ok(format!("No matches found for pattern: {}", pattern))
-        } else {
-            Ok(matches.join("\n"))
-        }
+        Ok(json!({
+            "pattern": pattern,
+            "matches": matches,
+            "count": matches.len()
+        }))
     }
 }
 
@@ -660,7 +664,7 @@ impl Tool for GetBestPracticesTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         let language = args["language"]
             .as_str()
             .ok_or_else(|| anyhow!("Missing 'language' parameter"))?;
@@ -688,7 +692,7 @@ impl Tool for GetBestPracticesTool {
             build_system, "Best practices template retrieved successfully"
         );
 
-        serde_json::to_string_pretty(&template)
+        serde_json::to_value(&template)
             .context("Failed to serialize best practices template")
     }
 }
@@ -719,11 +723,11 @@ impl Tool for SubmitDetectionTool {
         })
     }
 
-    async fn execute(&self, args: Value) -> Result<String> {
+    async fn execute(&self, args: Value) -> Result<Value> {
         info!("LLM submitting final UniversalBuild detection result");
         debug!(universal_build = ?args, "UniversalBuild submission");
 
-        let universal_build: UniversalBuild = serde_json::from_value(args)
+        let universal_build: UniversalBuild = serde_json::from_value(args.clone())
             .context("Failed to parse UniversalBuild from LLM response")?;
 
         crate::validation::Validator::new()
@@ -737,6 +741,6 @@ impl Tool for SubmitDetectionTool {
             "UniversalBuild validated successfully"
         );
 
-        serde_json::to_string_pretty(&universal_build).context("Failed to serialize UniversalBuild")
+        Ok(args)
     }
 }

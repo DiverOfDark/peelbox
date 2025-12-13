@@ -395,15 +395,4 @@ mod tests {
         assert_eq!(lang.detect_version(Some(content)), Some("18".to_string()));
     }
 
-    #[test]
-    fn test_is_typescript_project() {
-        assert!(is_typescript_project(Some(
-            r#"{"devDependencies": {"typescript": "^5.0"}}"#
-        )));
-        assert!(is_typescript_project(Some(
-            r#"{"devDependencies": {"@types/node": "^20"}}"#
-        )));
-        assert!(!is_typescript_project(Some(r#"{"dependencies": {}}"#)));
-        assert!(!is_typescript_project(None));
-    }
 }

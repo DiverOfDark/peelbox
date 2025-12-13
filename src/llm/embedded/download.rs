@@ -110,47 +110,16 @@ impl ModelDownloader {
             paths
         };
 
-        // Always ensure tokenizer is downloaded
+        // Download tokenizer (GGUF models still use external tokenizer.json)
         self.ensure_tokenizer(model)?;
 
         Ok(model_paths)
     }
 
-    /// Get the list of model files to download (handles sharded models)
+    /// Get the list of model files to download
     fn get_model_files(&self, model: &EmbeddedModel) -> Result<Vec<String>> {
-        // GGUF models are single files, don't check for index
-        if model.filename.ends_with(".gguf") {
-            debug!("GGUF model, single file: {}", model.filename);
-            return Ok(vec![model.filename.to_string()]);
-        }
-
-        let repo = self
-            .api
-            .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
-
-        // Try to get the index file for sharded safetensors models
-        if let Ok(index_path) = repo.get("model.safetensors.index.json") {
-            let index_content =
-                std::fs::read_to_string(&index_path).context("Failed to read model index file")?;
-            let index: serde_json::Value =
-                serde_json::from_str(&index_content).context("Failed to parse model index file")?;
-
-            if let Some(weight_map) = index.get("weight_map").and_then(|w| w.as_object()) {
-                // Collect unique file names from weight_map
-                let mut files: std::collections::HashSet<String> = std::collections::HashSet::new();
-                for filename in weight_map.values() {
-                    if let Some(f) = filename.as_str() {
-                        files.insert(f.to_string());
-                    }
-                }
-                let mut files: Vec<String> = files.into_iter().collect();
-                files.sort(); // Ensure consistent ordering
-                debug!("Sharded model with {} files: {:?}", files.len(), files);
-                return Ok(files);
-            }
-        }
-
-        // Not sharded, return single file
+        // GGUF models are always single files
+        debug!("GGUF model, single file: {}", model.filename);
         Ok(vec![model.filename.to_string()])
     }
 
@@ -219,18 +188,6 @@ impl ModelDownloader {
             .repo(Repo::new(model.tokenizer_repo.to_string(), RepoType::Model));
 
         match repo.get("tokenizer.json") {
-            Ok(path) if path.exists() => Some(path),
-            _ => None,
-        }
-    }
-
-    /// Get the config path for a model
-    pub fn config_path(&self, model: &EmbeddedModel) -> Option<PathBuf> {
-        let repo = self
-            .api
-            .repo(Repo::new(model.repo_id.to_string(), RepoType::Model));
-
-        match repo.get("config.json") {
             Ok(path) if path.exists() => Some(path),
             _ => None,
         }

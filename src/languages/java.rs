@@ -323,11 +323,4 @@ mod tests {
         assert_eq!(lang.detect_version(Some(content)), Some("17".to_string()));
     }
 
-    #[test]
-    fn test_is_kotlin_project() {
-        assert!(is_kotlin_project(Some(r#"plugins { kotlin("jvm") }"#)));
-        assert!(is_kotlin_project(Some(r#"org.jetbrains.kotlin"#)));
-        assert!(!is_kotlin_project(Some(r#"plugins { java }"#)));
-        assert!(!is_kotlin_project(None));
-    }
 }

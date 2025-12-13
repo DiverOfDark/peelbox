@@ -19,7 +19,7 @@ impl CacheKey {
 
 #[derive(Clone)]
 pub struct ToolCache {
-    cache: Arc<RwLock<HashMap<CacheKey, String>>>,
+    cache: Arc<RwLock<HashMap<CacheKey, Value>>>,
 }
 
 impl ToolCache {
@@ -29,12 +29,12 @@ impl ToolCache {
         }
     }
 
-    pub fn get(&self, tool_name: &str, arguments: &Value) -> Option<String> {
+    pub fn get(&self, tool_name: &str, arguments: &Value) -> Option<Value> {
         let key = CacheKey::new(tool_name, arguments);
         self.cache.read().ok()?.get(&key).cloned()
     }
 
-    pub fn insert(&self, tool_name: &str, arguments: &Value, result: String) {
+    pub fn insert(&self, tool_name: &str, arguments: &Value, result: Value) {
         let key = CacheKey::new(tool_name, arguments);
         if let Ok(mut cache) = self.cache.write() {
             cache.insert(key, result);
@@ -75,13 +75,13 @@ mod tests {
         assert_eq!(cache.len(), 0);
 
         let args = json!({"path": "src"});
-        cache.insert("list_files", &args, "file1.rs\nfile2.rs".to_string());
+        cache.insert("list_files", &args, json!("file1.rs\nfile2.rs"));
 
         assert!(!cache.is_empty());
         assert_eq!(cache.len(), 1);
 
         let result = cache.get("list_files", &args);
-        assert_eq!(result, Some("file1.rs\nfile2.rs".to_string()));
+        assert_eq!(result, Some(json!("file1.rs\nfile2.rs")));
     }
 
     #[test]
@@ -91,11 +91,11 @@ mod tests {
         let args1 = json!({"path": "src"});
         let args2 = json!({"path": "tests"});
 
-        cache.insert("list_files", &args1, "file1.rs".to_string());
+        cache.insert("list_files", &args1, json!("file1.rs"));
 
         assert_eq!(
             cache.get("list_files", &args1),
-            Some("file1.rs".to_string())
+            Some(json!("file1.rs"))
         );
         assert_eq!(cache.get("list_files", &args2), None);
         assert_eq!(cache.get("read_file", &args1), None);
@@ -108,12 +108,12 @@ mod tests {
         cache.insert(
             "list_files",
             &json!({"path": "src"}),
-            "file1.rs".to_string(),
+            json!("file1.rs"),
         );
         cache.insert(
             "read_file",
             &json!({"path": "README.md"}),
-            "content".to_string(),
+            json!("content"),
         );
 
         assert_eq!(cache.len(), 2);
@@ -128,22 +128,22 @@ mod tests {
     fn test_cache_different_arguments() {
         let cache = ToolCache::new();
 
-        cache.insert("list_files", &json!({"path": "src"}), "result1".to_string());
+        cache.insert("list_files", &json!({"path": "src"}), json!("result1"));
         cache.insert(
             "list_files",
             &json!({"path": "src", "pattern": "*.rs"}),
-            "result2".to_string(),
+            json!("result2"),
         );
 
         assert_eq!(cache.len(), 2);
 
         assert_eq!(
             cache.get("list_files", &json!({"path": "src"})),
-            Some("result1".to_string())
+            Some(json!("result1"))
         );
         assert_eq!(
             cache.get("list_files", &json!({"path": "src", "pattern": "*.rs"})),
-            Some("result2".to_string())
+            Some(json!("result2"))
         );
     }
 
@@ -155,14 +155,14 @@ mod tests {
         let cache_clone = cache.clone();
 
         let handle = thread::spawn(move || {
-            cache_clone.insert("list_files", &json!({"path": "src"}), "result".to_string());
+            cache_clone.insert("list_files", &json!({"path": "src"}), json!("result"));
         });
 
         handle.join().unwrap();
 
         assert_eq!(
             cache.get("list_files", &json!({"path": "src"})),
-            Some("result".to_string())
+            Some(json!("result"))
         );
     }
 }

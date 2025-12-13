@@ -24,15 +24,29 @@ You have access to tools to explore the repository:
 - get_best_practices: Get build template for a language/build system
 - submit_detection: Submit your final UniversalBuild result
 
-Guidelines:
+CRITICAL RULES:
+1. You MUST respond with ONLY valid JSON tool calls - no explanatory text, no markdown, no commentary
+2. Every response must be a JSON object or array of JSON objects representing tool calls
+3. Valid tool call format: {"name": "tool_name", "arguments": {"param": "value"}}
+4. For multiple tool calls: [{"name": "tool1", "arguments": {...}}, {"name": "tool2", "arguments": {...}}]
+5. Do NOT add any text before or after the JSON
+6. Do NOT wrap JSON in markdown code blocks
+7. Do NOT explain your reasoning - only output JSON tool calls
+
+Analysis workflow:
 1. Start by exploring the repository structure
 2. Identify the primary programming language and build system
 3. Read relevant configuration files (package.json, Cargo.toml, pom.xml, etc.)
 4. Use get_best_practices to retrieve language-specific templates
 5. Call submit_detection with a complete UniversalBuild specification
 
-You must call at least one tool on every response. Do not respond with only text.
-When you have enough information, call submit_detection with your analysis.
+Example valid response:
+{"name": "list_files", "arguments": {"path": ".", "max_depth": 2}}
+
+Example INVALID responses:
+- "Let me explore the repository first" (text only - FORBIDDEN)
+- "I'll call list_files to check the structure" (text - FORBIDDEN)
+- ```json\n{"name": "list_files", ...}\n``` (markdown - FORBIDDEN)
 "#;
 
 #[derive(Debug, thiserror::Error)]
@@ -190,6 +204,8 @@ impl AnalysisPipeline {
             if tool_calls.is_empty() {
                 messages.push(ChatMessage::assistant(&response.content));
             } else {
+                // Always add assistant message with tool calls
+                // The tool calls JSON will be included when formatting the prompt
                 let llm_tool_calls: Vec<crate::llm::ToolCall> = tool_calls
                     .iter()
                     .map(|tc| crate::llm::ToolCall {
@@ -305,7 +321,7 @@ impl AnalysisPipeline {
                     let warning = "Cannot submit yet. You called submit_detection along with other tools. Please call only submit_detection when ready.";
                     warn!("{}", warning);
 
-                    messages.push(ChatMessage::tool_response(&tool_call.call_id, warning));
+                    messages.push(ChatMessage::tool_response(&tool_call.call_id, serde_json::json!({"warning": warning})));
                     continue;
                 }
             }
@@ -320,19 +336,33 @@ impl AnalysisPipeline {
                 iteration,
             });
 
-            let result = tool_system
+            // Execute tool and catch errors to allow LLM self-correction
+            let result = match tool_system
                 .execute(&tool_call.name, tool_call.arguments.clone())
                 .await
-                .map_err(PipelineError::ToolError)?;
+            {
+                Ok(output) => {
+                    progress.on_progress(&ProgressEvent::ToolExecutionComplete {
+                        tool_name: tool_call.name.clone(),
+                        iteration,
+                        execution_time: start_time.elapsed(),
+                        success: true,
+                    });
+                    output
+                }
+                Err(e) => {
+                    warn!("Tool execution failed, returning error to LLM: {}", e);
+                    progress.on_progress(&ProgressEvent::ToolExecutionComplete {
+                        tool_name: tool_call.name.clone(),
+                        iteration,
+                        execution_time: start_time.elapsed(),
+                        success: false,
+                    });
+                    serde_json::json!({ "error": e.to_string() })
+                }
+            };
 
-            progress.on_progress(&ProgressEvent::ToolExecutionComplete {
-                tool_name: tool_call.name.clone(),
-                iteration,
-                execution_time: start_time.elapsed(),
-                success: true,
-            });
-
-            messages.push(ChatMessage::tool_response(&tool_call.call_id, &result));
+            messages.push(ChatMessage::tool_response(&tool_call.call_id, result));
         }
 
         Ok(None)

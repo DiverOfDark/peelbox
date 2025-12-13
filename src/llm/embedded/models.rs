@@ -1,14 +1,21 @@
 //! Model selection based on hardware capabilities
 
 use super::hardware::HardwareCapabilities;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
+
+/// Model file format
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModelFormat {
+    /// GGUF quantized format (smaller, faster loading)
+    Gguf,
+}
 
 /// Supported embedded models with their requirements
 #[derive(Debug, Clone)]
 pub struct EmbeddedModel {
     /// Model identifier on HuggingFace
     pub repo_id: &'static str,
-    /// Model filename
+    /// Model filename (or pattern for sharded models)
     pub filename: &'static str,
     /// Tokenizer repo (usually same as model)
     pub tokenizer_repo: &'static str,
@@ -20,59 +27,53 @@ pub struct EmbeddedModel {
     pub params: &'static str,
     /// Whether this model supports tool calling
     pub supports_tools: bool,
+    /// Model file format
+    pub format: ModelFormat,
 }
 
 impl EmbeddedModel {
-    /// Qwen2.5-Coder 0.5B - Smallest quantized model (Q4_K_M ~400MB)
-    pub const QWEN_0_5B: EmbeddedModel = EmbeddedModel {
-        repo_id: "Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF",
-        filename: "qwen2.5-coder-0.5b-instruct-q4_k_m.gguf",
-        tokenizer_repo: "Qwen/Qwen2.5-Coder-0.5B-Instruct",
-        ram_required_gb: 0.8,
-        display_name: "Qwen2.5-Coder 0.5B Q4",
-        params: "0.5B",
-        supports_tools: true,
-    };
-
-    /// Qwen2.5-Coder 1.5B - Good balance (Q4_K_M ~1GB)
-    pub const QWEN_1_5B: EmbeddedModel = EmbeddedModel {
+    /// Qwen2.5-Coder 1.5B - GGUF Q4 quantized (~1.5GB)
+    pub const QWEN_1_5B_GGUF: EmbeddedModel = EmbeddedModel {
         repo_id: "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
         filename: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
         tokenizer_repo: "Qwen/Qwen2.5-Coder-1.5B-Instruct",
-        ram_required_gb: 1.5,
-        display_name: "Qwen2.5-Coder 1.5B Q4",
+        ram_required_gb: 2.5,
+        display_name: "Qwen2.5-Coder 1.5B GGUF",
         params: "1.5B",
         supports_tools: true,
+        format: ModelFormat::Gguf,
     };
 
-    /// Qwen2.5-Coder 3B - Better quality (Q4_K_M ~2GB)
-    pub const QWEN_3B: EmbeddedModel = EmbeddedModel {
+    /// Qwen2.5-Coder 3B - GGUF Q4 quantized (~3GB)
+    pub const QWEN_3B_GGUF: EmbeddedModel = EmbeddedModel {
         repo_id: "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF",
         filename: "qwen2.5-coder-3b-instruct-q4_k_m.gguf",
         tokenizer_repo: "Qwen/Qwen2.5-Coder-3B-Instruct",
-        ram_required_gb: 2.5,
-        display_name: "Qwen2.5-Coder 3B Q4",
+        ram_required_gb: 4.0,
+        display_name: "Qwen2.5-Coder 3B GGUF",
         params: "3B",
         supports_tools: true,
+        format: ModelFormat::Gguf,
     };
 
-    /// Qwen2.5-Coder 7B - High quality (Q4_K_M ~4.7GB)
-    pub const QWEN_7B: EmbeddedModel = EmbeddedModel {
+    /// Qwen2.5-Coder 7B - GGUF Q4 quantized (~5GB)
+    pub const QWEN_7B_GGUF: EmbeddedModel = EmbeddedModel {
         repo_id: "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
         filename: "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
         tokenizer_repo: "Qwen/Qwen2.5-Coder-7B-Instruct",
         ram_required_gb: 5.5,
-        display_name: "Qwen2.5-Coder 7B Q4",
+        display_name: "Qwen2.5-Coder 7B GGUF",
         params: "7B",
         supports_tools: true,
+        format: ModelFormat::Gguf,
     };
+
 
     /// All available models in order of preference (largest first)
     pub const ALL_MODELS: &'static [EmbeddedModel] = &[
-        Self::QWEN_7B,
-        Self::QWEN_3B,
-        Self::QWEN_1_5B,
-        Self::QWEN_0_5B,
+        Self::QWEN_7B_GGUF,
+        Self::QWEN_3B_GGUF,
+        Self::QWEN_1_5B_GGUF,
     ];
 }
 
@@ -84,11 +85,34 @@ impl ModelSelector {
     ///
     /// Returns None if no model fits (less than 1GB RAM available)
     pub fn select(capabilities: &HardwareCapabilities) -> Option<&'static EmbeddedModel> {
-        // Check for environment variable override (for testing/CI)
-        if let Ok(force_smallest) = std::env::var("AIPACK_FORCE_SMALLEST_MODEL") {
-            if force_smallest == "1" || force_smallest.to_lowercase() == "true" {
-                info!("AIPACK_FORCE_SMALLEST_MODEL set, using smallest model for testing");
-                return Some(Self::smallest());
+        // Check for explicit model size override
+        if let Ok(model_size) = std::env::var("AIPACK_MODEL_SIZE") {
+            info!("AIPACK_MODEL_SIZE={} specified, using explicit model selection", model_size);
+
+            if let Some(model) = EmbeddedModel::ALL_MODELS.iter().find(|m| m.params == model_size) {
+                info!(
+                    "Selected model: {} ({} params, requires {:.1}GB RAM)",
+                    model.display_name, model.params, model.ram_required_gb
+                );
+
+                // Warn if model might not fit in RAM
+                let available_gb = capabilities.available_ram_gb();
+                let system_reserve_gb = (available_gb * 0.25).max(2.0);
+                let usable_gb = (available_gb - system_reserve_gb).max(0.0);
+
+                if model.ram_required_gb > usable_gb {
+                    warn!(
+                        "Warning: Model requires {:.1}GB but only {:.1}GB available (after reserves). May cause OOM!",
+                        model.ram_required_gb, usable_gb
+                    );
+                }
+
+                return Some(model);
+            } else {
+                warn!(
+                    "Model size '{}' not found. Available sizes: 0.5B, 1.5B, 3B, 7B. Falling back to auto-selection.",
+                    model_size
+                );
             }
         }
 
@@ -132,7 +156,7 @@ impl ModelSelector {
 
     /// Get the smallest available model (for CI/testing)
     pub fn smallest() -> &'static EmbeddedModel {
-        &EmbeddedModel::QWEN_0_5B
+        &EmbeddedModel::QWEN_1_5B_GGUF
     }
 }
 
@@ -153,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_select_7b_with_plenty_ram() {
-        // 7B Q4 requires 5.5GB, plus 25% reserve -> need ~8.5GB available with 16GB total
+        // 7B GGUF requires 5.5GB, plus 25% reserve -> need ~7.5GB available
         let caps = make_caps(10.0, 16.0);
         let model = ModelSelector::select(&caps);
         assert!(model.is_some());
@@ -162,8 +186,8 @@ mod tests {
 
     #[test]
     fn test_select_3b_with_moderate_ram() {
-        // 3B Q4 requires 2.5GB, plus 2GB reserve -> need ~4.5GB available with 8GB total
-        let caps = make_caps(5.0, 8.0);
+        // 3B GGUF requires 4GB, plus 2GB reserve -> need ~6GB available
+        let caps = make_caps(7.0, 12.0);
         let model = ModelSelector::select(&caps);
         assert!(model.is_some());
         assert_eq!(model.unwrap().params, "3B");
@@ -171,26 +195,17 @@ mod tests {
 
     #[test]
     fn test_select_1_5b_with_limited_ram() {
-        // 1.5B Q4 requires 1.5GB, plus 2GB reserve -> need 3.5GB available with 6GB total
-        let caps = make_caps(4.0, 6.0);
+        // 1.5B GGUF requires 2.5GB, plus 2GB reserve -> need 4.5GB available
+        let caps = make_caps(5.0, 8.0);
         let model = ModelSelector::select(&caps);
         assert!(model.is_some());
         assert_eq!(model.unwrap().params, "1.5B");
     }
 
     #[test]
-    fn test_select_0_5b_with_minimal_ram() {
-        // 0.5B Q4 requires 0.8GB, plus 2GB reserve -> need 2.8GB available with 4GB total
-        let caps = make_caps(3.0, 4.0);
-        let model = ModelSelector::select(&caps);
-        assert!(model.is_some());
-        assert_eq!(model.unwrap().params, "0.5B");
-    }
-
-    #[test]
     fn test_no_model_with_insufficient_ram() {
-        // Even smallest model (0.5B Q4) needs 0.8GB usable RAM after reserves
-        let caps = make_caps(1.5, 2.0);
+        // Even smallest model (1.5B GGUF) needs 2GB usable RAM after reserves
+        let caps = make_caps(2.0, 3.0);
         let model = ModelSelector::select(&caps);
         assert!(model.is_none());
     }
@@ -200,13 +215,12 @@ mod tests {
         assert!(ModelSelector::get_model("7B").is_some());
         assert!(ModelSelector::get_model("3B").is_some());
         assert!(ModelSelector::get_model("1.5B").is_some());
-        assert!(ModelSelector::get_model("0.5B").is_some());
         assert!(ModelSelector::get_model("100B").is_none());
     }
 
     #[test]
     fn test_smallest_model() {
         let model = ModelSelector::smallest();
-        assert_eq!(model.params, "0.5B");
+        assert_eq!(model.params, "1.5B");
     }
 }

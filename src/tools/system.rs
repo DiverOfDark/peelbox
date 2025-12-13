@@ -20,7 +20,8 @@ impl ToolSystem {
         })
     }
 
-    pub async fn execute(&self, tool_name: &str, arguments: Value) -> Result<String> {
+    /// Execute a tool and return structured JSON result
+    pub async fn execute(&self, tool_name: &str, arguments: Value) -> Result<Value> {
         info!(tool = tool_name, args = ?arguments, "Executing tool");
 
         if let Some(cached) = self.cache.get(tool_name, &arguments) {
@@ -37,11 +38,13 @@ impl ToolSystem {
 
         match &result {
             Ok(output) => {
-                let output_len = output.len();
-                info!(tool = tool_name, output_len, "Tool execution completed");
+                let output_preview = serde_json::to_string(output)
+                    .unwrap_or_default();
+                let preview_len = output_preview.len().min(200);
+                info!(tool = tool_name, "Tool execution completed");
                 debug!(
                     tool = tool_name,
-                    output_preview = &output[..output.len().min(200)],
+                    output_preview = &output_preview[..preview_len],
                     "Tool output preview"
                 );
 
@@ -113,8 +116,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.contains("Cargo.toml"));
-        assert!(result.contains("src/main.rs"));
+        let result_str = serde_json::to_string(&result).unwrap();
+        assert!(result_str.contains("Cargo.toml"));
+        assert!(result_str.contains("src/main.rs"));
     }
 
     #[tokio::test]
@@ -127,8 +131,9 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.contains("[package]"));
-        assert!(result.contains("name = \"test\""));
+        let result_str = serde_json::to_string(&result).unwrap();
+        assert!(result_str.contains("[package]"));
+        assert!(result_str.contains("name = \\\"test\\\""));
     }
 
     #[tokio::test]

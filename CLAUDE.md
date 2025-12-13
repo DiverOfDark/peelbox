@@ -628,9 +628,45 @@ AIPACK_MAX_FILE_SIZE=1048576       # Max file size to read in bytes (default: 1M
 AIPACK_LOG_LEVEL=info              # "trace", "debug", "info", "warn", or "error"
 RUST_LOG=aipack=debug,info         # Structured logging (overrides AIPACK_LOG_LEVEL)
 
-# Testing/CI
-AIPACK_FORCE_SMALLEST_MODEL=true   # Force smallest embedded model (0.5B) for testing/CI
+# Embedded model configuration
+AIPACK_MODEL_SIZE=7B               # Explicit model size: "0.5B", "1.5B", "3B", or "7B" (overrides auto-selection)
 ```
+
+### Embedded Model Selection
+
+When using the embedded backend, aipack runs local inference using Qwen2.5-Coder models in GGUF format (Q4 quantized). Model selection works as follows:
+
+#### Automatic Selection (Default)
+By default, aipack auto-selects the largest model that fits in available RAM:
+```bash
+# Auto-selects based on available RAM (reserves 25% or 2GB minimum for system)
+./aipack detect .
+```
+
+#### Explicit Model Size Selection
+Override auto-selection with `AIPACK_MODEL_SIZE` environment variable:
+```bash
+# Use specific model size (bypasses auto-selection)
+AIPACK_MODEL_SIZE=0.5B ./aipack detect .   # Smallest (requires ~1GB RAM)
+AIPACK_MODEL_SIZE=1.5B ./aipack detect .   # Small (requires ~2.5GB RAM)
+AIPACK_MODEL_SIZE=3B ./aipack detect .     # Medium (requires ~4GB RAM)
+AIPACK_MODEL_SIZE=7B ./aipack detect .     # Largest (requires ~5.5GB RAM)
+```
+
+**Note:** If the selected model exceeds available RAM, aipack will show a warning but still attempt to load it (may cause OOM).
+
+#### Available Models
+
+All models use GGUF format with Q4_K_M quantization and have embedded tokenizers:
+
+| Model | Params | RAM Required | Quantization | Notes |
+|-------|--------|--------------|--------------|-------|
+| Qwen2.5-Coder 0.5B GGUF | 0.5B | 1.0GB | Q4_K_M | Smallest footprint |
+| Qwen2.5-Coder 1.5B GGUF | 1.5B | 2.5GB | Q4_K_M | Faster download |
+| Qwen2.5-Coder 3B GGUF | 3B | 4.0GB | Q4_K_M | Good for CI |
+| Qwen2.5-Coder 7B GGUF | 7B | 5.5GB | Q4_K_M | Best quality/size ratio |
+
+All models support tool calling and are optimized for code understanding.
 
 ### LLM Self-Reasoning Loop Prevention
 

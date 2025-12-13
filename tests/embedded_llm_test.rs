@@ -12,16 +12,17 @@
 
 use aipack::llm::{
     ChatMessage, EmbeddedClient, EmbeddedModel, HardwareCapabilities, HardwareDetector, LLMClient,
-    LLMRequest, ModelSelector, RecordingLLMClient, RecordingMode,
+    LLMRequest, ModelSelector, RecordingLLMClient, RecordingMode, ToolDefinition,
 };
+use serde_json::json;
 use serial_test::serial;
 use std::sync::Arc;
 
 /// Check if we have enough RAM to run embedded model tests
 fn has_sufficient_ram() -> bool {
     let capabilities = HardwareDetector::detect();
-    // Need at least 3GB available RAM for smallest model (0.5B)
-    capabilities.available_ram_gb() >= 3.0
+    // Need at least 4GB available RAM for smallest model (1.5B)
+    capabilities.available_ram_gb() >= 4.0
 }
 
 #[tokio::test]
@@ -56,9 +57,11 @@ async fn test_embedded_llm_inference() {
     .with_max_tokens(50)
     .with_temperature(0.7);
 
-    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request);
+    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
-    let recording_path = recordings_dir.join(format!("{}.json", request_hash));
+    let test_name = aipack::llm::TestContext::current_test_name()
+        .expect("Should be in test context");
+    let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
     // Otherwise, try to create real client
@@ -72,17 +75,12 @@ async fn test_embedded_llm_inference() {
             return;
         }
 
-        let capabilities = HardwareCapabilities {
-            total_ram_bytes: 16 * 1024 * 1024 * 1024,
-            available_ram_bytes: 8 * 1024 * 1024 * 1024,
-            cuda_available: false,
-            cuda_memory_bytes: None,
-            metal_available: false,
-            cpu_cores: 8,
-        };
-
+        let capabilities = HardwareDetector::detect();
         let model = ModelSelector::smallest();
-        println!("Testing inference with {} on CPU", model.display_name);
+        println!("Testing inference with {} on {}",
+            model.display_name,
+            capabilities.best_device()
+        );
 
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
@@ -128,22 +126,45 @@ async fn test_embedded_llm_inference() {
 async fn test_embedded_llm_tool_calling() {
     // Check if recording exists first
     let recordings_dir = std::path::PathBuf::from("tests/recordings");
-    let test_request = LLMRequest::new(vec![
-        ChatMessage::system(
-            r#"You are a helpful assistant. You can call tools using JSON format:
-{"name": "tool_name", "arguments": {...}}
 
-Available tools:
-- calculate: Performs mathematical calculations"#,
-        ),
+    // Define calculate tool with proper JSON schema
+    let calculate_tool = ToolDefinition {
+        name: "calculate".to_string(),
+        description: "Performs mathematical calculations on two numbers".to_string(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "description": "The operation to perform: add, subtract, multiply, or divide",
+                    "enum": ["add", "subtract", "multiply", "divide"]
+                },
+                "a": {
+                    "type": "number",
+                    "description": "First number"
+                },
+                "b": {
+                    "type": "number",
+                    "description": "Second number"
+                }
+            },
+            "required": ["operation", "a", "b"]
+        }),
+    };
+
+    let test_request = LLMRequest::new(vec![
+        ChatMessage::system("You are a helpful assistant that calls tools to solve problems."),
         ChatMessage::user("Calculate 15 * 23 using the calculate tool"),
     ])
+    .with_tools(vec![calculate_tool.clone()])
     .with_max_tokens(100)
     .with_temperature(0.1);
 
-    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request);
+    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
-    let recording_path = recordings_dir.join(format!("{}.json", request_hash));
+    let test_name = aipack::llm::TestContext::current_test_name()
+        .expect("Should be in test context");
+    let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
     // Otherwise, try to create real client
@@ -157,17 +178,12 @@ Available tools:
             return;
         }
 
-        let capabilities = HardwareCapabilities {
-            total_ram_bytes: 16 * 1024 * 1024 * 1024,
-            available_ram_bytes: 8 * 1024 * 1024 * 1024,
-            cuda_available: false,
-            cuda_memory_bytes: None,
-            metal_available: false,
-            cpu_cores: 8,
-        };
-
+        let capabilities = HardwareDetector::detect();
         let model = ModelSelector::smallest();
-        println!("Testing tool calling with {} on CPU", model.display_name);
+        println!("Testing tool calling with {} on {}",
+            model.display_name,
+            capabilities.best_device()
+        );
 
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
@@ -182,17 +198,12 @@ Available tools:
     let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
         .expect("Failed to create recording client");
 
-    // Create a request that should trigger tool calling
+    // Create a request that should trigger tool calling (same as test_request)
     let request = LLMRequest::new(vec![
-        ChatMessage::system(
-            r#"You are a helpful assistant. You can call tools using JSON format:
-{"name": "tool_name", "arguments": {...}}
-
-Available tools:
-- calculate: Performs mathematical calculations"#,
-        ),
+        ChatMessage::system("You are a helpful assistant that calls tools to solve problems."),
         ChatMessage::user("Calculate 15 * 23 using the calculate tool"),
     ])
+    .with_tools(vec![calculate_tool])
     .with_max_tokens(100)
     .with_temperature(0.1);
 
@@ -205,9 +216,41 @@ Available tools:
             println!("Tool calls: {:?}", response.tool_calls);
             println!("Response time: {:?}", response.response_time);
 
-            // Either should have tool calls, or should have content
-            // (model may not always use tools correctly)
-            assert!(!response.content.is_empty() || !response.tool_calls.is_empty());
+            // Verify tool call structure
+            if !response.tool_calls.is_empty() {
+                println!("✅ Model generated {} tool call(s)", response.tool_calls.len());
+
+                // Verify first tool call has expected structure
+                let first_call = &response.tool_calls[0];
+                assert_eq!(first_call.name, "calculate", "Tool name should be 'calculate'");
+
+                // Verify arguments exist and have expected fields
+                assert!(first_call.arguments.is_object(), "Arguments should be a JSON object");
+                let args = first_call.arguments.as_object().unwrap();
+
+                assert!(args.contains_key("operation"), "Arguments should contain 'operation'");
+                assert!(args.contains_key("a"), "Arguments should contain 'a'");
+                assert!(args.contains_key("b"), "Arguments should contain 'b'");
+
+                // Verify operation value
+                if let Some(op) = args.get("operation").and_then(|v| v.as_str()) {
+                    assert_eq!(op, "multiply", "Operation should be 'multiply'");
+                }
+
+                // Verify numbers
+                if let Some(a) = args.get("a").and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))) {
+                    assert_eq!(a, 15.0, "First number should be 15");
+                }
+                if let Some(b) = args.get("b").and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))) {
+                    assert_eq!(b, 23.0, "Second number should be 23");
+                }
+
+                println!("✅ Tool call structure validated successfully");
+            } else {
+                println!("⚠️  No tool calls generated - model may need larger size or better prompting");
+                // Still pass test if content is present (model responded but didn't use tools)
+                assert!(!response.content.is_empty(), "Should have either tool calls or content");
+            }
         }
         Err(e) => {
             println!("Request failed: {}", e);
@@ -243,10 +286,10 @@ fn test_model_supports_tools() {
 }
 
 #[test]
-fn test_smallest_model_is_0_5b() {
+fn test_smallest_model_is_1_5b() {
     let smallest = ModelSelector::smallest();
-    assert_eq!(smallest.params, "0.5B");
-    assert!(smallest.ram_required_gb < 1.0);
+    assert_eq!(smallest.params, "1.5B");
+    assert!(smallest.ram_required_gb >= 1.5 && smallest.ram_required_gb < 3.0);
 }
 
 #[test]
@@ -286,4 +329,216 @@ fn test_model_selection_with_insufficient_ram() {
 
     // Should return None - not enough RAM even for smallest model
     assert!(selected.is_none());
+}
+
+#[tokio::test]
+#[serial]
+async fn test_embedded_llm_tool_call_chain() {
+    // Check if recording exists first
+    let recordings_dir = std::path::PathBuf::from("tests/recordings");
+
+    // Define multiple tools that can be chained
+    let list_files_tool = ToolDefinition {
+        name: "list_files".to_string(),
+        description: "List files in a directory".to_string(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Directory path to list"
+                }
+            },
+            "required": ["path"]
+        }),
+    };
+
+    let read_file_tool = ToolDefinition {
+        name: "read_file".to_string(),
+        description: "Read the contents of a file".to_string(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "File path to read"
+                }
+            },
+            "required": ["path"]
+        }),
+    };
+
+    let submit_result_tool = ToolDefinition {
+        name: "submit_result".to_string(),
+        description: "Submit the final analysis result".to_string(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "summary": {
+                    "type": "string",
+                    "description": "Summary of findings"
+                }
+            },
+            "required": ["summary"]
+        }),
+    };
+
+    let test_request = LLMRequest::new(vec![
+        ChatMessage::system("You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."),
+        ChatMessage::user("Analyze this directory by first listing files, then reading one file, then submitting a summary"),
+    ])
+    .with_tools(vec![list_files_tool.clone(), read_file_tool.clone(), submit_result_tool.clone()])
+    .with_max_tokens(200)
+    .with_temperature(0.1);
+
+    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
+    let request_hash = recorded_request.canonical_hash();
+    let test_name = aipack::llm::TestContext::current_test_name()
+        .expect("Should be in test context");
+    let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
+
+    // If recording exists, use replay mode with mock client
+    // Otherwise, try to create real client
+    let client: Arc<dyn LLMClient> = if recording_path.exists() {
+        println!("Using cached recording, skipping model loading");
+        Arc::new(aipack::llm::MockLLMClient::new())
+    } else {
+        println!("No recording found, will create embedded client");
+        if !has_sufficient_ram() {
+            println!("Skipping test: insufficient RAM and no recording");
+            return;
+        }
+
+        let capabilities = HardwareDetector::detect();
+
+        // Use AIPACK_MODEL_SIZE env var or default to 1.5B (minimum for reliable tool calling)
+        let model = if let Ok(model_size) = std::env::var("AIPACK_MODEL_SIZE") {
+            EmbeddedModel::ALL_MODELS
+                .iter()
+                .find(|m| m.params == model_size)
+                .expect(&format!("Model size {} not found", model_size))
+        } else {
+            // Default to 1.5B for tool calling tests
+            EmbeddedModel::ALL_MODELS
+                .iter()
+                .find(|m| m.params == "1.5B")
+                .expect("1.5B model not found")
+        };
+        println!("Testing tool call chain with {} on {}",
+            model.display_name,
+            capabilities.best_device()
+        );
+
+        match EmbeddedClient::with_model(model, &capabilities, false).await {
+            Ok(client) => Arc::new(client),
+            Err(e) => {
+                println!("Skipping tool call chain test: failed to create client: {}", e);
+                return;
+            }
+        }
+    };
+
+    // Always use Auto mode - will replay if available, record if not
+    let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
+        .expect("Failed to create recording client");
+
+    // Simulate a tool call chain with multiple iterations
+    let mut messages = vec![
+        ChatMessage::system("You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."),
+        ChatMessage::user("Analyze this directory by first listing files, then reading one file, then submitting a summary"),
+    ];
+
+    let mut tool_calls_history = Vec::new();
+    const MAX_ITERATIONS: usize = 5;
+
+    for iteration in 1..=MAX_ITERATIONS {
+        println!("\n=== Iteration {} ===", iteration);
+
+        let request = LLMRequest::new(messages.clone())
+            .with_tools(vec![list_files_tool.clone(), read_file_tool.clone(), submit_result_tool.clone()])
+            .with_max_tokens(200)
+            .with_temperature(0.1);
+
+        let response = recording_client.chat(request).await
+            .expect("LLM request should succeed");
+
+        println!("Response: {}", response.content);
+        println!("Tool calls: {} call(s)", response.tool_calls.len());
+
+        if response.tool_calls.is_empty() {
+            println!("No tool calls in iteration {}", iteration);
+            messages.push(ChatMessage::assistant(&response.content));
+            break;
+        }
+
+        // Record tool calls
+        for tool_call in &response.tool_calls {
+            println!("  - {} (args: {})", tool_call.name, tool_call.arguments);
+            tool_calls_history.push(tool_call.name.clone());
+        }
+
+        // Add assistant message with tool calls
+        messages.push(ChatMessage::assistant_with_tools(
+            &response.content,
+            response.tool_calls.clone(),
+        ));
+
+        // Simulate tool responses
+        for tool_call in &response.tool_calls {
+            let tool_result = match tool_call.name.as_str() {
+                "list_files" => json!({
+                    "files": ["Cargo.toml", "README.md", "src/main.rs"],
+                    "count": 3
+                }),
+                "read_file" => json!({
+                    "path": tool_call.arguments.get("path").and_then(|p| p.as_str()).unwrap_or("unknown"),
+                    "content": "# Example File\nThis is test content.",
+                    "lines_shown": 2,
+                    "total_lines": 2,
+                    "truncated": false
+                }),
+                "submit_result" => {
+                    println!("✅ submit_result called - chain complete!");
+                    json!({
+                        "success": true,
+                        "summary": tool_call.arguments.get("summary").and_then(|s| s.as_str()).unwrap_or("No summary")
+                    })
+                },
+                _ => json!({"error": format!("Unknown tool: {}", tool_call.name)}),
+            };
+
+            messages.push(ChatMessage::tool_response(&tool_call.call_id, tool_result));
+        }
+
+        // Check if we reached submit_result
+        if response.tool_calls.iter().any(|tc| tc.name == "submit_result") {
+            println!("✅ Tool call chain completed successfully!");
+            break;
+        }
+    }
+
+    // Verify we had a meaningful tool call chain
+    println!("\nTool call history: {:?}", tool_calls_history);
+
+    if !tool_calls_history.is_empty() {
+        println!("✅ Model generated {} tool call(s) across iterations", tool_calls_history.len());
+
+        // Verify we got different tool calls (chain behavior)
+        let unique_tools: std::collections::HashSet<_> = tool_calls_history.iter().collect();
+        if unique_tools.len() > 1 {
+            println!("✅ Model called {} different tools (chain detected)", unique_tools.len());
+        } else {
+            println!("⚠️  Model only called one type of tool - may not be chaining");
+        }
+
+        // Check if we reached submit_result
+        if tool_calls_history.contains(&"submit_result".to_string()) {
+            println!("✅ Chain ended with submit_result as expected");
+        }
+    } else {
+        println!("⚠️  No tool calls generated - model may need better prompting or larger size");
+    }
+
+    // Test passes if we got at least one tool call
+    assert!(!tool_calls_history.is_empty(), "Should generate at least one tool call");
 }

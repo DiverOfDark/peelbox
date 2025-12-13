@@ -4,6 +4,7 @@ mod genai;
 mod mock;
 mod recording;
 mod selector;
+pub mod test_context;
 mod types;
 
 pub use client::LLMClient;
@@ -15,4 +16,5 @@ pub use genai::GenAIClient;
 pub use mock::{MockLLMClient, MockResponse};
 pub use recording::{RecordedExchange, RecordedRequest, RecordingLLMClient, RecordingMode};
 pub use selector::{select_llm_client, SelectedClient};
+pub use test_context::TestContext;
 pub use types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};
