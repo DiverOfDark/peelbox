@@ -15,12 +15,10 @@ pub struct MockLLMClient {
 pub struct MockResponse {
     pub content: String,
     pub tool_calls: Vec<ToolCall>,
-    /// Optional error to return instead of a response
     pub error: Option<BackendError>,
 }
 
 impl MockResponse {
-    /// Creates a response with just text content
     pub fn text(content: impl Into<String>) -> Self {
         Self {
             content: content.into(),
@@ -29,7 +27,6 @@ impl MockResponse {
         }
     }
 
-    /// Creates a response with tool calls
     pub fn with_tool_calls(content: impl Into<String>, tool_calls: Vec<ToolCall>) -> Self {
         Self {
             content: content.into(),
@@ -38,7 +35,6 @@ impl MockResponse {
         }
     }
 
-    /// Creates a response that returns an error
     pub fn error(error: BackendError) -> Self {
         Self {
             content: String::new(),
@@ -49,7 +45,6 @@ impl MockResponse {
 }
 
 impl MockLLMClient {
-    /// Creates a new mock client with no responses
     pub fn new() -> Self {
         Self {
             responses: Mutex::new(VecDeque::new()),
@@ -57,7 +52,6 @@ impl MockLLMClient {
         }
     }
 
-    /// Creates a new mock client with a custom name
     pub fn with_name(name: impl Into<String>) -> Self {
         Self {
             responses: Mutex::new(VecDeque::new()),
@@ -65,12 +59,10 @@ impl MockLLMClient {
         }
     }
 
-    /// Adds a response to the queue
     pub fn add_response(&self, response: MockResponse) {
         self.responses.lock().unwrap().push_back(response);
     }
 
-    /// Adds multiple responses to the queue
     pub fn add_responses(&self, responses: impl IntoIterator<Item = MockResponse>) {
         let mut queue = self.responses.lock().unwrap();
         for response in responses {
@@ -78,12 +70,10 @@ impl MockLLMClient {
         }
     }
 
-    /// Returns the number of remaining responses
     pub fn remaining_responses(&self) -> usize {
         self.responses.lock().unwrap().len()
     }
 
-    /// Creates a helper to build a tool call for read_file
     pub fn read_file_call(call_id: impl Into<String>, path: impl Into<String>) -> ToolCall {
         ToolCall {
             call_id: call_id.into(),
@@ -92,7 +82,6 @@ impl MockLLMClient {
         }
     }
 
-    /// Creates a helper to build a tool call for list_files
     pub fn list_files_call(call_id: impl Into<String>, path: impl Into<String>) -> ToolCall {
         ToolCall {
             call_id: call_id.into(),
@@ -101,7 +90,6 @@ impl MockLLMClient {
         }
     }
 
-    /// Creates a helper to build a tool call for get_best_practices
     pub fn get_best_practices_call(
         call_id: impl Into<String>,
         language: impl Into<String>,
@@ -117,7 +105,6 @@ impl MockLLMClient {
         }
     }
 
-    /// Creates a helper to build a submit_detection tool call
     pub fn submit_detection_call(
         call_id: impl Into<String>,
         detection: serde_json::Value,

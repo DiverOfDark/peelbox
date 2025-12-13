@@ -1,70 +1,55 @@
-//! Progress handler trait and events
-
 use std::time::Duration;
 
-/// Events emitted during detection progress
 #[derive(Debug, Clone)]
 pub enum ProgressEvent {
-    /// Detection started
-    Started { repo_path: String },
-
-    /// Bootstrap scan completed
+    Started {
+        repo_path: String,
+    },
     BootstrapComplete {
         languages_detected: usize,
         scan_time: Duration,
     },
-
-    /// LLM request started
-    LlmRequestStarted { iteration: usize },
-
-    /// LLM response received
+    LlmRequestStarted {
+        iteration: usize,
+    },
     LlmResponseReceived {
         iteration: usize,
         tool_calls: usize,
         response_time: Duration,
     },
-
-    /// Tool execution started
-    ToolExecutionStarted { tool_name: String, iteration: usize },
-
-    /// Tool execution completed
+    ToolExecutionStarted {
+        tool_name: String,
+        iteration: usize,
+    },
     ToolExecutionComplete {
         tool_name: String,
         iteration: usize,
         execution_time: Duration,
         success: bool,
     },
-
-    /// Validation started
     ValidationStarted,
-
-    /// Validation completed
-    ValidationComplete { warnings: usize, errors: usize },
-
-    /// Detection completed successfully
+    ValidationComplete {
+        warnings: usize,
+        errors: usize,
+    },
     Completed {
         total_iterations: usize,
         total_time: Duration,
     },
-
-    /// Detection failed
-    Failed { error: String },
+    Failed {
+        error: String,
+    },
 }
 
-/// Trait for handling progress events during detection
 pub trait ProgressHandler: Send + Sync {
-    /// Called when a progress event occurs
     fn on_progress(&self, event: &ProgressEvent);
 }
 
-/// No-op handler that ignores all events
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NoOpHandler;
 
 impl ProgressHandler for NoOpHandler {
-    fn on_progress(&self, _event: &ProgressEvent) {
-        // Intentionally empty
-    }
+    fn on_progress(&self, _event: &ProgressEvent) {}
 }
 
 #[cfg(test)]

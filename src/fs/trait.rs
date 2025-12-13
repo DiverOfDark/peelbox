@@ -53,33 +53,16 @@ impl DirEntry {
     }
 }
 
-/// Abstraction over file system operations for testability
 pub trait FileSystem: Send + Sync {
-    /// Check if a path exists
     fn exists(&self, path: &Path) -> bool;
-
-    /// Check if path is a directory
     fn is_dir(&self, path: &Path) -> bool;
-
-    /// Check if path is a file
     fn is_file(&self, path: &Path) -> bool;
-
-    /// Get file/directory metadata
     fn metadata(&self, path: &Path) -> Result<FileMetadata>;
-
-    /// Read file contents as string
     fn read_to_string(&self, path: &Path) -> Result<String>;
-
-    /// Read first N bytes of file (for binary detection)
     fn read_bytes(&self, path: &Path, max_bytes: usize) -> Result<Vec<u8>>;
-
-    /// List directory contents
     fn read_dir(&self, path: &Path) -> Result<Vec<DirEntry>>;
-
-    /// Canonicalize a path
     fn canonicalize(&self, path: &Path) -> Result<PathBuf>;
 
-    /// Join paths
     fn join(&self, base: &Path, path: &str) -> PathBuf {
         base.join(path)
     }

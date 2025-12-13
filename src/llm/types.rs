@@ -74,34 +74,23 @@ pub struct ToolCall {
     pub arguments: serde_json::Value,
 }
 
-/// Definition of a tool available to the LLM
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolDefinition {
-    /// Name of the tool
     pub name: String,
-    /// Description of what the tool does
     pub description: String,
-    /// JSON Schema for the tool's parameters
     pub parameters: serde_json::Value,
 }
 
-/// Request to send to the LLM
 #[derive(Debug, Clone)]
 pub struct LLMRequest {
-    /// Conversation messages
     pub messages: Vec<ChatMessage>,
-    /// Tools available for the LLM to use
     pub tools: Vec<ToolDefinition>,
-    /// Temperature for response generation (0.0 - 1.0)
     pub temperature: Option<f32>,
-    /// Maximum tokens to generate
     pub max_tokens: Option<u32>,
-    /// Stop sequences to end generation
     pub stop_sequences: Option<Vec<String>>,
 }
 
 impl LLMRequest {
-    /// Creates a new request with messages
     pub fn new(messages: Vec<ChatMessage>) -> Self {
         Self {
             messages,
@@ -112,39 +101,31 @@ impl LLMRequest {
         }
     }
 
-    /// Adds tools to the request
     pub fn with_tools(mut self, tools: Vec<ToolDefinition>) -> Self {
         self.tools = tools;
         self
     }
 
-    /// Sets the temperature
     pub fn with_temperature(mut self, temperature: f32) -> Self {
         self.temperature = Some(temperature);
         self
     }
 
-    /// Sets the maximum tokens
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.max_tokens = Some(max_tokens);
         self
     }
 
-    /// Sets stop sequences
     pub fn with_stop_sequences(mut self, sequences: Vec<String>) -> Self {
         self.stop_sequences = Some(sequences);
         self
     }
 }
 
-/// Response from the LLM
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMResponse {
-    /// Text content of the response
     pub content: String,
-    /// Tool calls requested by the LLM
     pub tool_calls: Vec<ToolCall>,
-    /// Time taken for the request (serialized as milliseconds)
     #[serde(
         serialize_with = "serialize_duration",
         deserialize_with = "deserialize_duration"
@@ -168,7 +149,6 @@ where
 }
 
 impl LLMResponse {
-    /// Creates a new response with just content
     pub fn text(content: impl Into<String>, response_time: Duration) -> Self {
         Self {
             content: content.into(),
@@ -177,7 +157,6 @@ impl LLMResponse {
         }
     }
 
-    /// Creates a new response with tool calls
     pub fn with_tool_calls(
         content: impl Into<String>,
         tool_calls: Vec<ToolCall>,
@@ -190,7 +169,6 @@ impl LLMResponse {
         }
     }
 
-    /// Returns true if the response contains tool calls
     pub fn has_tool_calls(&self) -> bool {
         !self.tool_calls.is_empty()
     }

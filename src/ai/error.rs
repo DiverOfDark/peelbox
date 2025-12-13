@@ -1,45 +1,38 @@
-//! GenAI backend types and errors
-//!
-//! This module defines BackendError for AI backend error handling.
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Errors that can occur during backend operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum BackendError {
-    /// API request failed with the given message
     ApiError {
         message: String,
         status_code: Option<u16>,
     },
-
-    /// Authentication failed or credentials are invalid
-    AuthenticationError { message: String },
-
-    /// Request timed out after the specified duration (in seconds)
-    TimeoutError { seconds: u64 },
-
-    /// Rate limit exceeded, retry after the specified duration (in seconds)
-    RateLimitError { retry_after: Option<u64> },
-
-    /// Invalid or malformed response from the LLM
+    AuthenticationError {
+        message: String,
+    },
+    TimeoutError {
+        seconds: u64,
+    },
+    RateLimitError {
+        retry_after: Option<u64>,
+    },
     InvalidResponse {
         message: String,
         raw_response: Option<String>,
     },
-
-    /// Configuration error (missing API keys, invalid settings, etc.)
-    ConfigurationError { message: String },
-
-    /// Network-related error
-    NetworkError { message: String },
-
-    /// The LLM response could not be parsed into a UniversalBuild
-    ParseError { message: String, context: String },
-
-    /// Generic error for other cases
-    Other { message: String },
+    ConfigurationError {
+        message: String,
+    },
+    NetworkError {
+        message: String,
+    },
+    ParseError {
+        message: String,
+        context: String,
+    },
+    Other {
+        message: String,
+    },
 }
 
 impl fmt::Display for BackendError {

@@ -70,44 +70,32 @@ pub struct BuildStage {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
-    /// Base Docker image for runtime (e.g., "debian:bookworm-slim", "alpine:3.19")
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub base: String,
-    /// Runtime system packages to install
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
-    /// Runtime environment variables
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub env: HashMap<String, String>,
-    /// Files to copy from build stage
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub copy: Vec<CopySpec>,
-    /// Container entrypoint command
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub command: Vec<String>,
-    /// Ports to expose
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub ports: Vec<u16>,
 }
 
-/// Specification for copying files from build stage to runtime stage
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CopySpec {
-    /// Source path in build stage
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
-    /// Destination path in runtime stage
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub to: String,
 }
 
-/// Specification for build context files to copy from source
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ContextSpec {
-    /// Source path in host/repository
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
-    /// Destination path in build stage container
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub to: String,
 }
@@ -122,13 +110,6 @@ impl fmt::Display for UniversalBuild {
 }
 
 impl UniversalBuild {
-    /// Serialize the UniversalBuild to YAML format
-    ///
-    /// # Returns
-    /// YAML string representation of the build specification
-    ///
-    /// # Errors
-    /// Returns error if serialization fails
     pub fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(self).context("Failed to serialize UniversalBuild to YAML")
     }

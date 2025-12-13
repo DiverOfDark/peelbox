@@ -16,18 +16,10 @@ pub struct GenAIClient {
     client: Client,
     model: String,
     provider: AdapterKind,
-    /// Request timeout
     timeout: Duration,
 }
 
 impl GenAIClient {
-    /// Creates a new GenAI client
-    ///
-    /// # Arguments
-    ///
-    /// * `provider` - LLM provider to use
-    /// * `model` - Model name (without provider prefix)
-    /// * `timeout` - Request timeout
     pub async fn new(
         provider: AdapterKind,
         model: String,
@@ -87,14 +79,12 @@ impl GenAIClient {
         })
     }
 
-    /// Converts our ChatMessage to genai ChatMessage
     fn convert_message(&self, msg: &ChatMessage) -> GenAIChatMessage {
         match msg.role {
             MessageRole::System => GenAIChatMessage::system(&msg.content),
             MessageRole::User => GenAIChatMessage::user(&msg.content),
             MessageRole::Assistant => {
                 if let Some(ref tool_calls) = msg.tool_calls {
-                    // Create assistant message with tool calls
                     let genai_calls: Vec<genai::chat::ToolCall> = tool_calls
                         .iter()
                         .map(|tc| genai::chat::ToolCall {
@@ -103,7 +93,6 @@ impl GenAIClient {
                             fn_arguments: tc.arguments.clone(),
                         })
                         .collect();
-                    // Build assistant message with tool calls
                     let content = MessageContent::from_tool_calls(genai_calls);
                     GenAIChatMessage::assistant(content)
                 } else {
@@ -118,7 +107,6 @@ impl GenAIClient {
         }
     }
 
-    /// Converts our ToolDefinition to genai Tool
     fn convert_tool(&self, tool: &ToolDefinition) -> GenAITool {
         GenAITool::new(&tool.name)
             .with_description(&tool.description)
@@ -131,20 +119,16 @@ impl LLMClient for GenAIClient {
     async fn chat(&self, request: LLMRequest) -> Result<LLMResponse, BackendError> {
         let start = std::time::Instant::now();
 
-        // Convert messages
         let messages: Vec<GenAIChatMessage> = request
             .messages
             .iter()
             .map(|m| self.convert_message(m))
             .collect();
 
-        // Convert tools
         let tools: Vec<GenAITool> = request.tools.iter().map(|t| self.convert_tool(t)).collect();
 
-        // Create request
         let genai_request = GenAIChatRequest::new(messages).with_tools(tools);
 
-        // Build options
         let mut options = ChatOptions::default();
         if let Some(temp) = request.temperature {
             options = options.with_temperature(temp as f64);
@@ -156,7 +140,6 @@ impl LLMClient for GenAIClient {
             options = options.with_stop_sequences(sequences.clone());
         }
 
-        // Execute with timeout
         let response = match tokio::time::timeout(
             self.timeout,
             self.client
@@ -184,10 +167,8 @@ impl LLMClient for GenAIClient {
             }
         };
 
-        // Extract content
         let content = response.first_text().unwrap_or_default().to_string();
 
-        // Extract tool calls
         let tool_calls: Vec<ToolCall> = response
             .tool_calls()
             .into_iter()

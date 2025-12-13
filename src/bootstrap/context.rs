@@ -18,36 +18,24 @@ pub struct RepoSummary {
     pub root_manifests: Vec<String>,
 }
 
-/// A detected language/build system combination
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LanguageDetection {
-    /// Language name
     pub language: String,
-    /// Build system (cargo, npm, maven, etc.)
     pub build_system: String,
-    /// Path to the manifest file
     pub manifest_path: String,
-    /// Manifest file depth from root
     pub depth: usize,
-    /// Detection confidence (0.0 - 1.0)
     pub confidence: f64,
 }
 
-/// Workspace structure analysis
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
-    /// Root-level manifests
     pub root_manifests: Vec<String>,
-    /// Nested manifests grouped by depth
     pub nested_by_depth: HashMap<usize, Vec<String>>,
-    /// Maximum depth of manifests
     pub max_depth: usize,
-    /// Has workspace configuration (pnpm-workspace, lerna, etc.)
     pub has_workspace_config: bool,
 }
 
 impl BootstrapContext {
-    /// Creates a context from detected languages
     pub fn from_detections(
         detections: Vec<LanguageDetection>,
         has_workspace_config: bool,
@@ -111,7 +99,6 @@ impl BootstrapContext {
         }
     }
 
-    /// Formats the context as a string for LLM system prompt injection
     pub fn format_for_prompt(&self) -> String {
         let manifest_list: Vec<&str> = self
             .detections

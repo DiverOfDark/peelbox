@@ -23,7 +23,6 @@ impl RecordingMode {
         }
     }
 
-    /// Get from environment variable with default
     pub fn from_env(default: RecordingMode) -> RecordingMode {
         std::env::var("AIPACK_RECORDING_MODE")
             .ok()
@@ -32,34 +31,23 @@ impl RecordingMode {
     }
 }
 
-/// A recorded request-response exchange
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecordedExchange {
-    /// Canonical hash of the request (MD5)
     pub request_hash: String,
-    /// The original request
     pub request: RecordedRequest,
-    /// The recorded response
     pub response: LLMResponse,
-    /// All intermediate responses during tool calling loop (for analysis)
     pub intermediate_responses: Vec<LLMResponse>,
-    /// Timestamp when recorded (ISO 8601)
     pub recorded_at: String,
 }
 
-/// Simplified request for hashing and storage
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RecordedRequest {
-    /// Messages in the conversation
     pub messages: Vec<ChatMessage>,
-    /// Available tools
     pub tools: Vec<serde_json::Value>,
-    /// Model name
     pub model: Option<String>,
 }
 
 impl RecordedRequest {
-    /// Create from LLMRequest
     pub fn from_llm_request(req: &LLMRequest) -> Self {
         Self {
             messages: req.messages.clone(),
@@ -78,24 +66,17 @@ impl RecordedRequest {
         }
     }
 
-    /// Compute canonical hash (MD5 of JSON)
     pub fn canonical_hash(&self) -> String {
         let canonical_json = serde_json::to_string(self).expect("Failed to serialize request");
         format!("{:x}", md5::compute(canonical_json.as_bytes()))
     }
 }
 
-/// LLM client that records or replays interactions
 pub struct RecordingLLMClient {
-    /// Underlying LLM client
     inner: Arc<dyn LLMClient>,
-    /// Recording mode
     mode: RecordingMode,
-    /// Directory where recordings are stored
     recordings_dir: PathBuf,
-    /// In-memory cache of loaded recordings
     cache: HashMap<String, LLMResponse>,
-    /// Intermediate responses captured during tool-calling loop
     intermediate_responses: std::sync::Mutex<Vec<LLMResponse>>,
 }
 
