@@ -1,39 +1,3 @@
-//! Detection service orchestration
-//!
-//! This module provides the high-level `DetectionService` that orchestrates
-//! build system detection using LLM backends with tool-based analysis.
-//!
-//! # Architecture
-//!
-//! The service acts as a thin orchestration layer:
-//! 1. Validates the repository path
-//! 2. Delegates detection to the LLM backend
-//! 3. Tracks timing metrics
-//! 4. Returns validated results
-//!
-//! The actual repository analysis is performed iteratively by the backend
-//! through tool calls (list_files, read_file, etc.).
-//!
-//! # Example
-//!
-//! ```no_run
-//! use aipack::detection::service::DetectionService;
-//! use aipack::AipackConfig;
-//! use std::path::PathBuf;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let config = AipackConfig::default();
-//! let service = DetectionService::new(&config).await?;
-//!
-//! let result = service.detect(PathBuf::from("/path/to/repo")).await?;
-//!
-//! println!("Build system: {}", result.metadata.build_system);
-//! println!("Build commands: {:?}", result.build.commands);
-//! println!("Confidence: {:.1}%", result.metadata.confidence * 100.0);
-//! # Ok(())
-//! # }
-//! ```
-
 use crate::ai::BackendError;
 use crate::llm::LLMClient;
 use crate::output::UniversalBuild;
@@ -45,36 +9,28 @@ use std::time::Instant;
 use thiserror::Error;
 use tracing::{info, warn};
 
-/// Errors that can occur during detection service operations
 #[derive(Debug, Error)]
 pub enum ServiceError {
-    /// Backend error occurred during LLM communication
     #[error("Backend error: {0}")]
     BackendError(#[from] BackendError),
 
-    /// Configuration error
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
-    /// Repository path does not exist or is not accessible
     #[error("Repository path not found: {0}")]
     PathNotFound(PathBuf),
 
-    /// Repository path is not a directory
     #[error("Repository path is not a directory: {0}")]
     NotADirectory(PathBuf),
 
-    /// Backend initialization failed
     #[error("Failed to initialize backend: {0}")]
     BackendInitError(String),
 
-    /// Detection failed with an unknown error
     #[error("Detection failed: {0}")]
     DetectionFailed(String),
 }
 
 impl ServiceError {
-    /// Returns a user-friendly error message with troubleshooting hints
     pub fn help_message(&self) -> String {
         match self {
             ServiceError::PathNotFound(path) => {
@@ -233,29 +189,8 @@ impl ServiceError {
     }
 }
 
-/// High-level detection service that orchestrates the detection workflow
-///
-/// This service provides a simple interface for LLM-based build system detection.
-/// It validates repository paths and delegates analysis to the backend, which
-/// uses an iterative tool-calling approach to gather information and make decisions.
-///
-/// # Architecture
-///
-/// ```text
-/// DetectionService
-///   └── LLMClient (multi-provider with tool-based detection)
-///         ├── ToolSystem (tool execution with caching)
-///         ├── Iterative LLM conversation
-///         └── Supports: Ollama, OpenAI, Claude, Gemini, Grok, Groq
-/// ```
-///
-/// # Thread Safety
-///
-/// This service is thread-safe and can be shared across threads using `Arc`.
 pub struct DetectionService {
-    /// LLM client for detection
     client: Arc<dyn LLMClient>,
-    /// Pipeline context (owns all dependencies)
     context: Arc<PipelineContext>,
 }
 
@@ -268,30 +203,6 @@ impl std::fmt::Debug for DetectionService {
 }
 
 impl DetectionService {
-    /// Creates a new detection service
-    ///
-    /// # Arguments
-    ///
-    /// * `client` - LLM client for detection
-    /// * `context` - Pipeline context with dependencies
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
-    /// use aipack::llm::GenAIClient;
-    /// use aipack::ai::error::Provider;
-    /// use aipack::pipeline::PipelineContext;
-    /// use std::sync::Arc;
-    /// use std::time::Duration;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let client = GenAIClient::new(AdapterKind::Ollama, "qwen2.5-coder:7b".to_string(), Duration::from_secs(30)).await?;
-    /// let (context, _temp_dir) = PipelineContext::with_mocks();
-    /// let service = DetectionService::new(Arc::new(client), Arc::new(context));
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn new(client: Arc<dyn LLMClient>, context: Arc<PipelineContext>) -> Self {
         info!(
             "Detection service initialized with client: {}",
@@ -301,66 +212,10 @@ impl DetectionService {
         Self { client, context }
     }
 
-    /// Detects build system for a repository
-    ///
-    /// This is the main entry point for detection. It:
-    /// 1. Validates the repository path exists and is a directory
-    /// 2. Delegates to the LLM backend for tool-based detection
-    /// 3. Tracks processing time
-    /// 4. Returns the detection result
-    ///
-    /// The backend uses an iterative tool-calling approach where the LLM
-    /// requests information about files and directory structure as needed.
-    ///
-    /// # Arguments
-    ///
-    /// * `repo_path` - Path to the repository root directory
-    ///
-    /// # Returns
-    ///
-    /// A `UniversalBuild` containing the complete container build specification,
-    /// including build stage, runtime stage, metadata, and confidence score.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError` if:
-    /// - Repository path does not exist or is not a directory
-    /// - LLM backend fails or times out
-    /// - Tool execution fails
-    /// - Response parsing fails
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
-    /// use aipack::AipackConfig;
-    /// use std::path::PathBuf;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = AipackConfig::default();
-    /// let service = DetectionService::new(&config).await?;
-    ///
-    /// let result = service.detect(PathBuf::from("/path/to/my-project")).await?;
-    ///
-    /// println!("Build commands: {:?}", result.build.commands);
-    /// println!("Runtime command: {:?}", result.runtime.command);
-    /// println!("Confidence: {:.1}%", result.metadata.confidence * 100.0);
-    /// # Ok(())
-    /// # }
-    /// ```
     pub async fn detect(&self, repo_path: PathBuf) -> Result<UniversalBuild, ServiceError> {
         self.detect_with_progress(repo_path, None).await
     }
 
-    /// Detects build system for a repository with progress reporting
-    ///
-    /// Same as `detect()` but accepts an optional progress handler for
-    /// reporting detection progress events.
-    ///
-    /// # Arguments
-    ///
-    /// * `repo_path` - Path to the repository root directory
-    /// * `progress` - Optional progress handler for receiving progress events
     pub async fn detect_with_progress(
         &self,
         repo_path: PathBuf,
@@ -368,12 +223,10 @@ impl DetectionService {
     ) -> Result<UniversalBuild, ServiceError> {
         let start = Instant::now();
 
-        // Validate repository path
         self.validate_repo_path(&repo_path)?;
 
         info!("Starting detection for repository: {}", repo_path.display());
 
-        // Run bootstrap scan to pre-analyze repository
         let bootstrap_context = match self.run_bootstrap_scan(&repo_path) {
             Ok(context) => {
                 info!(
@@ -392,7 +245,6 @@ impl DetectionService {
             }
         };
 
-        // Delegate to AnalysisPipeline for tool-based detection
         use crate::pipeline::AnalysisPipeline;
 
         let pipeline = AnalysisPipeline::new((*self.context).clone());
@@ -419,7 +271,6 @@ impl DetectionService {
         Ok(result)
     }
 
-    /// Runs bootstrap scan to pre-analyze repository
     fn run_bootstrap_scan(
         &self,
         repo_path: &Path,
@@ -439,38 +290,6 @@ impl DetectionService {
             .map_err(|e| ServiceError::DetectionFailed(format!("Bootstrap scan failed: {}", e)))
     }
 
-    /// Detects build system using a repository path from context
-    ///
-    /// This method extracts the repository path from a `RepositoryContext`
-    /// and delegates to the standard `detect()` method. The context's
-    /// pre-analyzed files are not used - the backend will use tools to
-    /// analyze the repository on-demand.
-    ///
-    /// # Deprecated
-    ///
-    /// This method exists for backwards compatibility. Prefer using
-    /// `detect(repo_path)` directly.
-    ///
-    /// # Arguments
-    ///
-    /// * `context` - Repository context (only the path is used)
-    ///
-    /// # Returns
-    ///
-    /// A `UniversalBuild` containing the complete container build specification
-    ///
-    /// # Errors
-    ///
-    /// Returns `ServiceError` if detection fails
-    #[deprecated(since = "0.2.0", note = "Use detect(repo_path) instead")]
-    pub async fn detect_with_context(
-        &self,
-        context: crate::detection::types::RepositoryContext,
-    ) -> Result<UniversalBuild, ServiceError> {
-        self.detect(context.repo_path).await
-    }
-
-    /// Validates that a repository path exists and is a directory
     fn validate_repo_path(&self, path: &Path) -> Result<(), ServiceError> {
         if !path.exists() {
             return Err(ServiceError::PathNotFound(path.to_path_buf()));
@@ -483,44 +302,10 @@ impl DetectionService {
         Ok(())
     }
 
-    /// Returns the name of the backend being used
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
-    /// use aipack::AipackConfig;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = AipackConfig::default();
-    /// let service = DetectionService::new(&config).await?;
-    ///
-    /// println!("Using backend: {}", service.backend_name());
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn backend_name(&self) -> &str {
         self.client.name()
     }
 
-    /// Returns model information for the backend
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use aipack::detection::service::DetectionService;
-    /// use aipack::AipackConfig;
-    ///
-    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let config = AipackConfig::default();
-    /// let service = DetectionService::new(&config).await?;
-    ///
-    /// if let Some(info) = service.backend_model_info() {
-    ///     println!("Model: {}", info);
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn backend_model_info(&self) -> Option<String> {
         self.client.model_info()
     }

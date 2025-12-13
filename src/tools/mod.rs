@@ -1,8 +1,3 @@
-//! Tool execution system for LLM-based repository analysis
-//!
-//! This module provides a trait-based tool system that the LLM can use to
-//! iteratively explore repositories and gather information for build detection.
-
 pub mod cache;
 pub mod implementations;
 pub mod registry;

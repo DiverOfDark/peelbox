@@ -1,12 +1,9 @@
-//! Real filesystem implementation
-
 use super::{DirEntry, FileMetadata, FileSystem, FileType};
 use anyhow::{Context, Result};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-/// Real filesystem implementation using std::fs
 pub struct RealFileSystem;
 
 impl RealFileSystem {

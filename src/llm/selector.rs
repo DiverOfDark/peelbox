@@ -1,12 +1,3 @@
-//! LLM client selection with automatic fallback chain
-//!
-//! This module provides automatic LLM client selection based on available
-//! providers and configuration. The fallback chain is:
-//!
-//! 1. Configured provider (via env/CLI) if API key is available
-//! 2. Ollama if running locally
-//! 3. Embedded LLM for zero-config local inference
-
 use crate::config::AipackConfig;
 use crate::llm::{EmbeddedClient, GenAIClient, LLMClient};
 use anyhow::Result;
@@ -14,39 +5,25 @@ use genai::adapter::AdapterKind;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
-/// Result of LLM client selection
 pub struct SelectedClient {
-    /// The selected LLM client
     pub client: Arc<dyn LLMClient>,
-    /// The provider that was selected
     pub provider: AdapterKind,
-    /// Human-readable description of the selection
     pub description: String,
 }
 
-/// Select the best available LLM client based on configuration and availability
-///
-/// Fallback chain:
-/// 1. If a provider is explicitly configured with valid credentials, use it
-/// 2. Try Ollama if available locally
-/// 3. Fall back to embedded LLM for zero-config local inference
 pub async fn select_llm_client(config: &AipackConfig, interactive: bool) -> Result<SelectedClient> {
-    // First, try the explicitly configured provider
     if let Some(selected) = try_configured_provider(config).await {
         return Ok(selected);
     }
 
-    // Try Ollama as fallback
     if let Some(selected) = try_ollama(config).await {
         return Ok(selected);
     }
 
-    // Try embedded LLM as last resort
     if let Some(selected) = try_embedded(interactive).await {
         return Ok(selected);
     }
 
-    // No LLM available
     Err(anyhow::anyhow!(
         "No LLM backend available. Please either:\n\
          - Set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)\n\
@@ -55,20 +32,14 @@ pub async fn select_llm_client(config: &AipackConfig, interactive: bool) -> Resu
     ))
 }
 
-/// Try to use the explicitly configured provider (only for cloud providers with credentials)
-///
-/// This function only attempts cloud providers that have API keys configured.
-/// Ollama is handled separately by `try_ollama` to properly check availability.
 async fn try_configured_provider(config: &AipackConfig) -> Option<SelectedClient> {
     let provider = config.provider;
 
-    // Skip Ollama here - it's handled by try_ollama with proper availability check
     if provider == AdapterKind::Ollama {
         debug!("Skipping Ollama in configured provider check - will check availability separately");
         return None;
     }
 
-    // Check if API key is available for cloud providers
     if !provider_has_credentials(provider) {
         debug!("Skipping {} - no credentials available", provider);
         return None;
@@ -96,7 +67,6 @@ async fn try_configured_provider(config: &AipackConfig) -> Option<SelectedClient
     }
 }
 
-/// Try to use Ollama as a fallback
 async fn try_ollama(config: &AipackConfig) -> Option<SelectedClient> {
     // Check if Ollama is running
     if !is_ollama_available().await {

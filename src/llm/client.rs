@@ -1,45 +1,13 @@
-//! LLM client trait definition
-//!
-//! This module defines the core `LLMClient` trait that all LLM implementations
-//! must implement to provide chat completion capabilities.
-
 use super::types::{LLMRequest, LLMResponse};
 use crate::ai::error::BackendError;
 use async_trait::async_trait;
 
-/// Trait for LLM chat completion clients
-///
-/// This trait abstracts the communication with LLM providers, allowing
-/// different implementations (GenAI, Mock, Embedded) to be used interchangeably.
-///
-/// # Thread Safety
-///
-/// Implementations must be `Send + Sync` to support async operations across threads.
 #[async_trait]
 pub trait LLMClient: Send + Sync {
-    /// Sends a chat request to the LLM and returns the response
-    ///
-    /// # Arguments
-    ///
-    /// * `request` - The chat request containing messages, tools, and options
-    ///
-    /// # Returns
-    ///
-    /// An `LLMResponse` containing the LLM's reply and any tool calls
-    ///
-    /// # Errors
-    ///
-    /// Returns `BackendError` if:
-    /// - The request times out
-    /// - Authentication fails
-    /// - The API returns an error
-    /// - Network connectivity issues
     async fn chat(&self, request: LLMRequest) -> Result<LLMResponse, BackendError>;
 
-    /// Returns the name of this client for logging
     fn name(&self) -> &str;
 
-    /// Returns optional model information
     fn model_info(&self) -> Option<String> {
         None
     }

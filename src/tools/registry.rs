@@ -1,7 +1,3 @@
-//! Tool registry
-//!
-//! Maintains a registry of all available tools and provides them to the LLM.
-
 use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -11,13 +7,11 @@ use super::trait_def::Tool;
 use crate::languages::LanguageRegistry;
 use crate::llm::ToolDefinition;
 
-/// Registry of all available tools
 pub struct ToolRegistry {
     tools: Vec<Arc<dyn Tool>>,
 }
 
 impl ToolRegistry {
-    /// Create a new registry with all standard tools for the given repository
     pub fn new(repo_path: PathBuf) -> Result<Self> {
         let language_registry = Arc::new(LanguageRegistry::with_defaults());
 

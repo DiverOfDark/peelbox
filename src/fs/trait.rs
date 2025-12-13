@@ -1,16 +1,12 @@
-//! FileSystem trait definition
-
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-/// Metadata about a file
 #[derive(Debug, Clone)]
 pub struct FileMetadata {
     pub size: u64,
     pub file_type: FileType,
 }
 
-/// Type of file system entry
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileType {
     File,
@@ -36,7 +32,6 @@ impl FileMetadata {
     }
 }
 
-/// A directory entry returned by read_dir
 #[derive(Debug, Clone)]
 pub struct DirEntry {
     pub path: PathBuf,

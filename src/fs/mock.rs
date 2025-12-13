@@ -1,19 +1,15 @@
-//! Mock filesystem for testing
-
 use super::{DirEntry, FileMetadata, FileSystem, FileType};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
-/// Entry in the mock filesystem
 #[derive(Debug, Clone)]
 pub struct MockEntry {
     pub content: Option<String>,
     pub file_type: FileType,
 }
 
-/// Mock filesystem for testing without touching real files
 pub struct MockFileSystem {
     files: RwLock<HashMap<PathBuf, MockEntry>>,
     root: PathBuf,
@@ -38,7 +34,6 @@ impl MockFileSystem {
         let path = self.normalize_path(path.as_ref());
         let mut files = self.files.write().unwrap();
 
-        // Ensure parent directories exist
         if let Some(parent) = path.parent() {
             self.ensure_parents(&mut files, parent);
         }

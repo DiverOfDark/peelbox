@@ -1,8 +1,3 @@
-//! Analysis pipeline orchestration
-//!
-//! This module implements the core analysis pipeline that orchestrates
-//! the iterative LLM-based detection workflow.
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -83,7 +78,6 @@ impl AnalysisPipeline {
     ) -> Result<UniversalBuild, PipelineError> {
         let progress = progress.unwrap_or_else(|| Arc::new(NoOpHandler));
 
-        // Emit Started event
         progress.on_progress(&ProgressEvent::Started {
             repo_path: repo_path.display().to_string(),
         });
@@ -93,25 +87,20 @@ impl AnalysisPipeline {
             repo_path.display()
         );
 
-        // Create tool system
         let tool_system = ToolSystem::new(repo_path.clone())
             .context("Failed to create tool system")
             .map_err(PipelineError::ToolError)?;
 
-        // Build initial conversation
         let messages = self.build_initial_messages(bootstrap_context.as_ref(), &progress);
 
-        // Get tools from tool system
         let tools = tool_system.as_tool_definitions();
         debug!("Initialized {} tools for detection", tools.len());
 
-        // Run the iterative detection loop
         let start_time = Instant::now();
         let (result, total_iterations) = self
             .detection_loop(messages, tools, tool_system, &progress)
             .await?;
 
-        // Emit Completed event
         progress.on_progress(&ProgressEvent::Completed {
             total_iterations,
             total_time: start_time.elapsed(),
@@ -128,14 +117,12 @@ impl AnalysisPipeline {
         Ok(result)
     }
 
-    /// Build initial conversation messages
     fn build_initial_messages(
         &self,
         bootstrap_context: Option<&BootstrapContext>,
         progress: &Arc<dyn ProgressHandler>,
     ) -> Vec<ChatMessage> {
         let user_message = if let Some(context) = bootstrap_context {
-            // Emit bootstrap complete event
             progress.on_progress(&ProgressEvent::BootstrapComplete {
                 languages_detected: context.detections.len(),
                 scan_time: Duration::from_millis(0),
@@ -161,7 +148,6 @@ impl AnalysisPipeline {
         ]
     }
 
-    /// Run the iterative detection loop
     async fn detection_loop(
         &self,
         mut messages: Vec<ChatMessage>,
@@ -189,10 +175,8 @@ impl AnalysisPipeline {
 
             debug!("Iteration {}/{}", iteration, max_iterations);
 
-            // Emit LLM request started event
             progress.on_progress(&ProgressEvent::LlmRequestStarted { iteration });
 
-            // Create and execute LLM request
             let response = self
                 .execute_llm_request(&messages, &tools)
                 .await
@@ -200,7 +184,6 @@ impl AnalysisPipeline {
 
             let tool_calls = &response.tool_calls;
 
-            // Emit LLM response received event
             progress.on_progress(&ProgressEvent::LlmResponseReceived {
                 iteration,
                 tool_calls: tool_calls.len(),
@@ -209,7 +192,6 @@ impl AnalysisPipeline {
 
             debug!("LLM responded with {} tool calls", tool_calls.len());
 
-            // Add assistant message to conversation
             if tool_calls.is_empty() {
                 messages.push(ChatMessage::assistant(&response.content));
             } else {
@@ -227,7 +209,6 @@ impl AnalysisPipeline {
                 ));
             }
 
-            // Handle empty tool calls with retry logic
             if tool_calls.is_empty() {
                 consecutive_zero_tool_calls += 1;
 
@@ -250,10 +231,8 @@ impl AnalysisPipeline {
                 continue;
             }
 
-            // Reset counter on successful tool call
             consecutive_zero_tool_calls = 0;
 
-            // Process tool calls
             if let Some(result) = self
                 .process_tool_calls(
                     tool_calls,
@@ -271,7 +250,6 @@ impl AnalysisPipeline {
         }
     }
 
-    /// Execute an LLM request
     async fn execute_llm_request(
         &self,
         messages: &[ChatMessage],
@@ -294,7 +272,6 @@ impl AnalysisPipeline {
             .map_err(|e| anyhow::anyhow!(e))
     }
 
-    /// Process tool calls and return Some((UniversalBuild, iteration)) if detection is complete
     #[allow(clippy::too_many_arguments)]
     async fn process_tool_calls(
         &self,
@@ -319,7 +296,6 @@ impl AnalysisPipeline {
                 tool_call.name, tool_call.call_id
             );
 
-            // Handle submit_detection specially
             if tool_call.name == "submit_detection" {
                 if should_accept_submit_detection {
                     if !*has_read_file {
@@ -331,7 +307,6 @@ impl AnalysisPipeline {
                         .await?;
                     return Ok(Some((result, iteration)));
                 } else {
-                    // Defer submission
                     let warning = "Cannot submit yet. You called submit_detection along with other tools. Please call only submit_detection when ready.";
                     warn!("{}", warning);
 
@@ -340,12 +315,10 @@ impl AnalysisPipeline {
                 }
             }
 
-            // Track if read_file was called
             if tool_call.name == "read_file" {
                 *has_read_file = true;
             }
 
-            // Execute regular tool
             let start_time = Instant::now();
             progress.on_progress(&ProgressEvent::ToolExecutionStarted {
                 tool_name: tool_call.name.clone(),
@@ -370,7 +343,6 @@ impl AnalysisPipeline {
         Ok(None)
     }
 
-    /// Handle submit_detection tool call
     async fn handle_submit_detection(
         &self,
         arguments: &serde_json::Value,
@@ -378,12 +350,10 @@ impl AnalysisPipeline {
     ) -> Result<UniversalBuild, PipelineError> {
         progress.on_progress(&ProgressEvent::ValidationStarted);
 
-        // Parse UniversalBuild from arguments
         let universal_build: UniversalBuild = serde_json::from_value(arguments.clone())
             .context("Failed to parse UniversalBuild from submit_detection")
             .map_err(|e| PipelineError::InvalidResponse(e.to_string()))?;
 
-        // Validate
         self.context
             .validator
             .validate(&universal_build)
@@ -406,8 +376,5 @@ mod tests {
     async fn test_pipeline_creation() {
         let (context, _temp_dir) = PipelineContext::with_mocks();
         let _pipeline = AnalysisPipeline::new(context);
-
-        // Just verify it compiles and can be instantiated
-        assert!(true);
     }
 }

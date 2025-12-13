@@ -17,23 +17,17 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 
 #[tokio::main]
 async fn main() {
-    // Parse CLI arguments
     let args = CliArgs::parse();
-
-    // Initialize logging based on CLI flags
     init_logging_from_args(&args);
 
-    // Log startup
     debug!("aipack v{} starting", VERSION);
     debug!("Arguments: {:?}", args);
 
-    // Execute the appropriate command
     let exit_code = match &args.command {
         Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet, args.verbose).await,
         Commands::Health(health_args) => handle_health(health_args).await,
     };
 
-    // Exit with appropriate code
     process::exit(exit_code);
 }
 
@@ -49,15 +43,12 @@ fn init_logging_from_args(args: &CliArgs) {
         } else if args.quiet {
             Level::ERROR
         } else {
-            // Fall back to environment or default
             let level_str = env::var("AIPACK_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
             parse_level(&level_str)
         };
 
-        // Build the EnvFilter
         let mut filter = EnvFilter::from_default_env();
 
-        // If RUST_LOG is not set, apply sensible defaults
         if env::var("RUST_LOG").is_err() {
             filter = filter
                 .add_directive(format!("aipack={}", level).parse().unwrap())
@@ -66,7 +57,6 @@ fn init_logging_from_args(args: &CliArgs) {
                 .add_directive("reqwest=warn".parse().unwrap());
         }
 
-        // Initialize tracing subscriber
         tracing_subscriber::registry()
             .with(filter)
             .with(fmt::layer().with_target(true))
@@ -94,7 +84,6 @@ fn parse_level(level_str: &str) -> Level {
 async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     info!("Starting build system detection");
 
-    // Determine repository path (default to current directory)
     let repo_path = args
         .repository_path
         .clone()
@@ -102,7 +91,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
     debug!("Repository path: {}", repo_path.display());
 
-    // Validate repository path exists
     if !repo_path.exists() {
         error!("Repository path does not exist: {}", repo_path.display());
         eprintln!(
@@ -124,7 +112,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         return 1;
     }
 
-    // Canonicalize repository path to ensure consistent absolute path handling
     let repo_path = match repo_path.canonicalize() {
         Ok(path) => path,
         Err(e) => {
@@ -135,7 +122,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     };
     debug!("Canonicalized repository path: {}", repo_path.display());
 
-    // Load configuration with CLI overrides
     let default_config = AipackConfig::default();
     let config = AipackConfig {
         provider: args.backend.unwrap_or(default_config.provider),
@@ -154,7 +140,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         debug!("Caching disabled");
     }
 
-    // Validate configuration
     if let Err(e) = config.validate() {
         error!("Configuration error: {}", e);
         eprintln!("Configuration error: {}", e);
@@ -162,10 +147,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         return 1;
     }
 
-    // Helper function to wrap client with recording support (only in test mode)
     let wrap_with_recording =
         |client: Arc<dyn aipack::llm::LLMClient>| -> Arc<dyn aipack::llm::LLMClient> {
-            // Only enable recording if AIPACK_ENABLE_RECORDING env var is set (for tests)
             if std::env::var("AIPACK_ENABLE_RECORDING").is_ok() {
                 let recordings_dir = std::path::PathBuf::from("tests/recordings");
                 match RecordingLLMClient::new(client.clone(), RecordingMode::Auto, recordings_dir) {
@@ -184,10 +167,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
             client
         };
 
-    // Create detection service
     info!("Initializing detection service");
     let service = if args.backend.is_some() {
-        // Use explicitly specified backend
         debug!("Using explicitly specified backend: {:?}", config.provider);
 
         use aipack::llm::GenAIClient;
@@ -240,7 +221,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
             }
         };
 
-        // Create pipeline context
         use aipack::fs::RealFileSystem;
         use aipack::languages::LanguageRegistry;
         use aipack::pipeline::{PipelineConfig, PipelineContext};
@@ -256,7 +236,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
         DetectionService::new(client, context)
     } else {
-        // Default: automatic backend selection
         info!("Auto-selecting best available backend");
         let interactive = atty::is(atty::Stream::Stdout);
 
@@ -269,7 +248,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
                 let client = wrap_with_recording(selected.client);
 
-                // Create pipeline context
                 use aipack::fs::RealFileSystem;
                 use aipack::languages::LanguageRegistry;
                 use aipack::pipeline::{PipelineConfig, PipelineContext};
@@ -305,10 +283,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
             .unwrap_or_else(|| "default".to_string())
     );
 
-    // Perform detection
     info!("Analyzing repository: {}", repo_path.display());
 
-    // Create progress handler if verbose mode is enabled
     let progress: Option<Arc<dyn ProgressHandler>> = if verbose {
         Some(Arc::new(LoggingHandler))
     } else {
@@ -334,7 +310,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         result.metadata.confidence * 100.0
     );
 
-    // Format output
     let format: OutputFormat = args.format.into();
     let formatter = OutputFormatter::new(format);
 
@@ -347,7 +322,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         }
     };
 
-    // Write output to file or stdout
     if let Some(output_file) = &args.output {
         match std::fs::write(output_file, &output) {
             Ok(_) => {
@@ -370,15 +344,14 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         println!("{}", output);
     }
 
-    // Exit with warning code if confidence is low
     if result.metadata.confidence < 0.7 {
         warn!(
             "Detection confidence is low ({:.1}%)",
             result.metadata.confidence * 100.0
         );
-        2 // Exit code 2 for low confidence
+        2
     } else {
-        0 // Success
+        0
     }
 }
 
@@ -393,7 +366,6 @@ fn mask_api_key(value: &str) -> String {
 fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
     let mut env_vars = HashMap::new();
 
-    // Ollama
     let ollama_host = env::var("OLLAMA_HOST");
     env_vars.insert(
         "Ollama".to_string(),
@@ -410,7 +382,6 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
         }],
     );
 
-    // OpenAI
     let openai_key = env::var("OPENAI_API_KEY");
     let openai_base = env::var("OPENAI_API_BASE");
     env_vars.insert(
@@ -437,7 +408,6 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
         ],
     );
 
-    // Claude (Anthropic)
     let anthropic_key = env::var("ANTHROPIC_API_KEY");
     env_vars.insert(
         "Claude".to_string(),
@@ -450,7 +420,6 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
         }],
     );
 
-    // Gemini (Google)
     let google_key = env::var("GOOGLE_API_KEY");
     env_vars.insert(
         "Gemini".to_string(),
@@ -463,7 +432,6 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
         }],
     );
 
-    // Grok (xAI)
     let xai_key = env::var("XAI_API_KEY");
     env_vars.insert(
         "Grok".to_string(),
@@ -476,7 +444,6 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
         }],
     );
 
-    // Groq
     let groq_key = env::var("GROQ_API_KEY");
     env_vars.insert(
         "Groq".to_string(),
@@ -498,11 +465,9 @@ async fn handle_health(args: &HealthArgs) -> i32 {
     let config = AipackConfig::default();
     let mut health_results = HashMap::new();
 
-    // Determine which providers to check
     let providers_to_check: Vec<AdapterKind> = if let Some(provider) = args.backend {
         vec![provider]
     } else {
-        // Check all supported providers
         vec![
             AdapterKind::Ollama,
             AdapterKind::OpenAI,
@@ -519,7 +484,6 @@ async fn handle_health(args: &HealthArgs) -> i32 {
 
         let status = match provider {
             AdapterKind::Ollama => {
-                // Check Ollama availability by attempting to connect
                 let ollama_host = env::var("OLLAMA_HOST")
                     .unwrap_or_else(|_| "http://localhost:11434".to_string());
                 let url = format!("{}/api/tags", ollama_host);
@@ -541,92 +505,72 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                     }
                 }
             }
-            AdapterKind::OpenAI => {
-                // Check if OpenAI API key is configured
-                match env::var("OPENAI_API_KEY") {
-                    Ok(_) => {
-                        info!("OpenAI API key is configured");
-                        HealthStatus::available("API key is configured".to_string())
-                    }
-                    Err(_) => {
-                        warn!("OpenAI API key is not configured");
-                        HealthStatus::unavailable("API key not configured".to_string())
-                            .with_details("Set OPENAI_API_KEY environment variable".to_string())
-                    }
+            AdapterKind::OpenAI => match env::var("OPENAI_API_KEY") {
+                Ok(_) => {
+                    info!("OpenAI API key is configured");
+                    HealthStatus::available("API key is configured".to_string())
                 }
-            }
-            AdapterKind::Anthropic => {
-                // Check if Anthropic API key is configured
-                match env::var("ANTHROPIC_API_KEY") {
-                    Ok(_) => {
-                        info!("Anthropic API key is configured");
-                        HealthStatus::available("API key is configured".to_string())
-                    }
-                    Err(_) => {
-                        warn!("Anthropic API key is not configured");
-                        HealthStatus::unavailable("API key not configured".to_string())
-                            .with_details("Set ANTHROPIC_API_KEY environment variable".to_string())
-                    }
+                Err(_) => {
+                    warn!("OpenAI API key is not configured");
+                    HealthStatus::unavailable("API key not configured".to_string())
+                        .with_details("Set OPENAI_API_KEY environment variable".to_string())
                 }
-            }
-            AdapterKind::Gemini => {
-                // Check if Google API key is configured
-                match env::var("GOOGLE_API_KEY") {
-                    Ok(_) => {
-                        info!("Google API key is configured");
-                        HealthStatus::available("API key is configured".to_string())
-                    }
-                    Err(_) => {
-                        warn!("Google API key is not configured");
-                        HealthStatus::unavailable("API key not configured".to_string())
-                            .with_details("Set GOOGLE_API_KEY environment variable".to_string())
-                    }
+            },
+            AdapterKind::Anthropic => match env::var("ANTHROPIC_API_KEY") {
+                Ok(_) => {
+                    info!("Anthropic API key is configured");
+                    HealthStatus::available("API key is configured".to_string())
                 }
-            }
-            AdapterKind::Xai => {
-                // Check if xAI API key is configured
-                match env::var("XAI_API_KEY") {
-                    Ok(_) => {
-                        info!("xAI API key is configured");
-                        HealthStatus::available("API key is configured".to_string())
-                    }
-                    Err(_) => {
-                        warn!("xAI API key is not configured");
-                        HealthStatus::unavailable("API key not configured".to_string())
-                            .with_details("Set XAI_API_KEY environment variable".to_string())
-                    }
+                Err(_) => {
+                    warn!("Anthropic API key is not configured");
+                    HealthStatus::unavailable("API key not configured".to_string())
+                        .with_details("Set ANTHROPIC_API_KEY environment variable".to_string())
                 }
-            }
-            AdapterKind::Groq => {
-                // Check if Groq API key is configured
-                match env::var("GROQ_API_KEY") {
-                    Ok(_) => {
-                        info!("Groq API key is configured");
-                        HealthStatus::available("API key is configured".to_string())
-                    }
-                    Err(_) => {
-                        warn!("Groq API key is not configured");
-                        HealthStatus::unavailable("API key not configured".to_string())
-                            .with_details("Set GROQ_API_KEY environment variable".to_string())
-                    }
+            },
+            AdapterKind::Gemini => match env::var("GOOGLE_API_KEY") {
+                Ok(_) => {
+                    info!("Google API key is configured");
+                    HealthStatus::available("API key is configured".to_string())
                 }
-            }
-            _ => {
-                // Unsupported provider
-                HealthStatus::unavailable(format!(
-                    "Provider {:?} is not supported by aipack",
-                    provider
-                ))
-            }
+                Err(_) => {
+                    warn!("Google API key is not configured");
+                    HealthStatus::unavailable("API key not configured".to_string())
+                        .with_details("Set GOOGLE_API_KEY environment variable".to_string())
+                }
+            },
+            AdapterKind::Xai => match env::var("XAI_API_KEY") {
+                Ok(_) => {
+                    info!("xAI API key is configured");
+                    HealthStatus::available("API key is configured".to_string())
+                }
+                Err(_) => {
+                    warn!("xAI API key is not configured");
+                    HealthStatus::unavailable("API key not configured".to_string())
+                        .with_details("Set XAI_API_KEY environment variable".to_string())
+                }
+            },
+            AdapterKind::Groq => match env::var("GROQ_API_KEY") {
+                Ok(_) => {
+                    info!("Groq API key is configured");
+                    HealthStatus::available("API key is configured".to_string())
+                }
+                Err(_) => {
+                    warn!("Groq API key is not configured");
+                    HealthStatus::unavailable("API key not configured".to_string())
+                        .with_details("Set GROQ_API_KEY environment variable".to_string())
+                }
+            },
+            _ => HealthStatus::unavailable(format!(
+                "Provider {:?} is not supported by aipack",
+                provider
+            )),
         };
 
         health_results.insert(provider_name, status);
     }
 
-    // Collect environment variable information
     let env_vars = collect_env_var_info();
 
-    // Format and display results with environment variables
     let format: OutputFormat = args.format.into();
     let formatter = OutputFormatter::new(format);
 
@@ -641,7 +585,6 @@ async fn handle_health(args: &HealthArgs) -> i32 {
 
     println!("{}", output);
 
-    // Return error code if any backend is unavailable
     let all_available = health_results.values().all(|status| status.available);
     if all_available {
         0
