@@ -21,6 +21,15 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the aipack project.
 
+## Claude Rules
+
+The following rules are MANDATORY for CLAUDE:
+ - Keep comments to the minimum, only in cases when it's required. No examples.
+ - Don't keep code for backwards compatibility – remove it
+ - Never postpone a task if it was asked for, never cut corners
+ - Code simplicity is most important.
+ - Dead code is a smell. Remove it, unless you think it will be required later – then ask the user whether it should be kept.
+
 ## Development Policy
 
 **IMPORTANT PRINCIPLES:**
