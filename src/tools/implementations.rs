@@ -89,18 +89,15 @@ impl ToolHelpers {
         const IGNORED_FILES: &[&str] = &[".DS_Store"];
 
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            // Check against language registry's excluded dirs
             let excluded_dirs = self.language_registry.all_excluded_dirs();
             if excluded_dirs.contains(&name) {
                 return true;
             }
 
-            // Check ignored files
             if IGNORED_FILES.contains(&name) {
                 return true;
             }
 
-            // Check file extensions
             if name.ends_with(".tmp") || name.ends_with(".log") {
                 return true;
             }

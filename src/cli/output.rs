@@ -127,11 +127,9 @@ impl OutputFormatter {
     ) -> Result<String> {
         let mut output = self.format_health_human(health_results)?;
 
-        // Add environment variables section
         output.push_str("Environment Variables\n");
         output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
 
-        // Sort backends for consistent output
         let mut backends: Vec<_> = env_vars.keys().collect();
         backends.sort();
 
@@ -142,19 +140,16 @@ impl OutputFormatter {
                     let required_marker = if var.required { "*" } else { " " };
                     output.push_str(&format!("  {} {}\n", required_marker, var.name));
 
-                    // Show current value
                     if let Some(ref value) = var.value {
                         output.push_str(&format!("    Current: {}\n", value));
                     } else {
                         output.push_str("    Current: not set\n");
                     }
 
-                    // Show default if available
                     if let Some(ref default) = var.default {
                         output.push_str(&format!("    Default: {}\n", default));
                     }
 
-                    // Show description
                     output.push_str(&format!("    Info: {}\n", var.description));
                 }
                 output.push('\n');

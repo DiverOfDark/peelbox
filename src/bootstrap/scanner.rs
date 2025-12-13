@@ -143,12 +143,10 @@ impl BootstrapScanner {
             }
 
             if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                // Check for workspace configuration files
                 if self.is_workspace_config(filename) {
                     has_workspace_config = true;
                 }
 
-                // Check if this is a known manifest file
                 if self.registry.is_manifest(filename) {
                     if let Some(detection) = self.detect_language(path, filename)? {
                         debug!(
@@ -179,7 +177,6 @@ impl BootstrapScanner {
         ))
     }
 
-    /// Detects language for a manifest file
     fn detect_language(&self, path: &Path, filename: &str) -> Result<Option<LanguageDetection>> {
         let content = if self.config.read_content {
             std::fs::read_to_string(path).ok()
@@ -208,9 +205,7 @@ impl BootstrapScanner {
         }
     }
 
-    /// Checks if a path should be excluded from scanning
     fn is_excluded(&self, path: &Path) -> bool {
-        // Never exclude the root repo path itself
         if path == self.repo_path {
             return false;
         }
@@ -218,15 +213,12 @@ impl BootstrapScanner {
         let excluded_dirs = self.registry.all_excluded_dirs();
 
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            // Check registry-provided excluded dirs
             if excluded_dirs.contains(&name) {
                 return true;
             }
-            // Check .gitignore patterns
             if self.gitignore_dirs.iter().any(|d| d == name) {
                 return true;
             }
-            // Exclude hidden directories (but not files)
             if path.is_dir() && name.starts_with('.') && name.len() > 1 {
                 return true;
             }
@@ -235,7 +227,6 @@ impl BootstrapScanner {
         false
     }
 
-    /// Checks if a file is a workspace configuration
     fn is_workspace_config(&self, filename: &str) -> bool {
         self.registry.all_workspace_configs().contains(&filename)
     }

@@ -422,7 +422,6 @@ mod tests {
         let (context, _temp_dir) = PipelineContext::with_mocks();
         let service = DetectionService::new(client, Arc::new(context));
 
-        // Verify the language registry from context is used
         let registry = (*service.context.language_registry).clone();
         assert!(registry.get_language("rust").is_some());
     }

@@ -34,21 +34,18 @@ impl GenAIClient {
                 endpoint_url
             );
 
-            let provider_clone = provider;
-            let model_clone = model.clone();
-            let endpoint_clone = endpoint_url.clone();
-
+            let model_for_resolver = model.clone();
             let resolver = ServiceTargetResolver::from_resolver_fn(
                 move |_service_target: ServiceTarget| -> Result<ServiceTarget, genai::resolver::Error>
                 {
-                    let endpoint = Endpoint::from_owned(endpoint_clone.clone());
+                    let endpoint = Endpoint::from_owned(endpoint_url.clone());
 
-                    let auth = match provider_clone.default_key_env_name() {
+                    let auth = match provider.default_key_env_name() {
                         Some(api_key_var) => AuthData::from_env(api_key_var),
                         None => AuthData::from_single(""),
                     };
 
-                    let model_iden = ModelIden::new(provider_clone, &model_clone);
+                    let model_iden = ModelIden::new(provider, &model_for_resolver);
 
                     Ok(ServiceTarget {
                         endpoint,
