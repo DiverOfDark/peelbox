@@ -9,13 +9,13 @@
       gpu: "optional"
     },
     // Use 'mounts' to make the cargo cache persistent in a Docker Volume.
-	// "mounts": [
-	// 	{
-	// 		"source": "devcontainer-cargo-cache-${devcontainerId}",
-	// 		"target": "/usr/local/cargo",
-	// 		"type": "volume"
-	// 	}
-	// ]
+	"mounts": [
+		{
+			"source": "devcontainer-cargo-cache-${devcontainerId}",
+			"target": "/usr/local/cargo",
+			"type": "volume"
+		}
+	],
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
     "features": {
@@ -33,12 +33,13 @@
 	// "postCreateCommand": "rustc --version",
 
 	// Configure tool-specific properties.
-  "customizations" : {
-    "jetbrains" : {
-      "backend" : "RustRover"
-    }
-  }
+    "customizations" : {
+      "jetbrains" : {
+        "backend" : "RustRover"
+      }
+    },
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
+    "runArgs": ["--userns=keep-id:uid=1000,gid=1000"],
+    "updateRemoteUserUID": true
 }
