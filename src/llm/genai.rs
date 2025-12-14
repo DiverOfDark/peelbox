@@ -1,6 +1,6 @@
 use super::client::LLMClient;
+use super::error::BackendError;
 use super::types::{ChatMessage, LLMRequest, LLMResponse, MessageRole, ToolCall, ToolDefinition};
-use crate::ai::error::BackendError;
 use async_trait::async_trait;
 use genai::adapter::AdapterKind;
 use genai::chat::{

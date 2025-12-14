@@ -131,12 +131,10 @@ aipack/
 ├── src/
 │   ├── main.rs              # CLI entry point
 │   ├── lib.rs               # Library root
-│   ├── ai/                  # Legacy AI integration (deprecated)
-│   │   ├── mod.rs
-│   │   └── error.rs
 │   ├── llm/                 # LLM client abstraction
 │   │   ├── mod.rs           # Module definition
 │   │   ├── client.rs        # LLMClient trait
+│   │   ├── error.rs         # BackendError enum
 │   │   ├── types.rs         # LLM request/response types
 │   │   ├── genai.rs         # GenAI multi-provider client
 │   │   ├── mock.rs          # MockLLMClient for testing

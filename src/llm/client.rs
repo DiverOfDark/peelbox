@@ -1,5 +1,5 @@
+use super::error::BackendError;
 use super::types::{LLMRequest, LLMResponse};
-use crate::ai::error::BackendError;
 use async_trait::async_trait;
 
 #[async_trait]

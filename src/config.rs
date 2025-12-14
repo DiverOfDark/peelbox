@@ -1,4 +1,4 @@
-use crate::ai::error::BackendError;
+use crate::llm::BackendError;
 use genai::adapter::AdapterKind;
 use std::env;
 use std::fmt;

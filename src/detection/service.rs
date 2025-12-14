@@ -1,4 +1,4 @@
-use crate::ai::BackendError;
+use crate::llm::BackendError;
 use crate::llm::LLMClient;
 use crate::output::UniversalBuild;
 use crate::pipeline::PipelineContext;
@@ -252,7 +252,7 @@ impl DetectionService {
             .analyze(repo_path.clone(), bootstrap_context, progress)
             .await
             .map_err(|e| {
-                use crate::ai::error::BackendError;
+                use crate::llm::BackendError;
                 ServiceError::BackendError(BackendError::Other {
                     message: e.to_string(),
                 })

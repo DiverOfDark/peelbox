@@ -1,6 +1,6 @@
 use super::client::LLMClient;
+use super::error::BackendError;
 use super::types::{LLMRequest, LLMResponse, ToolCall};
-use crate::ai::error::BackendError;
 use async_trait::async_trait;
 use std::collections::VecDeque;
 use std::sync::Mutex;

@@ -1,4 +1,3 @@
-pub mod ai;
 pub mod bootstrap;
 pub mod cli;
 pub mod config;
@@ -12,7 +11,7 @@ pub mod progress;
 pub mod tools;
 pub mod validation;
 
-pub use ai::{AdapterKind, BackendError};
+pub use llm::{AdapterKind, BackendError};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};

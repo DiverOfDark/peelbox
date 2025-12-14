@@ -3,8 +3,8 @@
 use super::download::ModelDownloader;
 use super::hardware::{ComputeDevice, HardwareCapabilities, HardwareDetector};
 use super::models::{EmbeddedModel, ModelSelector};
-use crate::ai::error::BackendError;
 use crate::llm::client::LLMClient;
+use crate::llm::error::BackendError;
 use crate::llm::types::{LLMRequest, LLMResponse, MessageRole, ToolCall};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
