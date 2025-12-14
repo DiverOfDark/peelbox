@@ -128,7 +128,7 @@ impl LLMRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMResponse {
     pub content: String,
-    pub tool_calls: Vec<ToolCall>,
+    pub tool_call: Option<ToolCall>,
     #[serde(
         serialize_with = "serialize_duration",
         deserialize_with = "deserialize_duration"
@@ -155,25 +155,25 @@ impl LLMResponse {
     pub fn text(content: impl Into<String>, response_time: Duration) -> Self {
         Self {
             content: content.into(),
-            tool_calls: Vec::new(),
+            tool_call: None,
             response_time,
         }
     }
 
-    pub fn with_tool_calls(
+    pub fn with_tool_call(
         content: impl Into<String>,
-        tool_calls: Vec<ToolCall>,
+        tool_call: ToolCall,
         response_time: Duration,
     ) -> Self {
         Self {
             content: content.into(),
-            tool_calls,
+            tool_call: Some(tool_call),
             response_time,
         }
     }
 
-    pub fn has_tool_calls(&self) -> bool {
-        !self.tool_calls.is_empty()
+    pub fn has_tool_call(&self) -> bool {
+        self.tool_call.is_some()
     }
 }
 
@@ -229,17 +229,17 @@ mod tests {
     #[test]
     fn test_llm_response() {
         let response = LLMResponse::text("Hello!", Duration::from_millis(100));
-        assert!(!response.has_tool_calls());
+        assert!(!response.has_tool_call());
 
-        let with_tools = LLMResponse::with_tool_calls(
+        let with_tool = LLMResponse::with_tool_call(
             "Calling tool",
-            vec![ToolCall {
+            ToolCall {
                 call_id: "1".to_string(),
                 name: "test".to_string(),
                 arguments: serde_json::json!({}),
-            }],
+            },
             Duration::from_millis(50),
         );
-        assert!(with_tools.has_tool_calls());
+        assert!(with_tool.has_tool_call());
     }
 }

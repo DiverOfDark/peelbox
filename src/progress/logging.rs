@@ -28,12 +28,12 @@ impl ProgressHandler for LoggingHandler {
             }
             ProgressEvent::LlmResponseReceived {
                 iteration,
-                tool_calls,
+                has_tool_call,
                 response_time,
             } => {
                 debug!(
                     iteration,
-                    tool_calls,
+                    has_tool_call,
                     response_time_ms = response_time.as_millis(),
                     "Received LLM response"
                 );
@@ -125,7 +125,7 @@ mod tests {
             ProgressEvent::LlmRequestStarted { iteration: 1 },
             ProgressEvent::LlmResponseReceived {
                 iteration: 1,
-                tool_calls: 2,
+                has_tool_call: true,
                 response_time: Duration::from_millis(100),
             },
             ProgressEvent::ToolExecutionStarted {

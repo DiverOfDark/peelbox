@@ -336,66 +336,23 @@ impl EmbeddedClient {
     }
 
     /// Parse tool calls from generated output
-    fn parse_tool_calls(&self, output: &str) -> Vec<ToolCall> {
-        let mut tool_calls = Vec::new();
-        let mut call_id = 0;
-
-        // Try to parse the entire output as a single JSON tool call
+    fn parse_tool_call(&self, output: &str) -> Option<ToolCall> {
         let trimmed = output.trim();
+
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(trimmed) {
-            // Single tool call object
             if let (Some(name), Some(args)) = (
                 parsed.get("name").and_then(|n| n.as_str()),
                 parsed.get("arguments"),
             ) {
-                tool_calls.push(ToolCall {
-                    call_id: format!("embedded_{}", call_id),
+                return Some(ToolCall {
+                    call_id: "embedded_0".to_string(),
                     name: name.to_string(),
                     arguments: args.clone(),
                 });
-                return tool_calls;
-            }
-
-            // Array of tool calls
-            if let Some(array) = parsed.as_array() {
-                for item in array {
-                    if let (Some(name), Some(args)) = (
-                        item.get("name").and_then(|n| n.as_str()),
-                        item.get("arguments"),
-                    ) {
-                        tool_calls.push(ToolCall {
-                            call_id: format!("embedded_{}", call_id),
-                            name: name.to_string(),
-                            arguments: args.clone(),
-                        });
-                        call_id += 1;
-                    }
-                }
-                return tool_calls;
             }
         }
 
-        // Fallback: try line-by-line parsing for single-line JSON
-        for line in output.lines() {
-            let trimmed = line.trim();
-            if trimmed.starts_with('{') && trimmed.contains("\"name\"") {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                    if let (Some(name), Some(args)) = (
-                        parsed.get("name").and_then(|n| n.as_str()),
-                        parsed.get("arguments"),
-                    ) {
-                        tool_calls.push(ToolCall {
-                            call_id: format!("embedded_{}", call_id),
-                            name: name.to_string(),
-                            arguments: args.clone(),
-                        });
-                        call_id += 1;
-                    }
-                }
-            }
-        }
-
-        tool_calls
+        None
     }
 }
 
@@ -428,12 +385,10 @@ impl LLMClient for EmbeddedClient {
         debug!("Response length: {} chars", output.len());
         debug!("Full response:\n{}", output);
 
-        // Parse tool calls if any
-        let tool_calls = self.parse_tool_calls(&output);
-        debug!("Parsed {} tool calls", tool_calls.len());
+        let tool_call = self.parse_tool_call(&output);
+        debug!("Parsed tool call: {}", if tool_call.is_some() { "yes" } else { "no" });
 
-        // Clean content (remove tool call JSON if present)
-        let content = if tool_calls.is_empty() {
+        let content = if tool_call.is_none() {
             output
         } else {
             output
@@ -443,11 +398,15 @@ impl LLMClient for EmbeddedClient {
                 .join("\n")
         };
 
-        Ok(LLMResponse::with_tool_calls(
-            content,
-            tool_calls,
-            start.elapsed(),
-        ))
+        if let Some(tc) = tool_call {
+            Ok(LLMResponse::with_tool_call(
+                content,
+                tc,
+                start.elapsed(),
+            ))
+        } else {
+            Ok(LLMResponse::text(content, start.elapsed()))
+        }
     }
 
     fn name(&self) -> &str {

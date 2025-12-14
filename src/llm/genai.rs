@@ -166,21 +166,26 @@ impl LLMClient for GenAIClient {
 
         let content = response.first_text().unwrap_or_default().to_string();
 
-        let tool_calls: Vec<ToolCall> = response
+        // Take first tool call only
+        let tool_call = response
             .tool_calls()
             .into_iter()
+            .next()
             .map(|tc| ToolCall {
                 call_id: tc.call_id.clone(),
                 name: tc.fn_name.clone(),
                 arguments: tc.fn_arguments.clone(),
-            })
-            .collect();
+            });
 
-        Ok(LLMResponse::with_tool_calls(
-            content,
-            tool_calls,
-            start.elapsed(),
-        ))
+        if let Some(tc) = tool_call {
+            Ok(LLMResponse::with_tool_call(
+                content,
+                tc,
+                start.elapsed(),
+            ))
+        } else {
+            Ok(LLMResponse::text(content, start.elapsed()))
+        }
     }
 
     fn name(&self) -> &str {

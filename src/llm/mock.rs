@@ -140,11 +140,18 @@ impl LLMClient for MockLLMClient {
             return Err(error);
         }
 
-        Ok(LLMResponse::with_tool_calls(
-            response.content,
-            response.tool_calls,
-            Duration::from_millis(10),
-        ))
+        // Take first tool call only
+        let tool_call = response.tool_calls.into_iter().next();
+
+        if let Some(tc) = tool_call {
+            Ok(LLMResponse::with_tool_call(
+                response.content,
+                tc,
+                Duration::from_millis(10),
+            ))
+        } else {
+            Ok(LLMResponse::text(response.content, Duration::from_millis(10)))
+        }
     }
 
     fn name(&self) -> &str {
@@ -177,7 +184,7 @@ mod tests {
         let response = client.chat(LLMRequest::new(vec![])).await.unwrap();
 
         assert_eq!(response.content, "Hello!");
-        assert!(response.tool_calls.is_empty());
+        assert!(response.tool_call.is_none());
     }
 
     #[tokio::test]
@@ -187,13 +194,13 @@ mod tests {
         let tool_call = MockLLMClient::read_file_call("call_1", "Cargo.toml");
         client.add_response(MockResponse::with_tool_calls(
             "Let me read that file",
-            vec![tool_call],
+            vec![tool_call.clone()],
         ));
 
         let response = client.chat(LLMRequest::new(vec![])).await.unwrap();
 
-        assert_eq!(response.tool_calls.len(), 1);
-        assert_eq!(response.tool_calls[0].name, "read_file");
+        assert!(response.tool_call.is_some());
+        assert_eq!(response.tool_call.unwrap().name, "read_file");
     }
 
     #[tokio::test]

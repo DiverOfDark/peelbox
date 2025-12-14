@@ -213,20 +213,19 @@ async fn test_embedded_llm_tool_calling() {
     match result {
         Ok(response) => {
             println!("Response: {}", response.content);
-            println!("Tool calls: {:?}", response.tool_calls);
+            println!("Tool call: {:?}", response.tool_call);
             println!("Response time: {:?}", response.response_time);
 
             // Verify tool call structure
-            if !response.tool_calls.is_empty() {
-                println!("✅ Model generated {} tool call(s)", response.tool_calls.len());
+            if let Some(ref tool_call) = response.tool_call {
+                println!("✅ Model generated a tool call");
 
-                // Verify first tool call has expected structure
-                let first_call = &response.tool_calls[0];
-                assert_eq!(first_call.name, "calculate", "Tool name should be 'calculate'");
+                // Verify tool call has expected structure
+                assert_eq!(tool_call.name, "calculate", "Tool name should be 'calculate'");
 
                 // Verify arguments exist and have expected fields
-                assert!(first_call.arguments.is_object(), "Arguments should be a JSON object");
-                let args = first_call.arguments.as_object().unwrap();
+                assert!(tool_call.arguments.is_object(), "Arguments should be a JSON object");
+                let args = tool_call.arguments.as_object().unwrap();
 
                 assert!(args.contains_key("operation"), "Arguments should contain 'operation'");
                 assert!(args.contains_key("a"), "Arguments should contain 'a'");
@@ -463,55 +462,52 @@ async fn test_embedded_llm_tool_call_chain() {
             .expect("LLM request should succeed");
 
         println!("Response: {}", response.content);
-        println!("Tool calls: {} call(s)", response.tool_calls.len());
 
-        if response.tool_calls.is_empty() {
-            println!("No tool calls in iteration {}", iteration);
-            messages.push(ChatMessage::assistant(&response.content));
-            break;
-        }
+        let tool_call = match &response.tool_call {
+            Some(tc) => tc,
+            None => {
+                println!("No tool call in iteration {}", iteration);
+                messages.push(ChatMessage::assistant(&response.content));
+                break;
+            }
+        };
 
-        // Record tool calls
-        for tool_call in &response.tool_calls {
-            println!("  - {} (args: {})", tool_call.name, tool_call.arguments);
-            tool_calls_history.push(tool_call.name.clone());
-        }
+        println!("Tool call: {} (args: {})", tool_call.name, tool_call.arguments);
+        tool_calls_history.push(tool_call.name.clone());
 
-        // Add assistant message with tool calls
+        // Add assistant message with tool call
         messages.push(ChatMessage::assistant_with_tools(
             &response.content,
-            response.tool_calls.clone(),
+            vec![tool_call.clone()],
         ));
 
-        // Simulate tool responses
-        for tool_call in &response.tool_calls {
-            let tool_result = match tool_call.name.as_str() {
-                "list_files" => json!({
-                    "files": ["Cargo.toml", "README.md", "src/main.rs"],
-                    "count": 3
-                }),
-                "read_file" => json!({
-                    "path": tool_call.arguments.get("path").and_then(|p| p.as_str()).unwrap_or("unknown"),
-                    "content": "# Example File\nThis is test content.",
-                    "lines_shown": 2,
-                    "total_lines": 2,
-                    "truncated": false
-                }),
-                "submit_result" => {
-                    println!("✅ submit_result called - chain complete!");
-                    json!({
-                        "success": true,
-                        "summary": tool_call.arguments.get("summary").and_then(|s| s.as_str()).unwrap_or("No summary")
-                    })
-                },
-                _ => json!({"error": format!("Unknown tool: {}", tool_call.name)}),
-            };
+        // Simulate tool response
+        let tool_result = match tool_call.name.as_str() {
+            "list_files" => json!({
+                "files": ["Cargo.toml", "README.md", "src/main.rs"],
+                "count": 3
+            }),
+            "read_file" => json!({
+                "path": tool_call.arguments.get("path").and_then(|p| p.as_str()).unwrap_or("unknown"),
+                "content": "# Example File\nThis is test content.",
+                "lines_shown": 2,
+                "total_lines": 2,
+                "truncated": false
+            }),
+            "submit_result" => {
+                println!("✅ submit_result called - chain complete!");
+                json!({
+                    "success": true,
+                    "summary": tool_call.arguments.get("summary").and_then(|s| s.as_str()).unwrap_or("No summary")
+                })
+            },
+            _ => json!({"error": format!("Unknown tool: {}", tool_call.name)}),
+        };
 
-            messages.push(ChatMessage::tool_response(&tool_call.call_id, tool_result));
-        }
+        messages.push(ChatMessage::tool_response(&tool_call.call_id, tool_result));
 
         // Check if we reached submit_result
-        if response.tool_calls.iter().any(|tc| tc.name == "submit_result") {
+        if tool_call.name == "submit_result" {
             println!("✅ Tool call chain completed successfully!");
             break;
         }

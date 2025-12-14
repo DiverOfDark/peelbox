@@ -14,7 +14,7 @@ pub enum ProgressEvent {
     },
     LlmResponseReceived {
         iteration: usize,
-        tool_calls: usize,
+        has_tool_call: bool,
         response_time: Duration,
     },
     ToolExecutionStarted {

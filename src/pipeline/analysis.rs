@@ -25,13 +25,12 @@ You have access to tools to explore the repository:
 - submit_detection: Submit your final UniversalBuild result
 
 CRITICAL RULES:
-1. You MUST respond with ONLY valid JSON tool calls - no explanatory text, no markdown, no commentary
-2. Every response must be a JSON object or array of JSON objects representing tool calls
+1. You MUST call EXACTLY ONE tool per response - never multiple tools
+2. You MUST respond with ONLY valid JSON - no explanatory text, no markdown, no commentary
 3. Valid tool call format: {"name": "tool_name", "arguments": {"param": "value"}}
-4. For multiple tool calls: [{"name": "tool1", "arguments": {...}}, {"name": "tool2", "arguments": {...}}]
-5. Do NOT add any text before or after the JSON
-6. Do NOT wrap JSON in markdown code blocks
-7. Do NOT explain your reasoning - only output JSON tool calls
+4. Do NOT add any text before or after the JSON
+5. Do NOT wrap JSON in markdown code blocks
+6. Do NOT explain your reasoning - only output JSON tool calls
 
 Analysis workflow:
 1. Start by exploring the repository structure
@@ -45,7 +44,7 @@ Example valid response:
 
 Example INVALID responses:
 - "Let me explore the repository first" (text only - FORBIDDEN)
-- "I'll call list_files to check the structure" (text - FORBIDDEN)
+- [{"name": "list_files", ...}, {"name": "read_file", ...}] (multiple tools - FORBIDDEN)
 - ```json\n{"name": "list_files", ...}\n``` (markdown - FORBIDDEN)
 "#;
 
@@ -191,36 +190,26 @@ impl AnalysisPipeline {
                 .await
                 .map_err(|e| PipelineError::LlmError(e.to_string()))?;
 
-            let tool_calls = &response.tool_calls;
+            let has_tool_call = response.tool_call.is_some();
 
             progress.on_progress(&ProgressEvent::LlmResponseReceived {
                 iteration,
-                tool_calls: tool_calls.len(),
+                has_tool_call,
                 response_time: response.response_time,
             });
 
-            debug!("LLM responded with {} tool calls", tool_calls.len());
+            debug!("LLM responded with {} tool call", if has_tool_call { "a" } else { "no" });
 
-            if tool_calls.is_empty() {
-                messages.push(ChatMessage::assistant(&response.content));
-            } else {
-                // Always add assistant message with tool calls
-                // The tool calls JSON will be included when formatting the prompt
-                let llm_tool_calls: Vec<crate::llm::ToolCall> = tool_calls
-                    .iter()
-                    .map(|tc| crate::llm::ToolCall {
-                        call_id: tc.call_id.clone(),
-                        name: tc.name.clone(),
-                        arguments: tc.arguments.clone(),
-                    })
-                    .collect();
+            if let Some(ref tool_call) = response.tool_call {
                 messages.push(ChatMessage::assistant_with_tools(
                     &response.content,
-                    llm_tool_calls,
+                    vec![tool_call.clone()],
                 ));
+            } else {
+                messages.push(ChatMessage::assistant(&response.content));
             }
 
-            if tool_calls.is_empty() {
+            if !has_tool_call {
                 consecutive_zero_tool_calls += 1;
 
                 if consecutive_zero_tool_calls >= MAX_CONSECUTIVE_ZERO_TOOL_CALLS {
@@ -244,19 +233,20 @@ impl AnalysisPipeline {
 
             consecutive_zero_tool_calls = 0;
 
-            if let Some(result) = self
-                .process_tool_calls(
-                    tool_calls,
-                    &tool_system,
-                    &mut messages,
-                    &mut has_read_file,
-                    iteration,
-                    max_iterations,
-                    progress,
-                )
-                .await?
-            {
-                return Ok(result);
+            if let Some(tool_call) = &response.tool_call {
+                if let Some(result) = self
+                    .process_tool_call(
+                        tool_call,
+                        &tool_system,
+                        &mut messages,
+                        &mut has_read_file,
+                        iteration,
+                        progress,
+                    )
+                    .await?
+                {
+                    return Ok(result);
+                }
             }
         }
     }
@@ -283,47 +273,29 @@ impl AnalysisPipeline {
             .map_err(|e| anyhow::anyhow!(e))
     }
 
-    #[allow(clippy::too_many_arguments)]
-    async fn process_tool_calls(
+    async fn process_tool_call(
         &self,
-        tool_calls: &[crate::llm::ToolCall],
+        tool_call: &crate::llm::ToolCall,
         tool_system: &ToolSystem,
         messages: &mut Vec<ChatMessage>,
         has_read_file: &mut bool,
         iteration: usize,
-        max_iterations: usize,
         progress: &Arc<dyn ProgressHandler>,
     ) -> Result<Option<(UniversalBuild, usize)>, PipelineError> {
-        let has_submit_detection = tool_calls.iter().any(|tc| tc.name == "submit_detection");
-        let is_last_iteration = iteration >= max_iterations - 1;
-        let is_only_tool_call = tool_calls.len() == 1;
-
-        let should_accept_submit_detection =
-            has_submit_detection && (is_only_tool_call || is_last_iteration);
-
-        for tool_call in tool_calls {
             debug!(
                 "Executing tool: {} with call_id: {}",
                 tool_call.name, tool_call.call_id
             );
 
             if tool_call.name == "submit_detection" {
-                if should_accept_submit_detection {
-                    if !*has_read_file {
-                        warn!("LLM submitting detection without reading any files");
-                    }
-
-                    let result = self
-                        .handle_submit_detection(&tool_call.arguments, progress)
-                        .await?;
-                    return Ok(Some((result, iteration)));
-                } else {
-                    let warning = "Cannot submit yet. You called submit_detection along with other tools. Please call only submit_detection when ready.";
-                    warn!("{}", warning);
-
-                    messages.push(ChatMessage::tool_response(&tool_call.call_id, serde_json::json!({"warning": warning})));
-                    continue;
+                if !*has_read_file {
+                    warn!("LLM submitting detection without reading any files");
                 }
+
+                let result = self
+                    .handle_submit_detection(&tool_call.arguments, progress)
+                    .await?;
+                return Ok(Some((result, iteration)));
             }
 
             if tool_call.name == "read_file" {
@@ -363,7 +335,6 @@ impl AnalysisPipeline {
             };
 
             messages.push(ChatMessage::tool_response(&tool_call.call_id, result));
-        }
 
         Ok(None)
     }
