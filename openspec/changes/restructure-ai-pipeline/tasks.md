@@ -323,8 +323,8 @@ Update detection to return `Vec<UniversalBuild>` for multi-project repositories.
 
 Update documentation to reflect new architecture.
 
-- [ ] 19.1 Update CLAUDE.md with new module structure
-- [ ] 19.2 Document test fixture creation process
-- [ ] 19.3 Document recording system usage
+- [x] 19.1 Update CLAUDE.md with new module structure
+- [x] 19.2 Document test fixture creation process
+- [x] 19.3 Document recording system usage
 
 **Deliverable:** Documentation matches implementation.

@@ -43,7 +43,7 @@ The following rules are MANDATORY for CLAUDE:
 **aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM function calling with iterative tool execution to analyze repositories on-demand, avoiding context window limitations.
 
 **Architecture**: Tool-based detection using LLM function calling
-- LLM explores repositories iteratively using 6 specialized tools
+- LLM explores repositories iteratively using 7 specialized tools
 - Avoids passing full repository context upfront
 - Scales to large repositories without exceeding context windows
 - LLM requests only the files it needs for accurate detection
@@ -131,37 +131,98 @@ aipack/
 ├── src/
 │   ├── main.rs              # CLI entry point
 │   ├── lib.rs               # Library root
-│   ├── ai/                  # LLM integrations
-│   │   ├── mod.rs           # Module definition
-│   │   ├── backend.rs       # Unified LLMBackend trait
-│   │   └── genai_backend.rs # GenAI multi-provider client
-│   ├── detection/           # Build command detection
+│   ├── ai/                  # Legacy AI integration (deprecated)
 │   │   ├── mod.rs
-│   │   ├── analyzer.rs      # Repository analyzer (legacy)
-│   │   ├── prompt.rs        # System prompts
-│   │   ├── response.rs      # Response parsing
-│   │   ├── service.rs       # Detection orchestration
-│   │   ├── types.rs         # Data structures
-│   │   └── tools/           # Tool execution framework
-│   │       ├── definitions.rs  # Tool name constants
-│   │       ├── executor.rs  # Tool implementation (6 tools)
-│   │       └── registry.rs  # JSON schemas for tools
+│   │   └── error.rs
+│   ├── llm/                 # LLM client abstraction
+│   │   ├── mod.rs           # Module definition
+│   │   ├── client.rs        # LLMClient trait
+│   │   ├── types.rs         # LLM request/response types
+│   │   ├── genai.rs         # GenAI multi-provider client
+│   │   ├── mock.rs          # MockLLMClient for testing
+│   │   ├── recording.rs     # Request/response recording system
+│   │   ├── selector.rs      # LLM client selection logic
+│   │   ├── test_context.rs # Test utilities
+│   │   └── embedded/        # Embedded local inference
+│   │       ├── mod.rs
+│   │       ├── client.rs    # EmbeddedClient implementation
+│   │       ├── download.rs  # Model downloader
+│   │       ├── hardware.rs  # Hardware detection (RAM, CUDA, Metal)
+│   │       └── models.rs    # Model selection by available RAM
+│   ├── languages/           # Language registry
+│   │   ├── mod.rs
+│   │   ├── registry.rs      # LanguageRegistry
+│   │   ├── rust.rs          # Rust language definition
+│   │   ├── javascript.rs    # JavaScript/TypeScript
+│   │   ├── python.rs        # Python
+│   │   ├── java.rs          # Java
+│   │   ├── go.rs            # Go
+│   │   ├── dotnet.rs        # .NET/C#
+│   │   ├── ruby.rs          # Ruby
+│   │   ├── php.rs           # PHP
+│   │   ├── cpp.rs           # C++
+│   │   └── elixir.rs        # Elixir
+│   ├── fs/                  # FileSystem abstraction
+│   │   ├── mod.rs
+│   │   ├── trait.rs         # FileSystem trait
+│   │   ├── real.rs          # RealFileSystem implementation
+│   │   └── mock.rs          # MockFileSystem for testing
+│   ├── bootstrap/           # Pre-scan bootstrap
+│   │   ├── mod.rs
+│   │   ├── scanner.rs       # BootstrapScanner
+│   │   └── context.rs       # BootstrapContext, RepoSummary
+│   ├── progress/            # Progress reporting
+│   │   ├── mod.rs
+│   │   ├── handler.rs       # ProgressHandler trait
+│   │   └── logging.rs       # LoggingHandler implementation
+│   ├── validation/          # Validation system
+│   │   ├── mod.rs
+│   │   ├── validator.rs     # Validator
+│   │   └── rules.rs         # ValidationRule trait + implementations
+│   ├── tools/               # Tool system
+│   │   ├── mod.rs
+│   │   ├── trait_def.rs     # Tool trait
+│   │   ├── implementations.rs # Tool implementations (list_files, read_file, etc.)
+│   │   ├── registry.rs      # ToolRegistry
+│   │   ├── cache.rs         # ToolCache
+│   │   └── system.rs        # ToolSystem facade
+│   ├── pipeline/            # Analysis pipeline
+│   │   ├── mod.rs
+│   │   ├── config.rs        # PipelineConfig
+│   │   ├── context.rs       # PipelineContext (owns dependencies)
+│   │   └── analysis.rs      # AnalysisPipeline orchestrator
+│   ├── detection/           # Detection service
+│   │   ├── mod.rs
+│   │   ├── service.rs       # DetectionService (public API)
+│   │   ├── types.rs         # UniversalBuild and related types
+│   │   └── analyzer.rs      # Legacy analyzer
+│   ├── output/              # Output formatting
+│   │   ├── mod.rs
+│   │   ├── schema.rs        # JSON schema output
+│   │   └── dockerfile.rs    # Dockerfile generation
 │   ├── cli/                 # Command-line interface
 │   │   ├── mod.rs
 │   │   ├── commands.rs      # CLI command definitions
 │   │   └── output.rs        # Output formatting
-│   ├── config.rs            # Configuration management
-│   └── util/                # Utilities
-│       ├── mod.rs
-│       ├── fs.rs            # File system utilities
-│       ├── cache.rs         # Result caching
-│       └── logging.rs       # Structured logging
+│   └── config.rs            # Configuration management
 ├── tests/                   # Integration tests
-│   ├── end_to_end_test.rs  # Full workflow tests
-│   ├── ollama_integration.rs # Ollama backend tests
-│   └── ...                  # Other integration tests
+│   ├── e2e.rs               # End-to-end tests with fixtures
+│   ├── cli_integration.rs   # CLI integration tests
+│   ├── mock_detection_test.rs # Mock-based detection tests
+│   ├── embedded_llm_test.rs # Embedded LLM integration tests
+│   ├── bootstrap_integration_test.rs # Bootstrap scanner tests
+│   ├── error_handling_test.rs # Error handling scenarios
+│   ├── backend_health_test.rs # Backend health checks
+│   ├── analyzer_integration.rs # Legacy analyzer tests
+│   ├── fixtures/            # Test fixture repositories
+│   │   ├── single-language/ # Rust, Node.js, Python, Java, Go, .NET
+│   │   ├── monorepo/        # npm-workspaces, cargo-workspace, etc.
+│   │   ├── edge-cases/      # empty-repo, no-manifest, nested-projects
+│   │   ├── expected/        # Expected JSON outputs
+│   │   └── README.md        # Fixture documentation
+│   └── recordings/          # LLM request/response recordings
 ├── examples/                # Usage examples
-│   └── genai_detection.rs  # Multi-provider example
+│   └── genai_detection.rs   # Multi-provider example
 ├── Cargo.toml               # Project manifest
 ├── Cargo.lock               # Dependency lock
 ├── PRD.md                   # Product requirements
@@ -190,6 +251,7 @@ aipack uses LLM function calling to analyze repositories iteratively instead of 
 | `search_files` | Search for files by name pattern | Find all `*.gradle` files |
 | `get_file_tree` | Get tree view of directory structure | Understand repository layout |
 | `grep_content` | Search file contents with regex | Find `"scripts"` in package.json files |
+| `get_best_practices` | Get language-specific build template | Retrieve best practices for cargo/Rust |
 | `submit_detection` | Submit final UniversalBuild result | Return complete build specification |
 
 ### Benefits
@@ -199,26 +261,30 @@ aipack uses LLM function calling to analyze repositories iteratively instead of 
 - **Accuracy**: Can explore deeply when needed
 - **Flexibility**: Adapts to any project structure
 
-## Using the GenAI Backend
+## Using the Detection Service
 
-The GenAI backend provides a unified interface to multiple LLM providers through the `genai` crate.
+The `DetectionService` is the main entry point for build system detection, orchestrating the entire analysis pipeline.
 
 ### Quick Start
 
 ```rust
-use aipack::ai::backend::LLMBackend;
-use aipack::ai::genai_backend::{GenAIBackend, Provider};
+use aipack::detection::DetectionService;
+use aipack::llm::selector::select_llm_client;
 use std::path::PathBuf;
 
-// Create an Ollama client (default local endpoint)
-let client = GenAIBackend::new(
-    Provider::Ollama,
-    "qwen2.5-coder:7b".to_string(),
-).await?;
+// Select LLM client (auto-detects based on environment)
+let llm_client = select_llm_client().await?;
 
-// Detect build system (LLM will use tools to explore)
-let result = client.detect(PathBuf::from("/path/to/repo")).await?;
-println!("Build system: {}", result.build_system);
+// Create detection service
+let service = DetectionService::new(llm_client)?;
+
+// Detect build system (returns Vec<UniversalBuild>)
+let results = service.detect(PathBuf::from("/path/to/repo")).await?;
+
+for build in results {
+    println!("Project: {}", build.metadata.project_name);
+    println!("Build system: {}", build.metadata.build_system);
+}
 ```
 
 ### Supported Providers
@@ -232,69 +298,66 @@ println!("Build system: {}", result.build_system);
 | **Grok** | `grok-1` | `XAI_API_KEY` (required) | xAI |
 | **Groq** | `mixtral-8x7b-32768` | `GROQ_API_KEY` (required) | Groq |
 
+### Provider Selection
+
+The `select_llm_client()` function automatically selects the best available LLM client based on environment:
+
+1. **Environment variables** - If `AIPACK_PROVIDER` is set, use that provider
+2. **Ollama** - Try connecting to Ollama (localhost:11434)
+3. **Embedded** - Fall back to embedded local inference (zero-config)
+
+```rust
+use aipack::llm::selector::select_llm_client;
+
+// Auto-select based on environment
+let client = select_llm_client().await?;
+```
+
 ### Examples
 
-#### Ollama (Local)
+#### Using with DetectionService
 ```rust
-// Uses default localhost:11434, or set OLLAMA_HOST environment variable
-let backend = GenAIBackend::new(
-    Provider::Ollama,
-    "qwen2.5-coder:7b".to_string(),
-).await?;
+use aipack::detection::DetectionService;
+use aipack::llm::selector::select_llm_client;
+use std::path::PathBuf;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Auto-select LLM client
+    let client = select_llm_client().await?;
+
+    // Create service
+    let service = DetectionService::new(client)?;
+
+    // Detect
+    let results = service.detect(PathBuf::from("./my-repo")).await?;
+
+    for build in results {
+        println!("{}", serde_json::to_string_pretty(&build)?);
+    }
+
+    Ok(())
+}
 ```
 
-#### Claude
-```rust
-// Requires ANTHROPIC_API_KEY in environment
-let backend = GenAIBackend::new(
-    Provider::Claude,
-    "claude-sonnet-4-5-20250929".to_string(),
-).await?;
-```
-
-#### OpenAI
-```rust
-// Requires OPENAI_API_KEY in environment
-let backend = GenAIBackend::new(
-    Provider::OpenAI,
-    "gpt-4".to_string(),
-).await?;
-```
-
-#### Custom Configuration
-```rust
-use std::time::Duration;
-
-// For custom Ollama endpoint, set OLLAMA_HOST environment variable:
-// std::env::set_var("OLLAMA_HOST", "http://192.168.1.100:11434");
-
-let backend = GenAIBackend::with_config(
-    Provider::Ollama,
-    "qwen2.5-coder:14b".to_string(),
-    Some(Duration::from_secs(120)),  // Custom timeout
-    Some(1024),  // Max tokens
-).await?;
-```
-
-### Running Examples
+#### Running with Different Providers
 
 ```bash
-# Ollama
-cargo run --example genai_detection
+# Auto-select (tries Ollama, falls back to embedded)
+cargo run -- detect /path/to/repo
 
-# With custom model
-OLLAMA_MODEL=qwen2.5-coder:14b cargo run --example genai_detection
+# Force specific provider
+AIPACK_PROVIDER=ollama cargo run -- detect /path/to/repo
+AIPACK_PROVIDER=claude ANTHROPIC_API_KEY=sk-... cargo run -- detect /path/to/repo
+AIPACK_PROVIDER=openai OPENAI_API_KEY=sk-... cargo run -- detect /path/to/repo
 
-# Claude
-PROVIDER=claude ANTHROPIC_API_KEY=sk-... cargo run --example genai_detection
-
-# OpenAI
-PROVIDER=openai OPENAI_API_KEY=sk-... cargo run --example genai_detection
+# Embedded (zero-config local inference)
+AIPACK_PROVIDER=embedded cargo run -- detect /path/to/repo
 ```
 
-## Environment Variables for GenAI Backend
+## LLM Provider Environment Variables
 
-The GenAI backend relies on environment variables for API authentication and configuration. The `genai` crate automatically reads these standard environment variables - **you do not need to set them programmatically in your code**.
+LLM providers rely on environment variables for API authentication and configuration. The `genai` crate automatically reads these standard environment variables - **you do not need to set them programmatically in your code**.
 
 ### Required Environment Variables by Provider
 
@@ -427,22 +490,21 @@ Error: Failed to initialize OpenAI backend: missing API key.
 Ensure OPENAI_API_KEY is set in environment.
 ```
 
-### How GenAI Reads Environment Variables
+### How Environment Variables Are Used
 
-The `genai` crate automatically reads these environment variables when you create a backend:
+The `genai` crate automatically reads these environment variables when initializing LLM clients through `select_llm_client()`:
 
 ```rust
-// The genai crate reads ANTHROPIC_API_KEY automatically
-let backend = GenAIBackend::new(
-    Provider::Claude,
-    "claude-sonnet-4-5-20250929".to_string(),
-).await?;
+use aipack::llm::selector::select_llm_client;
+
+// The genai crate reads ANTHROPIC_API_KEY automatically when provider is Claude
+let client = select_llm_client().await?;
 ```
 
 **You do not need to:**
 - Read environment variables manually with `std::env::var()`
 - Set environment variables programmatically with `std::env::set_var()`
-- Pass API keys as parameters to the backend constructor
+- Pass API keys as parameters to client constructors
 
 **The genai crate handles all of this internally.**
 
@@ -487,24 +549,22 @@ ANTHROPIC_API_KEY=sk-... cargo run -- detect /path/to/repo
 
 ### Core Concepts
 
-#### 1. Backend Trait
+#### 1. LLMClient Trait
 ```rust
 #[async_trait]
-pub trait LLMBackend: Send + Sync {
-    async fn detect(&self, repo_path: PathBuf) -> Result<UniversalBuild>;
-    fn name(&self) -> &str;
+pub trait LLMClient: Send + Sync {
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse>;
 }
 ```
 
-All LLM integrations implement this trait, allowing pluggable backends.
+All LLM integrations implement this trait, providing pluggable backends with tool calling support.
 
-#### 2. Repository Context
-Structure containing all information about a repository:
-- File tree (structure)
-- Configuration files (contents)
-- README (if present)
-- Detected file types
-- Git information (optional)
+#### 2. Pipeline Architecture
+The detection pipeline consists of several phases:
+- **Bootstrap** - Pre-scan repository to detect languages and manifests
+- **Tool Execution** - LLM iteratively explores using available tools
+- **Validation** - Validate UniversalBuild output for correctness
+- **Assembly** - Return final build specification(s)
 
 #### 3. UniversalBuild Output
 Multi-stage container build specification containing:
@@ -512,6 +572,8 @@ Multi-stage container build specification containing:
 - **Build Stage**: base image, packages, environment variables, build commands, context, cache paths, artifacts
 - **Runtime Stage**: base image, packages, environment variables, copy specifications, command, ports, healthcheck
 - Schema version with validation
+
+**Note**: For monorepos, `DetectionService.detect()` returns `Vec<UniversalBuild>` with one entry per runnable application.
 
 ### Async Design
 - Use `tokio::main` for async runtime
@@ -525,77 +587,26 @@ Multi-stage container build specification containing:
 
 ## Development Workflow
 
-### Adding a New LLM Provider
-
-To add support for a new LLM provider:
-
-1. Add the new provider variant to the `Provider` enum in `src/ai/genai_backend.rs`
-2. Update the `prefix()` and `name()` methods to handle the new provider
-3. Update the `Display` implementation
-4. Document the required environment variables
-5. Write tests
-
-Example:
-```rust
-#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Provider {
-    Ollama,
-    OpenAI,
-    Claude,
-    Gemini,
-    Grok,
-    Groq,
-    NewProvider,  // Add your provider here
-}
-
-impl Provider {
-    fn prefix(&self) -> &'static str {
-        match self {
-            // ... existing cases
-            Provider::NewProvider => "newprovider",
-        }
-    }
-
-    fn name(&self) -> &'static str {
-        match self {
-            // ... existing cases
-            Provider::NewProvider => "NewProvider",
-        }
-    }
-}
-```
-
-### Modifying Prompts
-
-Edit `src/detection/prompt.rs`:
-```rust
-pub fn build_detection_prompt(context: &RepositoryContext) -> String {
-    format!(r#"
-        Your prompt here...
-        Files: {}
-        Content: {}
-    "#, context.file_tree, context.files_content)
-}
-```
-
-Test with:
-```bash
-cargo test test_prompt_generation
-```
-
 ### Adding Tests
 
 ```rust
+use aipack::detection::DetectionService;
+use aipack::llm::MockLLMClient;
+use std::path::PathBuf;
+
 #[tokio::test]
 async fn test_detection() {
-    let repo_path = PathBuf::from("/path/to/repo");
-    let client = GenAIBackend::new(
-        Provider::Ollama,
-        "qwen2.5-coder:7b".to_string(),
-    ).await.unwrap();
-    let result = client.detect(repo_path).await.unwrap();
-    assert_eq!(result.metadata.build_system, "cargo");
-    assert!(!result.build.commands.is_empty());
+    // Use MockLLMClient for deterministic testing
+    let mock_client = MockLLMClient::new(vec![
+        // Scripted responses...
+    ]);
+
+    let service = DetectionService::new(Arc::new(mock_client)).unwrap();
+    let results = service.detect(PathBuf::from("tests/fixtures/rust-cargo")).await.unwrap();
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].metadata.build_system, "cargo");
+    assert!(!results[0].build.commands.is_empty());
 }
 ```
 
@@ -928,3 +939,276 @@ perf: Performance improvements
 - All cloud providers have rate limits; implement exponential backoff
 - Consider request queuing for high volume
 - Cache results aggressively to minimize API calls
+
+## Test Fixtures
+
+aipack includes a comprehensive test fixture library for validating build system detection across different languages, build tools, and project structures.
+
+### Fixture Directory Structure
+
+```
+tests/fixtures/
+├── single-language/   # Single build system projects
+│   ├── rust-cargo/        # Standard Rust project with Cargo.toml
+│   ├── rust-workspace/    # Cargo workspace with multiple members
+│   ├── node-npm/          # TypeScript + npm + Express + Jest
+│   ├── node-yarn/         # Same as node-npm but with yarn.lock
+│   ├── node-pnpm/         # Same as node-npm but with pnpm-lock.yaml
+│   ├── python-pip/        # Flask app with requirements.txt + pytest
+│   ├── python-poetry/     # Flask app using Poetry (pyproject.toml)
+│   ├── java-maven/        # Spring Boot app with Maven (pom.xml)
+│   ├── java-gradle/       # Spring Boot app with Gradle (build.gradle)
+│   ├── kotlin-gradle/     # Spring Boot app in Kotlin with Gradle Kotlin DSL
+│   ├── go-mod/            # Gin web server with go.mod
+│   └── dotnet-csproj/     # ASP.NET Core minimal API with .csproj
+├── monorepo/          # Monorepo/workspace projects
+│   ├── npm-workspaces/    # npm workspaces with packages/* and apps/*
+│   ├── turborepo/         # Turborepo configuration with turbo.json
+│   ├── cargo-workspace/   # Rust workspace (same as rust-workspace)
+│   ├── gradle-multiproject/ # Gradle multi-project with settings.gradle
+│   ├── maven-multimodule/ # Maven multi-module with parent/child poms
+│   └── polyglot/          # Mixed: Frontend (Node.js), Backend (Java), CLI (Rust)
+├── edge-cases/        # Edge cases and unusual configurations
+│   ├── empty-repo/        # Completely empty repository (only README)
+│   ├── no-manifest/       # Source code without build manifest
+│   ├── multiple-manifests/ # Mixed build systems (Cargo + npm + Maven)
+│   ├── nested-projects/   # Projects within projects (outer/inner)
+│   └── vendor-heavy/      # Project with large vendor directory
+├── expected/          # Expected JSON outputs for validation
+│   ├── rust-cargo.json
+│   ├── node-npm.json
+│   ├── npm-workspaces.json
+│   └── ...
+└── README.md          # Fixture documentation
+```
+
+### Creating Test Fixtures
+
+All fixtures follow these principles:
+
+1. **Minimal**: Only essential files for detection
+2. **Representative**: Real-world project structures
+3. **Working**: Can actually build/run with the specified tools
+4. **Complete**: Include source code, manifests, and dependencies
+
+Example minimal Rust fixture:
+
+```rust
+// tests/fixtures/single-language/rust-cargo/Cargo.toml
+[package]
+name = "test-project"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = "1.0"
+
+// tests/fixtures/single-language/rust-cargo/src/main.rs
+fn main() {
+    println!("Hello, world!");
+}
+```
+
+### Expected Outputs
+
+Each fixture has a corresponding `expected/{fixture-name}.json` file containing the expected `UniversalBuild` output. These serve as golden files for regression testing.
+
+Example:
+
+```json
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-project",
+    "language": "Rust",
+    "build_system": "cargo",
+    "confidence": "high"
+  },
+  "build": {
+    "base_image": "rust:1.75",
+    "commands": ["cargo build --release"],
+    "artifacts": ["target/release/test-project"]
+  },
+  "runtime": {
+    "base_image": "debian:bookworm-slim",
+    "command": "./test-project"
+  }
+}
+```
+
+### Using Fixtures in Tests
+
+```rust
+use std::path::PathBuf;
+
+#[tokio::test]
+async fn test_rust_cargo_detection() {
+    let fixture_path = PathBuf::from("tests/fixtures/single-language/rust-cargo");
+    let expected_path = PathBuf::from("tests/fixtures/expected/rust-cargo.json");
+
+    // Run detection
+    let result = detect(fixture_path).await.unwrap();
+
+    // Load expected output
+    let expected: UniversalBuild = load_expected(&expected_path).unwrap();
+
+    // Validate
+    assert_eq!(result.metadata.language, expected.metadata.language);
+    assert_eq!(result.metadata.build_system, expected.metadata.build_system);
+    assert_eq!(result.build.commands, expected.build.commands);
+}
+```
+
+## LLM Recording System
+
+The recording system captures LLM request/response pairs for deterministic testing without requiring live LLM access. This enables:
+
+- **CI/CD testing** without API keys or Ollama setup
+- **Regression testing** against known-good LLM responses
+- **Reproducible tests** that don't depend on LLM behavior changes
+- **Faster tests** by replaying cached responses
+
+### Recording Modes
+
+Controlled via the `AIPACK_RECORDING_MODE` environment variable:
+
+```bash
+# Record mode: Make live LLM calls and save responses
+AIPACK_RECORDING_MODE=record cargo test
+
+# Replay mode: Use saved responses, fail if recording missing
+AIPACK_RECORDING_MODE=replay cargo test
+
+# Auto mode (default): Replay if recording exists, otherwise record
+AIPACK_RECORDING_MODE=auto cargo test
+```
+
+### Recording Directory
+
+Recordings are stored in `tests/recordings/` with filenames based on request content hash:
+
+```
+tests/recordings/
+├── cli_integration_test_detect_json_format__0251b6ea.json
+├── e2e_test_rust_cargo__3f4a2b1c.json
+└── ...
+```
+
+### Recording Format
+
+Each recording file contains the complete LLM conversation:
+
+```json
+{
+  "request_hash": "0251b6ea7cc524a746fec47169ee1d43",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are an expert build system analyzer..."
+      },
+      {
+        "role": "user",
+        "content": "Analyze the repository..."
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "call_id": "embedded_0",
+            "name": "read_file",
+            "arguments": {
+              "path": "Cargo.toml"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "content": "{...}",
+        "tool_call_id": "embedded_0"
+      }
+    ],
+    "temperature": 0.1,
+    "max_tokens": 8192
+  },
+  "response": {
+    "content": "",
+    "tool_calls": [
+      {
+        "call_id": "submit_0",
+        "name": "submit_detection",
+        "arguments": {
+          "version": "1.0",
+          "metadata": {...},
+          "build": {...},
+          "runtime": {...}
+        }
+      }
+    ]
+  }
+}
+```
+
+### Using Recordings in Tests
+
+The recording system is transparent when using `LLMClient` trait:
+
+```rust
+use aipack::llm::client::LLMClient;
+use aipack::llm::recording::{RecordingLLMClient, RecordingMode};
+
+#[tokio::test]
+async fn test_with_recording() {
+    // Wrap any LLM client with RecordingLLMClient
+    let base_client = create_llm_client().await;
+    let client = RecordingLLMClient::new(
+        base_client,
+        RecordingMode::Auto,
+        PathBuf::from("tests/recordings"),
+    );
+
+    // Use normally - recording happens automatically
+    let result = client.chat(messages).await.unwrap();
+}
+```
+
+### Recording Best Practices
+
+1. **Commit recordings to Git**: Enables deterministic CI/CD testing
+2. **Use `auto` mode locally**: Records missing, replays existing
+3. **Use `replay` mode in CI**: Ensures tests don't make live API calls
+4. **Re-record periodically**: Update when prompts or LLM behavior changes
+5. **Review recordings**: Ensure recorded responses are correct before committing
+
+### Updating Recordings
+
+To update recordings after prompt changes:
+
+```bash
+# Delete old recordings
+rm -rf tests/recordings/
+
+# Re-record with live LLM
+AIPACK_RECORDING_MODE=record cargo test
+
+# Verify new recordings work
+AIPACK_RECORDING_MODE=replay cargo test
+
+# Commit updated recordings
+git add tests/recordings/
+git commit -m "chore: Update LLM recordings after prompt changes"
+```
+
+### Recording Configuration
+
+Additional environment variables:
+
+```bash
+# Custom recordings directory (default: tests/recordings)
+AIPACK_RECORDINGS_DIR=/path/to/recordings
+
+# Recording mode (default: auto)
+AIPACK_RECORDING_MODE=auto  # "record", "replay", or "auto"
+```
