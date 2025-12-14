@@ -150,7 +150,10 @@ impl LLMClient for MockLLMClient {
                 Duration::from_millis(10),
             ))
         } else {
-            Ok(LLMResponse::text(response.content, Duration::from_millis(10)))
+            Ok(LLMResponse::text(
+                response.content,
+                Duration::from_millis(10),
+            ))
         }
     }
 

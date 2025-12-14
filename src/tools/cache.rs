@@ -93,10 +93,7 @@ mod tests {
 
         cache.insert("list_files", &args1, json!("file1.rs"));
 
-        assert_eq!(
-            cache.get("list_files", &args1),
-            Some(json!("file1.rs"))
-        );
+        assert_eq!(cache.get("list_files", &args1), Some(json!("file1.rs")));
         assert_eq!(cache.get("list_files", &args2), None);
         assert_eq!(cache.get("read_file", &args1), None);
     }
@@ -105,16 +102,8 @@ mod tests {
     fn test_cache_clear() {
         let cache = ToolCache::new();
 
-        cache.insert(
-            "list_files",
-            &json!({"path": "src"}),
-            json!("file1.rs"),
-        );
-        cache.insert(
-            "read_file",
-            &json!({"path": "README.md"}),
-            json!("content"),
-        );
+        cache.insert("list_files", &json!({"path": "src"}), json!("file1.rs"));
+        cache.insert("read_file", &json!({"path": "README.md"}), json!("content"));
 
         assert_eq!(cache.len(), 2);
 

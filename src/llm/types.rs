@@ -58,8 +58,7 @@ impl ChatMessage {
     }
 
     pub fn tool_response(call_id: impl Into<String>, result: serde_json::Value) -> Self {
-        let content = serde_json::to_string_pretty(&result)
-            .unwrap_or_else(|_| result.to_string());
+        let content = serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string());
 
         Self {
             role: MessageRole::Tool,
@@ -196,7 +195,8 @@ mod tests {
 
     #[test]
     fn test_tool_response() {
-        let response = ChatMessage::tool_response("call_123", serde_json::json!("File contents here"));
+        let response =
+            ChatMessage::tool_response("call_123", serde_json::json!("File contents here"));
         assert_eq!(response.role, MessageRole::Tool);
         assert_eq!(response.tool_call_id, Some("call_123".to_string()));
     }

@@ -31,7 +31,13 @@ impl TestContext {
 
         let sanitized: String = name
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
 
         let trimmed = sanitized.trim_matches('_');

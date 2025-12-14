@@ -68,13 +68,9 @@ impl EmbeddedModel {
         format: ModelFormat::Gguf,
     };
 
-
     /// All available models in order of preference (largest first)
-    pub const ALL_MODELS: &'static [EmbeddedModel] = &[
-        Self::QWEN_7B_GGUF,
-        Self::QWEN_3B_GGUF,
-        Self::QWEN_1_5B_GGUF,
-    ];
+    pub const ALL_MODELS: &'static [EmbeddedModel] =
+        &[Self::QWEN_7B_GGUF, Self::QWEN_3B_GGUF, Self::QWEN_1_5B_GGUF];
 }
 
 /// Selects the best model based on hardware capabilities
@@ -87,9 +83,15 @@ impl ModelSelector {
     pub fn select(capabilities: &HardwareCapabilities) -> Option<&'static EmbeddedModel> {
         // Check for explicit model size override
         if let Ok(model_size) = std::env::var("AIPACK_MODEL_SIZE") {
-            info!("AIPACK_MODEL_SIZE={} specified, using explicit model selection", model_size);
+            info!(
+                "AIPACK_MODEL_SIZE={} specified, using explicit model selection",
+                model_size
+            );
 
-            if let Some(model) = EmbeddedModel::ALL_MODELS.iter().find(|m| m.params == model_size) {
+            if let Some(model) = EmbeddedModel::ALL_MODELS
+                .iter()
+                .find(|m| m.params == model_size)
+            {
                 info!(
                     "Selected model: {} ({} params, requires {:.1}GB RAM)",
                     model.display_name, model.params, model.ram_required_gb

@@ -167,22 +167,14 @@ impl LLMClient for GenAIClient {
         let content = response.first_text().unwrap_or_default().to_string();
 
         // Take first tool call only
-        let tool_call = response
-            .tool_calls()
-            .into_iter()
-            .next()
-            .map(|tc| ToolCall {
-                call_id: tc.call_id.clone(),
-                name: tc.fn_name.clone(),
-                arguments: tc.fn_arguments.clone(),
-            });
+        let tool_call = response.tool_calls().into_iter().next().map(|tc| ToolCall {
+            call_id: tc.call_id.clone(),
+            name: tc.fn_name.clone(),
+            arguments: tc.fn_arguments.clone(),
+        });
 
         if let Some(tc) = tool_call {
-            Ok(LLMResponse::with_tool_call(
-                content,
-                tc,
-                start.elapsed(),
-            ))
+            Ok(LLMResponse::with_tool_call(content, tc, start.elapsed()))
         } else {
             Ok(LLMResponse::text(content, start.elapsed()))
         }

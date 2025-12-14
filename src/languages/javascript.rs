@@ -237,11 +237,7 @@ impl LanguageDefinition for JavaScriptLanguage {
         None
     }
 
-    fn is_workspace_root(
-        &self,
-        manifest_name: &str,
-        manifest_content: Option<&str>,
-    ) -> bool {
+    fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
         if manifest_name != "package.json" {
             return false;
         }
@@ -410,5 +406,4 @@ mod tests {
         let content = r#"{"engines": {"node": ">=18"}}"#;
         assert_eq!(lang.detect_version(Some(content)), Some("18".to_string()));
     }
-
 }

@@ -190,11 +190,7 @@ impl LanguageDefinition for JavaLanguage {
         None
     }
 
-    fn is_workspace_root(
-        &self,
-        manifest_name: &str,
-        manifest_content: Option<&str>,
-    ) -> bool {
+    fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
         match manifest_name {
             "pom.xml" => {
                 if let Some(content) = manifest_content {
@@ -407,5 +403,4 @@ rootProject.name = "single-project"
         let lang = JavaLanguage;
         assert!(!lang.is_workspace_root("build.gradle", Some("<modules></modules>")));
     }
-
 }

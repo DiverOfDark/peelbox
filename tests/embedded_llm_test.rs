@@ -59,8 +59,8 @@ async fn test_embedded_llm_inference() {
 
     let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
-    let test_name = aipack::llm::TestContext::current_test_name()
-        .expect("Should be in test context");
+    let test_name =
+        aipack::llm::TestContext::current_test_name().expect("Should be in test context");
     let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
@@ -77,7 +77,8 @@ async fn test_embedded_llm_inference() {
 
         let capabilities = HardwareDetector::detect();
         let model = ModelSelector::select(&capabilities).unwrap();
-        println!("Testing inference with {} on {}",
+        println!(
+            "Testing inference with {} on {}",
             model.display_name,
             capabilities.best_device()
         );
@@ -162,8 +163,8 @@ async fn test_embedded_llm_tool_calling() {
 
     let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
-    let test_name = aipack::llm::TestContext::current_test_name()
-        .expect("Should be in test context");
+    let test_name =
+        aipack::llm::TestContext::current_test_name().expect("Should be in test context");
     let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
@@ -180,7 +181,8 @@ async fn test_embedded_llm_tool_calling() {
 
         let capabilities = HardwareDetector::detect();
         let model = ModelSelector::select(&capabilities).unwrap();
-        println!("Testing tool calling with {} on {}",
+        println!(
+            "Testing tool calling with {} on {}",
             model.display_name,
             capabilities.best_device()
         );
@@ -221,13 +223,22 @@ async fn test_embedded_llm_tool_calling() {
                 println!("✅ Model generated a tool call");
 
                 // Verify tool call has expected structure
-                assert_eq!(tool_call.name, "calculate", "Tool name should be 'calculate'");
+                assert_eq!(
+                    tool_call.name, "calculate",
+                    "Tool name should be 'calculate'"
+                );
 
                 // Verify arguments exist and have expected fields
-                assert!(tool_call.arguments.is_object(), "Arguments should be a JSON object");
+                assert!(
+                    tool_call.arguments.is_object(),
+                    "Arguments should be a JSON object"
+                );
                 let args = tool_call.arguments.as_object().unwrap();
 
-                assert!(args.contains_key("operation"), "Arguments should contain 'operation'");
+                assert!(
+                    args.contains_key("operation"),
+                    "Arguments should contain 'operation'"
+                );
                 assert!(args.contains_key("a"), "Arguments should contain 'a'");
                 assert!(args.contains_key("b"), "Arguments should contain 'b'");
 
@@ -237,18 +248,29 @@ async fn test_embedded_llm_tool_calling() {
                 }
 
                 // Verify numbers
-                if let Some(a) = args.get("a").and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))) {
+                if let Some(a) = args
+                    .get("a")
+                    .and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64)))
+                {
                     assert_eq!(a, 15.0, "First number should be 15");
                 }
-                if let Some(b) = args.get("b").and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))) {
+                if let Some(b) = args
+                    .get("b")
+                    .and_then(|v| v.as_f64().or_else(|| v.as_i64().map(|i| i as f64)))
+                {
                     assert_eq!(b, 23.0, "Second number should be 23");
                 }
 
                 println!("✅ Tool call structure validated successfully");
             } else {
-                println!("⚠️  No tool calls generated - model may need larger size or better prompting");
+                println!(
+                    "⚠️  No tool calls generated - model may need larger size or better prompting"
+                );
                 // Still pass test if content is present (model responded but didn't use tools)
-                assert!(!response.content.is_empty(), "Should have either tool calls or content");
+                assert!(
+                    !response.content.is_empty(),
+                    "Should have either tool calls or content"
+                );
             }
         }
         Err(e) => {
@@ -385,8 +407,8 @@ async fn test_embedded_llm_tool_call_chain() {
 
     let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
-    let test_name = aipack::llm::TestContext::current_test_name()
-        .expect("Should be in test context");
+    let test_name =
+        aipack::llm::TestContext::current_test_name().expect("Should be in test context");
     let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
@@ -416,7 +438,8 @@ async fn test_embedded_llm_tool_call_chain() {
                 .find(|m| m.params == "7B")
                 .expect("7B model not found")
         };
-        println!("Testing tool call chain with {} on {}",
+        println!(
+            "Testing tool call chain with {} on {}",
             model.display_name,
             capabilities.best_device()
         );
@@ -424,7 +447,10 @@ async fn test_embedded_llm_tool_call_chain() {
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
             Err(e) => {
-                println!("Skipping tool call chain test: failed to create client: {}", e);
+                println!(
+                    "Skipping tool call chain test: failed to create client: {}",
+                    e
+                );
                 return;
             }
         }
@@ -447,11 +473,17 @@ async fn test_embedded_llm_tool_call_chain() {
         println!("\n=== Iteration {} ===", iteration);
 
         let request = LLMRequest::new(messages.clone())
-            .with_tools(vec![list_files_tool.clone(), read_file_tool.clone(), submit_result_tool.clone()])
+            .with_tools(vec![
+                list_files_tool.clone(),
+                read_file_tool.clone(),
+                submit_result_tool.clone(),
+            ])
             .with_max_tokens(200)
             .with_temperature(0.1);
 
-        let response = recording_client.chat(request).await
+        let response = recording_client
+            .chat(request)
+            .await
             .expect("LLM request should succeed");
 
         println!("Response: {}", response.content);
@@ -465,7 +497,10 @@ async fn test_embedded_llm_tool_call_chain() {
             }
         };
 
-        println!("Tool call: {} (args: {})", tool_call.name, tool_call.arguments);
+        println!(
+            "Tool call: {} (args: {})",
+            tool_call.name, tool_call.arguments
+        );
         tool_calls_history.push(tool_call.name.clone());
 
         // Add assistant message with tool call
@@ -493,7 +528,7 @@ async fn test_embedded_llm_tool_call_chain() {
                     "success": true,
                     "summary": tool_call.arguments.get("summary").and_then(|s| s.as_str()).unwrap_or("No summary")
                 })
-            },
+            }
             _ => json!({"error": format!("Unknown tool: {}", tool_call.name)}),
         };
 
@@ -510,12 +545,18 @@ async fn test_embedded_llm_tool_call_chain() {
     println!("\nTool call history: {:?}", tool_calls_history);
 
     if !tool_calls_history.is_empty() {
-        println!("✅ Model generated {} tool call(s) across iterations", tool_calls_history.len());
+        println!(
+            "✅ Model generated {} tool call(s) across iterations",
+            tool_calls_history.len()
+        );
 
         // Verify we got different tool calls (chain behavior)
         let unique_tools: std::collections::HashSet<_> = tool_calls_history.iter().collect();
         if unique_tools.len() > 1 {
-            println!("✅ Model called {} different tools (chain detected)", unique_tools.len());
+            println!(
+                "✅ Model called {} different tools (chain detected)",
+                unique_tools.len()
+            );
         } else {
             println!("⚠️  Model only called one type of tool - may not be chaining");
         }
@@ -529,5 +570,8 @@ async fn test_embedded_llm_tool_call_chain() {
     }
 
     // Test passes if we got at least one tool call
-    assert!(!tool_calls_history.is_empty(), "Should generate at least one tool call");
+    assert!(
+        !tool_calls_history.is_empty(),
+        "Should generate at least one tool call"
+    );
 }

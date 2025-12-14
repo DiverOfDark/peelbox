@@ -221,7 +221,10 @@ impl AnalysisPipeline {
                 response_time: response.response_time,
             });
 
-            debug!("LLM responded with {} tool call", if has_tool_call { "a" } else { "no" });
+            debug!(
+                "LLM responded with {} tool call",
+                if has_tool_call { "a" } else { "no" }
+            );
 
             if let Some(ref tool_call) = response.tool_call {
                 messages.push(ChatMessage::assistant_with_tools(
@@ -305,59 +308,59 @@ impl AnalysisPipeline {
         iteration: usize,
         progress: &Arc<dyn ProgressHandler>,
     ) -> Result<Option<(Vec<UniversalBuild>, usize)>, PipelineError> {
-            debug!(
-                "Executing tool: {} with call_id: {}",
-                tool_call.name, tool_call.call_id
-            );
+        debug!(
+            "Executing tool: {} with call_id: {}",
+            tool_call.name, tool_call.call_id
+        );
 
-            if tool_call.name == "submit_detection" {
-                if !*has_read_file {
-                    warn!("LLM submitting detection without reading any files");
-                }
-
-                let result = self
-                    .handle_submit_detection(&tool_call.arguments, progress)
-                    .await?;
-                return Ok(Some((result, iteration)));
+        if tool_call.name == "submit_detection" {
+            if !*has_read_file {
+                warn!("LLM submitting detection without reading any files");
             }
 
-            if tool_call.name == "read_file" {
-                *has_read_file = true;
+            let result = self
+                .handle_submit_detection(&tool_call.arguments, progress)
+                .await?;
+            return Ok(Some((result, iteration)));
+        }
+
+        if tool_call.name == "read_file" {
+            *has_read_file = true;
+        }
+
+        let start_time = Instant::now();
+        progress.on_progress(&ProgressEvent::ToolExecutionStarted {
+            tool_name: tool_call.name.clone(),
+            iteration,
+        });
+
+        // Execute tool and catch errors to allow LLM self-correction
+        let result = match tool_system
+            .execute(&tool_call.name, tool_call.arguments.clone())
+            .await
+        {
+            Ok(output) => {
+                progress.on_progress(&ProgressEvent::ToolExecutionComplete {
+                    tool_name: tool_call.name.clone(),
+                    iteration,
+                    execution_time: start_time.elapsed(),
+                    success: true,
+                });
+                output
             }
+            Err(e) => {
+                warn!("Tool execution failed, returning error to LLM: {}", e);
+                progress.on_progress(&ProgressEvent::ToolExecutionComplete {
+                    tool_name: tool_call.name.clone(),
+                    iteration,
+                    execution_time: start_time.elapsed(),
+                    success: false,
+                });
+                serde_json::json!({ "error": e.to_string() })
+            }
+        };
 
-            let start_time = Instant::now();
-            progress.on_progress(&ProgressEvent::ToolExecutionStarted {
-                tool_name: tool_call.name.clone(),
-                iteration,
-            });
-
-            // Execute tool and catch errors to allow LLM self-correction
-            let result = match tool_system
-                .execute(&tool_call.name, tool_call.arguments.clone())
-                .await
-            {
-                Ok(output) => {
-                    progress.on_progress(&ProgressEvent::ToolExecutionComplete {
-                        tool_name: tool_call.name.clone(),
-                        iteration,
-                        execution_time: start_time.elapsed(),
-                        success: true,
-                    });
-                    output
-                }
-                Err(e) => {
-                    warn!("Tool execution failed, returning error to LLM: {}", e);
-                    progress.on_progress(&ProgressEvent::ToolExecutionComplete {
-                        tool_name: tool_call.name.clone(),
-                        iteration,
-                        execution_time: start_time.elapsed(),
-                        success: false,
-                    });
-                    serde_json::json!({ "error": e.to_string() })
-                }
-            };
-
-            messages.push(ChatMessage::tool_response(&tool_call.call_id, result));
+        messages.push(ChatMessage::tool_response(&tool_call.call_id, result));
 
         Ok(None)
     }
@@ -376,7 +379,7 @@ impl AnalysisPipeline {
 
             if vec.is_empty() {
                 return Err(PipelineError::InvalidResponse(
-                    "LLM returned empty build array".to_string()
+                    "LLM returned empty build array".to_string(),
                 ));
             }
 

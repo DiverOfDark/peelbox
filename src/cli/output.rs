@@ -32,10 +32,8 @@ impl OutputFormatter {
         match self.format {
             OutputFormat::Json => serde_json::to_string_pretty(results)
                 .context("Failed to serialize UniversalBuild array to JSON"),
-            OutputFormat::Yaml => {
-                serde_yaml::to_string(results)
-                    .context("Failed to serialize UniversalBuild array to YAML")
-            }
+            OutputFormat::Yaml => serde_yaml::to_string(results)
+                .context("Failed to serialize UniversalBuild array to YAML"),
         }
     }
 
@@ -207,5 +205,4 @@ mod tests {
         assert!(!status.available);
         assert!(status.details.is_some());
     }
-
 }

@@ -100,11 +100,7 @@ impl LanguageDefinition for RustLanguage {
         None
     }
 
-    fn is_workspace_root(
-        &self,
-        manifest_name: &str,
-        manifest_content: Option<&str>,
-    ) -> bool {
+    fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
         if manifest_name != "Cargo.toml" {
             return false;
         }

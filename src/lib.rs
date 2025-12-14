@@ -11,13 +11,13 @@ pub mod progress;
 pub mod tools;
 pub mod validation;
 
-pub use llm::{AdapterKind, BackendError};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};
 pub use detection::types::{GitInfo, RepositoryContext};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::{LanguageDefinition, LanguageRegistry};
+pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
 pub use pipeline::{PipelineConfig, PipelineContext};

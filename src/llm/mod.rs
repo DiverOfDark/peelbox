@@ -8,14 +8,14 @@ mod selector;
 pub mod test_context;
 mod types;
 
+pub use ::genai::adapter::AdapterKind;
 pub use client::LLMClient;
-pub use error::BackendError;
 pub use embedded::{
     ComputeDevice, EmbeddedClient, EmbeddedModel, HardwareCapabilities, HardwareDetector,
     ModelDownloader, ModelSelector,
 };
+pub use error::BackendError;
 pub use genai::GenAIClient;
-pub use ::genai::adapter::AdapterKind;
 pub use mock::{MockLLMClient, MockResponse};
 pub use recording::{RecordedExchange, RecordedRequest, RecordingLLMClient, RecordingMode};
 pub use selector::{select_llm_client, SelectedClient};

@@ -38,8 +38,7 @@ impl ToolSystem {
 
         match &result {
             Ok(output) => {
-                let output_preview = serde_json::to_string(output)
-                    .unwrap_or_default();
+                let output_preview = serde_json::to_string(output).unwrap_or_default();
                 let preview_len = output_preview.len().min(200);
                 info!(tool = tool_name, "Tool execution completed");
                 debug!(

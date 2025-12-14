@@ -163,7 +163,10 @@ fn test_detect_json_format() {
         .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", "cli_integration_test_detect_json_format")
+        .env(
+            "AIPACK_TEST_NAME",
+            "cli_integration_test_detect_json_format",
+        )
         .arg("detect")
         .arg(repo_path)
         .arg("--format")
@@ -194,7 +197,10 @@ fn test_detect_yaml_format() {
         .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", "cli_integration_test_detect_yaml_format")
+        .env(
+            "AIPACK_TEST_NAME",
+            "cli_integration_test_detect_yaml_format",
+        )
         .arg("detect")
         .arg(repo_path)
         .arg("--format")
@@ -225,7 +231,10 @@ fn test_detect_with_output_file() {
         .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", "cli_integration_test_detect_with_output_file")
+        .env(
+            "AIPACK_TEST_NAME",
+            "cli_integration_test_detect_with_output_file",
+        )
         .arg("detect")
         .arg(repo_path)
         .arg("--format")
@@ -313,7 +322,10 @@ fn test_detect_with_timeout() {
         .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", "cli_integration_test_detect_with_timeout")
+        .env(
+            "AIPACK_TEST_NAME",
+            "cli_integration_test_detect_with_timeout",
+        )
         .arg("detect")
         .arg(repo_path)
         .arg("--timeout")
@@ -360,7 +372,10 @@ fn test_detect_no_cache_flag() {
         .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", "cli_integration_test_detect_no_cache_flag")
+        .env(
+            "AIPACK_TEST_NAME",
+            "cli_integration_test_detect_no_cache_flag",
+        )
         .arg("detect")
         .arg(repo_path)
         .output()

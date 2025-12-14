@@ -193,7 +193,9 @@ impl BootstrapScanner {
         let depth = rel_path.matches('/').count();
 
         if let Some(detection) = self.registry.detect(filename, content.as_deref()) {
-            let is_workspace_root = self.registry.is_workspace_root(filename, content.as_deref());
+            let is_workspace_root = self
+                .registry
+                .is_workspace_root(filename, content.as_deref());
 
             Ok(Some(LanguageDetection {
                 language: detection.language,

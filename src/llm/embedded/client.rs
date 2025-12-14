@@ -140,7 +140,10 @@ impl EmbeddedClient {
             return Ok(());
         }
 
-        info!("Loading {} into memory on first use...", self.model_info.display_name);
+        info!(
+            "Loading {} into memory on first use...",
+            self.model_info.display_name
+        );
 
         // Get current device
         let device = self.device.lock().await.clone();
@@ -149,7 +152,10 @@ impl EmbeddedClient {
         let (model, actual_device) = match Self::load_gguf_model(&self.model_path, &device) {
             Ok(m) => (m, device),
             Err(e) if !device.is_cpu() => {
-                warn!("Failed to load model on {:?}: {}. Falling back to CPU", device, e);
+                warn!(
+                    "Failed to load model on {:?}: {}. Falling back to CPU",
+                    device, e
+                );
                 let cpu_device = Device::Cpu;
                 let m = Self::load_gguf_model(&self.model_path, &cpu_device)
                     .context("Failed to load model on CPU fallback")?;
@@ -207,7 +213,11 @@ impl EmbeddedClient {
                 (Tensor::new(input_ids.as_slice(), &device)?.unsqueeze(0)?, 0)
             } else {
                 // Subsequent iterations: pass only the last generated token
-                (Tensor::new(&[generated_tokens.last().copied().unwrap()], &device)?.unsqueeze(0)?, input_len + i - 1)
+                (
+                    Tensor::new(&[generated_tokens.last().copied().unwrap()], &device)?
+                        .unsqueeze(0)?,
+                    input_len + i - 1,
+                )
             };
 
             let logits = model.forward(&current_input, seqlen_offset)?;
@@ -266,31 +276,48 @@ impl EmbeddedClient {
             // For complex nested schemas (like submit_detection), include raw JSON schema
             if tool.name == "submit_detection" {
                 formatted.push_str("**Full JSON Schema:**\n```json\n");
-                formatted.push_str(&serde_json::to_string_pretty(&tool.parameters).unwrap_or_default());
+                formatted
+                    .push_str(&serde_json::to_string_pretty(&tool.parameters).unwrap_or_default());
                 formatted.push_str("\n```\n\n");
                 continue;
             }
 
             // For simple schemas, parse and format human-readably
-            if let Some(props) = tool.parameters.get("properties").and_then(|p| p.as_object()) {
+            if let Some(props) = tool
+                .parameters
+                .get("properties")
+                .and_then(|p| p.as_object())
+            {
                 formatted.push_str("Parameters:\n");
 
-                let required: Vec<String> = tool.parameters
+                let required: Vec<String> = tool
+                    .parameters
                     .get("required")
                     .and_then(|r| r.as_array())
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default();
 
                 for (name, schema) in props {
                     let param_type = schema.get("type").and_then(|t| t.as_str()).unwrap_or("any");
-                    let description = schema.get("description").and_then(|d| d.as_str()).unwrap_or("");
+                    let description = schema
+                        .get("description")
+                        .and_then(|d| d.as_str())
+                        .unwrap_or("");
                     let is_required = required.contains(&name.to_string());
 
                     formatted.push_str(&format!(
                         "- {} ({}){}: {}\n",
                         name,
                         param_type,
-                        if is_required { ", required" } else { ", optional" },
+                        if is_required {
+                            ", required"
+                        } else {
+                            ", optional"
+                        },
                         description
                     ));
                 }
@@ -339,7 +366,9 @@ impl EmbeddedClient {
                                 "name": tool_call.name,
                                 "arguments": tool_call.arguments
                             });
-                            prompt.push_str(&serde_json::to_string(&tool_call_json).unwrap_or_default());
+                            prompt.push_str(
+                                &serde_json::to_string(&tool_call_json).unwrap_or_default(),
+                            );
                             prompt.push('\n');
                         }
                     } else {
@@ -412,7 +441,10 @@ impl LLMClient for EmbeddedClient {
         debug!("Full response:\n{}", output);
 
         let tool_call = self.parse_tool_call(&output);
-        debug!("Parsed tool call: {}", if tool_call.is_some() { "yes" } else { "no" });
+        debug!(
+            "Parsed tool call: {}",
+            if tool_call.is_some() { "yes" } else { "no" }
+        );
 
         let content = if tool_call.is_none() {
             output
@@ -425,11 +457,7 @@ impl LLMClient for EmbeddedClient {
         };
 
         if let Some(tc) = tool_call {
-            Ok(LLMResponse::with_tool_call(
-                content,
-                tc,
-                start.elapsed(),
-            ))
+            Ok(LLMResponse::with_tool_call(content, tc, start.elapsed()))
         } else {
             Ok(LLMResponse::text(content, start.elapsed()))
         }

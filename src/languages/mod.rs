@@ -66,11 +66,7 @@ pub trait LanguageDefinition: Send + Sync {
         None
     }
 
-    fn is_workspace_root(
-        &self,
-        _manifest_name: &str,
-        _manifest_content: Option<&str>,
-    ) -> bool {
+    fn is_workspace_root(&self, _manifest_name: &str, _manifest_content: Option<&str>) -> bool {
         false
     }
 }

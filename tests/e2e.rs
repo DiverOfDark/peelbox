@@ -39,14 +39,17 @@ fn fixture_path(category: &str, name: &str) -> PathBuf {
 
 /// Helper to load expected UniversalBuild(s) from JSON
 fn load_expected(fixture_name: &str) -> Option<Vec<UniversalBuild>> {
-    let expected_path = PathBuf::from("tests/fixtures/expected").join(format!("{}.json", fixture_name));
+    let expected_path =
+        PathBuf::from("tests/fixtures/expected").join(format!("{}.json", fixture_name));
 
     if !expected_path.exists() {
         return None;
     }
 
-    let content = std::fs::read_to_string(&expected_path)
-        .expect(&format!("Failed to read expected JSON: {}", expected_path.display()));
+    let content = std::fs::read_to_string(&expected_path).expect(&format!(
+        "Failed to read expected JSON: {}",
+        expected_path.display()
+    ));
 
     // Try parsing as array of UniversalBuild first (for monorepos)
     if let Ok(multi) = serde_json::from_str::<Vec<UniversalBuild>>(&content) {
@@ -58,7 +61,10 @@ fn load_expected(fixture_name: &str) -> Option<Vec<UniversalBuild>> {
         return Some(vec![single]);
     }
 
-    panic!("Failed to parse expected JSON as UniversalBuild or Vec<UniversalBuild>: {}", expected_path.display())
+    panic!(
+        "Failed to parse expected JSON as UniversalBuild or Vec<UniversalBuild>: {}",
+        expected_path.display()
+    )
 }
 
 /// Helper to run detection on a fixture and parse results
@@ -160,12 +166,16 @@ fn assert_detection(results: &[UniversalBuild], expected_build_system: &str, fix
 #[serial]
 fn test_rust_cargo_detection() {
     let fixture = fixture_path("single-language", "rust-cargo");
-    let results = run_detection(fixture, "e2e_test_rust_cargo_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_rust_cargo_detection").expect("Detection failed");
 
     assert_detection(&results, "cargo", "rust-cargo");
     assert!(
-        results[0].build.commands.iter().any(|cmd| cmd.contains("cargo build")),
+        results[0]
+            .build
+            .commands
+            .iter()
+            .any(|cmd| cmd.contains("cargo build")),
         "Should contain cargo build command"
     );
 }
@@ -174,12 +184,15 @@ fn test_rust_cargo_detection() {
 #[serial]
 fn test_node_npm_detection() {
     let fixture = fixture_path("single-language", "node-npm");
-    let results = run_detection(fixture, "e2e_test_node_npm_detection")
-        .expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_node_npm_detection").expect("Detection failed");
 
     assert_detection(&results, "npm", "node-npm");
     assert!(
-        results[0].build.commands.iter().any(|cmd| cmd.contains("npm")),
+        results[0]
+            .build
+            .commands
+            .iter()
+            .any(|cmd| cmd.contains("npm")),
         "Should contain npm command"
     );
 }
@@ -188,8 +201,8 @@ fn test_node_npm_detection() {
 #[serial]
 fn test_python_pip_detection() {
     let fixture = fixture_path("single-language", "python-pip");
-    let results = run_detection(fixture, "e2e_test_python_pip_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_python_pip_detection").expect("Detection failed");
 
     assert_detection(&results, "pip", "python-pip");
 }
@@ -198,8 +211,8 @@ fn test_python_pip_detection() {
 #[serial]
 fn test_java_maven_detection() {
     let fixture = fixture_path("single-language", "java-maven");
-    let results = run_detection(fixture, "e2e_test_java_maven_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_java_maven_detection").expect("Detection failed");
 
     assert_detection(&results, "maven", "java-maven");
 }
@@ -208,8 +221,7 @@ fn test_java_maven_detection() {
 #[serial]
 fn test_node_yarn_detection() {
     let fixture = fixture_path("single-language", "node-yarn");
-    let results = run_detection(fixture, "e2e_test_node_yarn_detection")
-        .expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_node_yarn_detection").expect("Detection failed");
 
     assert_detection(&results, "yarn", "node-yarn");
 }
@@ -218,8 +230,7 @@ fn test_node_yarn_detection() {
 #[serial]
 fn test_node_pnpm_detection() {
     let fixture = fixture_path("single-language", "node-pnpm");
-    let results = run_detection(fixture, "e2e_test_node_pnpm_detection")
-        .expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_node_pnpm_detection").expect("Detection failed");
 
     assert_detection(&results, "pnpm", "node-pnpm");
 }
@@ -228,8 +239,8 @@ fn test_node_pnpm_detection() {
 #[serial]
 fn test_python_poetry_detection() {
     let fixture = fixture_path("single-language", "python-poetry");
-    let results = run_detection(fixture, "e2e_test_python_poetry_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_python_poetry_detection").expect("Detection failed");
 
     assert_detection(&results, "poetry", "python-poetry");
 }
@@ -238,8 +249,8 @@ fn test_python_poetry_detection() {
 #[serial]
 fn test_java_gradle_detection() {
     let fixture = fixture_path("single-language", "java-gradle");
-    let results = run_detection(fixture, "e2e_test_java_gradle_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_java_gradle_detection").expect("Detection failed");
 
     assert_detection(&results, "gradle", "java-gradle");
 }
@@ -248,8 +259,8 @@ fn test_java_gradle_detection() {
 #[serial]
 fn test_kotlin_gradle_detection() {
     let fixture = fixture_path("single-language", "kotlin-gradle");
-    let results = run_detection(fixture, "e2e_test_kotlin_gradle_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_kotlin_gradle_detection").expect("Detection failed");
 
     assert_detection(&results, "gradle", "kotlin-gradle");
 }
@@ -258,8 +269,8 @@ fn test_kotlin_gradle_detection() {
 #[serial]
 fn test_dotnet_csproj_detection() {
     let fixture = fixture_path("single-language", "dotnet-csproj");
-    let results = run_detection(fixture, "e2e_test_dotnet_csproj_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_dotnet_csproj_detection").expect("Detection failed");
 
     assert_detection(&results, "dotnet", "dotnet-csproj");
 }
@@ -268,8 +279,7 @@ fn test_dotnet_csproj_detection() {
 #[serial]
 fn test_go_mod_detection() {
     let fixture = fixture_path("single-language", "go-mod");
-    let results = run_detection(fixture, "e2e_test_go_mod_detection")
-        .expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_go_mod_detection").expect("Detection failed");
 
     assert_detection(&results, "go", "go-mod");
 }
@@ -312,8 +322,8 @@ fn test_no_manifest_detection() {
 #[serial]
 fn test_rust_workspace_detection() {
     let fixture = fixture_path("monorepo", "cargo-workspace");
-    let results = run_detection(fixture, "e2e_test_rust_workspace_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_rust_workspace_detection").expect("Detection failed");
 
     assert_detection(&results, "cargo", "cargo-workspace");
 }
@@ -322,8 +332,8 @@ fn test_rust_workspace_detection() {
 #[serial]
 fn test_npm_workspaces_detection() {
     let fixture = fixture_path("monorepo", "npm-workspaces");
-    let results = run_detection(fixture, "e2e_test_npm_workspaces_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_npm_workspaces_detection").expect("Detection failed");
 
     assert_detection(&results, "npm", "npm-workspaces");
 }
@@ -332,8 +342,8 @@ fn test_npm_workspaces_detection() {
 #[serial]
 fn test_cargo_workspace_detection() {
     let fixture = fixture_path("monorepo", "cargo-workspace");
-    let results = run_detection(fixture, "e2e_test_cargo_workspace_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_cargo_workspace_detection").expect("Detection failed");
 
     // Workspace should detect cargo as build system
     assert!(!results.is_empty(), "Should detect workspace");
@@ -344,8 +354,7 @@ fn test_cargo_workspace_detection() {
 #[serial]
 fn test_turborepo_detection() {
     let fixture = fixture_path("monorepo", "turborepo");
-    let results = run_detection(fixture, "e2e_test_turborepo_detection")
-        .expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_turborepo_detection").expect("Detection failed");
 
     assert_detection(&results, "npm", "turborepo");
 }
@@ -354,8 +363,8 @@ fn test_turborepo_detection() {
 #[serial]
 fn test_gradle_multiproject_detection() {
     let fixture = fixture_path("monorepo", "gradle-multiproject");
-    let results = run_detection(fixture, "e2e_test_gradle_multiproject_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_gradle_multiproject_detection").expect("Detection failed");
 
     assert_detection(&results, "gradle", "gradle-multiproject");
 }
@@ -364,8 +373,8 @@ fn test_gradle_multiproject_detection() {
 #[serial]
 fn test_maven_multimodule_detection() {
     let fixture = fixture_path("monorepo", "maven-multimodule");
-    let results = run_detection(fixture, "e2e_test_maven_multimodule_detection")
-        .expect("Detection failed");
+    let results =
+        run_detection(fixture, "e2e_test_maven_multimodule_detection").expect("Detection failed");
 
     assert_detection(&results, "maven", "maven-multimodule");
 }
@@ -374,8 +383,7 @@ fn test_maven_multimodule_detection() {
 #[serial]
 fn test_polyglot_detection() {
     let fixture = fixture_path("edge-cases", "polyglot");
-    let results = run_detection(fixture, "e2e_test_polyglot_detection")
-        .expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_polyglot_detection").expect("Detection failed");
 
     // Polyglot should detect multiple languages or pick primary one
     assert!(!results.is_empty(), "Should detect at least one language");

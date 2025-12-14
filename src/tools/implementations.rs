@@ -614,10 +614,7 @@ impl Tool for GrepContentTool {
             }
         }
 
-        debug!(
-            matches_found = matches.len(),
-            "grep_content completed"
-        );
+        debug!(matches_found = matches.len(), "grep_content completed");
 
         Ok(json!({
             "pattern": pattern,
@@ -692,8 +689,7 @@ impl Tool for GetBestPracticesTool {
             build_system, "Best practices template retrieved successfully"
         );
 
-        serde_json::to_value(&template)
-            .context("Failed to serialize best practices template")
+        serde_json::to_value(&template).context("Failed to serialize best practices template")
     }
 }
 
