@@ -302,7 +302,10 @@ async fn test_full_detection_flow_with_mock() {
         "Detection should succeed: {:?}",
         result.err()
     );
-    let universal_build = result.unwrap();
+    let results = result.unwrap();
+    assert_eq!(results.len(), 1, "Should detect exactly one project");
+
+    let universal_build = &results[0];
 
     // Verify the detected build system
     assert_eq!(universal_build.metadata.language, "rust");
@@ -387,7 +390,10 @@ async fn test_detection_flow_multiple_iterations() {
         "Detection should succeed: {:?}",
         result.err()
     );
-    let universal_build = result.unwrap();
+    let results = result.unwrap();
+    assert_eq!(results.len(), 1, "Should detect exactly one project");
+
+    let universal_build = &results[0];
     assert_eq!(universal_build.metadata.language, "rust");
     assert_eq!(universal_build.metadata.build_system, "cargo");
 }

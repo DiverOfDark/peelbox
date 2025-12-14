@@ -19,9 +19,10 @@ use tracing::{debug, info, warn};
 
 /// Embedded LLM client for local inference without external dependencies
 pub struct EmbeddedClient {
-    model: Arc<Mutex<QuantizedQwen2>>,
+    model: Arc<Mutex<Option<QuantizedQwen2>>>,
+    model_path: std::path::PathBuf,
     tokenizer: Tokenizer,
-    device: Device,
+    device: Arc<Mutex<Device>>,
     model_info: &'static EmbeddedModel,
     max_tokens: usize,
 }
@@ -45,6 +46,8 @@ impl EmbeddedClient {
     }
 
     /// Create an embedded client with a specific model
+    ///
+    /// Note: Model is not loaded into memory until first chat() call (lazy loading)
     pub async fn with_model(
         model_info: &'static EmbeddedModel,
         capabilities: &HardwareCapabilities,
@@ -65,36 +68,15 @@ impl EmbeddedClient {
         let device = Self::create_device(capabilities)?;
 
         info!(
-            "Loading {} on {} device...",
-            model_info.display_name,
-            capabilities.best_device(),
+            "Embedded client created (model will be loaded on first use): {}",
+            model_info.display_name
         );
 
-        // Load GGUF model
-        // Try selected device first, fallback to CPU if it fails
-        let (model, final_device) = match Self::load_gguf_model(&model_paths[0], &device) {
-            Ok(model) => (model, device),
-            Err(e) if !device.is_cpu() => {
-                warn!(
-                    "Failed to load GGUF model on {}: {}. Falling back to CPU",
-                    capabilities.best_device(),
-                    e
-                );
-                info!("Retrying model load on CPU for better compatibility");
-                let cpu_device = Device::Cpu;
-                let model = Self::load_gguf_model(&model_paths[0], &cpu_device)
-                    .context("Failed to load GGUF model on CPU fallback")?;
-                (model, cpu_device)
-            }
-            Err(e) => return Err(e),
-        };
-
-        info!("Model loaded successfully");
-
         Ok(Self {
-            model: Arc::new(Mutex::new(model)),
+            model: Arc::new(Mutex::new(None)),
+            model_path: model_paths[0].clone(),
             tokenizer,
-            device: final_device,
+            device: Arc::new(Mutex::new(device)),
             model_info,
             max_tokens: 32768,
         })
@@ -150,8 +132,46 @@ impl EmbeddedClient {
         Ok(model)
     }
 
+    /// Ensure model is loaded (lazy initialization on first use)
+    async fn ensure_model_loaded(&self) -> Result<()> {
+        let mut model_guard = self.model.lock().await;
+
+        if model_guard.is_some() {
+            return Ok(());
+        }
+
+        info!("Loading {} into memory on first use...", self.model_info.display_name);
+
+        // Get current device
+        let device = self.device.lock().await.clone();
+
+        // Try to load on configured device, fallback to CPU if it fails
+        let (model, actual_device) = match Self::load_gguf_model(&self.model_path, &device) {
+            Ok(m) => (m, device),
+            Err(e) if !device.is_cpu() => {
+                warn!("Failed to load model on {:?}: {}. Falling back to CPU", device, e);
+                let cpu_device = Device::Cpu;
+                let m = Self::load_gguf_model(&self.model_path, &cpu_device)
+                    .context("Failed to load model on CPU fallback")?;
+                (m, cpu_device)
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Update device if we fell back to CPU
+        *self.device.lock().await = actual_device;
+
+        *model_guard = Some(model);
+        info!("Model loaded successfully");
+
+        Ok(())
+    }
+
     /// Generate text completion
     async fn generate(&self, prompt: &str, max_new_tokens: usize) -> Result<String> {
+        // Ensure model is loaded before use
+        self.ensure_model_loaded().await?;
+
         let start = Instant::now();
 
         // Tokenize input
@@ -166,11 +186,17 @@ impl EmbeddedClient {
         debug!("Input tokens: {}", input_len);
 
         // Generate tokens
-        let mut model = self.model.lock().await;
+        let mut model_guard = self.model.lock().await;
+        let model = model_guard
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Model failed to load"))?;
 
         let mut logits_processor = LogitsProcessor::new(42, Some(0.7), Some(0.9));
 
         let mut generated_tokens: Vec<u32> = Vec::new();
+
+        // Get the actual device being used
+        let device = self.device.lock().await.clone();
 
         for i in 0..max_new_tokens {
             // For autoregressive generation with KV cache:
@@ -178,10 +204,10 @@ impl EmbeddedClient {
             // - Subsequent iterations: pass only last token, seqlen_offset = tokens already cached
             let (current_input, seqlen_offset) = if i == 0 {
                 // First iteration: pass full prompt
-                (Tensor::new(input_ids.as_slice(), &self.device)?.unsqueeze(0)?, 0)
+                (Tensor::new(input_ids.as_slice(), &device)?.unsqueeze(0)?, 0)
             } else {
                 // Subsequent iterations: pass only the last generated token
-                (Tensor::new(&[generated_tokens.last().copied().unwrap()], &self.device)?.unsqueeze(0)?, input_len + i - 1)
+                (Tensor::new(&[generated_tokens.last().copied().unwrap()], &device)?.unsqueeze(0)?, input_len + i - 1)
             };
 
             let logits = model.forward(&current_input, seqlen_offset)?;

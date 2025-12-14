@@ -291,7 +291,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         None
     };
 
-    let result = match service
+    let results = match service
         .detect_with_progress(repo_path.clone(), progress)
         .await
     {
@@ -303,17 +303,12 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         }
     };
 
-    info!(
-        "Detection complete: {} ({}) with {:.1}% confidence",
-        result.metadata.build_system,
-        result.metadata.language,
-        result.metadata.confidence * 100.0
-    );
+    info!("Detection complete: {} projects detected", results.len());
 
     let format: OutputFormat = args.format.into();
     let formatter = OutputFormatter::new(format);
 
-    let output = match formatter.format(&result) {
+    let output = match formatter.format_multiple(&results) {
         Ok(out) => out,
         Err(e) => {
             error!("Failed to format output: {}", e);
@@ -344,10 +339,16 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         println!("{}", output);
     }
 
-    if result.metadata.confidence < 0.7 {
+    let lowest_confidence = results
+        .iter()
+        .map(|r| r.metadata.confidence)
+        .min_by(|a, b| a.partial_cmp(b).unwrap())
+        .unwrap_or(1.0);
+
+    if lowest_confidence < 0.7 {
         warn!(
             "Detection confidence is low ({:.1}%)",
-            result.metadata.confidence * 100.0
+            lowest_confidence * 100.0
         );
         2
     } else {

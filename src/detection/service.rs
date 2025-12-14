@@ -212,7 +212,7 @@ impl DetectionService {
         Self { client, context }
     }
 
-    pub async fn detect(&self, repo_path: PathBuf) -> Result<UniversalBuild, ServiceError> {
+    pub async fn detect(&self, repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError> {
         self.detect_with_progress(repo_path, None).await
     }
 
@@ -220,7 +220,7 @@ impl DetectionService {
         &self,
         repo_path: PathBuf,
         progress: Option<Arc<dyn ProgressHandler>>,
-    ) -> Result<UniversalBuild, ServiceError> {
+    ) -> Result<Vec<UniversalBuild>, ServiceError> {
         let start = Instant::now();
 
         self.validate_repo_path(&repo_path)?;
@@ -248,7 +248,7 @@ impl DetectionService {
         use crate::pipeline::AnalysisPipeline;
 
         let pipeline = AnalysisPipeline::new((*self.context).clone());
-        let result = pipeline
+        let results = pipeline
             .analyze(repo_path.clone(), bootstrap_context, progress)
             .await
             .map_err(|e| {
@@ -261,14 +261,12 @@ impl DetectionService {
         let elapsed = start.elapsed();
 
         info!(
-            "Detection completed in {:.2}s: {} ({}) with {:.1}% confidence",
+            "Detection completed in {:.2}s: {} projects detected",
             elapsed.as_secs_f64(),
-            result.metadata.build_system,
-            result.metadata.language,
-            result.metadata.confidence * 100.0
+            results.len()
         );
 
-        Ok(result)
+        Ok(results)
     }
 
     fn run_bootstrap_scan(

@@ -13,7 +13,7 @@ use crate::tools::ToolSystem;
 
 use super::context::PipelineContext;
 
-const SYSTEM_PROMPT: &str = r#"You are an expert build system analyzer. Your task is to analyze a repository and generate a complete UniversalBuild specification.
+const SYSTEM_PROMPT: &str = r#"You are an expert build system analyzer. Your task is to analyze a repository and generate UniversalBuild specification(s).
 
 You have access to tools to explore the repository:
 - list_files: List files in a directory with optional glob filtering
@@ -22,7 +22,7 @@ You have access to tools to explore the repository:
 - get_file_tree: Get tree view of directory structure
 - grep_content: Search file contents with regex
 - get_best_practices: Get build template for a language/build system
-- submit_detection: Submit your final UniversalBuild result
+- submit_detection: Submit your final result (single build or array of builds)
 
 CRITICAL RULES:
 1. You MUST call EXACTLY ONE tool per response - never multiple tools
@@ -34,10 +34,25 @@ CRITICAL RULES:
 
 Analysis workflow:
 1. Start by exploring the repository structure
-2. Identify the primary programming language and build system
+2. Identify if this is a single project or monorepo (multiple runnable applications)
 3. Read relevant configuration files (package.json, Cargo.toml, pom.xml, etc.)
 4. Use get_best_practices to retrieve language-specific templates
-5. Call submit_detection with a complete UniversalBuild specification
+5. Call submit_detection with your result
+
+MONOREPO DETECTION:
+- For monorepos with multiple runnable applications, submit an ARRAY of UniversalBuild objects
+- Each runnable application (web app, API, CLI tool) gets its own UniversalBuild entry
+- Shared libraries or packages do NOT get separate UniversalBuild entries
+- Single-project repositories should submit a single UniversalBuild object (not wrapped in array)
+
+Example submit_detection for SINGLE PROJECT:
+{"name": "submit_detection", "arguments": {"version": "1.0", "metadata": {...}, "build": {...}, "runtime": {...}}}
+
+Example submit_detection for MONOREPO (2 apps):
+{"name": "submit_detection", "arguments": [
+  {"version": "1.0", "metadata": {"project_name": "web-app", ...}, "build": {...}, "runtime": {...}},
+  {"version": "1.0", "metadata": {"project_name": "api", ...}, "build": {...}, "runtime": {...}}
+]}
 
 Example valid response:
 {"name": "list_files", "arguments": {"path": ".", "max_depth": 2}}
@@ -83,7 +98,7 @@ impl AnalysisPipeline {
         repo_path: PathBuf,
         bootstrap_context: Option<BootstrapContext>,
         progress: Option<Arc<dyn ProgressHandler>>,
-    ) -> Result<UniversalBuild, PipelineError> {
+    ) -> Result<Vec<UniversalBuild>, PipelineError> {
         let progress = progress.unwrap_or_else(|| Arc::new(NoOpHandler));
 
         progress.on_progress(&ProgressEvent::Started {
@@ -105,7 +120,7 @@ impl AnalysisPipeline {
         debug!("Initialized {} tools for detection", tools.len());
 
         let start_time = Instant::now();
-        let (result, total_iterations) = self
+        let (results, total_iterations) = self
             .detection_loop(messages, tools, tool_system, &progress)
             .await?;
 
@@ -115,14 +130,12 @@ impl AnalysisPipeline {
         });
 
         info!(
-            "Analysis completed: {} ({}) with {:.1}% confidence in {} iterations",
-            result.metadata.build_system,
-            result.metadata.language,
-            result.metadata.confidence * 100.0,
+            "Analysis completed: {} projects detected in {} iterations",
+            results.len(),
             total_iterations
         );
 
-        Ok(result)
+        Ok(results)
     }
 
     fn build_initial_messages(
@@ -162,7 +175,7 @@ impl AnalysisPipeline {
         tools: Vec<crate::llm::ToolDefinition>,
         tool_system: ToolSystem,
         progress: &Arc<dyn ProgressHandler>,
-    ) -> Result<(UniversalBuild, usize), PipelineError> {
+    ) -> Result<(Vec<UniversalBuild>, usize), PipelineError> {
         let max_iterations = self.context.config.max_iterations;
         let mut iteration = 0;
         let mut has_read_file = false;
@@ -281,7 +294,7 @@ impl AnalysisPipeline {
         has_read_file: &mut bool,
         iteration: usize,
         progress: &Arc<dyn ProgressHandler>,
-    ) -> Result<Option<(UniversalBuild, usize)>, PipelineError> {
+    ) -> Result<Option<(Vec<UniversalBuild>, usize)>, PipelineError> {
             debug!(
                 "Executing tool: {} with call_id: {}",
                 tool_call.name, tool_call.call_id
@@ -343,24 +356,41 @@ impl AnalysisPipeline {
         &self,
         arguments: &serde_json::Value,
         progress: &Arc<dyn ProgressHandler>,
-    ) -> Result<UniversalBuild, PipelineError> {
+    ) -> Result<Vec<UniversalBuild>, PipelineError> {
         progress.on_progress(&ProgressEvent::ValidationStarted);
 
-        let universal_build: UniversalBuild = serde_json::from_value(arguments.clone())
-            .context("Failed to parse UniversalBuild from submit_detection")
-            .map_err(|e| PipelineError::InvalidResponse(e.to_string()))?;
+        let builds = if arguments.is_array() {
+            let vec: Vec<UniversalBuild> = serde_json::from_value(arguments.clone())
+                .context("Failed to parse Vec<UniversalBuild> from submit_detection")
+                .map_err(|e| PipelineError::InvalidResponse(e.to_string()))?;
 
-        self.context
-            .validator
-            .validate(&universal_build)
-            .map_err(|e| PipelineError::ValidationError(e.to_string()))?;
+            if vec.is_empty() {
+                return Err(PipelineError::InvalidResponse(
+                    "LLM returned empty build array".to_string()
+                ));
+            }
+
+            vec
+        } else {
+            let single: UniversalBuild = serde_json::from_value(arguments.clone())
+                .context("Failed to parse UniversalBuild from submit_detection")
+                .map_err(|e| PipelineError::InvalidResponse(e.to_string()))?;
+            vec![single]
+        };
+
+        for build in &builds {
+            self.context
+                .validator
+                .validate(build)
+                .map_err(|e| PipelineError::ValidationError(e.to_string()))?;
+        }
 
         progress.on_progress(&ProgressEvent::ValidationComplete {
             warnings: 0,
             errors: 0,
         });
 
-        Ok(universal_build)
+        Ok(builds)
     }
 }
 

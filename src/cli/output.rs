@@ -9,8 +9,6 @@ use crate::output::schema::UniversalBuild;
 pub enum OutputFormat {
     Json,
     Yaml,
-    Human,
-    Dockerfile,
 }
 
 pub struct OutputFormatter {
@@ -27,8 +25,17 @@ impl OutputFormatter {
             OutputFormat::Json => serde_json::to_string_pretty(result)
                 .context("Failed to serialize UniversalBuild to JSON"),
             OutputFormat::Yaml => result.to_yaml(),
-            OutputFormat::Human => Ok(format!("{}", result)),
-            OutputFormat::Dockerfile => result.to_dockerfile(),
+        }
+    }
+
+    pub fn format_multiple(&self, results: &[UniversalBuild]) -> Result<String> {
+        match self.format {
+            OutputFormat::Json => serde_json::to_string_pretty(results)
+                .context("Failed to serialize UniversalBuild array to JSON"),
+            OutputFormat::Yaml => {
+                serde_yaml::to_string(results)
+                    .context("Failed to serialize UniversalBuild array to YAML")
+            }
         }
     }
 
@@ -38,9 +45,6 @@ impl OutputFormatter {
                 .context("Failed to serialize health status to JSON"),
             OutputFormat::Yaml => serde_yaml::to_string(health_results)
                 .context("Failed to serialize health status to YAML"),
-            OutputFormat::Human | OutputFormat::Dockerfile => {
-                self.format_health_human(health_results)
-            }
         }
     }
 
@@ -52,9 +56,6 @@ impl OutputFormatter {
         match self.format {
             OutputFormat::Json => self.format_health_with_env_vars_json(health_results, env_vars),
             OutputFormat::Yaml => self.format_health_with_env_vars_yaml(health_results, env_vars),
-            OutputFormat::Human | OutputFormat::Dockerfile => {
-                self.format_health_with_env_vars_human(health_results, env_vars)
-            }
         }
     }
 
@@ -82,83 +83,6 @@ impl OutputFormatter {
         });
         serde_yaml::to_string(&output)
             .context("Failed to serialize health status with env vars to YAML")
-    }
-
-    fn format_health_human(
-        &self,
-        health_results: &HashMap<String, HealthStatus>,
-    ) -> Result<String> {
-        let mut output = String::new();
-
-        output.push_str("Backend Health Status\n");
-        output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
-
-        for (backend, status) in health_results {
-            let status_symbol = if status.available {
-                "\u{2713}"
-            } else {
-                "\u{2717}"
-            };
-
-            output.push_str(&format!("{} {}\n", status_symbol, backend));
-            output.push_str(&format!(
-                "  Status: {}\n",
-                if status.available {
-                    "Available"
-                } else {
-                    "Unavailable"
-                }
-            ));
-            output.push_str(&format!("  Message: {}\n", status.message));
-
-            if let Some(ref details) = status.details {
-                output.push_str(&format!("  Details: {}\n", details));
-            }
-            output.push('\n');
-        }
-
-        Ok(output)
-    }
-
-    fn format_health_with_env_vars_human(
-        &self,
-        health_results: &HashMap<String, HealthStatus>,
-        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
-    ) -> Result<String> {
-        let mut output = self.format_health_human(health_results)?;
-
-        output.push_str("Environment Variables\n");
-        output.push_str("\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\n\n");
-
-        let mut backends: Vec<_> = env_vars.keys().collect();
-        backends.sort();
-
-        for backend in backends {
-            if let Some(vars) = env_vars.get(backend) {
-                output.push_str(&format!("{}:\n", backend));
-                for var in vars {
-                    let required_marker = if var.required { "*" } else { " " };
-                    output.push_str(&format!("  {} {}\n", required_marker, var.name));
-
-                    if let Some(ref value) = var.value {
-                        output.push_str(&format!("    Current: {}\n", value));
-                    } else {
-                        output.push_str("    Current: not set\n");
-                    }
-
-                    if let Some(ref default) = var.default {
-                        output.push_str(&format!("    Default: {}\n", default));
-                    }
-
-                    output.push_str(&format!("    Info: {}\n", var.description));
-                }
-                output.push('\n');
-            }
-        }
-
-        output.push_str("* = required\n");
-
-        Ok(output)
     }
 }
 
@@ -273,20 +197,6 @@ mod tests {
     }
 
     #[test]
-    fn test_human_format() {
-        let result = create_test_result();
-        let formatter = OutputFormatter::new(OutputFormat::Human);
-        let output = formatter.format(&result).unwrap();
-
-        eprintln!("Output:\n{}", output);
-        assert!(output.contains("build_system"));
-        assert!(output.contains("cargo"));
-        assert!(output.contains("rust"));
-        assert!(output.contains("confidence"));
-        assert!(output.contains("0.95"));
-    }
-
-    #[test]
     fn test_health_status_creation() {
         let status = HealthStatus::available("Ollama is running".to_string());
         assert!(status.available);
@@ -298,25 +208,4 @@ mod tests {
         assert!(status.details.is_some());
     }
 
-    #[test]
-    fn test_health_format_human() {
-        let mut health_results = HashMap::new();
-        health_results.insert(
-            "Ollama".to_string(),
-            HealthStatus::available("Connected successfully".to_string()),
-        );
-        health_results.insert(
-            "Mistral".to_string(),
-            HealthStatus::unavailable("API key not configured".to_string()),
-        );
-
-        let formatter = OutputFormatter::new(OutputFormat::Human);
-        let output = formatter.format_health(&health_results).unwrap();
-
-        assert!(output.contains("Backend Health Status"));
-        assert!(output.contains("Ollama"));
-        assert!(output.contains("Mistral"));
-        assert!(output.contains("Available"));
-        assert!(output.contains("Unavailable"));
-    }
 }

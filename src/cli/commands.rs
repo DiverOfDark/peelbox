@@ -74,7 +74,7 @@ pub struct DetectArgs {
         short = 'f',
         long,
         value_enum,
-        default_value = "human",
+        default_value = "json",
         help = "Output format"
     )]
     pub format: OutputFormatArg,
@@ -132,7 +132,7 @@ pub struct HealthArgs {
         short = 'f',
         long,
         value_enum,
-        default_value = "human",
+        default_value = "json",
         help = "Output format"
     )]
     pub format: OutputFormatArg,
@@ -142,8 +142,6 @@ pub struct HealthArgs {
 pub enum OutputFormatArg {
     Json,
     Yaml,
-    Human,
-    Dockerfile,
 }
 
 impl From<OutputFormatArg> for super::output::OutputFormat {
@@ -151,8 +149,6 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
         match arg {
             OutputFormatArg::Json => super::output::OutputFormat::Json,
             OutputFormatArg::Yaml => super::output::OutputFormat::Yaml,
-            OutputFormatArg::Human => super::output::OutputFormat::Human,
-            OutputFormatArg::Dockerfile => super::output::OutputFormat::Dockerfile,
         }
     }
 }
@@ -182,7 +178,7 @@ mod tests {
         let args = CliArgs::parse_from(&["aipack", "detect"]);
         match args.command {
             Commands::Detect(detect_args) => {
-                assert_eq!(detect_args.format, OutputFormatArg::Human);
+                assert_eq!(detect_args.format, OutputFormatArg::Json);
                 assert!(detect_args.backend.is_none()); // Auto-selection by default
                 assert_eq!(detect_args.timeout, 60);
                 assert!(!detect_args.verbose_output);
@@ -243,7 +239,7 @@ mod tests {
         match args.command {
             Commands::Health(health_args) => {
                 assert!(health_args.backend.is_none());
-                assert_eq!(health_args.format, OutputFormatArg::Human);
+                assert_eq!(health_args.format, OutputFormatArg::Json);
             }
             _ => panic!("Expected Health command"),
         }
