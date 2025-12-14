@@ -290,7 +290,7 @@ fn test_config_display_formatting() {
 
 #[test]
 fn test_backend_error_types() {
-    use aipack::ai::error::BackendError;
+    use aipack::llm::BackendError;
 
     // Test TimeoutError
     let error = BackendError::TimeoutError { seconds: 30 };
@@ -371,7 +371,7 @@ fn test_backend_error_types() {
 
 #[test]
 fn test_backend_error_implements_error_trait() {
-    use aipack::ai::error::BackendError;
+    use aipack::llm::BackendError;
     use std::error::Error;
 
     let error = BackendError::TimeoutError { seconds: 30 };
