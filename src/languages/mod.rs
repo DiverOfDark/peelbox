@@ -65,6 +65,14 @@ pub trait LanguageDefinition: Send + Sync {
     fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
         None
     }
+
+    fn is_workspace_root(
+        &self,
+        _manifest_name: &str,
+        _manifest_content: Option<&str>,
+    ) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone)]

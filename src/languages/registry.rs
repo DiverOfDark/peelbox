@@ -150,6 +150,23 @@ impl LanguageRegistry {
     pub fn is_manifest(&self, filename: &str) -> bool {
         self.manifest_index.contains_key(filename)
     }
+
+    /// Check if a manifest is a workspace root (monorepo indicator)
+    pub fn is_workspace_root(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if let Some(candidates) = self.manifest_index.get(manifest_name) {
+            for &(lang_idx, _) in candidates {
+                let language = &self.languages[lang_idx];
+                if language.is_workspace_root(manifest_name, manifest_content) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
 }
 
 impl Default for LanguageRegistry {

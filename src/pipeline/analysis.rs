@@ -45,6 +45,16 @@ MONOREPO DETECTION:
 - Shared libraries or packages do NOT get separate UniversalBuild entries
 - Single-project repositories should submit a single UniversalBuild object (not wrapped in array)
 
+WORKSPACE ROOT INDICATORS (strong signals for monorepo):
+- Cargo.toml with [workspace] section (Rust)
+- package.json with "workspaces" field (npm/yarn/pnpm)
+- pom.xml with <modules> tag (Maven multi-module)
+- settings.gradle or settings.gradle.kts (Gradle multi-project)
+- go.work file (Go workspaces)
+- lerna.json, nx.json, turbo.json (JavaScript monorepo tools)
+
+When you see these workspace roots, expect multiple sub-projects beneath them.
+
 Example submit_detection for SINGLE PROJECT:
 {"name": "submit_detection", "arguments": {"version": "1.0", "metadata": {...}, "build": {...}, "runtime": {...}}}
 

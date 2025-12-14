@@ -99,6 +99,22 @@ impl LanguageDefinition for RustLanguage {
         }
         None
     }
+
+    fn is_workspace_root(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if manifest_name != "Cargo.toml" {
+            return false;
+        }
+
+        if let Some(content) = manifest_content {
+            content.contains("[workspace]")
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
@@ -194,5 +210,38 @@ members = ["crate1", "crate2"]
     fn test_build_systems() {
         let lang = RustLanguage;
         assert_eq!(lang.build_systems(), &["cargo"]);
+    }
+
+    #[test]
+    fn test_is_workspace_root_true() {
+        let lang = RustLanguage;
+        let content = r#"
+[workspace]
+members = ["crate1", "crate2"]
+"#;
+        assert!(lang.is_workspace_root("Cargo.toml", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_false_package() {
+        let lang = RustLanguage;
+        let content = r#"
+[package]
+name = "myapp"
+version = "0.1.0"
+"#;
+        assert!(!lang.is_workspace_root("Cargo.toml", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_wrong_file() {
+        let lang = RustLanguage;
+        assert!(!lang.is_workspace_root("package.json", Some("[workspace]")));
+    }
+
+    #[test]
+    fn test_is_workspace_root_no_content() {
+        let lang = RustLanguage;
+        assert!(!lang.is_workspace_root("Cargo.toml", None));
     }
 }

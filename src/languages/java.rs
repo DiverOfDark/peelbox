@@ -189,6 +189,30 @@ impl LanguageDefinition for JavaLanguage {
 
         None
     }
+
+    fn is_workspace_root(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> bool {
+        match manifest_name {
+            "pom.xml" => {
+                if let Some(content) = manifest_content {
+                    content.contains("<modules>") || content.contains("<module>")
+                } else {
+                    false
+                }
+            }
+            "settings.gradle" | "settings.gradle.kts" => {
+                if let Some(content) = manifest_content {
+                    content.contains("include(") || content.contains("include ")
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -321,6 +345,67 @@ mod tests {
         let lang = JavaLanguage;
         let content = "17";
         assert_eq!(lang.detect_version(Some(content)), Some("17".to_string()));
+    }
+
+    #[test]
+    fn test_is_workspace_root_maven_modules() {
+        let lang = JavaLanguage;
+        let content = r#"
+<project>
+    <modules>
+        <module>module-a</module>
+        <module>module-b</module>
+    </modules>
+</project>
+"#;
+        assert!(lang.is_workspace_root("pom.xml", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_maven_no_modules() {
+        let lang = JavaLanguage;
+        let content = r#"
+<project>
+    <artifactId>my-app</artifactId>
+</project>
+"#;
+        assert!(!lang.is_workspace_root("pom.xml", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_gradle_settings() {
+        let lang = JavaLanguage;
+        let content = r#"
+rootProject.name = "my-project"
+include("module-a")
+include("module-b")
+"#;
+        assert!(lang.is_workspace_root("settings.gradle", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_gradle_settings_kts() {
+        let lang = JavaLanguage;
+        let content = r#"
+rootProject.name = "my-project"
+include("module-a", "module-b")
+"#;
+        assert!(lang.is_workspace_root("settings.gradle.kts", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_gradle_no_includes() {
+        let lang = JavaLanguage;
+        let content = r#"
+rootProject.name = "single-project"
+"#;
+        assert!(!lang.is_workspace_root("settings.gradle", Some(content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_wrong_file() {
+        let lang = JavaLanguage;
+        assert!(!lang.is_workspace_root("build.gradle", Some("<modules></modules>")));
     }
 
 }

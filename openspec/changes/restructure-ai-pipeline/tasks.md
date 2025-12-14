@@ -307,13 +307,13 @@ Update detection to return `Vec<UniversalBuild>` for multi-project repositories.
 - [x] 18.1 Update `DetectionService::detect()` to return `Vec<UniversalBuild>`
 - [x] 18.2 Update `AnalysisPipeline::analyze()` to return `Vec<UniversalBuild>`
 - [x] 18.3 Update `submit_detection` tool to accept both single and array formats
-- [ ] 18.4 Update `LanguageRegistry` with monorepo detection signals (deferred)
-- [ ] 18.5 Add monorepo indicators to `BootstrapContext` (deferred)
+- [x] 18.4 Update `LanguageRegistry` with monorepo detection signals
+- [x] 18.5 Add monorepo indicators to `BootstrapContext`
 - [x] 18.6 Update system prompt to guide LLM on monorepo analysis
 - [x] 18.7 Update validation rules for array of UniversalBuild
 - [x] 18.8 Update CLI output formatting to handle multiple builds
 - [x] 18.9 Update E2E tests to validate `Vec<UniversalBuild>` responses
-- [x] 18.10 Verify: `cargo build && cargo test --lib` passes (300 tests passed)
+- [x] 18.10 Verify: `cargo build && cargo test --lib` passes (310 tests passed)
 
 **Deliverable:** aipack returns `Vec<UniversalBuild>` - single element for single-project repos, multiple elements for monorepos. Each runnable application gets its own UniversalBuild entry. LLM can submit either single object or array, pipeline handles both formats transparently.
 

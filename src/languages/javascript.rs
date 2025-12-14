@@ -236,6 +236,22 @@ impl LanguageDefinition for JavaScriptLanguage {
 
         None
     }
+
+    fn is_workspace_root(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if manifest_name != "package.json" {
+            return false;
+        }
+
+        if let Some(content) = manifest_content {
+            content.contains("\"workspaces\"")
+        } else {
+            false
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

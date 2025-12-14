@@ -25,6 +25,7 @@ pub struct LanguageDetection {
     pub manifest_path: String,
     pub depth: usize,
     pub confidence: f64,
+    pub is_workspace_root: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,7 +87,10 @@ impl BootstrapContext {
             .filter(|d| d.depth == 0)
             .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap());
 
+        let has_workspace_root = detections.iter().any(|d| d.is_workspace_root);
+
         let is_monorepo = workspace.has_workspace_config
+            || has_workspace_root
             || workspace.max_depth > 1
             || detections.iter().filter(|d| d.depth > 0).count() > 2;
 
@@ -113,6 +117,22 @@ impl BootstrapContext {
             .map(|d| format!("{} ({})", d.language, d.build_system))
             .collect();
 
+        let workspace_roots: Vec<&str> = self
+            .detections
+            .iter()
+            .filter(|d| d.is_workspace_root)
+            .map(|d| d.manifest_path.as_str())
+            .collect();
+
+        let workspace_info = if !workspace_roots.is_empty() {
+            format!(
+                "\n- Workspace Roots: {} (indicates monorepo with multiple sub-projects)",
+                workspace_roots.join(", ")
+            )
+        } else {
+            String::new()
+        };
+
         format!(
             r#"## Pre-scanned Repository Analysis
 
@@ -126,7 +146,7 @@ impl BootstrapContext {
 - Primary Language: {}
 - Primary Build System: {}
 - Is Monorepo: {}
-- Root Manifests: {}
+- Root Manifests: {}{}
 
 Use these manifest files to guide your analysis. Read them directly without searching."#,
             manifest_list.len(),
@@ -149,7 +169,8 @@ Use these manifest files to guide your analysis. Read them directly without sear
                 .as_ref()
                 .unwrap_or(&"unknown".to_string()),
             self.summary.is_monorepo,
-            self.summary.root_manifests.join(", ")
+            self.summary.root_manifests.join(", "),
+            workspace_info
         )
     }
 }
@@ -166,6 +187,7 @@ mod tests {
                 manifest_path: "Cargo.toml".to_string(),
                 depth: 0,
                 confidence: 1.0,
+                is_workspace_root: true,
             },
             LanguageDetection {
                 language: "JavaScript".to_string(),
@@ -173,6 +195,7 @@ mod tests {
                 manifest_path: "package.json".to_string(),
                 depth: 0,
                 confidence: 0.8,
+                is_workspace_root: false,
             },
             LanguageDetection {
                 language: "Rust".to_string(),
@@ -180,6 +203,7 @@ mod tests {
                 manifest_path: "crates/lib/Cargo.toml".to_string(),
                 depth: 2,
                 confidence: 1.0,
+                is_workspace_root: false,
             },
         ]
     }
@@ -221,6 +245,7 @@ mod tests {
             manifest_path: "package.json".to_string(),
             depth: 0,
             confidence: 0.9,
+            is_workspace_root: false,
         }];
         let context = BootstrapContext::from_detections(detections, true, 50);
 
@@ -261,5 +286,48 @@ mod tests {
         assert_eq!(context.summary.manifest_count, 0);
         assert!(context.summary.primary_language.is_none());
         assert!(!context.summary.is_monorepo);
+    }
+
+    #[test]
+    fn test_monorepo_detection_by_workspace_root() {
+        let detections = vec![LanguageDetection {
+            language: "Rust".to_string(),
+            build_system: "cargo".to_string(),
+            manifest_path: "Cargo.toml".to_string(),
+            depth: 0,
+            confidence: 1.0,
+            is_workspace_root: true,
+        }];
+        let context = BootstrapContext::from_detections(detections, false, 50);
+
+        assert!(context.summary.is_monorepo);
+    }
+
+    #[test]
+    fn test_format_for_prompt_includes_workspace_roots() {
+        let detections = vec![
+            LanguageDetection {
+                language: "Rust".to_string(),
+                build_system: "cargo".to_string(),
+                manifest_path: "Cargo.toml".to_string(),
+                depth: 0,
+                confidence: 1.0,
+                is_workspace_root: true,
+            },
+            LanguageDetection {
+                language: "Rust".to_string(),
+                build_system: "cargo".to_string(),
+                manifest_path: "crates/lib/Cargo.toml".to_string(),
+                depth: 2,
+                confidence: 1.0,
+                is_workspace_root: false,
+            },
+        ];
+        let context = BootstrapContext::from_detections(detections, false, 50);
+
+        let prompt = context.format_for_prompt();
+        assert!(prompt.contains("Workspace Roots:"));
+        assert!(prompt.contains("Cargo.toml"));
+        assert!(prompt.contains("monorepo with multiple sub-projects"));
     }
 }
