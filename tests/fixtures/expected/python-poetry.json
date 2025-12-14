@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-python-poetry-project",
+    "language": "Python",
+    "build_system": "poetry",
+    "confidence": 0.95,
+    "reasoning": "Detected pyproject.toml with poetry configuration"
+  },
+  "build": {
+    "base": "python:3.11-slim",
+    "packages": [],
+    "env": {},
+    "commands": ["pip install poetry", "poetry install --no-dev"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": [".cache/pypoetry/"],
+    "artifacts": []
+  },
+  "runtime": {
+    "base": "python:3.11-slim",
+    "packages": [],
+    "env": {
+      "PYTHONUNBUFFERED": "1"
+    },
+    "copy": [
+      {
+        "from": "pyproject.toml",
+        "to": "./"
+      },
+      {
+        "from": "*.py",
+        "to": "./"
+      }
+    ],
+    "command": ["poetry", "run", "python", "app.py"],
+    "ports": [8000],
+    "healthcheck": null
+  }
+}

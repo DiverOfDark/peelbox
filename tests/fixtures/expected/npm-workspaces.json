@@ -1,0 +1,45 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "npm-workspaces",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.95,
+      "reasoning": "Detected npm workspaces configuration"
+    },
+    "build": {
+      "base": "node:20-alpine",
+      "packages": [],
+      "env": {},
+      "commands": ["npm ci", "npm run build --workspaces"],
+      "context": [{"from": ".", "to": "."}],
+      "cache": ["node_modules/", ".npm/"],
+      "artifacts": ["packages/*/dist/", "apps/*/dist/"]
+    },
+    "runtime": {
+      "base": "node:20-alpine",
+      "packages": [],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "copy": [
+        {
+          "from": "package*.json",
+          "to": "./"
+        },
+        {
+          "from": "packages/",
+          "to": "./packages/"
+        },
+        {
+          "from": "apps/",
+          "to": "./apps/"
+        }
+      ],
+      "command": ["node", "apps/web/dist/index.js"],
+      "ports": [3000],
+      "healthcheck": null
+    }
+  }
+]

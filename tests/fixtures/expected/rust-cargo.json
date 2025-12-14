@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-rust-project",
+    "language": "Rust",
+    "build_system": "cargo",
+    "confidence": 0.95,
+    "reasoning": "Detected Cargo.toml with Rust dependencies"
+  },
+  "build": {
+    "base": "rust:1.75",
+    "packages": ["pkg-config", "libssl-dev"],
+    "env": {},
+    "commands": ["cargo build --release"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["target/", "/usr/local/cargo/registry/"],
+    "artifacts": ["target/release/test-rust-project"]
+  },
+  "runtime": {
+    "base": "debian:bookworm-slim",
+    "packages": ["ca-certificates", "libssl3"],
+    "env": {},
+    "copy": [
+      {
+        "from": "target/release/test-rust-project",
+        "to": "/usr/local/bin/app"
+      }
+    ],
+    "command": ["/usr/local/bin/app"],
+    "ports": [8080],
+    "healthcheck": null
+  }
+}

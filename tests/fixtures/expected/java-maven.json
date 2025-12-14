@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-java-project",
+    "language": "Java",
+    "build_system": "maven",
+    "confidence": 0.95,
+    "reasoning": "Detected pom.xml"
+  },
+  "build": {
+    "base": "maven:3.9-eclipse-temurin-17",
+    "packages": [],
+    "env": {},
+    "commands": ["mvn clean package -DskipTests"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": [".m2/repository/"],
+    "artifacts": ["target/*.jar"]
+  },
+  "runtime": {
+    "base": "eclipse-temurin:17-jre",
+    "packages": [],
+    "env": {},
+    "copy": [
+      {
+        "from": "target/*.jar",
+        "to": "/app.jar"
+      }
+    ],
+    "command": ["java", "-jar", "/app.jar"],
+    "ports": [8080],
+    "healthcheck": null
+  }
+}

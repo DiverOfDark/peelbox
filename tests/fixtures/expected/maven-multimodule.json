@@ -1,0 +1,68 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api-service",
+      "language": "Java",
+      "build_system": "maven",
+      "confidence": 0.95,
+      "reasoning": "Detected Maven multi-module project - api-service module"
+    },
+    "build": {
+      "base": "maven:3.9-eclipse-temurin-17",
+      "packages": [],
+      "env": {},
+      "commands": ["mvn clean package -pl api-service -am -DskipTests"],
+      "context": [{"from": ".", "to": "."}],
+      "cache": [".m2/repository/"],
+      "artifacts": ["api-service/target/*.jar"]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:17-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "api-service/target/*.jar",
+          "to": "/app.jar"
+        }
+      ],
+      "command": ["java", "-jar", "/app.jar"],
+      "ports": [8080],
+      "healthcheck": null
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web-service",
+      "language": "Java",
+      "build_system": "maven",
+      "confidence": 0.95,
+      "reasoning": "Detected Maven multi-module project - web-service module"
+    },
+    "build": {
+      "base": "maven:3.9-eclipse-temurin-17",
+      "packages": [],
+      "env": {},
+      "commands": ["mvn clean package -pl web-service -am -DskipTests"],
+      "context": [{"from": ".", "to": "."}],
+      "cache": [".m2/repository/"],
+      "artifacts": ["web-service/target/*.jar"]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:17-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "web-service/target/*.jar",
+          "to": "/app.jar"
+        }
+      ],
+      "command": ["java", "-jar", "/app.jar"],
+      "ports": [8081],
+      "healthcheck": null
+    }
+  }
+]

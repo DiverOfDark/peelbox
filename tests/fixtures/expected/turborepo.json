@@ -1,0 +1,45 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "turborepo-monorepo",
+      "language": "JavaScript",
+      "build_system": "turborepo",
+      "confidence": 0.95,
+      "reasoning": "Detected turbo.json with npm/pnpm workspaces"
+    },
+    "build": {
+      "base": "node:20-alpine",
+      "packages": [],
+      "env": {},
+      "commands": ["npm ci", "npx turbo build"],
+      "context": [{"from": ".", "to": "."}],
+      "cache": ["node_modules/", ".turbo/"],
+      "artifacts": ["apps/*/dist/", "packages/*/dist/"]
+    },
+    "runtime": {
+      "base": "node:20-alpine",
+      "packages": [],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "copy": [
+        {
+          "from": "package*.json",
+          "to": "./"
+        },
+        {
+          "from": "apps/",
+          "to": "./apps/"
+        },
+        {
+          "from": "packages/",
+          "to": "./packages/"
+        }
+      ],
+      "command": ["node", "apps/web/dist/index.js"],
+      "ports": [3000],
+      "healthcheck": null
+    }
+  }
+]

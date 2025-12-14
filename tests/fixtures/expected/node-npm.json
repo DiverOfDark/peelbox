@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-node-project",
+    "language": "JavaScript",
+    "build_system": "npm",
+    "confidence": 0.95,
+    "reasoning": "Detected package.json with npm scripts"
+  },
+  "build": {
+    "base": "node:20-alpine",
+    "packages": [],
+    "env": {},
+    "commands": ["npm ci", "npm run build"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["node_modules/", ".npm/"],
+    "artifacts": ["dist/", "build/"]
+  },
+  "runtime": {
+    "base": "node:20-alpine",
+    "packages": [],
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "copy": [
+      {
+        "from": "package*.json",
+        "to": "./"
+      },
+      {
+        "from": "dist/",
+        "to": "./dist/"
+      }
+    ],
+    "command": ["node", "dist/index.js"],
+    "ports": [3000],
+    "healthcheck": null
+  }
+}

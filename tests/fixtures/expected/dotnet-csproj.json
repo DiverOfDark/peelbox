@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-dotnet-project",
+    "language": "C#",
+    "build_system": "dotnet",
+    "confidence": 0.95,
+    "reasoning": "Detected .csproj file"
+  },
+  "build": {
+    "base": "mcr.microsoft.com/dotnet/sdk:8.0",
+    "packages": [],
+    "env": {},
+    "commands": ["dotnet restore", "dotnet publish -c Release -o /app"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": [".nuget/"],
+    "artifacts": ["/app"]
+  },
+  "runtime": {
+    "base": "mcr.microsoft.com/dotnet/aspnet:8.0",
+    "packages": [],
+    "env": {},
+    "copy": [
+      {
+        "from": "/app",
+        "to": "/app"
+      }
+    ],
+    "command": ["dotnet", "/app/app.dll"],
+    "ports": [5000],
+    "healthcheck": null
+  }
+}

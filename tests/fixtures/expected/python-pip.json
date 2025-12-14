@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-python-project",
+    "language": "Python",
+    "build_system": "pip",
+    "confidence": 0.95,
+    "reasoning": "Detected requirements.txt"
+  },
+  "build": {
+    "base": "python:3.11-slim",
+    "packages": [],
+    "env": {},
+    "commands": ["pip install --no-cache-dir -r requirements.txt"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": [".cache/pip/"],
+    "artifacts": []
+  },
+  "runtime": {
+    "base": "python:3.11-slim",
+    "packages": [],
+    "env": {
+      "PYTHONUNBUFFERED": "1"
+    },
+    "copy": [
+      {
+        "from": "requirements.txt",
+        "to": "./"
+      },
+      {
+        "from": "*.py",
+        "to": "./"
+      }
+    ],
+    "command": ["python", "app.py"],
+    "ports": [8000],
+    "healthcheck": null
+  }
+}

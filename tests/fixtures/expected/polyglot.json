@@ -1,0 +1,72 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "polyglot-frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.90,
+      "reasoning": "Detected polyglot repository with multiple languages - frontend component"
+    },
+    "build": {
+      "base": "node:20-alpine",
+      "packages": [],
+      "env": {},
+      "commands": ["cd frontend && npm ci && npm run build"],
+      "context": [{"from": "frontend", "to": "/app"}],
+      "cache": ["frontend/node_modules/"],
+      "artifacts": ["frontend/dist/"]
+    },
+    "runtime": {
+      "base": "node:20-alpine",
+      "packages": [],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "copy": [
+        {
+          "from": "frontend/dist/",
+          "to": "/app/dist/"
+        }
+      ],
+      "command": ["node", "/app/dist/index.js"],
+      "ports": [3000],
+      "healthcheck": null
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "polyglot-backend",
+      "language": "Python",
+      "build_system": "pip",
+      "confidence": 0.90,
+      "reasoning": "Detected polyglot repository with multiple languages - backend component"
+    },
+    "build": {
+      "base": "python:3.11-slim",
+      "packages": [],
+      "env": {},
+      "commands": ["cd backend && pip install -r requirements.txt"],
+      "context": [{"from": "backend", "to": "/app"}],
+      "cache": ["backend/.cache/pip/"],
+      "artifacts": []
+    },
+    "runtime": {
+      "base": "python:3.11-slim",
+      "packages": [],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "copy": [
+        {
+          "from": "backend/",
+          "to": "/app/"
+        }
+      ],
+      "command": ["python", "/app/app.py"],
+      "ports": [8000],
+      "healthcheck": null
+    }
+  }
+]

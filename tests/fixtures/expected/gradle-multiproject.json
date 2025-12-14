@@ -1,0 +1,68 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api-service",
+      "language": "Java",
+      "build_system": "gradle",
+      "confidence": 0.95,
+      "reasoning": "Detected Gradle multi-project build - api-service module"
+    },
+    "build": {
+      "base": "gradle:8-jdk17",
+      "packages": [],
+      "env": {},
+      "commands": ["gradle :api-service:build -x test"],
+      "context": [{"from": ".", "to": "."}],
+      "cache": [".gradle/", "*/build/"],
+      "artifacts": ["api-service/build/libs/*.jar"]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:17-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "api-service/build/libs/*.jar",
+          "to": "/app.jar"
+        }
+      ],
+      "command": ["java", "-jar", "/app.jar"],
+      "ports": [8080],
+      "healthcheck": null
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web-service",
+      "language": "Java",
+      "build_system": "gradle",
+      "confidence": 0.95,
+      "reasoning": "Detected Gradle multi-project build - web-service module"
+    },
+    "build": {
+      "base": "gradle:8-jdk17",
+      "packages": [],
+      "env": {},
+      "commands": ["gradle :web-service:build -x test"],
+      "context": [{"from": ".", "to": "."}],
+      "cache": [".gradle/", "*/build/"],
+      "artifacts": ["web-service/build/libs/*.jar"]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:17-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "web-service/build/libs/*.jar",
+          "to": "/app.jar"
+        }
+      ],
+      "command": ["java", "-jar", "/app.jar"],
+      "ports": [8081],
+      "healthcheck": null
+    }
+  }
+]

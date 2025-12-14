@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-node-pnpm-project",
+    "language": "JavaScript",
+    "build_system": "pnpm",
+    "confidence": 0.95,
+    "reasoning": "Detected package.json with pnpm-lock.yaml"
+  },
+  "build": {
+    "base": "node:20-alpine",
+    "packages": [],
+    "env": {},
+    "commands": ["pnpm install --frozen-lockfile", "pnpm build"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["node_modules/", ".pnpm-store/"],
+    "artifacts": ["dist/", "build/"]
+  },
+  "runtime": {
+    "base": "node:20-alpine",
+    "packages": [],
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "copy": [
+      {
+        "from": "package.json",
+        "to": "./"
+      },
+      {
+        "from": "pnpm-lock.yaml",
+        "to": "./"
+      },
+      {
+        "from": "dist/",
+        "to": "./dist/"
+      }
+    ],
+    "command": ["node", "dist/index.js"],
+    "ports": [3000],
+    "healthcheck": null
+  }
+}

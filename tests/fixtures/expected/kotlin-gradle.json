@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "test-kotlin-gradle-project",
+    "language": "Kotlin",
+    "build_system": "gradle",
+    "confidence": 0.95,
+    "reasoning": "Detected build.gradle.kts with Kotlin plugin"
+  },
+  "build": {
+    "base": "gradle:8-jdk17",
+    "packages": [],
+    "env": {},
+    "commands": ["gradle build -x test"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": [".gradle/", "build/"],
+    "artifacts": ["build/libs/*.jar"]
+  },
+  "runtime": {
+    "base": "eclipse-temurin:17-jre",
+    "packages": [],
+    "env": {},
+    "copy": [
+      {
+        "from": "build/libs/*.jar",
+        "to": "/app.jar"
+      }
+    ],
+    "command": ["java", "-jar", "/app.jar"],
+    "ports": [8080],
+    "healthcheck": null
+  }
+}
