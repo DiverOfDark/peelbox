@@ -76,7 +76,7 @@ async fn test_embedded_llm_inference() {
         }
 
         let capabilities = HardwareDetector::detect();
-        let model = ModelSelector::smallest();
+        let model = ModelSelector::select(&capabilities).unwrap();
         println!("Testing inference with {} on {}",
             model.display_name,
             capabilities.best_device()
@@ -179,7 +179,7 @@ async fn test_embedded_llm_tool_calling() {
         }
 
         let capabilities = HardwareDetector::detect();
-        let model = ModelSelector::smallest();
+        let model = ModelSelector::select(&capabilities).unwrap();
         println!("Testing tool calling with {} on {}",
             model.display_name,
             capabilities.best_device()
@@ -282,13 +282,6 @@ fn test_model_supports_tools() {
             model.display_name
         );
     }
-}
-
-#[test]
-fn test_smallest_model_is_1_5b() {
-    let smallest = ModelSelector::smallest();
-    assert_eq!(smallest.params, "1.5B");
-    assert!(smallest.ram_required_gb >= 1.5 && smallest.ram_required_gb < 3.0);
 }
 
 #[test]
@@ -410,18 +403,18 @@ async fn test_embedded_llm_tool_call_chain() {
 
         let capabilities = HardwareDetector::detect();
 
-        // Use AIPACK_MODEL_SIZE env var or default to 1.5B (minimum for reliable tool calling)
+        // Use AIPACK_MODEL_SIZE env var or default to 7B
         let model = if let Ok(model_size) = std::env::var("AIPACK_MODEL_SIZE") {
             EmbeddedModel::ALL_MODELS
                 .iter()
                 .find(|m| m.params == model_size)
                 .expect(&format!("Model size {} not found", model_size))
         } else {
-            // Default to 1.5B for tool calling tests
+            // Default to 7B (only available model)
             EmbeddedModel::ALL_MODELS
                 .iter()
-                .find(|m| m.params == "1.5B")
-                .expect("1.5B model not found")
+                .find(|m| m.params == "7B")
+                .expect("7B model not found")
         };
         println!("Testing tool call chain with {} on {}",
             model.display_name,

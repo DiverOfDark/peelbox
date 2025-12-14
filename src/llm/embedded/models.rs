@@ -46,7 +46,7 @@ impl EmbeddedModel {
 
     /// Qwen2.5-Coder 3B - GGUF Q4 quantized (~3GB)
     pub const QWEN_3B_GGUF: EmbeddedModel = EmbeddedModel {
-        repo_id: "Qwen/Qwen2.5-Coder-3B-Instruct-GGUF",
+        repo_id: "Qwen/Qwen2.5-Coder-3Bы-Instruct-GGUF",
         filename: "qwen2.5-coder-3b-instruct-q4_k_m.gguf",
         tokenizer_repo: "Qwen/Qwen2.5-Coder-3B-Instruct",
         ram_required_gb: 4.0,
@@ -153,11 +153,6 @@ impl ModelSelector {
             .iter()
             .find(|m| m.params == params)
     }
-
-    /// Get the smallest available model (for CI/testing)
-    pub fn smallest() -> &'static EmbeddedModel {
-        &EmbeddedModel::QWEN_1_5B_GGUF
-    }
 }
 
 #[cfg(test)]
@@ -216,11 +211,5 @@ mod tests {
         assert!(ModelSelector::get_model("3B").is_some());
         assert!(ModelSelector::get_model("1.5B").is_some());
         assert!(ModelSelector::get_model("100B").is_none());
-    }
-
-    #[test]
-    fn test_smallest_model() {
-        let model = ModelSelector::smallest();
-        assert_eq!(model.params, "1.5B");
     }
 }

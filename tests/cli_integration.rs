@@ -160,7 +160,7 @@ fn test_detect_json_format() {
 
     let output = Command::new(aipack_bin())
         .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "3B")
+        .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
         .env("AIPACK_TEST_NAME", "cli_integration_test_detect_json_format")
@@ -191,7 +191,7 @@ fn test_detect_yaml_format() {
 
     let output = Command::new(aipack_bin())
         .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "3B")
+        .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
         .env("AIPACK_TEST_NAME", "cli_integration_test_detect_yaml_format")
@@ -222,7 +222,7 @@ fn test_detect_with_output_file() {
 
     let output = Command::new(aipack_bin())
         .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "3B")
+        .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
         .env("AIPACK_TEST_NAME", "cli_integration_test_detect_with_output_file")
@@ -310,7 +310,7 @@ fn test_detect_with_timeout() {
 
     let output = Command::new(aipack_bin())
         .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "3B")
+        .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
         .env("AIPACK_TEST_NAME", "cli_integration_test_detect_with_timeout")
@@ -357,7 +357,7 @@ fn test_detect_no_cache_flag() {
 
     let output = Command::new(aipack_bin())
         .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "3B")
+        .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
         .env("AIPACK_TEST_NAME", "cli_integration_test_detect_no_cache_flag")
