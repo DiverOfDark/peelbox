@@ -3593,55 +3593,7 @@ async fn e2e_performance_large_monorepo() {
 }
 ```
 
-### 10.5 CI Test Matrix
-
-```yaml
-# .github/workflows/test.yml
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --lib
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Run integration tests with recordings
-        run: cargo test --test '*' -- --test-threads=1
-        env:
-          AIPACK_RECORDING_MODE: replay
-
-  e2e-record:
-    # Only run on main branch to update recordings
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Download embedded model
-        run: cargo run -- download-model --model qwen2.5-coder:1.5b
-      - name: Record E2E tests
-        run: cargo test --test e2e -- --test-threads=1
-        env:
-          AIPACK_RECORDING_MODE: record
-      - name: Commit updated recordings
-        run: |
-          git config user.name "CI Bot"
-          git config user.email "ci@example.com"
-          git add tests/recordings/
-          git diff --staged --quiet || git commit -m "chore: Update LLM recordings"
-          git push
-```
-
-### 10.6 Test Utilities
+### 10.5 Test Utilities
 
 ```rust
 /// Helper to create fixture directory structure programmatically

@@ -319,32 +319,12 @@ Update detection to return `Vec<UniversalBuild>` for multi-project repositories.
 
 ---
 
-## Phase 19: CI Test Pipeline
-
-Set up GitHub Actions for automated testing.
-
-- [ ] 19.1 Create `.github/workflows/test.yml`
-- [ ] 19.2 Configure unit test job (`cargo test --lib`)
-- [ ] 19.3 Configure integration test job with replay mode
-- [ ] 19.4 Configure E2E recording job (main branch only)
-- [ ] 19.5 Add recording auto-commit on main branch
-- [ ] 19.6 Add clippy and fmt checks
-- [ ] 19.7 Add cargo doc build check
-- [ ] 19.8 Verify: CI pipeline runs successfully
-
-**Deliverable:** Automated CI pipeline with recording updates.
-
----
-
-## Phase 20: Documentation
+## Phase 19: Documentation
 
 Update documentation to reflect new architecture.
 
-- [ ] 20.1 Update CLAUDE.md with new module structure
-- [ ] 20.2 Add rustdoc comments to public APIs
-- [ ] 20.3 Update CHANGELOG.md with refactoring notes
-- [ ] 20.4 Document test fixture creation process
-- [ ] 20.5 Document recording system usage
-- [ ] 20.6 Verify: `cargo doc` generates without warnings
+- [ ] 19.1 Update CLAUDE.md with new module structure
+- [ ] 19.2 Document test fixture creation process
+- [ ] 19.3 Document recording system usage
 
 **Deliverable:** Documentation matches implementation.
