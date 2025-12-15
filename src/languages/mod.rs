@@ -69,6 +69,14 @@ pub trait LanguageDefinition: Send + Sync {
     fn is_workspace_root(&self, _manifest_name: &str, _manifest_content: Option<&str>) -> bool {
         false
     }
+
+    fn parse_dependencies(
+        &self,
+        _manifest_content: &str,
+        _all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        DependencyInfo::empty()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +90,37 @@ pub struct ManifestPattern {
 pub struct DetectionResult {
     pub build_system: String,
     pub confidence: f64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DetectionMethod {
+    Deterministic,
+    LLM,
+    NotImplemented,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Dependency {
+    pub name: String,
+    pub version: Option<String>,
+    pub is_internal: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct DependencyInfo {
+    pub internal_deps: Vec<Dependency>,
+    pub external_deps: Vec<Dependency>,
+    pub detected_by: DetectionMethod,
+}
+
+impl DependencyInfo {
+    pub fn empty() -> Self {
+        Self {
+            internal_deps: vec![],
+            external_deps: vec![],
+            detected_by: DetectionMethod::NotImplemented,
+        }
+    }
 }
 
 #[cfg(test)]
