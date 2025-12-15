@@ -32,6 +32,24 @@ pub enum ProgressEvent {
         warnings: usize,
         errors: usize,
     },
+    PhaseStarted {
+        phase: String,
+    },
+    PhaseComplete {
+        phase: String,
+        duration: Duration,
+    },
+    ServiceAnalysisStarted {
+        service_path: String,
+        index: usize,
+        total: usize,
+    },
+    ServiceAnalysisComplete {
+        service_path: String,
+        index: usize,
+        total: usize,
+        duration: Duration,
+    },
     Completed {
         total_iterations: usize,
         total_time: Duration,

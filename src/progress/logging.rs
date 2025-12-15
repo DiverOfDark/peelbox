@@ -78,6 +78,40 @@ impl ProgressHandler for LoggingHandler {
                     debug!("Validation complete");
                 }
             }
+            ProgressEvent::PhaseStarted { phase } => {
+                info!(phase = %phase, "Starting phase");
+            }
+            ProgressEvent::PhaseComplete { phase, duration } => {
+                info!(
+                    phase = %phase,
+                    duration_ms = duration.as_millis(),
+                    "Phase complete"
+                );
+            }
+            ProgressEvent::ServiceAnalysisStarted {
+                service_path,
+                index,
+                total,
+            } => {
+                info!(
+                    service = %service_path,
+                    progress = format!("{}/{}", index, total),
+                    "Analyzing service"
+                );
+            }
+            ProgressEvent::ServiceAnalysisComplete {
+                service_path,
+                index,
+                total,
+                duration,
+            } => {
+                info!(
+                    service = %service_path,
+                    progress = format!("{}/{}", index, total),
+                    duration_ms = duration.as_millis(),
+                    "Service analysis complete"
+                );
+            }
             ProgressEvent::Completed {
                 total_iterations,
                 total_time,

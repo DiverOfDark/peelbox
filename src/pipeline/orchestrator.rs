@@ -6,14 +6,17 @@ use super::phases::{
 use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
+use crate::progress::{NoOpHandler, ProgressEvent, ProgressHandler};
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Instant;
 use tracing::{debug, info};
 
 pub struct PipelineOrchestrator {
     llm_client: Arc<dyn LLMClient>,
     registry: LanguageRegistry,
+    progress_handler: Arc<dyn ProgressHandler>,
 }
 
 impl PipelineOrchestrator {
@@ -21,29 +24,74 @@ impl PipelineOrchestrator {
         Self {
             llm_client,
             registry: LanguageRegistry::with_defaults(),
+            progress_handler: Arc::new(NoOpHandler),
+        }
+    }
+
+    pub fn with_progress_handler(
+        llm_client: Arc<dyn LLMClient>,
+        progress_handler: Arc<dyn ProgressHandler>,
+    ) -> Self {
+        Self {
+            llm_client,
+            registry: LanguageRegistry::with_defaults(),
+            progress_handler,
         }
     }
 
     pub async fn execute(&self, repo_path: &Path) -> Result<Vec<UniversalBuild>> {
+        let start = Instant::now();
         info!("Starting pipeline orchestration for: {}", repo_path.display());
 
+        self.progress_handler.on_progress(&ProgressEvent::Started {
+            repo_path: repo_path.display().to_string(),
+        });
+
         info!("Phase 1: Scanning repository");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "scan".to_string(),
+        });
+        let phase_start = Instant::now();
         let scan = scan::execute(repo_path).context("Phase 1: Scan failed")?;
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "scan".to_string(),
+            duration: phase_start.elapsed(),
+        });
         debug!("Scan complete: {} detections", scan.bootstrap_context.detections.len());
 
         info!("Phase 2: Classifying directories");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "classify".to_string(),
+        });
+        let phase_start = Instant::now();
         let classification = classify::execute(self.llm_client.as_ref(), &scan)
             .await
             .context("Phase 2: Classify failed")?;
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "classify".to_string(),
+            duration: phase_start.elapsed(),
+        });
         debug!("Classify complete: {} services", classification.services.len());
 
         info!("Phase 3: Analyzing project structure");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "structure".to_string(),
+        });
+        let phase_start = Instant::now();
         let structure = structure::execute(self.llm_client.as_ref(), &scan, &classification)
             .await
             .context("Phase 3: Structure failed")?;
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "structure".to_string(),
+            duration: phase_start.elapsed(),
+        });
         debug!("Structure: {:?}, Tool: {:?}", structure.project_type, structure.monorepo_tool);
 
         info!("Phase 4: Extracting dependencies");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "dependencies".to_string(),
+        });
+        let phase_start = Instant::now();
         let dependencies = dependencies::execute(
             self.llm_client.as_ref(),
             &scan,
@@ -51,18 +99,42 @@ impl PipelineOrchestrator {
         )
         .await
         .context("Phase 4: Dependencies failed")?;
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "dependencies".to_string(),
+            duration: phase_start.elapsed(),
+        });
         debug!("Dependencies extracted for {} services", dependencies.dependencies.len());
 
         info!("Phase 5: Calculating build order");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "build_order".to_string(),
+        });
+        let phase_start = Instant::now();
         let build_order = build_order::execute(&dependencies)
             .context("Phase 5: Build order failed")?;
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "build_order".to_string(),
+            duration: phase_start.elapsed(),
+        });
         debug!("Build order: {} services, has_cycle: {}", build_order.build_order.len(), build_order.has_cycle);
 
         info!("Phase 6: Analyzing services (runtime, build, entrypoint, native deps, port, env vars, health)");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "service_analysis".to_string(),
+        });
+        let phase_start = Instant::now();
         let mut analyses = Vec::new();
+        let total_services = structure.services.len();
 
-        for service in &structure.services {
+        for (index, service) in structure.services.iter().enumerate() {
+            let service_start = Instant::now();
             info!("  Analyzing service: {}", service.path.display());
+
+            self.progress_handler.on_progress(&ProgressEvent::ServiceAnalysisStarted {
+                service_path: service.path.display().to_string(),
+                index: index + 1,
+                total: total_services,
+            });
 
             debug!("    Phase 6a: Runtime detection");
             let runtime = runtime::execute(self.llm_client.as_ref(), service, &scan)
@@ -113,21 +185,54 @@ impl PipelineOrchestrator {
                 health,
                 cache,
             });
+
+            self.progress_handler.on_progress(&ProgressEvent::ServiceAnalysisComplete {
+                service_path: service.path.display().to_string(),
+                index: index + 1,
+                total: total_services,
+                duration: service_start.elapsed(),
+            });
         }
 
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "service_analysis".to_string(),
+            duration: phase_start.elapsed(),
+        });
+
         info!("Phase 8: Root cache detection");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "root_cache".to_string(),
+        });
+        let phase_start = Instant::now();
         let root_cache = root_cache::execute(&structure);
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "root_cache".to_string(),
+            duration: phase_start.elapsed(),
+        });
         debug!("Root cache: {} directories", root_cache.root_cache_dirs.len());
 
         info!("Phase 9: Assembling UniversalBuild outputs");
+        self.progress_handler.on_progress(&ProgressEvent::PhaseStarted {
+            phase: "assemble".to_string(),
+        });
+        let phase_start = Instant::now();
         let builds = assemble::execute(
             analyses,
             &structure,
             &root_cache,
         )
         .context("Phase 9: Assemble failed")?;
+        self.progress_handler.on_progress(&ProgressEvent::PhaseComplete {
+            phase: "assemble".to_string(),
+            duration: phase_start.elapsed(),
+        });
 
         info!("Pipeline complete: generated {} UniversalBuild(s)", builds.len());
+        self.progress_handler.on_progress(&ProgressEvent::Completed {
+            total_iterations: 0,
+            total_time: start.elapsed(),
+        });
+
         Ok(builds)
     }
 }
