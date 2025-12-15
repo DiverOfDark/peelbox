@@ -1,6 +1,9 @@
 //! .NET language definition (C#, F#, VB)
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
 use regex::Regex;
 
 pub struct DotNetLanguage;
@@ -127,6 +130,64 @@ impl LanguageDefinition for DotNetLanguage {
 
         None
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let mut external_deps = Vec::new();
+        let mut internal_deps = Vec::new();
+
+        if let Ok(re) = Regex::new(r#"<PackageReference\s+Include="([^"]+)"\s+Version="([^"]+)""#) {
+            for cap in re.captures_iter(manifest_content) {
+                if let (Some(name), Some(version)) = (cap.get(1), cap.get(2)) {
+                    external_deps.push(Dependency {
+                        name: name.as_str().to_string(),
+                        version: Some(version.as_str().to_string()),
+                        is_internal: false,
+                    });
+                }
+            }
+        }
+
+        if let Ok(re) = Regex::new(r#"<ProjectReference\s+Include="([^"]+)""#) {
+            for cap in re.captures_iter(manifest_content) {
+                if let Some(path_match) = cap.get(1) {
+                    let path_str = path_match.as_str();
+                    let is_internal = all_internal_paths
+                        .iter()
+                        .any(|p| p.to_str().is_some_and(|s| s.contains(path_str)));
+
+                    let name = std::path::Path::new(path_str)
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(path_str)
+                        .to_string();
+
+                    if is_internal {
+                        internal_deps.push(Dependency {
+                            name,
+                            version: None,
+                            is_internal: true,
+                        });
+                    } else {
+                        external_deps.push(Dependency {
+                            name,
+                            version: None,
+                            is_internal: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps,
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -209,5 +270,58 @@ mod tests {
         let lang = DotNetLanguage;
         let content = r#"<Project><PropertyGroup><TargetFramework>netcoreapp3.1</TargetFramework></PropertyGroup></Project>"#;
         assert_eq!(lang.detect_version(Some(content)), Some("3.1".to_string()));
+    }
+
+    #[test]
+    fn test_parse_dependencies_package_references() {
+        let lang = DotNetLanguage;
+        let content = r#"
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Serilog" Version="2.12.0" />
+  </ItemGroup>
+</Project>
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "Newtonsoft.Json" && d.version == Some("13.0.3".to_string())));
+        assert!(deps.external_deps.iter().any(|d| d.name == "Serilog"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_project_references() {
+        let lang = DotNetLanguage;
+        let content = r#"
+<Project>
+  <ItemGroup>
+    <ProjectReference Include="../MyLib/MyLib.csproj" />
+    <ProjectReference Include="../AnotherLib/AnotherLib.csproj" />
+  </ItemGroup>
+</Project>
+"#;
+        let internal_paths = vec![std::path::PathBuf::from("../MyLib/MyLib.csproj")];
+        let deps = lang.parse_dependencies(content, &internal_paths);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert_eq!(deps.external_deps.len(), 1);
+        assert!(deps
+            .internal_deps
+            .iter()
+            .any(|d| d.name == "MyLib" && d.is_internal));
+    }
+
+    #[test]
+    fn test_parse_dependencies_empty() {
+        let lang = DotNetLanguage;
+        let content = r#"<Project Sdk="Microsoft.NET.Sdk"></Project>"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.is_empty());
+        assert!(deps.internal_deps.is_empty());
     }
 }

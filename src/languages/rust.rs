@@ -1,6 +1,10 @@
 //! Rust language definition
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
+use std::collections::HashSet;
 
 /// Rust language definition
 pub struct RustLanguage;
@@ -109,6 +113,85 @@ impl LanguageDefinition for RustLanguage {
             content.contains("[workspace]")
         } else {
             false
+        }
+    }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        _all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let parsed: toml::Value = match toml::from_str(manifest_content) {
+            Ok(v) => v,
+            Err(_) => return DependencyInfo::empty(),
+        };
+
+        let mut internal_deps = Vec::new();
+        let mut external_deps = Vec::new();
+        let mut seen = HashSet::new();
+
+        for dep_section in &["dependencies", "dev-dependencies", "build-dependencies"] {
+            if let Some(deps) = parsed.get(dep_section).and_then(|v| v.as_table()) {
+                for (name, value) in deps {
+                    if seen.contains(name) {
+                        continue;
+                    }
+                    seen.insert(name.clone());
+
+                    let (version, is_internal) = if let Some(table) = value.as_table() {
+                        let version = table
+                            .get("version")
+                            .and_then(|v| v.as_str())
+                            .map(String::from);
+                        let is_path = table.get("path").is_some();
+                        (version, is_path)
+                    } else if let Some(ver) = value.as_str() {
+                        (Some(ver.to_string()), false)
+                    } else {
+                        (None, false)
+                    };
+
+                    let dep = Dependency {
+                        name: name.clone(),
+                        version,
+                        is_internal,
+                    };
+
+                    if is_internal {
+                        internal_deps.push(dep);
+                    } else {
+                        external_deps.push(dep);
+                    }
+                }
+            }
+        }
+
+        if let Some(workspace) = parsed.get("workspace").and_then(|v| v.as_table()) {
+            if let Some(members) = workspace.get("members").and_then(|v| v.as_array()) {
+                for member in members {
+                    if let Some(member_name) = member.as_str() {
+                        let name = member_name
+                            .split('/')
+                            .next_back()
+                            .unwrap_or(member_name)
+                            .to_string();
+                        if !seen.contains(&name) {
+                            internal_deps.push(Dependency {
+                                name: name.clone(),
+                                version: Some("workspace".to_string()),
+                                is_internal: true,
+                            });
+                            seen.insert(name);
+                        }
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps,
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
         }
     }
 }
@@ -239,5 +322,56 @@ version = "0.1.0"
     fn test_is_workspace_root_no_content() {
         let lang = RustLanguage;
         assert!(!lang.is_workspace_root("Cargo.toml", None));
+    }
+
+    #[test]
+    fn test_parse_dependencies_simple() {
+        let lang = RustLanguage;
+        let content = r#"
+[package]
+name = "myapp"
+
+[dependencies]
+tokio = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 2);
+        assert_eq!(deps.internal_deps.len(), 0);
+        assert!(deps.external_deps.iter().any(|d| d.name == "tokio"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "serde"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_path() {
+        let lang = RustLanguage;
+        let content = r#"
+[dependencies]
+tokio = "1.0"
+mylib = { path = "../mylib" }
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert_eq!(deps.internal_deps[0].name, "mylib");
+        assert!(deps.internal_deps[0].is_internal);
+    }
+
+    #[test]
+    fn test_parse_dependencies_workspace() {
+        let lang = RustLanguage;
+        let content = r#"
+[workspace]
+members = ["crate1", "crate2", "nested/crate3"]
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.internal_deps.len(), 3);
+        assert!(deps.internal_deps.iter().any(|d| d.name == "crate1"));
+        assert!(deps.internal_deps.iter().any(|d| d.name == "crate2"));
+        assert!(deps.internal_deps.iter().any(|d| d.name == "crate3"));
     }
 }

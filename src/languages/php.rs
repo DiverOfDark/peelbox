@@ -1,6 +1,9 @@
 //! PHP language definition
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
 use regex::Regex;
 
 pub struct PhpLanguage;
@@ -97,6 +100,68 @@ impl LanguageDefinition for PhpLanguage {
 
         None
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let mut external_deps = Vec::new();
+        let mut internal_deps = Vec::new();
+
+        let parsed: Result<serde_json::Value, _> = serde_json::from_str(manifest_content);
+        if let Ok(json) = parsed {
+            for section in ["require", "require-dev"] {
+                if let Some(deps) = json.get(section).and_then(|v| v.as_object()) {
+                    for (name, version) in deps {
+                        if name == "php" || name.starts_with("ext-") {
+                            continue;
+                        }
+
+                        external_deps.push(Dependency {
+                            name: name.clone(),
+                            version: version.as_str().map(|s| s.to_string()),
+                            is_internal: false,
+                        });
+                    }
+                }
+            }
+
+            if let Some(repos) = json.get("repositories").and_then(|v| v.as_array()) {
+                for repo in repos {
+                    if let Some(repo_type) = repo.get("type").and_then(|v| v.as_str()) {
+                        if repo_type == "path" {
+                            if let Some(url) = repo.get("url").and_then(|v| v.as_str()) {
+                                let is_internal = all_internal_paths
+                                    .iter()
+                                    .any(|p| p.to_str().is_some_and(|s| s.contains(url)));
+
+                                if is_internal {
+                                    let name = std::path::Path::new(url)
+                                        .file_name()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or(url)
+                                        .to_string();
+
+                                    internal_deps.push(Dependency {
+                                        name,
+                                        version: None,
+                                        is_internal: true,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps,
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -162,5 +227,57 @@ mod tests {
         let lang = PhpLanguage;
         let content = r#"{"require": {"php": ">=8.2"}}"#;
         assert_eq!(lang.detect_version(Some(content)), Some("8.2".to_string()));
+    }
+
+    #[test]
+    fn test_parse_dependencies_require() {
+        let lang = PhpLanguage;
+        let content = r#"{
+  "require": {
+    "php": ">=8.0",
+    "laravel/framework": "^10.0",
+    "guzzlehttp/guzzle": "^7.5"
+  }
+}"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "laravel/framework"));
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "guzzlehttp/guzzle"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_path_repositories() {
+        let lang = PhpLanguage;
+        let content = r#"{
+  "require": {"vendor/package": "*"},
+  "repositories": [
+    {"type": "path", "url": "../my-package"},
+    {"type": "vcs", "url": "https://github.com/vendor/package"}
+  ]
+}"#;
+        let internal_paths = vec![std::path::PathBuf::from("../my-package")];
+        let deps = lang.parse_dependencies(content, &internal_paths);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert!(deps
+            .internal_deps
+            .iter()
+            .any(|d| d.name == "my-package" && d.is_internal));
+    }
+
+    #[test]
+    fn test_parse_dependencies_invalid_json() {
+        let lang = PhpLanguage;
+        let content = "not json";
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.is_empty());
     }
 }

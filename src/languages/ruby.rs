@@ -1,6 +1,9 @@
 //! Ruby language definition
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
 use regex::Regex;
 
 pub struct RubyLanguage;
@@ -108,6 +111,64 @@ impl LanguageDefinition for RubyLanguage {
 
         None
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let mut external_deps = Vec::new();
+        let mut internal_deps = Vec::new();
+
+        if let Ok(re) = Regex::new(r#"gem\s+['"](\w+)['"],\s*path:\s*['"]([^'"]+)['"]"#) {
+            for cap in re.captures_iter(manifest_content) {
+                if let (Some(name), Some(path_match)) = (cap.get(1), cap.get(2)) {
+                    let path_str = path_match.as_str();
+                    let is_internal = all_internal_paths
+                        .iter()
+                        .any(|p| p.to_str().is_some_and(|s| s.contains(path_str)));
+
+                    let dep = Dependency {
+                        name: name.as_str().to_string(),
+                        version: None,
+                        is_internal,
+                    };
+
+                    if is_internal {
+                        internal_deps.push(dep);
+                    } else {
+                        external_deps.push(dep);
+                    }
+                }
+            }
+        }
+
+        if let Ok(re) = Regex::new(r#"gem\s+['"](\w+)['"](?:,\s*['"]([^'"]+)['"])?"#) {
+            for cap in re.captures_iter(manifest_content) {
+                if let Some(name) = cap.get(1) {
+                    let name_str = name.as_str();
+                    if internal_deps.iter().any(|d| d.name == name_str)
+                        || external_deps.iter().any(|d| d.name == name_str)
+                    {
+                        continue;
+                    }
+
+                    let version = cap.get(2).map(|v| v.as_str().to_string());
+                    external_deps.push(Dependency {
+                        name: name_str.to_string(),
+                        version,
+                        is_internal: false,
+                    });
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps,
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -188,5 +249,55 @@ ruby "3.2.0"
     fn test_detect_version_ruby_version_file() {
         let lang = RubyLanguage;
         assert_eq!(lang.detect_version(Some("3.1.4")), Some("3.1".to_string()));
+    }
+
+    #[test]
+    fn test_parse_dependencies_gems() {
+        let lang = RubyLanguage;
+        let content = r#"
+source 'https://rubygems.org'
+
+gem 'rails', '~> 7.0'
+gem 'pg', '~> 1.5'
+gem 'puma'
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 3);
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "rails" && d.version == Some("~> 7.0".to_string())));
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "puma" && d.version.is_none()));
+    }
+
+    #[test]
+    fn test_parse_dependencies_path() {
+        let lang = RubyLanguage;
+        let content = r#"
+gem 'my_gem', path: '../my_gem'
+gem 'another_gem', path: '../another_gem'
+"#;
+        let internal_paths = vec![std::path::PathBuf::from("../my_gem")];
+        let deps = lang.parse_dependencies(content, &internal_paths);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert_eq!(deps.external_deps.len(), 1);
+        assert!(deps
+            .internal_deps
+            .iter()
+            .any(|d| d.name == "my_gem" && d.is_internal));
+    }
+
+    #[test]
+    fn test_parse_dependencies_empty() {
+        let lang = RubyLanguage;
+        let content = "source 'https://rubygems.org'";
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.is_empty());
     }
 }

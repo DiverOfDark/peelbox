@@ -1,6 +1,9 @@
 //! Elixir language definition
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
 use regex::Regex;
 
 pub struct ElixirLanguage;
@@ -111,6 +114,56 @@ impl LanguageDefinition for ElixirLanguage {
 
         None
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let mut external_deps = Vec::new();
+        let mut internal_deps = Vec::new();
+
+        if let Ok(re) = Regex::new(r#"\{:(\w+),\s*"([^"]+)"\}"#) {
+            for cap in re.captures_iter(manifest_content) {
+                if let (Some(name), Some(version)) = (cap.get(1), cap.get(2)) {
+                    external_deps.push(Dependency {
+                        name: name.as_str().to_string(),
+                        version: Some(version.as_str().to_string()),
+                        is_internal: false,
+                    });
+                }
+            }
+        }
+
+        if let Ok(re) = Regex::new(r#"\{:(\w+),\s*path:\s*"([^"]+)"\}"#) {
+            for cap in re.captures_iter(manifest_content) {
+                if let (Some(name), Some(path_match)) = (cap.get(1), cap.get(2)) {
+                    let path_str = path_match.as_str();
+                    let is_internal = all_internal_paths
+                        .iter()
+                        .any(|p| p.to_str().is_some_and(|s| s.contains(path_str)));
+
+                    let dep = Dependency {
+                        name: name.as_str().to_string(),
+                        version: None,
+                        is_internal,
+                    };
+
+                    if is_internal {
+                        internal_deps.push(dep);
+                    } else {
+                        external_deps.push(dep);
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps,
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -192,5 +245,57 @@ defmodule MyApp.MixProject do
 end
 "#;
         assert_eq!(lang.detect_version(Some(content)), Some("1.15".to_string()));
+    }
+
+    #[test]
+    fn test_parse_dependencies_version() {
+        let lang = ElixirLanguage;
+        let content = r#"
+defp deps do
+  [
+    {:phoenix, "~> 1.7.0"},
+    {:ecto, "~> 3.10"},
+  ]
+end
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "phoenix" && d.version == Some("~> 1.7.0".to_string())));
+        assert!(deps.external_deps.iter().any(|d| d.name == "ecto"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_path() {
+        let lang = ElixirLanguage;
+        let content = r#"
+defp deps do
+  [
+    {:my_lib, path: "../my_lib"},
+    {:another_lib, path: "../another_lib"},
+  ]
+end
+"#;
+        let internal_paths = vec![std::path::PathBuf::from("../my_lib")];
+        let deps = lang.parse_dependencies(content, &internal_paths);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert_eq!(deps.external_deps.len(), 1);
+        assert!(deps
+            .internal_deps
+            .iter()
+            .any(|d| d.name == "my_lib" && d.is_internal));
+    }
+
+    #[test]
+    fn test_parse_dependencies_empty() {
+        let lang = ElixirLanguage;
+        let content = "defmodule MyApp.MixProject do\nend";
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.is_empty());
     }
 }

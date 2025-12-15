@@ -1,6 +1,10 @@
 //! C/C++ language definition
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
+use regex::Regex;
 
 pub struct CppLanguage;
 
@@ -129,6 +133,67 @@ impl LanguageDefinition for CppLanguage {
     fn workspace_configs(&self) -> &[&str] {
         &[]
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        _all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let mut external_deps = Vec::new();
+
+        if let Ok(re) = Regex::new(r"find_package\s*\(\s*(\w+)") {
+            for cap in re.captures_iter(manifest_content) {
+                if let Some(name) = cap.get(1) {
+                    external_deps.push(Dependency {
+                        name: name.as_str().to_string(),
+                        version: None,
+                        is_internal: false,
+                    });
+                }
+            }
+        }
+
+        if let Ok(re) = Regex::new(r"target_link_libraries\s*\([^)]*\s+(\w+)") {
+            for cap in re.captures_iter(manifest_content) {
+                if let Some(name) = cap.get(1) {
+                    let lib_name = name.as_str().to_string();
+                    if !external_deps.iter().any(|d| d.name == lib_name) {
+                        external_deps.push(Dependency {
+                            name: lib_name,
+                            version: None,
+                            is_internal: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        if manifest_content.contains("[requires]") {
+            if let Some(requires_section) = manifest_content.split("[requires]").nth(1) {
+                let section_end = requires_section.find('[').unwrap_or(requires_section.len());
+                let section = &requires_section[..section_end];
+
+                for line in section.lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                        if let Some(pkg) = trimmed.split('/').next() {
+                            external_deps.push(Dependency {
+                                name: pkg.to_string(),
+                                version: None,
+                                is_internal: false,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps: vec![],
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -218,5 +283,48 @@ mod tests {
         let lang = CppLanguage;
         assert!(lang.excluded_dirs().contains(&"build"));
         assert!(lang.excluded_dirs().contains(&"cmake-build-debug"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_cmake() {
+        let lang = CppLanguage;
+        let content = r#"
+cmake_minimum_required(VERSION 3.16)
+project(MyApp)
+
+find_package(Boost REQUIRED)
+find_package(OpenSSL REQUIRED)
+target_link_libraries(myapp Boost::system pthread)
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.iter().any(|d| d.name == "Boost"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "OpenSSL"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_conan() {
+        let lang = CppLanguage;
+        let content = r#"
+[requires]
+boost/1.81.0
+openssl/3.0.0
+
+[generators]
+cmake
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.iter().any(|d| d.name == "boost"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "openssl"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_empty() {
+        let lang = CppLanguage;
+        let content = "project(MyApp)";
+        let deps = lang.parse_dependencies(content, &[]);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.is_empty());
     }
 }

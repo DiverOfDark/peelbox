@@ -1,7 +1,11 @@
 //! Python language definition (pip, poetry, pipenv)
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
 use regex::Regex;
+use std::collections::HashSet;
 
 pub struct PythonLanguage;
 
@@ -196,6 +200,117 @@ impl LanguageDefinition for PythonLanguage {
 
         None
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        _all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        if manifest_content.contains("[tool.poetry") {
+            self.parse_poetry_dependencies(manifest_content)
+        } else if !manifest_content.contains('[') {
+            self.parse_requirements_txt(manifest_content)
+        } else {
+            DependencyInfo::empty()
+        }
+    }
+}
+
+impl PythonLanguage {
+    fn parse_poetry_dependencies(&self, content: &str) -> DependencyInfo {
+        let parsed: toml::Value = match toml::from_str(content) {
+            Ok(v) => v,
+            Err(_) => return DependencyInfo::empty(),
+        };
+
+        let mut external_deps = Vec::new();
+        let mut seen = HashSet::new();
+
+        if let Some(tool) = parsed.get("tool").and_then(|t| t.as_table()) {
+            if let Some(poetry) = tool.get("poetry").and_then(|p| p.as_table()) {
+                for dep_section in &["dependencies", "dev-dependencies"] {
+                    if let Some(deps) = poetry.get(*dep_section).and_then(|d| d.as_table()) {
+                        for (name, value) in deps {
+                            if name == "python" || seen.contains(name) {
+                                continue;
+                            }
+                            seen.insert(name.clone());
+
+                            let version = if let Some(ver) = value.as_str() {
+                                Some(ver.to_string())
+                            } else if let Some(table) = value.as_table() {
+                                table
+                                    .get("version")
+                                    .and_then(|v| v.as_str())
+                                    .map(String::from)
+                            } else {
+                                None
+                            };
+
+                            external_deps.push(Dependency {
+                                name: name.clone(),
+                                version,
+                                is_internal: false,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps: vec![],
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
+
+    fn parse_requirements_txt(&self, content: &str) -> DependencyInfo {
+        let mut external_deps = Vec::new();
+        let mut seen = HashSet::new();
+
+        let dep_re = Regex::new(r"^([a-zA-Z0-9_-]+)(?:==|>=|<=|~=|!=)?([^\s#]*)").ok();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('-') {
+                continue;
+            }
+
+            if let Some(ref re) = dep_re {
+                if let Some(caps) = re.captures(trimmed) {
+                    if let Some(name) = caps.get(1) {
+                        let name_str = name.as_str().to_string();
+                        if seen.contains(&name_str) {
+                            continue;
+                        }
+                        seen.insert(name_str.clone());
+
+                        let version = caps.get(2).and_then(|v| {
+                            let s = v.as_str().trim();
+                            if s.is_empty() {
+                                None
+                            } else {
+                                Some(s.to_string())
+                            }
+                        });
+
+                        external_deps.push(Dependency {
+                            name: name_str,
+                            version,
+                            is_internal: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps: vec![],
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -322,5 +437,62 @@ python_version = "3.10"
             lang.detect_version(Some("3.11.4")),
             Some("3.11".to_string())
         );
+    }
+
+    #[test]
+    fn test_parse_dependencies_requirements_txt() {
+        let lang = PythonLanguage;
+        let content = r#"
+flask==2.3.0
+requests>=2.28.0
+pytest
+# comment
+django==4.2.0
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 4);
+        assert!(deps.external_deps.iter().any(|d| d.name == "flask"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "requests"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "pytest"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_poetry() {
+        let lang = PythonLanguage;
+        let content = r#"
+[tool.poetry]
+name = "myapp"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^2.3.0"
+requests = { version = "^2.28.0", extras = ["security"] }
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.4.0"
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 3);
+        assert!(deps.external_deps.iter().any(|d| d.name == "flask"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "requests"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "pytest"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_poetry_skips_python() {
+        let lang = PythonLanguage;
+        let content = r#"
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^2.3.0"
+"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert!(deps.external_deps.iter().all(|d| d.name != "python"));
     }
 }

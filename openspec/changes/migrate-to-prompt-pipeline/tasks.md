@@ -34,37 +34,37 @@
   - [x] Add `DetectionMethod` enum (Deterministic, LLM, NotImplemented)
   - [x] Provide default implementation returning empty dependencies
 
-- [ ] Implement JavaScript/TypeScript dependency parsing (`src/languages/javascript.rs`)
-  - [ ] Parse `package.json` for dependencies and devDependencies
-  - [ ] Parse `pnpm-workspace.yaml` for monorepo structure
-  - [ ] Extract workspace references (packages/*, apps/*)
-  - [ ] Resolve internal dependencies
-  - [ ] Unit tests with fixture package.json files
+- [x] Implement JavaScript/TypeScript dependency parsing (`src/languages/javascript.rs`)
+  - [x] Parse `package.json` for dependencies and devDependencies
+  - [x] Parse `pnpm-workspace.yaml` for monorepo structure
+  - [x] Extract workspace references (packages/*, apps/*)
+  - [x] Resolve internal dependencies
+  - [x] Unit tests with fixture package.json files
 
-- [ ] Implement Rust dependency parsing (`src/languages/rust.rs`)
-  - [ ] Parse `Cargo.toml` [dependencies] section
-  - [ ] Parse `Cargo.toml` [workspace.members]
-  - [ ] Extract path dependencies (internal)
-  - [ ] Extract crates.io dependencies (external)
-  - [ ] Unit tests
+- [x] Implement Rust dependency parsing (`src/languages/rust.rs`)
+  - [x] Parse `Cargo.toml` [dependencies] section
+  - [x] Parse `Cargo.toml` [workspace.members]
+  - [x] Extract path dependencies (internal)
+  - [x] Extract crates.io dependencies (external)
+  - [x] Unit tests
 
-- [ ] Implement Go dependency parsing (`src/languages/go.rs`)
-  - [ ] Parse `go.mod` require statements
-  - [ ] Detect replace directives (for local modules)
-  - [ ] Extract internal vs external modules
-  - [ ] Unit tests
+- [x] Implement Go dependency parsing (`src/languages/go.rs`)
+  - [x] Parse `go.mod` require statements
+  - [x] Detect replace directives (for local modules)
+  - [x] Extract internal vs external modules
+  - [x] Unit tests
 
-- [ ] Implement Java dependency parsing (`src/languages/java.rs`)
-  - [ ] Parse `pom.xml` <dependencies> for Maven
-  - [ ] Parse `build.gradle` dependencies{} for Gradle
-  - [ ] Extract multi-module Maven structure (<modules>)
-  - [ ] Extract Gradle multi-project (settings.gradle include)
-  - [ ] Unit tests
+- [x] Implement Java dependency parsing (`src/languages/java.rs`)
+  - [x] Parse `pom.xml` <dependencies> for Maven
+  - [x] Parse `build.gradle` dependencies{} for Gradle
+  - [x] Extract multi-module Maven structure (<modules>)
+  - [x] Extract Gradle multi-project (settings.gradle include)
+  - [x] Unit tests
 
-- [ ] Implement Python dependency parsing (`src/languages/python.rs`)
-  - [ ] Parse `pyproject.toml` [tool.poetry.dependencies]
-  - [ ] Parse `requirements.txt` package==version
-  - [ ] Unit tests
+- [x] Implement Python dependency parsing (`src/languages/python.rs`)
+  - [x] Parse `pyproject.toml` [tool.poetry.dependencies]
+  - [x] Parse `requirements.txt` package==version
+  - [x] Unit tests
 
 - [ ] Update `LanguageRegistry` for dependency parsing
   - [ ] Add `parse_dependencies_by_manifest()` method

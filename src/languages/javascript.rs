@@ -1,7 +1,11 @@
 //! JavaScript/TypeScript language definition (npm, yarn, pnpm, bun)
 
-use super::{BuildTemplate, DetectionResult, LanguageDefinition, ManifestPattern};
+use super::{
+    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition, ManifestPattern,
+};
 use regex::Regex;
+use std::collections::HashSet;
 
 pub struct JavaScriptLanguage;
 
@@ -248,6 +252,115 @@ impl LanguageDefinition for JavaScriptLanguage {
             false
         }
     }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        let parsed: serde_json::Value = match serde_json::from_str(manifest_content) {
+            Ok(v) => v,
+            Err(_) => return DependencyInfo::empty(),
+        };
+
+        let mut internal_deps = Vec::new();
+        let mut external_deps = Vec::new();
+        let mut seen = HashSet::new();
+
+        // Extract dependencies and devDependencies
+        for dep_type in &["dependencies", "devDependencies", "peerDependencies"] {
+            if let Some(deps) = parsed.get(dep_type).and_then(|v| v.as_object()) {
+                for (name, version) in deps {
+                    if seen.contains(name) {
+                        continue;
+                    }
+                    seen.insert(name.clone());
+
+                    let version_str = version.as_str().map(|s| s.to_string());
+
+                    // Check if it's a workspace reference (file:, workspace:, link:)
+                    let is_internal = if let Some(v) = version_str.as_deref() {
+                        v.starts_with("file:")
+                            || v.starts_with("workspace:")
+                            || v.starts_with("link:")
+                    } else {
+                        false
+                    };
+
+                    let dep = Dependency {
+                        name: name.clone(),
+                        version: version_str,
+                        is_internal,
+                    };
+
+                    if is_internal {
+                        internal_deps.push(dep);
+                    } else {
+                        external_deps.push(dep);
+                    }
+                }
+            }
+        }
+
+        // Check for workspace packages
+        if let Some(workspaces) = parsed.get("workspaces") {
+            let workspace_patterns: Vec<String> = if let Some(arr) = workspaces.as_array() {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            } else if let Some(obj) = workspaces.as_object() {
+                if let Some(packages) = obj.get("packages").and_then(|v| v.as_array()) {
+                    packages
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            };
+
+            // Match workspace patterns against internal paths
+            for pattern in workspace_patterns {
+                for path in all_internal_paths {
+                    let path_str = path.display().to_string();
+                    if self.matches_workspace_pattern(&path_str, &pattern) {
+                        // Extract package name from path (e.g., "packages/foo" -> "foo")
+                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                            if !seen.contains(name) {
+                                internal_deps.push(Dependency {
+                                    name: name.to_string(),
+                                    version: Some("workspace:*".to_string()),
+                                    is_internal: true,
+                                });
+                                seen.insert(name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        DependencyInfo {
+            internal_deps,
+            external_deps,
+            detected_by: DetectionMethod::Deterministic,
+        }
+    }
+}
+
+impl JavaScriptLanguage {
+    fn matches_workspace_pattern(&self, path: &str, pattern: &str) -> bool {
+        // Simple glob matching for workspace patterns
+        // Supports: packages/*, apps/*, libs/*
+        let pattern_regex = pattern.replace('*', "[^/]+");
+        if let Ok(re) = Regex::new(&format!("^{}$", pattern_regex)) {
+            re.is_match(path)
+        } else {
+            false
+        }
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -405,5 +518,217 @@ mod tests {
         let lang = JavaScriptLanguage;
         let content = r#"{"engines": {"node": ">=18"}}"#;
         assert_eq!(lang.detect_version(Some(content)), Some("18".to_string()));
+    }
+
+    #[test]
+    fn test_parse_dependencies_simple() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "react": "^18.0.0",
+                "express": "^4.18.0"
+            },
+            "devDependencies": {
+                "typescript": "^5.0.0"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 3);
+        assert_eq!(deps.internal_deps.len(), 0);
+        assert!(deps.external_deps.iter().any(|d| d.name == "react"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "express"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "typescript"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_workspace() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "react": "^18.0.0",
+                "@myapp/shared": "workspace:*"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert_eq!(deps.internal_deps[0].name, "@myapp/shared");
+        assert!(deps.internal_deps[0].is_internal);
+    }
+
+    #[test]
+    fn test_parse_dependencies_pnpm_workspace() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "lodash": "^4.17.21",
+                "@myapp/core": "workspace:*",
+                "@myapp/utils": "workspace:^1.0.0"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 2);
+        assert!(deps.internal_deps.iter().any(|d| d.name == "@myapp/core"));
+        assert!(deps.internal_deps.iter().any(|d| d.name == "@myapp/utils"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_file_protocol() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "express": "^4.18.0",
+                "@myapp/shared": "file:../shared",
+                "@myapp/utils": "file:packages/utils"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 2);
+        assert!(deps.internal_deps.iter().all(|d| d.is_internal));
+    }
+
+    #[test]
+    fn test_parse_dependencies_link_protocol() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "react": "^18.0.0",
+                "local-lib": "link:../local-lib"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 1);
+        assert_eq!(deps.internal_deps[0].name, "local-lib");
+        assert!(deps.internal_deps[0].is_internal);
+    }
+
+    #[test]
+    fn test_parse_dependencies_npm_workspaces_array() {
+        use std::path::PathBuf;
+
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "workspaces": [
+                "packages/*",
+                "apps/*"
+            ],
+            "dependencies": {
+                "express": "^4.18.0"
+            }
+        }"#;
+
+        let internal_paths = vec![
+            PathBuf::from("packages/core"),
+            PathBuf::from("packages/utils"),
+            PathBuf::from("apps/web"),
+        ];
+
+        let deps = lang.parse_dependencies(content, &internal_paths);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 3);
+        assert!(deps.internal_deps.iter().any(|d| d.name == "core"));
+        assert!(deps.internal_deps.iter().any(|d| d.name == "utils"));
+        assert!(deps.internal_deps.iter().any(|d| d.name == "web"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_yarn_workspaces_object() {
+        use std::path::PathBuf;
+
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "workspaces": {
+                "packages": [
+                    "packages/*",
+                    "libs/*"
+                ]
+            },
+            "dependencies": {
+                "lodash": "^4.17.21"
+            }
+        }"#;
+
+        let internal_paths = vec![PathBuf::from("packages/api"), PathBuf::from("libs/shared")];
+
+        let deps = lang.parse_dependencies(content, &internal_paths);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.internal_deps.len(), 2);
+        assert!(deps.internal_deps.iter().any(|d| d.name == "api"));
+        assert!(deps.internal_deps.iter().any(|d| d.name == "shared"));
+        assert!(deps
+            .internal_deps
+            .iter()
+            .all(|d| d.version == Some("workspace:*".to_string())));
+    }
+
+    #[test]
+    fn test_parse_dependencies_peer_dependencies() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "react": "^18.0.0"
+            },
+            "peerDependencies": {
+                "react-dom": "^18.0.0"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps.external_deps.iter().any(|d| d.name == "react"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "react-dom"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_deduplication() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "dependencies": {
+                "lodash": "^4.17.21"
+            },
+            "devDependencies": {
+                "lodash": "^4.17.21"
+            }
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.external_deps[0].name, "lodash");
+    }
+
+    #[test]
+    fn test_parse_dependencies_invalid_json() {
+        let lang = JavaScriptLanguage;
+        let content = "not valid json {";
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 0);
+        assert_eq!(deps.internal_deps.len(), 0);
+        assert_eq!(deps.detected_by, DetectionMethod::NotImplemented);
+    }
+
+    #[test]
+    fn test_parse_dependencies_empty_package_json() {
+        let lang = JavaScriptLanguage;
+        let content = r#"{
+            "name": "empty-project",
+            "version": "1.0.0"
+        }"#;
+        let deps = lang.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.external_deps.len(), 0);
+        assert_eq!(deps.internal_deps.len(), 0);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
     }
 }
