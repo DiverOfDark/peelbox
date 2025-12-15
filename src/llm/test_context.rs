@@ -5,7 +5,7 @@ impl TestContext {
     pub fn current_test_name() -> Option<String> {
         if let Ok(test_name) = std::env::var("AIPACK_TEST_NAME") {
             if !test_name.is_empty() {
-                return Some(Self::sanitize_test_name(&test_name)?);
+                return Self::sanitize_test_name(&test_name);
             }
         }
 

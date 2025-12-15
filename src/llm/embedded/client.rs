@@ -323,7 +323,7 @@ impl EmbeddedClient {
                 }
             }
 
-            formatted.push_str("\n");
+            formatted.push('\n');
         }
 
         formatted.push_str("**Tool Call Format:**\n");
