@@ -106,43 +106,43 @@
 
 ## Week 3: Implement Pipeline Structure (Phases 1-5)
 
-- [ ] Phase 1: Scan (`src/pipeline/phases/scan.rs`)
-  - [ ] **Leverage existing `BootstrapScanner`** - use it for pre-scan
-  - [ ] Filesystem walker with ignore patterns (may already exist in `fs/`)
-  - [ ] Detect potential manifests by filename (leverage `LanguageRegistry`)
-  - [ ] Return `ScanResult` struct
-  - [ ] Unit tests
+- [x] Phase 1: Scan (`src/pipeline/phases/scan.rs`)
+  - [x] **Leverage existing `BootstrapScanner`** - use it for pre-scan
+  - [x] Filesystem walker with ignore patterns (may already exist in `fs/`)
+  - [x] Detect potential manifests by filename (leverage `LanguageRegistry`)
+  - [x] Return `ScanResult` struct
+  - [x] Unit tests
 
-- [ ] Phase 2: Classify Directories (`src/pipeline/phases/classify.rs`)
-  - [ ] **Optional phase**: Skip if `BootstrapScanner` provides enough info
-  - [ ] Implement prompt builder (private function in classify.rs)
-  - [ ] Parse JSON response into `ClassifyResult`
-  - [ ] Validate output (services vs packages)
-  - [ ] Integration test with `RecordingLLMClient`
+- [x] Phase 2: Classify Directories (`src/pipeline/phases/classify.rs`)
+  - [x] **Optional phase**: Skip if `BootstrapScanner` provides enough info
+  - [x] Implement prompt builder (private function in classify.rs)
+  - [x] Parse JSON response into `ClassifyResult`
+  - [x] Validate output (services vs packages)
+  - [x] Integration test with `RecordingLLMClient`
 
-- [ ] Phase 3: Project Structure (`src/pipeline/phases/structure.rs`)
-  - [ ] Implement prompt builder (private function in structure.rs)
-  - [ ] Parse JSON response into `StructureResult`
-  - [ ] Detect monorepo vs single service
-  - [ ] Integration test
+- [x] Phase 3: Project Structure (`src/pipeline/phases/structure.rs`)
+  - [x] Implement prompt builder (private function in structure.rs)
+  - [x] Parse JSON response into `StructureResult`
+  - [x] Detect monorepo vs single service
+  - [x] Integration test
 
-- [ ] Phase 4: Dependency Extraction (`src/pipeline/phases/dependencies.rs`)
-  - [ ] Implement deterministic path using parsers
-  - [ ] Implement LLM fallback prompt (private function in dependencies.rs)
-  - [ ] Return `DependencyResult` with detection method
-  - [ ] Unit tests for deterministic path
-  - [ ] Integration test for LLM fallback
+- [x] Phase 4: Dependency Extraction (`src/pipeline/phases/dependencies.rs`)
+  - [x] Implement deterministic path using parsers
+  - [x] Implement LLM fallback prompt (private function in dependencies.rs)
+  - [x] Return `DependencyResult` with detection method
+  - [x] Unit tests for deterministic path
+  - [x] Integration test for LLM fallback
 
-- [ ] Phase 5: Build Order (`src/pipeline/phases/build_order.rs`)
-  - [ ] Implement topological sort
-  - [ ] Detect cycles
-  - [ ] Return best-effort order on cycle
-  - [ ] Unit tests with various dependency graphs
+- [x] Phase 5: Build Order (`src/pipeline/phases/build_order.rs`)
+  - [x] Implement topological sort
+  - [x] Detect cycles
+  - [x] Return best-effort order on cycle
+  - [x] Unit tests with various dependency graphs
 
 **Checkpoint:**
-- [ ] Run `cargo fmt` - ensure code is formatted
-- [ ] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass
+- [x] Run `cargo fmt` - ensure code is formatted
+- [x] Run `cargo clippy` - fix all warnings
+- [x] Run `cargo test` - ensure all tests pass
 - [ ] Create git commit: `feat(pipeline): implement phases 1-5 (scan, classify, structure, dependencies, build order)`
 
 ## Week 3-4: Implement Service Analysis (Phases 6a-6g)
