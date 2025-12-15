@@ -210,7 +210,10 @@ impl LanguageDefinition for RustLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
+        vec![
+            (r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "axum/actix"),
+            (r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "rocket/warp"),
+        ]
     }
 
     fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {

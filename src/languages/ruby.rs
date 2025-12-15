@@ -179,7 +179,10 @@ impl LanguageDefinition for RubyLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
+        vec![
+            (r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#, "Rails/Sinatra"),
+            (r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#, "Rails"),
+        ]
     }
 
     fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {

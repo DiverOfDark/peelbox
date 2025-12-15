@@ -172,7 +172,10 @@ impl LanguageDefinition for PhpLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
+        vec![
+            (r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Slim"),
+            (r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Laravel"),
+        ]
     }
 
     fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {

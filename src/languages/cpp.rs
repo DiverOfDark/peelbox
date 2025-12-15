@@ -204,7 +204,7 @@ impl LanguageDefinition for CppLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
+        vec![(r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#, "Crow/Beast")]
     }
 
     fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
