@@ -3,6 +3,7 @@ use super::phases::{
     build, build_order, cache, classify, dependencies, entrypoint, env_vars, health, native_deps,
     port, root_cache, runtime, scan, structure,
 };
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
 use anyhow::{Context, Result};
@@ -12,113 +13,117 @@ use tracing::{debug, info};
 
 pub struct PipelineOrchestrator {
     llm_client: Arc<dyn LLMClient>,
+    registry: LanguageRegistry,
 }
 
 impl PipelineOrchestrator {
     pub fn new(llm_client: Arc<dyn LLMClient>) -> Self {
-        Self { llm_client }
+        Self {
+            llm_client,
+            registry: LanguageRegistry::with_defaults(),
+        }
     }
 
     pub async fn execute(&self, repo_path: &Path) -> Result<Vec<UniversalBuild>> {
         info!("Starting pipeline orchestration for: {}", repo_path.display());
 
         info!("Phase 1: Scanning repository");
-        let scan_result = scan::execute(repo_path).context("Phase 1: Scan failed")?;
-        debug!("Scan complete: {} detections", scan_result.bootstrap_context.detections.len());
+        let scan = scan::execute(repo_path).context("Phase 1: Scan failed")?;
+        debug!("Scan complete: {} detections", scan.bootstrap_context.detections.len());
 
         info!("Phase 2: Classifying directories");
-        let classify_result = classify::execute(self.llm_client.as_ref(), &scan_result)
+        let classification = classify::execute(self.llm_client.as_ref(), &scan)
             .await
             .context("Phase 2: Classify failed")?;
-        debug!("Classify complete: {} services", classify_result.services.len());
+        debug!("Classify complete: {} services", classification.services.len());
 
         info!("Phase 3: Analyzing project structure");
-        let structure_result = structure::execute(self.llm_client.as_ref(), &scan_result, &classify_result)
+        let structure = structure::execute(self.llm_client.as_ref(), &scan, &classification)
             .await
             .context("Phase 3: Structure failed")?;
-        debug!("Structure: {:?}, Tool: {:?}", structure_result.project_type, structure_result.monorepo_tool);
+        debug!("Structure: {:?}, Tool: {:?}", structure.project_type, structure.monorepo_tool);
 
         info!("Phase 4: Extracting dependencies");
-        let dependency_result = dependencies::execute(
+        let dependencies = dependencies::execute(
             self.llm_client.as_ref(),
-            &scan_result,
-            &structure_result,
+            &scan,
+            &structure,
         )
         .await
         .context("Phase 4: Dependencies failed")?;
-        debug!("Dependencies extracted for {} services", dependency_result.dependencies.len());
+        debug!("Dependencies extracted for {} services", dependencies.dependencies.len());
 
         info!("Phase 5: Calculating build order");
-        let build_order_result = build_order::execute(&dependency_result)
+        let build_order = build_order::execute(&dependencies)
             .context("Phase 5: Build order failed")?;
-        debug!("Build order: {} services, has_cycle: {}", build_order_result.build_order.len(), build_order_result.has_cycle);
+        debug!("Build order: {} services, has_cycle: {}", build_order.build_order.len(), build_order.has_cycle);
 
         info!("Phase 6: Analyzing services (runtime, build, entrypoint, native deps, port, env vars, health)");
-        let mut service_analysis_results = Vec::new();
+        let mut analyses = Vec::new();
 
-        for service in &structure_result.services {
+        for service in &structure.services {
             info!("  Analyzing service: {}", service.path.display());
 
             debug!("    Phase 6a: Runtime detection");
-            let runtime_info = runtime::execute(self.llm_client.as_ref(), service, &scan_result)
+            let runtime = runtime::execute(self.llm_client.as_ref(), service, &scan)
                 .await
                 .context("Phase 6a: Runtime detection failed")?;
 
             debug!("    Phase 6b: Build detection");
-            let build_info = build::execute(self.llm_client.as_ref(), service, &scan_result)
+            let build_info = build::execute(self.llm_client.as_ref(), service, &scan)
                 .await
                 .context("Phase 6b: Build detection failed")?;
 
             debug!("    Phase 6c: Entrypoint detection");
-            let entrypoint_info = entrypoint::execute(self.llm_client.as_ref(), service, &scan_result)
+            let entrypoint = entrypoint::execute(self.llm_client.as_ref(), service, &scan)
                 .await
                 .context("Phase 6c: Entrypoint detection failed")?;
 
             debug!("    Phase 6d: Native dependencies detection");
-            let native_deps_info = native_deps::execute(self.llm_client.as_ref(), service, &scan_result)
+            let native_deps = native_deps::execute(self.llm_client.as_ref(), service, &scan)
                 .await
                 .context("Phase 6d: Native deps detection failed")?;
 
             debug!("    Phase 6e: Port discovery");
-            let port_info = port::execute(self.llm_client.as_ref(), service, &scan_result)
+            let port = port::execute(self.llm_client.as_ref(), service, &scan, &self.registry)
                 .await
                 .context("Phase 6e: Port discovery failed")?;
 
             debug!("    Phase 6f: Environment variables discovery");
-            let env_vars_info = env_vars::execute(self.llm_client.as_ref(), service, &scan_result)
+            let env_vars = env_vars::execute(self.llm_client.as_ref(), service, &scan, &self.registry)
                 .await
                 .context("Phase 6f: Env vars discovery failed")?;
 
             debug!("    Phase 6g: Health check discovery");
-            let health_info = health::execute(self.llm_client.as_ref(), service, &runtime_info, &scan_result)
+            let health = health::execute(self.llm_client.as_ref(), service, &runtime, &scan, &self.registry)
                 .await
                 .context("Phase 6g: Health check discovery failed")?;
 
             debug!("    Phase 7: Cache detection");
-            let cache_info = cache::execute(service);
+            let cache = cache::execute(service);
 
-            service_analysis_results.push(ServiceAnalysisResults {
+            analyses.push(ServiceAnalysisResults {
                 service: service.clone(),
-                runtime: runtime_info,
+                runtime,
                 build: build_info,
-                entrypoint: entrypoint_info,
-                native_deps: native_deps_info,
-                port: port_info,
-                env_vars: env_vars_info,
-                health: health_info,
-                cache: cache_info,
+                entrypoint,
+                native_deps,
+                port,
+                env_vars,
+                health,
+                cache,
             });
         }
 
         info!("Phase 8: Root cache detection");
-        let root_cache_info = root_cache::execute(&structure_result);
-        debug!("Root cache: {} directories", root_cache_info.root_cache_dirs.len());
+        let root_cache = root_cache::execute(&structure);
+        debug!("Root cache: {} directories", root_cache.root_cache_dirs.len());
 
         info!("Phase 9: Assembling UniversalBuild outputs");
         let builds = assemble::execute(
-            service_analysis_results,
-            &structure_result,
-            &root_cache_info,
+            analyses,
+            &structure,
+            &root_cache,
         )
         .context("Phase 9: Assemble failed")?;
 

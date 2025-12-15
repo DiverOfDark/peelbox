@@ -1,6 +1,8 @@
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::env_vars::EnvVarExtractor;
+use crate::fs::RealFileSystem;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -66,11 +68,10 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     service: &Service,
     scan: &ScanResult,
+    registry: &LanguageRegistry,
 ) -> Result<EnvVarsInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
-    let (fs, registry) = super::extractor_helper::create_extractor_components();
-
-    let extractor = EnvVarExtractor::with_registry(fs, registry);
+    let extractor = EnvVarExtractor::with_registry(RealFileSystem, registry.clone());
     let extracted_info = extractor.extract(&context);
     let extracted: Vec<String> = extracted_info.iter().map(|info| info.name.clone()).collect();
 

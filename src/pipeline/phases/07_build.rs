@@ -74,15 +74,17 @@ fn try_deterministic(service: &Service) -> Option<BuildInfo> {
 
     let build_cmd = template.build_commands.first().cloned();
     let output_dir = template.artifacts.first().map(|artifact| {
-        let path_str = artifact.replace("/{project_name}", "").replace("{project_name}", "");
+        let path = artifact
+            .replace("/{project_name}", "")
+            .replace("{project_name}", "")
+            .trim_end_matches('/')
+            .to_string();
 
-        if path_str.contains('*') || path_str.contains("*.") {
-            if let Some(dir) = PathBuf::from(&path_str).parent() {
-                return dir.to_path_buf();
-            }
+        if path.contains('*') {
+            PathBuf::from(&path).parent().unwrap_or(&PathBuf::from(&path)).to_path_buf()
+        } else {
+            PathBuf::from(path)
         }
-
-        PathBuf::from(path_str.trim_end_matches('/'))
     });
 
     Some(BuildInfo {

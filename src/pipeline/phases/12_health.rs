@@ -2,6 +2,8 @@ use super::runtime::RuntimeInfo;
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::health::HealthCheckExtractor;
+use crate::fs::RealFileSystem;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -71,11 +73,10 @@ pub async fn execute(
     service: &Service,
     runtime: &RuntimeInfo,
     scan: &ScanResult,
+    registry: &LanguageRegistry,
 ) -> Result<HealthInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
-    let (fs, registry) = super::extractor_helper::create_extractor_components();
-
-    let extractor = HealthCheckExtractor::with_registry(fs, registry);
+    let extractor = HealthCheckExtractor::with_registry(RealFileSystem, registry.clone());
     let extracted_info = extractor.extract(&context);
     let extracted: Vec<String> = extracted_info.iter().map(|info| info.endpoint.clone()).collect();
 
