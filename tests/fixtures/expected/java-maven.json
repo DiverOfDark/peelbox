@@ -1,33 +1,54 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "test-java-project",
-    "language": "Java",
-    "build_system": "maven",
-    "confidence": 0.95,
-    "reasoning": "Detected pom.xml"
-  },
-  "build": {
-    "base": "maven:3.9-eclipse-temurin-17",
-    "packages": [],
-    "env": {},
-    "commands": ["mvn clean package -DskipTests"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": [".m2/repository/"],
-    "artifacts": ["target/*.jar"]
-  },
-  "runtime": {
-    "base": "eclipse-temurin:17-jre",
-    "packages": [],
-    "env": {},
-    "copy": [
-      {
-        "from": "target/*.jar",
-        "to": "/app.jar"
-      }
-    ],
-    "command": ["java", "-jar", "/app.jar"],
-    "ports": [8080],
-    "healthcheck": null
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "maven",
+      "confidence": 0.95,
+      "reasoning": "Detected from pom.xml in ."
+    },
+    "build": {
+      "base": "maven:3.9-eclipse-temurin-21",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        ".m2/repository",
+        "target"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
+    }
   }
-}
+]

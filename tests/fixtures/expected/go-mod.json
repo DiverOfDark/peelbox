@@ -1,33 +1,53 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "test-go-project",
-    "language": "Go",
-    "build_system": "go",
-    "confidence": 0.95,
-    "reasoning": "Detected go.mod"
-  },
-  "build": {
-    "base": "golang:1.21-alpine",
-    "packages": ["git"],
-    "env": {},
-    "commands": ["go mod download", "go build -o /app"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": ["/go/pkg/mod/"],
-    "artifacts": ["/app"]
-  },
-  "runtime": {
-    "base": "alpine:latest",
-    "packages": ["ca-certificates"],
-    "env": {},
-    "copy": [
-      {
-        "from": "/app",
-        "to": "/app"
-      }
-    ],
-    "command": ["/app"],
-    "ports": [8080],
-    "healthcheck": null
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Go",
+      "build_system": "go",
+      "confidence": 0.95,
+      "reasoning": "Detected from go.mod in ."
+    },
+    "build": {
+      "base": "golang:1.21",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "go build -o app ."
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "go/pkg/mod"
+      ],
+      "artifacts": [
+        "app"
+      ]
+    },
+    "runtime": {
+      "base": "alpine:3.19",
+      "packages": [
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "app",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "./app"
+      ],
+      "ports": [
+        8080
+      ]
+    }
   }
-}
+]

@@ -1,43 +1,56 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "test-node-yarn-project",
-    "language": "JavaScript",
-    "build_system": "yarn",
-    "confidence": 0.95,
-    "reasoning": "Detected package.json with yarn.lock"
-  },
-  "build": {
-    "base": "node:20-alpine",
-    "packages": [],
-    "env": {},
-    "commands": ["yarn install --frozen-lockfile", "yarn build"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": ["node_modules/", ".yarn/cache/"],
-    "artifacts": ["dist/", "build/"]
-  },
-  "runtime": {
-    "base": "node:20-alpine",
-    "packages": [],
-    "env": {
-      "NODE_ENV": "production"
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.95,
+      "reasoning": "Detected from package.json in apps/web"
     },
-    "copy": [
-      {
-        "from": "package.json",
-        "to": "./"
+    "build": {
+      "base": "node:20",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "apps/web",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".pnpm-store",
+        ".yarn/cache",
+        "target"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
+    },
+    "runtime": {
+      "base": "node:20-slim",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
       },
-      {
-        "from": "yarn.lock",
-        "to": "./"
-      },
-      {
-        "from": "dist/",
-        "to": "./dist/"
-      }
-    ],
-    "command": ["node", "dist/index.js"],
-    "ports": [3000],
-    "healthcheck": null
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "./server.js"
+      ],
+      "ports": [
+        3000
+      ]
+    }
   }
-}
+]

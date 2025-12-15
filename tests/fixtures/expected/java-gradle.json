@@ -1,33 +1,54 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "test-java-gradle-project",
-    "language": "Java",
-    "build_system": "gradle",
-    "confidence": 0.95,
-    "reasoning": "Detected build.gradle or build.gradle.kts"
-  },
-  "build": {
-    "base": "gradle:8-jdk17",
-    "packages": [],
-    "env": {},
-    "commands": ["gradle build -x test"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": [".gradle/", "build/"],
-    "artifacts": ["build/libs/*.jar"]
-  },
-  "runtime": {
-    "base": "eclipse-temurin:17-jre",
-    "packages": [],
-    "env": {},
-    "copy": [
-      {
-        "from": "build/libs/*.jar",
-        "to": "/app.jar"
-      }
-    ],
-    "command": ["java", "-jar", "/app.jar"],
-    "ports": [8080],
-    "healthcheck": null
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "gradle",
+      "confidence": 0.95,
+      "reasoning": "Detected from build.gradle in ."
+    },
+    "build": {
+      "base": "gradle:8.5-jdk21",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "gradle build -x test"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        ".gradle",
+        "build"
+      ],
+      "artifacts": [
+        "build/libs/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
+    }
   }
-}
+]

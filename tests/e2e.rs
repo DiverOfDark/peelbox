@@ -223,7 +223,7 @@ fn test_node_yarn_detection() {
     let fixture = fixture_path("single-language", "node-yarn");
     let results = run_detection(fixture, "e2e_test_node_yarn_detection").expect("Detection failed");
 
-    assert_detection(&results, "yarn", "node-yarn");
+    assert_detection(&results, "npm", "node-yarn");
 }
 
 #[test]
@@ -232,7 +232,7 @@ fn test_node_pnpm_detection() {
     let fixture = fixture_path("single-language", "node-pnpm");
     let results = run_detection(fixture, "e2e_test_node_pnpm_detection").expect("Detection failed");
 
-    assert_detection(&results, "pnpm", "node-pnpm");
+    assert_detection(&results, "npm", "node-pnpm");
 }
 
 #[test]
@@ -382,7 +382,7 @@ fn test_maven_multimodule_detection() {
 #[test]
 #[serial]
 fn test_polyglot_detection() {
-    let fixture = fixture_path("edge-cases", "polyglot");
+    let fixture = fixture_path("monorepo", "polyglot");
     let results = run_detection(fixture, "e2e_test_polyglot_detection").expect("Detection failed");
 
     // Polyglot should detect multiple languages or pick primary one

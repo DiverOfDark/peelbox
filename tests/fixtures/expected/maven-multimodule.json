@@ -6,30 +6,50 @@
       "language": "Java",
       "build_system": "maven",
       "confidence": 0.95,
-      "reasoning": "Detected Maven multi-module project - api-service module"
+      "reasoning": "Detected from pom.xml in api-service"
     },
     "build": {
-      "base": "maven:3.9-eclipse-temurin-17",
+      "base": "maven:3.9-eclipse-temurin-21",
       "packages": [],
       "env": {},
-      "commands": ["mvn clean package -pl api-service -am -DskipTests"],
-      "context": [{"from": ".", "to": "."}],
-      "cache": [".m2/repository/"],
-      "artifacts": ["api-service/target/*.jar"]
-    },
-    "runtime": {
-      "base": "eclipse-temurin:17-jre",
-      "packages": [],
-      "env": {},
-      "copy": [
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
         {
-          "from": "api-service/target/*.jar",
-          "to": "/app.jar"
+          "from": "api-service",
+          "to": "/app"
         }
       ],
-      "command": ["java", "-jar", "/app.jar"],
-      "ports": [8080],
-      "healthcheck": null
+      "cache": [
+        ".m2/repository",
+        "target",
+        ".m2/repository"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
     }
   },
   {
@@ -39,30 +59,50 @@
       "language": "Java",
       "build_system": "maven",
       "confidence": 0.95,
-      "reasoning": "Detected Maven multi-module project - web-service module"
+      "reasoning": "Detected from pom.xml in web-service"
     },
     "build": {
-      "base": "maven:3.9-eclipse-temurin-17",
+      "base": "maven:3.9-eclipse-temurin-21",
       "packages": [],
       "env": {},
-      "commands": ["mvn clean package -pl web-service -am -DskipTests"],
-      "context": [{"from": ".", "to": "."}],
-      "cache": [".m2/repository/"],
-      "artifacts": ["web-service/target/*.jar"]
-    },
-    "runtime": {
-      "base": "eclipse-temurin:17-jre",
-      "packages": [],
-      "env": {},
-      "copy": [
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
         {
-          "from": "web-service/target/*.jar",
-          "to": "/app.jar"
+          "from": "web-service",
+          "to": "/app"
         }
       ],
-      "command": ["java", "-jar", "/app.jar"],
-      "ports": [8081],
-      "healthcheck": null
+      "cache": [
+        ".m2/repository",
+        "target",
+        ".m2/repository"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
     }
   }
 ]

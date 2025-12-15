@@ -78,11 +78,21 @@ impl LanguageRegistry {
         manifest_name: &str,
         manifest_content: Option<&str>,
     ) -> Option<LanguageDetection> {
-        let candidates = self.manifest_index.get(manifest_name)?;
+        let mut matched_candidates = Vec::new();
+
+        for (pattern, candidates) in &self.manifest_index {
+            if Self::matches_pattern(pattern, manifest_name) {
+                matched_candidates.extend(candidates.iter().copied());
+            }
+        }
+
+        if matched_candidates.is_empty() {
+            return None;
+        }
 
         let mut best_result: Option<(LanguageDetection, u8)> = None;
 
-        for &(lang_idx, priority) in candidates {
+        for (lang_idx, priority) in matched_candidates {
             let language = &self.languages[lang_idx];
 
             if let Some(result) = language.detect(manifest_name, manifest_content) {
@@ -107,6 +117,24 @@ impl LanguageRegistry {
         }
 
         best_result.map(|(detection, _)| detection)
+    }
+
+    fn matches_pattern(pattern: &str, filename: &str) -> bool {
+        tracing::debug!("Matching pattern '{}' against filename '{}'", pattern, filename);
+        let matches = if pattern.contains('*') {
+            let parts: Vec<&str> = pattern.split('*').collect();
+            if parts.len() == 2 {
+                let prefix = parts[0];
+                let suffix = parts[1];
+                filename.starts_with(prefix) && filename.ends_with(suffix)
+            } else {
+                false
+            }
+        } else {
+            pattern == filename
+        };
+        tracing::debug!("Pattern match result: {}", matches);
+        matches
     }
 
     pub fn detect_all(&self, manifests: &[(String, Option<String>)]) -> Vec<LanguageDetection> {
@@ -148,7 +176,7 @@ impl LanguageRegistry {
 
     /// Check if a filename is a known manifest
     pub fn is_manifest(&self, filename: &str) -> bool {
-        self.manifest_index.contains_key(filename)
+        self.manifest_index.keys().any(|pattern| Self::matches_pattern(pattern, filename))
     }
 
     /// Check if a manifest is a workspace root (monorepo indicator)

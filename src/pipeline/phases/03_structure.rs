@@ -214,19 +214,41 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
     service_paths
         .iter()
         .filter_map(|sp| {
-            scan.bootstrap_context
+            tracing::debug!(
+                "Looking for service: path={}, manifest={}",
+                sp.path.display(),
+                sp.manifest
+            );
+
+            let full_path = sp.path.join(&sp.manifest);
+            tracing::debug!("Full path: {}", full_path.display());
+
+            let matched = scan.bootstrap_context
                 .detections
                 .iter()
                 .find(|d| {
+                    tracing::debug!(
+                        "Checking detection: manifest_path={}",
+                        d.manifest_path
+                    );
                     d.manifest_path == sp.manifest
-                        || d.manifest_path == sp.path.join(&sp.manifest).to_string_lossy()
-                })
-                .map(|d| Service {
-                    path: sp.path.clone(),
-                    manifest: sp.manifest.clone(),
-                    language: d.language.clone(),
-                    build_system: d.build_system.clone(),
-                })
+                        || d.manifest_path == full_path.to_string_lossy()
+                });
+
+            if matched.is_none() {
+                tracing::warn!(
+                    "No bootstrap detection found for service: {} (manifest: {})",
+                    sp.path.display(),
+                    sp.manifest
+                );
+            }
+
+            matched.map(|d| Service {
+                path: sp.path.clone(),
+                manifest: sp.manifest.clone(),
+                language: d.language.clone(),
+                build_system: d.build_system.clone(),
+            })
         })
         .collect()
 }

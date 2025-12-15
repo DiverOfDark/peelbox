@@ -1,39 +1,57 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "test-python-project",
-    "language": "Python",
-    "build_system": "pip",
-    "confidence": 0.95,
-    "reasoning": "Detected requirements.txt"
-  },
-  "build": {
-    "base": "python:3.11-slim",
-    "packages": [],
-    "env": {},
-    "commands": ["pip install --no-cache-dir -r requirements.txt"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": [".cache/pip/"],
-    "artifacts": []
-  },
-  "runtime": {
-    "base": "python:3.11-slim",
-    "packages": [],
-    "env": {
-      "PYTHONUNBUFFERED": "1"
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "confidence": 0.95,
+      "reasoning": "Detected from requirements.txt in ."
     },
-    "copy": [
-      {
-        "from": "requirements.txt",
-        "to": "./"
+    "build": {
+      "base": "python:3.11",
+      "packages": [
+        "build-essential"
+      ],
+      "env": {},
+      "commands": [
+        "pip install --no-cache-dir -r requirements.txt"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "__pycache__",
+        ".venv",
+        "venv"
+      ],
+      "artifacts": [
+        "/usr/local/lib/python3.11/site-packages",
+        "app/"
+      ]
+    },
+    "runtime": {
+      "base": "python:3.11-slim",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
       },
-      {
-        "from": "*.py",
-        "to": "./"
-      }
-    ],
-    "command": ["python", "app.py"],
-    "ports": [8000],
-    "healthcheck": null
+      "copy": [
+        {
+          "from": "/usr/local/lib/python3.11/site-packages",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "python",
+        "main.py"
+      ],
+      "ports": [
+        8000
+      ]
+    }
   }
-}
+]

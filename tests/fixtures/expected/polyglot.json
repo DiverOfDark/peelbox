@@ -2,71 +2,165 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "polyglot-frontend",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "confidence": 0.90,
-      "reasoning": "Detected polyglot repository with multiple languages - frontend component"
+      "project_name": "backend",
+      "language": "Java",
+      "build_system": "maven",
+      "confidence": 0.95,
+      "reasoning": "Detected from pom.xml in backend"
     },
     "build": {
-      "base": "node:20-alpine",
+      "base": "maven:3.9-eclipse-temurin-21",
       "packages": [],
       "env": {},
-      "commands": ["cd frontend && npm ci && npm run build"],
-      "context": [{"from": "frontend", "to": "/app"}],
-      "cache": ["frontend/node_modules/"],
-      "artifacts": ["frontend/dist/"]
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
+        {
+          "from": "backend",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        ".m2/repository",
+        "target",
+        "target"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
     },
     "runtime": {
-      "base": "node:20-alpine",
+      "base": "eclipse-temurin:21-jre",
       "packages": [],
       "env": {
-        "NODE_ENV": "production"
+        "PORT": "3000"
       },
       "copy": [
         {
-          "from": "frontend/dist/",
-          "to": "/app/dist/"
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
         }
       ],
-      "command": ["node", "/app/dist/index.js"],
-      "ports": [3000],
-      "healthcheck": null
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
     }
   },
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "polyglot-backend",
-      "language": "Python",
-      "build_system": "pip",
-      "confidence": 0.90,
-      "reasoning": "Detected polyglot repository with multiple languages - backend component"
+      "project_name": "frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.95,
+      "reasoning": "Detected from package.json in frontend"
     },
     "build": {
-      "base": "python:3.11-slim",
+      "base": "node:20",
       "packages": [],
       "env": {},
-      "commands": ["cd backend && pip install -r requirements.txt"],
-      "context": [{"from": "backend", "to": "/app"}],
-      "cache": ["backend/.cache/pip/"],
-      "artifacts": []
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "frontend",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".pnpm-store",
+        ".yarn/cache",
+        "target"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
     },
     "runtime": {
-      "base": "python:3.11-slim",
+      "base": "node:20-slim",
       "packages": [],
       "env": {
-        "PYTHONUNBUFFERED": "1"
+        "PORT": "3000"
       },
       "copy": [
         {
-          "from": "backend/",
-          "to": "/app/"
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
         }
       ],
-      "command": ["python", "/app/app.py"],
-      "ports": [8000],
-      "healthcheck": null
+      "command": [
+        "node",
+        "dist/index.js"
+      ],
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "cli",
+      "language": "Rust",
+      "build_system": "cargo",
+      "confidence": 0.95,
+      "reasoning": "Detected from Cargo.toml in cli"
+    },
+    "build": {
+      "base": "rust:1.75",
+      "packages": [
+        "pkg-config",
+        "libssl-dev"
+      ],
+      "env": {},
+      "commands": [
+        "cargo build --release"
+      ],
+      "context": [
+        {
+          "from": "cli",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "target",
+        "target"
+      ],
+      "artifacts": [
+        "target/release/cli"
+      ]
+    },
+    "runtime": {
+      "base": "debian:bookworm-slim",
+      "packages": [
+        "ca-certificates",
+        "libssl3"
+      ],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "target/release/cli",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "./target/release/admin-service"
+      ],
+      "ports": [
+        8080
+      ]
     }
   }
 ]

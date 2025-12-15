@@ -39,7 +39,18 @@ fn build_prompt(scan: &ScanResult) -> String {
         .bootstrap_context
         .detections
         .iter()
-        .map(|d| format!("{} ({})", d.manifest_path, d.build_system))
+        .map(|d| {
+            let path = std::path::Path::new(&d.manifest_path);
+            let dir = path
+                .parent()
+                .and_then(|p| p.to_str())
+                .unwrap_or(".");
+            let file = path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or(&d.manifest_path);
+            format!("- {} in directory '{}' ({})", file, dir, d.build_system)
+        })
         .collect();
 
     let is_monorepo = scan.bootstrap_context.summary.is_monorepo;
@@ -49,30 +60,36 @@ fn build_prompt(scan: &ScanResult) -> String {
 
 Repository information:
 - Is monorepo: {}
-- Manifests found: {}
+- Manifests detected:
+{}
 
 Classification rules:
 - **Service**: Has a runnable entrypoint, can be deployed independently (e.g., web server, CLI tool, worker)
 - **Package**: Shared library or utility code consumed by other services/packages
 - **Root is service**: If root directory has a manifest and can be deployed as a standalone application
 
-Respond with JSON:
+You MUST only reference manifests from the list above. Do NOT invent or hallucinate manifests that were not detected.
+
+Respond with JSON containing ONLY the detected manifests:
 {{
   "services": [
-    {{"path": "apps/web", "manifest": "package.json"}},
-    {{"path": ".", "manifest": "Cargo.toml"}}
+    {{"path": "directory/path", "manifest": "manifest-filename.ext"}}
   ],
   "packages": [
-    {{"path": "packages/shared", "manifest": "package.json"}}
+    {{"path": "directory/path", "manifest": "manifest-filename.ext"}}
   ],
   "root_is_service": true,
   "confidence": "high"
 }}
 
-Note: Use "." for root directory. Confidence: "high" | "medium" | "low"
+IMPORTANT:
+- Use "." for root directory
+- Use ONLY the manifest filenames from the detected list above
+- Do NOT include manifests like package.json, Cargo.toml, etc. unless they appear in the detected list
+- Confidence: "high" | "medium" | "low"
 "#,
         is_monorepo,
-        serde_json::to_string(&manifest_list).unwrap_or_else(|_| "[]".to_string())
+        manifest_list.join("\n")
     )
 }
 

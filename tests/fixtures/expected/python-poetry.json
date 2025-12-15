@@ -1,39 +1,57 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "test-python-poetry-project",
-    "language": "Python",
-    "build_system": "poetry",
-    "confidence": 0.95,
-    "reasoning": "Detected pyproject.toml with poetry configuration"
-  },
-  "build": {
-    "base": "python:3.11-slim",
-    "packages": [],
-    "env": {},
-    "commands": ["pip install poetry", "poetry install --no-dev"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": [".cache/pypoetry/"],
-    "artifacts": []
-  },
-  "runtime": {
-    "base": "python:3.11-slim",
-    "packages": [],
-    "env": {
-      "PYTHONUNBUFFERED": "1"
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "poetry",
+      "confidence": 0.95,
+      "reasoning": "Detected from pyproject.toml in ."
     },
-    "copy": [
-      {
-        "from": "pyproject.toml",
-        "to": "./"
+    "build": {
+      "base": "python:3.11",
+      "packages": [
+        "build-essential"
+      ],
+      "env": {},
+      "commands": [
+        "pip install poetry"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "__pycache__",
+        ".venv",
+        "venv"
+      ],
+      "artifacts": [
+        "dist/",
+        ".venv/"
+      ]
+    },
+    "runtime": {
+      "base": "python:3.11-slim",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
       },
-      {
-        "from": "*.py",
-        "to": "./"
-      }
-    ],
-    "command": ["poetry", "run", "python", "app.py"],
-    "ports": [8000],
-    "healthcheck": null
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "python",
+        "main.py"
+      ],
+      "ports": [
+        8000
+      ]
+    }
   }
-}
+]

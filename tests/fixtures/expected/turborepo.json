@@ -2,44 +2,112 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "turborepo-monorepo",
+      "project_name": "app",
       "language": "JavaScript",
-      "build_system": "turborepo",
+      "build_system": "npm",
       "confidence": 0.95,
-      "reasoning": "Detected turbo.json with npm/pnpm workspaces"
+      "reasoning": "Detected from package.json in ."
     },
     "build": {
-      "base": "node:20-alpine",
+      "base": "node:20",
       "packages": [],
       "env": {},
-      "commands": ["npm ci", "npx turbo build"],
-      "context": [{"from": ".", "to": "."}],
-      "cache": ["node_modules/", ".turbo/"],
-      "artifacts": ["apps/*/dist/", "packages/*/dist/"]
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".pnpm-store",
+        ".yarn/cache",
+        "node_modules",
+        ".turbo"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
     },
     "runtime": {
-      "base": "node:20-alpine",
+      "base": "node:20-slim",
       "packages": [],
       "env": {
-        "NODE_ENV": "production"
+        "PORT": "3000"
       },
       "copy": [
         {
-          "from": "package*.json",
-          "to": "./"
-        },
-        {
-          "from": "apps/",
-          "to": "./apps/"
-        },
-        {
-          "from": "packages/",
-          "to": "./packages/"
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
         }
       ],
-      "command": ["node", "apps/web/dist/index.js"],
-      "ports": [3000],
-      "healthcheck": null
+      "command": [
+        "./server.js"
+      ],
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.95,
+      "reasoning": "Detected from package.json in apps/web"
+    },
+    "build": {
+      "base": "node:20",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "apps/web",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".pnpm-store",
+        ".yarn/cache",
+        "node_modules",
+        ".turbo"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
+    },
+    "runtime": {
+      "base": "node:20-slim",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "node",
+        "dist/index.js"
+      ],
+      "ports": [
+        3000
+      ]
     }
   }
 ]

@@ -67,7 +67,8 @@ pub async fn execute(
     scan: &ScanResult,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<NativeDepsInfo> {
-    let dependencies = extract_dependencies(scan, service)?;
+    let dependencies = extract_dependencies(scan, service)
+        .with_context(|| format!("Failed to extract dependencies for service at {}", service.path.display()))?;
 
     if let Some(deterministic) = try_deterministic(&dependencies) {
         return Ok(deterministic);
@@ -116,33 +117,50 @@ fn try_deterministic(dependencies: &[String]) -> Option<NativeDepsInfo> {
 }
 
 fn extract_dependencies(scan: &ScanResult, service: &Service) -> Result<Vec<String>> {
+    // service.path is relative to repo_path
     let manifest_path = scan.repo_path.join(&service.path).join(&service.manifest);
 
+    tracing::debug!(
+        "Trying to read manifest at: {} (repo: {}, service: {}, manifest: {})",
+        manifest_path.display(),
+        scan.repo_path.display(),
+        service.path.display(),
+        service.manifest
+    );
+
     if !manifest_path.exists() {
+        tracing::warn!(
+            "Manifest not found at {}, returning empty dependencies",
+            manifest_path.display()
+        );
         return Ok(vec![]);
     }
 
     let content = std::fs::read_to_string(&manifest_path)
         .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
 
+    parse_dependencies(&content, &service.manifest)
+}
+
+fn parse_dependencies(content: &str, manifest: &str) -> Result<Vec<String>> {
     let mut deps = Vec::new();
 
-    if service.manifest == "package.json" {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+    if manifest == "package.json" {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
             if let Some(dependencies) = json.get("dependencies").and_then(|v| v.as_object()) {
-                deps.extend(dependencies.keys().cloned());
+                deps.extend(dependencies.keys().map(|s| s.to_string()));
             }
             if let Some(dev_dependencies) = json.get("devDependencies").and_then(|v| v.as_object())
             {
-                deps.extend(dev_dependencies.keys().cloned());
+                deps.extend(dev_dependencies.keys().map(|s| s.to_string()));
             }
         }
     }
 
-    if service.manifest == "Cargo.toml" {
-        if let Ok(toml) = toml::from_str::<toml::Value>(&content) {
+    if manifest == "Cargo.toml" {
+        if let Ok(toml) = toml::from_str::<toml::Value>(content) {
             if let Some(dependencies) = toml.get("dependencies").and_then(|v| v.as_table()) {
-                deps.extend(dependencies.keys().cloned());
+                deps.extend(dependencies.keys().map(|s| s.to_string()));
             }
         }
     }

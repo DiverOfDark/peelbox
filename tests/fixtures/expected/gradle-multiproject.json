@@ -6,30 +6,50 @@
       "language": "Java",
       "build_system": "gradle",
       "confidence": 0.95,
-      "reasoning": "Detected Gradle multi-project build - api-service module"
+      "reasoning": "Detected from build.gradle in api-service"
     },
     "build": {
-      "base": "gradle:8-jdk17",
+      "base": "gradle:8.5-jdk21",
       "packages": [],
       "env": {},
-      "commands": ["gradle :api-service:build -x test"],
-      "context": [{"from": ".", "to": "."}],
-      "cache": [".gradle/", "*/build/"],
-      "artifacts": ["api-service/build/libs/*.jar"]
-    },
-    "runtime": {
-      "base": "eclipse-temurin:17-jre",
-      "packages": [],
-      "env": {},
-      "copy": [
+      "commands": [
+        "gradle build -x test"
+      ],
+      "context": [
         {
-          "from": "api-service/build/libs/*.jar",
-          "to": "/app.jar"
+          "from": "api-service",
+          "to": "/app"
         }
       ],
-      "command": ["java", "-jar", "/app.jar"],
-      "ports": [8080],
-      "healthcheck": null
+      "cache": [
+        ".gradle",
+        "build",
+        ".gradle"
+      ],
+      "artifacts": [
+        "build/libs/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
     }
   },
   {
@@ -39,30 +59,50 @@
       "language": "Java",
       "build_system": "gradle",
       "confidence": 0.95,
-      "reasoning": "Detected Gradle multi-project build - web-service module"
+      "reasoning": "Detected from build.gradle in web-service"
     },
     "build": {
-      "base": "gradle:8-jdk17",
+      "base": "gradle:8.5-jdk21",
       "packages": [],
       "env": {},
-      "commands": ["gradle :web-service:build -x test"],
-      "context": [{"from": ".", "to": "."}],
-      "cache": [".gradle/", "*/build/"],
-      "artifacts": ["web-service/build/libs/*.jar"]
-    },
-    "runtime": {
-      "base": "eclipse-temurin:17-jre",
-      "packages": [],
-      "env": {},
-      "copy": [
+      "commands": [
+        "gradle build -x test"
+      ],
+      "context": [
         {
-          "from": "web-service/build/libs/*.jar",
-          "to": "/app.jar"
+          "from": "web-service",
+          "to": "/app"
         }
       ],
-      "command": ["java", "-jar", "/app.jar"],
-      "ports": [8081],
-      "healthcheck": null
+      "cache": [
+        ".gradle",
+        "build",
+        ".gradle"
+      ],
+      "artifacts": [
+        "build/libs/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
     }
   }
 ]

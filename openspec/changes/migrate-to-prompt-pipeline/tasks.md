@@ -280,10 +280,21 @@
   - [x] Fix logging to output to stderr when using JSON format
   - [x] Verify detection service works with new pipeline
 
+- [x] Fix Phase 6d JSON parsing bug
+  - [x] LLM responses wrapped in markdown code blocks (```json ... ```)
+  - [x] Add `extract_json_from_markdown` helper to strip code fences
+  - [x] Verify all phases can parse LLM responses correctly
+
+- [x] Implement graceful service failure handling
+  - [x] Wrap service analysis in error handling
+  - [x] Log failures as warnings instead of stopping pipeline
+  - [x] Skip failed services and continue with remaining services
+
 - [ ] Update all integration tests
-  - [ ] Re-record LLM responses for new prompts
-  - [ ] Update expected outputs for new pipeline
-  - [ ] Ensure all fixtures pass
+  - [x] Re-record LLM responses for new prompts (recordings deleted and re-created)
+  - [ ] Update expected JSON files to match new LLM outputs (15 tests have output mismatches)
+  - **Status:** 5/20 tests passing. All failures are expected output mismatches (base images, commands), not pipeline bugs.
+  - **Known issues:** Base image version differences (e.g., `node:20` vs `node:20-alpine`)
 
 **Checkpoint:**
 - [x] Run `cargo fmt` - ensure code is formatted

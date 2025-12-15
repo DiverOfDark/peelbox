@@ -191,102 +191,117 @@ impl PipelineOrchestrator {
                     total: total_services,
                 });
 
-            debug!("    Phase 6a: Runtime detection");
-            let runtime = runtime::execute(
-                self.llm_client.as_ref(),
-                service,
-                &scan,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6a: Runtime detection failed")?;
+            let analysis_result = async {
+                debug!("    Phase 6a: Runtime detection");
+                let runtime = runtime::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &scan,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6a: Runtime detection failed")?;
 
-            debug!("    Phase 6b: Build detection");
-            let build_info = build::execute(
-                self.llm_client.as_ref(),
-                service,
-                &scan,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6b: Build detection failed")?;
+                debug!("    Phase 6b: Build detection");
+                let build_info = build::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &scan,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6b: Build detection failed")?;
 
-            debug!("    Phase 6c: Entrypoint detection");
-            let entrypoint = entrypoint::execute(
-                self.llm_client.as_ref(),
-                service,
-                &scan,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6c: Entrypoint detection failed")?;
+                debug!("    Phase 6c: Entrypoint detection");
+                let entrypoint = entrypoint::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &scan,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6c: Entrypoint detection failed")?;
 
-            debug!("    Phase 6d: Native dependencies detection");
-            let native_deps = native_deps::execute(
-                self.llm_client.as_ref(),
-                service,
-                &scan,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6d: Native deps detection failed")?;
+                debug!("    Phase 6d: Native dependencies detection");
+                let native_deps = native_deps::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &scan,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6d: Native deps detection failed")?;
 
-            debug!("    Phase 6e: Port discovery");
-            let port = port::execute(
-                self.llm_client.as_ref(),
-                service,
-                &scan,
-                &self.registry,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6e: Port discovery failed")?;
+                debug!("    Phase 6e: Port discovery");
+                let port = port::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &scan,
+                    &self.registry,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6e: Port discovery failed")?;
 
-            debug!("    Phase 6f: Environment variables discovery");
-            let env_vars = env_vars::execute(
-                self.llm_client.as_ref(),
-                service,
-                &scan,
-                &self.registry,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6f: Env vars discovery failed")?;
+                debug!("    Phase 6f: Environment variables discovery");
+                let env_vars = env_vars::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &scan,
+                    &self.registry,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6f: Env vars discovery failed")?;
 
-            debug!("    Phase 6g: Health check discovery");
-            let health = health::execute(
-                self.llm_client.as_ref(),
-                service,
-                &runtime,
-                &scan,
-                &self.registry,
-                &self.heuristic_logger,
-            )
-            .await
-            .context("Phase 6g: Health check discovery failed")?;
+                debug!("    Phase 6g: Health check discovery");
+                let health = health::execute(
+                    self.llm_client.as_ref(),
+                    service,
+                    &runtime,
+                    &scan,
+                    &self.registry,
+                    &self.heuristic_logger,
+                )
+                .await
+                .context("Phase 6g: Health check discovery failed")?;
 
-            debug!("    Phase 7: Cache detection");
-            let cache = cache::execute(service);
+                debug!("    Phase 7: Cache detection");
+                let cache = cache::execute(service);
 
-            analyses.push(ServiceAnalysisResults {
-                service: service.clone(),
-                runtime,
-                build: build_info,
-                entrypoint,
-                native_deps,
-                port,
-                env_vars,
-                health,
-                cache,
-            });
+                Ok::<_, anyhow::Error>(ServiceAnalysisResults {
+                    service: service.clone(),
+                    runtime,
+                    build: build_info,
+                    entrypoint,
+                    native_deps,
+                    port,
+                    env_vars,
+                    health,
+                    cache,
+                })
+            }
+            .await;
 
-            self.progress_handler
-                .on_progress(&ProgressEvent::ServiceAnalysisComplete {
-                    service_path: service.path.display().to_string(),
-                    index: index + 1,
-                    total: total_services,
-                    duration: service_start.elapsed(),
-                });
+            match analysis_result {
+                Ok(result) => {
+                    analyses.push(result);
+                    self.progress_handler
+                        .on_progress(&ProgressEvent::ServiceAnalysisComplete {
+                            service_path: service.path.display().to_string(),
+                            index: index + 1,
+                            total: total_services,
+                            duration: service_start.elapsed(),
+                        });
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to analyze service {}: {}. Skipping service.",
+                        service.path.display(),
+                        e
+                    );
+                }
+            }
         }
 
         self.progress_handler
