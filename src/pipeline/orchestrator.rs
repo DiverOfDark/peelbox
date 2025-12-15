@@ -3,6 +3,7 @@ use super::phases::{
     build, build_order, cache, classify, dependencies, entrypoint, env_vars, health, native_deps,
     port, root_cache, runtime, scan, structure,
 };
+use crate::heuristics::HeuristicLogger;
 use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
@@ -17,6 +18,7 @@ pub struct PipelineOrchestrator {
     llm_client: Arc<dyn LLMClient>,
     registry: LanguageRegistry,
     progress_handler: Arc<dyn ProgressHandler>,
+    heuristic_logger: Arc<HeuristicLogger>,
 }
 
 impl PipelineOrchestrator {
@@ -25,6 +27,7 @@ impl PipelineOrchestrator {
             llm_client,
             registry: LanguageRegistry::with_defaults(),
             progress_handler: Arc::new(NoOpHandler),
+            heuristic_logger: Arc::new(HeuristicLogger::disabled()),
         }
     }
 
@@ -36,6 +39,20 @@ impl PipelineOrchestrator {
             llm_client,
             registry: LanguageRegistry::with_defaults(),
             progress_handler,
+            heuristic_logger: Arc::new(HeuristicLogger::disabled()),
+        }
+    }
+
+    pub fn with_heuristic_logger(
+        llm_client: Arc<dyn LLMClient>,
+        progress_handler: Arc<dyn ProgressHandler>,
+        heuristic_logger: Arc<HeuristicLogger>,
+    ) -> Self {
+        Self {
+            llm_client,
+            registry: LanguageRegistry::with_defaults(),
+            progress_handler,
+            heuristic_logger,
         }
     }
 
