@@ -66,15 +66,15 @@
   - [x] Parse `requirements.txt` package==version
   - [x] Unit tests
 
-- [ ] Update `LanguageRegistry` for dependency parsing
-  - [ ] Add `parse_dependencies_by_manifest()` method
-  - [ ] Integration tests with all languages
+- [x] Update `LanguageRegistry` for dependency parsing
+  - [x] Add `parse_dependencies_by_manifest()` method
+  - [x] Integration tests with all languages
 
 **Checkpoint:**
-- [ ] Run `cargo fmt` - ensure code is formatted
-- [ ] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass
-- [ ] Create git commit: `feat(languages): add dependency parsing to language definitions`
+- [x] Run `cargo fmt` - ensure code is formatted
+- [x] Run `cargo clippy` - fix all warnings
+- [x] Run `cargo test` - ensure all tests pass
+- [x] Create git commit: `feat(languages): add dependency parsing to language definitions`
 
 ## Week 2 (continued): Code Extractors
 
