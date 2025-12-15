@@ -102,7 +102,7 @@
 - [x] Run `cargo fmt` - ensure code is formatted
 - [x] Run `cargo clippy` - fix all warnings
 - [x] Run `cargo test` - ensure all tests pass
-- [ ] Create git commit: `feat(extractors): add code-based extraction for ports, env vars, and health checks`
+- [x] Create git commit: `feat(extractors): add code-based extraction for ports, env vars, and health checks`
 
 ## Week 3: Implement Pipeline Structure (Phases 1-5)
 
@@ -143,7 +143,7 @@
 - [x] Run `cargo fmt` - ensure code is formatted
 - [x] Run `cargo clippy` - fix all warnings
 - [x] Run `cargo test` - ensure all tests pass
-- [ ] Create git commit: `feat(pipeline): implement phases 1-5 (scan, classify, structure, dependencies, build order)`
+- [x] Create git commit: `feat(pipeline): implement phases 1-5 (scan, classify, structure, dependencies, build order)`
 
 ## Week 3-4: Implement Service Analysis (Phases 6a-6g)
 
@@ -194,7 +194,7 @@
 - [x] Run `cargo fmt` - ensure code is formatted
 - [x] Run `cargo clippy` - fix all warnings
 - [x] Run `cargo test` - ensure all tests pass
-- [ ] Create git commit: `feat(pipeline): implement phases 6a-6g (service analysis)`
+- [x] Create git commit: `feat(pipeline): implement phases 6a-6g (service analysis)`
 
 ## Week 4: Implement Cache & Assembly (Phases 7-9)
 
@@ -225,16 +225,16 @@
 - [x] Run `cargo fmt` - ensure code is formatted
 - [x] Run `cargo clippy` - fix all warnings
 - [x] Run `cargo test` - ensure all tests pass
-- [ ] Create git commit: `feat(pipeline): implement phases 7-9 (cache detection and assembly)`
+- [x] Create git commit: `feat(pipeline): implement phases 7-9 (cache detection and assembly)`
 
 ## Week 4 (continued): Orchestration
 
-- [ ] Implement `PipelineOrchestrator::execute()`
-  - [ ] Sequential phases 1-5
-  - [ ] **Sequential** service analysis (phase 6) - analyze one service at a time
-  - [ ] Within each service, run 6a-6g **sequentially**
-  - [ ] Sequential phases 7-9
-  - [ ] Return `Vec<UniversalBuild>` (one per service/application)
+- [x] Implement `PipelineOrchestrator::execute()`
+  - [x] Sequential phases 1-5
+  - [x] **Sequential** service analysis (phase 6) - analyze one service at a time
+  - [x] Within each service, run 6a-6g **sequentially**
+  - [x] Sequential phases 7-9
+  - [x] Return `Vec<UniversalBuild>` (one per service/application)
 
 - [ ] Add heuristic logging to all LLM phases
   - [ ] Log input/output for each prompt
@@ -248,10 +248,10 @@
 **Note:** Dockerfile rendering (`src/output/dockerfile.rs`) already exists as a utility to convert UniversalBuild → Dockerfile. The pipeline only outputs UniversalBuild JSON; Dockerfile generation is optional and user-driven.
 
 **Checkpoint:**
-- [ ] Run `cargo fmt` - ensure code is formatted
-- [ ] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass
-- [ ] Create git commit: `feat(pipeline): implement orchestration and heuristic logging`
+- [x] Run `cargo fmt` - ensure code is formatted
+- [x] Run `cargo clippy` - fix all warnings
+- [x] Run `cargo test` - ensure all tests pass (438 passing)
+- [x] Create git commit: `feat(pipeline): implement PipelineOrchestrator with 9-phase analysis`
 
 ## Week 5: Monorepo Support & Testing
 
