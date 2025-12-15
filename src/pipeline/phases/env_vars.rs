@@ -1,7 +1,9 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::extractors::env_vars::extract_env_vars;
+use crate::extractors::context::ServiceContext;
+use crate::extractors::env_vars::EnvVarExtractor;
 use crate::fs::RealFileSystem;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -70,8 +72,17 @@ pub async fn execute(
 ) -> Result<EnvVarsInfo> {
     let service_path = scan.repo_path.join(&service.path);
     let fs = RealFileSystem;
+    let registry = LanguageRegistry::with_defaults();
 
-    let extracted = extract_env_vars(&fs, &service_path)?;
+    let context = ServiceContext {
+        path: service_path,
+        language: Some(service.language.clone()),
+        build_system: Some(service.build_system.clone()),
+    };
+
+    let extractor = EnvVarExtractor::with_registry(fs, registry);
+    let extracted_info = extractor.extract(&context);
+    let extracted: Vec<String> = extracted_info.iter().map(|info| info.name.clone()).collect();
 
     if !extracted.is_empty() {
         let env_vars: Vec<EnvVar> = extracted
@@ -92,14 +103,11 @@ pub async fn execute(
 
     let prompt = build_prompt(service, &extracted);
 
-    let request = crate::llm::types::ChatRequest {
-        messages: vec![crate::llm::types::Message {
-            role: "user".to_string(),
-            content: prompt,
-        }],
-        temperature: Some(0.1),
-        max_tokens: Some(800),
-    };
+    let request = crate::llm::LLMRequest::new(vec![
+        crate::llm::ChatMessage::user(prompt),
+    ])
+    .with_temperature(0.1)
+    .with_max_tokens(800);
 
     let response = llm_client
         .chat(request)

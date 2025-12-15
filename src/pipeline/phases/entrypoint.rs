@@ -61,14 +61,11 @@ pub async fn execute(
 
     let prompt = build_prompt(service, manifest_excerpt.as_deref());
 
-    let request = crate::llm::types::ChatRequest {
-        messages: vec![crate::llm::types::Message {
-            role: "user".to_string(),
-            content: prompt,
-        }],
-        temperature: Some(0.1),
-        max_tokens: Some(300),
-    };
+    let request = crate::llm::LLMRequest::new(vec![
+        crate::llm::ChatMessage::user(prompt),
+    ])
+    .with_temperature(0.1)
+    .with_max_tokens(300);
 
     let response = llm_client
         .chat(request)
@@ -82,8 +79,8 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<EntrypointInfo>> {
-    let registry = LanguageRegistry::new();
-    let language_def = match registry.get_by_name(&service.language) {
+    let registry = LanguageRegistry::with_defaults();
+    let language_def = match registry.get_language(&service.language) {
         Some(def) => def,
         None => return Ok(None),
     };

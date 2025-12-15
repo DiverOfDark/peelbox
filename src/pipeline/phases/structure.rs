@@ -1,7 +1,7 @@
 use super::classify::{ClassifyResult, Confidence, PackagePath, ServicePath};
 use super::scan::ScanResult;
 use crate::llm::LLMClient;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,7 +52,7 @@ pub struct Package {
     pub build_system: String,
 }
 
-fn build_prompt(scan: &ScanResult, classify: &ClassifyResult) -> String {
+fn build_prompt(_scan: &ScanResult, classify: &ClassifyResult) -> String {
     let services: Vec<String> = classify
         .services
         .iter()
@@ -99,20 +99,6 @@ pub async fn execute(
 
     let prompt = build_prompt(scan, classify);
 
-    let request = crate::llm::types::ChatRequest {
-        messages: vec![crate::llm::types::Message {
-            role: "user".to_string(),
-            content: prompt,
-        }],
-        temperature: Some(0.1),
-        max_tokens: Some(500),
-    };
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for structure detection")?;
-
     #[derive(Deserialize)]
     struct LLMStructure {
         project_type: ProjectType,
@@ -120,8 +106,7 @@ pub async fn execute(
         confidence: Confidence,
     }
 
-    let llm_result: LLMStructure = serde_json::from_str(&response.content)
-        .context("Failed to parse structure response")?;
+    let llm_result: LLMStructure = super::llm_helper::query_llm(llm_client, prompt, 500, "structure detection").await?;
 
     let services = build_services(scan, &classify.services);
     let packages = build_packages(scan, &classify.packages);

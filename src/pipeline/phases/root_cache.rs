@@ -17,26 +17,26 @@ pub enum Confidence {
 }
 
 pub fn execute(structure: &StructureResult) -> RootCacheInfo {
-    let root_cache_dirs = match structure.monorepo_tool {
-        MonorepoTool::PnpmWorkspaces => vec![
+    let root_cache_dirs = match &structure.monorepo_tool {
+        Some(MonorepoTool::PnpmWorkspaces) => vec![
             PathBuf::from("node_modules"),
             PathBuf::from(".pnpm-store"),
         ],
-        MonorepoTool::YarnWorkspaces => vec![
+        Some(MonorepoTool::YarnWorkspaces) | Some(MonorepoTool::NpmWorkspaces) => vec![
             PathBuf::from("node_modules"),
             PathBuf::from(".yarn/cache"),
         ],
-        MonorepoTool::CargoWorkspace => vec![PathBuf::from("target")],
-        MonorepoTool::Turborepo => vec![
+        Some(MonorepoTool::CargoWorkspace) => vec![PathBuf::from("target")],
+        Some(MonorepoTool::Turborepo) => vec![
             PathBuf::from("node_modules"),
             PathBuf::from(".turbo"),
         ],
-        MonorepoTool::Nx => vec![PathBuf::from("node_modules"), PathBuf::from(".nx")],
-        MonorepoTool::Lerna => vec![PathBuf::from("node_modules")],
-        MonorepoTool::Gradle => vec![PathBuf::from(".gradle")],
-        MonorepoTool::Maven => vec![PathBuf::from(".m2/repository")],
-        MonorepoTool::Go => vec![PathBuf::from("go/pkg/mod")],
-        MonorepoTool::None => vec![],
+        Some(MonorepoTool::Nx) => vec![PathBuf::from("node_modules"), PathBuf::from(".nx")],
+        Some(MonorepoTool::Lerna) => vec![PathBuf::from("node_modules")],
+        Some(MonorepoTool::GradleMultiproject) => vec![PathBuf::from(".gradle")],
+        Some(MonorepoTool::MavenMultimodule) => vec![PathBuf::from(".m2/repository")],
+        Some(MonorepoTool::GoWorkspace) => vec![PathBuf::from("go/pkg/mod")],
+        Some(MonorepoTool::Unknown) | None => vec![],
     };
 
     RootCacheInfo {
@@ -48,14 +48,17 @@ pub fn execute(structure: &StructureResult) -> RootCacheInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipeline::phases::classify::Confidence as StructConfidence;
     use crate::pipeline::phases::structure::ProjectType;
 
     #[test]
     fn test_root_cache_pnpm() {
         let structure = StructureResult {
             project_type: ProjectType::Monorepo,
-            monorepo_tool: MonorepoTool::PnpmWorkspaces,
-            confidence: crate::pipeline::phases::structure::Confidence::High,
+            monorepo_tool: Some(MonorepoTool::PnpmWorkspaces),
+            services: vec![],
+            packages: vec![],
+            confidence: StructConfidence::High,
         };
 
         let result = execute(&structure);
@@ -72,8 +75,10 @@ mod tests {
     fn test_root_cache_cargo_workspace() {
         let structure = StructureResult {
             project_type: ProjectType::Monorepo,
-            monorepo_tool: MonorepoTool::CargoWorkspace,
-            confidence: crate::pipeline::phases::structure::Confidence::High,
+            monorepo_tool: Some(MonorepoTool::CargoWorkspace),
+            services: vec![],
+            packages: vec![],
+            confidence: StructConfidence::High,
         };
 
         let result = execute(&structure);
@@ -85,8 +90,10 @@ mod tests {
     fn test_root_cache_turborepo() {
         let structure = StructureResult {
             project_type: ProjectType::Monorepo,
-            monorepo_tool: MonorepoTool::Turborepo,
-            confidence: crate::pipeline::phases::structure::Confidence::High,
+            monorepo_tool: Some(MonorepoTool::Turborepo),
+            services: vec![],
+            packages: vec![],
+            confidence: StructConfidence::High,
         };
 
         let result = execute(&structure);
@@ -100,8 +107,10 @@ mod tests {
     fn test_root_cache_none() {
         let structure = StructureResult {
             project_type: ProjectType::SingleService,
-            monorepo_tool: MonorepoTool::None,
-            confidence: crate::pipeline::phases::structure::Confidence::High,
+            monorepo_tool: None,
+            services: vec![],
+            packages: vec![],
+            confidence: StructConfidence::High,
         };
 
         let result = execute(&structure);
@@ -113,8 +122,10 @@ mod tests {
     fn test_root_cache_nx() {
         let structure = StructureResult {
             project_type: ProjectType::Monorepo,
-            monorepo_tool: MonorepoTool::Nx,
-            confidence: crate::pipeline::phases::structure::Confidence::High,
+            monorepo_tool: Some(MonorepoTool::Nx),
+            services: vec![],
+            packages: vec![],
+            confidence: StructConfidence::High,
         };
 
         let result = execute(&structure);

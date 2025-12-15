@@ -27,10 +27,16 @@ fn build_dependency_graph(
     let mut graph: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
 
     for (path, dep_info) in &dependencies.dependencies {
+        let internal_paths: Vec<PathBuf> = dep_info
+            .internal_deps
+            .iter()
+            .map(|dep| PathBuf::from(&dep.name))
+            .collect();
+
         graph
             .entry(path.clone())
             .or_default()
-            .extend(dep_info.internal_deps.clone());
+            .extend(internal_paths);
     }
 
     graph
@@ -38,6 +44,7 @@ fn build_dependency_graph(
 
 fn topological_sort(graph: &HashMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, bool) {
     let mut in_degree: HashMap<PathBuf, usize> = HashMap::new();
+    let mut reverse_graph: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
     let mut nodes: HashSet<PathBuf> = HashSet::new();
 
     for (node, deps) in graph {
@@ -46,7 +53,14 @@ fn topological_sort(graph: &HashMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, bo
 
         for dep in deps {
             nodes.insert(dep.clone());
-            *in_degree.entry(dep.clone()).or_insert(0) += 1;
+            in_degree.entry(dep.clone()).or_insert(0);
+
+            reverse_graph
+                .entry(dep.clone())
+                .or_default()
+                .push(node.clone());
+
+            *in_degree.get_mut(node).unwrap() += 1;
         }
     }
 
@@ -63,7 +77,7 @@ fn topological_sort(graph: &HashMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, bo
         result.push(node.clone());
         visited += 1;
 
-        if let Some(dependents) = graph.get(&node) {
+        if let Some(dependents) = reverse_graph.get(&node) {
             for dependent in dependents {
                 if let Some(degree) = in_degree.get_mut(dependent) {
                     *degree -= 1;
@@ -91,7 +105,7 @@ fn topological_sort(graph: &HashMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::{Confidence, DependencyInfo, DetectionMethod};
+    use crate::languages::{Dependency, DependencyInfo, DetectionMethod};
 
     #[test]
     fn test_simple_linear_dependencies() {
@@ -100,22 +114,22 @@ mod tests {
         deps.insert(
             PathBuf::from("app"),
             DependencyInfo {
-                path: PathBuf::from("app"),
-                internal_deps: vec![PathBuf::from("lib")],
+                internal_deps: vec![Dependency {
+                    name: "lib".to_string(),
+                    version: None,
+                    is_internal: true,
+                }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
         deps.insert(
             PathBuf::from("lib"),
             DependencyInfo {
-                path: PathBuf::from("lib"),
                 internal_deps: vec![],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
@@ -137,44 +151,39 @@ mod tests {
         deps.insert(
             PathBuf::from("app"),
             DependencyInfo {
-                path: PathBuf::from("app"),
-                internal_deps: vec![PathBuf::from("lib1"), PathBuf::from("lib2")],
+                internal_deps: vec![
+                    Dependency { name: "lib1".to_string(), version: None, is_internal: true },
+                    Dependency { name: "lib2".to_string(), version: None, is_internal: true },
+                ],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
         deps.insert(
             PathBuf::from("lib1"),
             DependencyInfo {
-                path: PathBuf::from("lib1"),
-                internal_deps: vec![PathBuf::from("base")],
+                internal_deps: vec![Dependency { name: "base".to_string(), version: None, is_internal: true }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
         deps.insert(
             PathBuf::from("lib2"),
             DependencyInfo {
-                path: PathBuf::from("lib2"),
-                internal_deps: vec![PathBuf::from("base")],
+                internal_deps: vec![Dependency { name: "base".to_string(), version: None, is_internal: true }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
         deps.insert(
             PathBuf::from("base"),
             DependencyInfo {
-                path: PathBuf::from("base"),
                 internal_deps: vec![],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
@@ -201,22 +210,18 @@ mod tests {
         deps.insert(
             PathBuf::from("app1"),
             DependencyInfo {
-                path: PathBuf::from("app1"),
-                internal_deps: vec![PathBuf::from("app2")],
+                internal_deps: vec![Dependency { name: "app2".to_string(), version: None, is_internal: true }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
         deps.insert(
             PathBuf::from("app2"),
             DependencyInfo {
-                path: PathBuf::from("app2"),
-                internal_deps: vec![PathBuf::from("app1")],
+                internal_deps: vec![Dependency { name: "app1".to_string(), version: None, is_internal: true }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
@@ -233,22 +238,18 @@ mod tests {
         deps.insert(
             PathBuf::from("app1"),
             DependencyInfo {
-                path: PathBuf::from("app1"),
                 internal_deps: vec![],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 
         deps.insert(
             PathBuf::from("app2"),
             DependencyInfo {
-                path: PathBuf::from("app2"),
                 internal_deps: vec![],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
-                confidence: Confidence::High,
             },
         );
 

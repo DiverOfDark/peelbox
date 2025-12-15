@@ -1,6 +1,6 @@
 use super::scan::ScanResult;
 use crate::llm::LLMClient;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -80,25 +80,7 @@ pub async fn execute(llm_client: &dyn LLMClient, scan: &ScanResult) -> Result<Cl
     }
 
     let prompt = build_prompt(scan);
-
-    let request = crate::llm::types::ChatRequest {
-        messages: vec![crate::llm::types::Message {
-            role: "user".to_string(),
-            content: prompt,
-        }],
-        temperature: Some(0.1),
-        max_tokens: Some(1000),
-    };
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for classification")?;
-
-    let result: ClassifyResult = serde_json::from_str(&response.content)
-        .context("Failed to parse classification response")?;
-
-    Ok(result)
+    super::llm_helper::query_llm(llm_client, prompt, 1000, "classification").await
 }
 
 fn can_skip_llm(scan: &ScanResult) -> bool {

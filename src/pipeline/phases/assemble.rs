@@ -46,8 +46,8 @@ fn assemble_single_service(
     result: ServiceAnalysisResults,
     root_cache: &RootCacheInfo,
 ) -> Result<UniversalBuild> {
-    let registry = LanguageRegistry::new();
-    let language_def = registry.get_by_name(&result.service.language);
+    let registry = LanguageRegistry::with_defaults();
+    let language_def = registry.get_language(&result.service.language);
 
     let template = language_def.and_then(|def| def.build_template(&result.service.build_system));
 
@@ -165,16 +165,14 @@ fn extract_project_name(service: &Service) -> String {
 }
 
 fn calculate_confidence(result: &ServiceAnalysisResults) -> f32 {
-    let mut scores = vec![
-        confidence_to_f32(result.runtime.confidence),
+    let mut scores = [confidence_to_f32(result.runtime.confidence),
         confidence_to_f32(result.build.confidence),
         confidence_to_f32(result.entrypoint.confidence),
         confidence_to_f32(result.native_deps.confidence),
         confidence_to_f32(result.port.confidence),
         confidence_to_f32(result.env_vars.confidence),
         confidence_to_f32(result.health.confidence),
-        confidence_to_f32(result.cache.confidence),
-    ];
+        confidence_to_f32(result.cache.confidence)];
 
     scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
 
@@ -281,6 +279,7 @@ impl From<super::cache::Confidence> for ConfidenceValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipeline::phases::{runtime, build, entrypoint, native_deps, port, env_vars, health, cache};
     use std::path::PathBuf;
 
     #[test]
@@ -304,7 +303,7 @@ mod tests {
             build_system: "cargo".to_string(),
         };
 
-        assert_eq!(extract_project_name(&service), ".");
+        assert_eq!(extract_project_name(&service), "app");
     }
 
     #[test]
@@ -322,43 +321,43 @@ mod tests {
                 runtime: "node".to_string(),
                 runtime_version: None,
                 framework: None,
-                confidence: super::runtime::Confidence::High,
+                confidence: runtime::Confidence::High,
             },
             build: BuildInfo {
                 build_cmd: Some("npm run build".to_string()),
                 output_dir: Some(PathBuf::from("dist")),
-                confidence: super::build::Confidence::High,
+                confidence: build::Confidence::High,
             },
             entrypoint: EntrypointInfo {
                 entrypoint: "node dist/main.js".to_string(),
-                confidence: super::entrypoint::Confidence::High,
+                confidence: entrypoint::Confidence::High,
             },
             native_deps: NativeDepsInfo {
                 needs_build_deps: false,
                 has_native_modules: false,
                 has_prisma: false,
                 native_deps: vec![],
-                confidence: super::native_deps::Confidence::High,
+                confidence: native_deps::Confidence::High,
             },
             port: PortInfo {
                 port: Some(3000),
                 from_env: false,
                 env_var: None,
-                confidence: super::port::Confidence::High,
+                confidence: port::Confidence::High,
             },
             env_vars: EnvVarsInfo {
                 env_vars: vec![],
-                confidence: super::env_vars::Confidence::High,
+                confidence: env_vars::Confidence::High,
             },
             health: HealthInfo {
                 health_endpoints: vec![],
                 recommended_liveness: None,
                 recommended_readiness: None,
-                confidence: super::health::Confidence::High,
+                confidence: health::Confidence::High,
             },
             cache: CacheInfo {
                 cache_dirs: vec![],
-                confidence: super::cache::Confidence::High,
+                confidence: cache::Confidence::High,
             },
         };
 

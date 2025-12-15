@@ -64,14 +64,11 @@ pub async fn execute(
 
     let prompt = build_prompt(service, scripts_excerpt.as_deref());
 
-    let request = crate::llm::types::ChatRequest {
-        messages: vec![crate::llm::types::Message {
-            role: "user".to_string(),
-            content: prompt,
-        }],
-        temperature: Some(0.1),
-        max_tokens: Some(400),
-    };
+    let request = crate::llm::LLMRequest::new(vec![
+        crate::llm::ChatMessage::user(prompt),
+    ])
+    .with_temperature(0.1)
+    .with_max_tokens(400);
 
     let response = llm_client
         .chat(request)
@@ -85,16 +82,22 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {
-    let registry = LanguageRegistry::new();
-    let language_def = registry.get_by_name(&service.language)?;
+    let registry = LanguageRegistry::with_defaults();
+    let language_def = registry.get_language(&service.language)?;
 
     let template = language_def.build_template(&service.build_system)?;
 
     let build_cmd = template.build_commands.first().cloned();
-    let output_dir = template.artifacts.first().and_then(|artifact| {
-        let path_str = artifact.replace("{project_name}", "");
-        let path = PathBuf::from(path_str);
-        path.parent().map(|p| p.to_path_buf())
+    let output_dir = template.artifacts.first().map(|artifact| {
+        let path_str = artifact.replace("/{project_name}", "").replace("{project_name}", "");
+
+        if path_str.contains('*') || path_str.contains("*.") {
+            if let Some(dir) = PathBuf::from(&path_str).parent() {
+                return dir.to_path_buf();
+            }
+        }
+
+        PathBuf::from(path_str.trim_end_matches('/'))
     });
 
     Some(BuildInfo {
@@ -162,7 +165,7 @@ mod tests {
         };
 
         let result = try_deterministic(&service).unwrap();
-        assert_eq!(result.build_cmd, Some("mvn package".to_string()));
+        assert_eq!(result.build_cmd, Some("mvn clean package -DskipTests".to_string()));
         assert_eq!(result.output_dir, Some(PathBuf::from("target")));
     }
 

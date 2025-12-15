@@ -1,6 +1,6 @@
 use super::scan::ScanResult;
-use super::structure::{Package, Service, StructureResult};
-use crate::languages::{DependencyInfo, DetectionMethod, LanguageRegistry};
+use super::structure::{Service, StructureResult};
+use crate::languages::{Dependency, DependencyInfo, DetectionMethod, LanguageRegistry};
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -78,12 +78,10 @@ pub async fn execute(
                 &service.manifest,
                 &manifest_content,
                 &all_paths,
-                &service.path,
-            )
-            .await;
+            );
 
         let final_dep_info = match dep_info {
-            Ok(info) if info.detected_by == DetectionMethod::Deterministic => info,
+            Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
             _ => {
                 llm_fallback(llm_client, service, &manifest_content, &all_paths, &service.path)
                     .await?
@@ -108,12 +106,10 @@ pub async fn execute(
                 &package.manifest,
                 &manifest_content,
                 &all_paths,
-                &package.path,
-            )
-            .await;
+            );
 
         let final_dep_info = match dep_info {
-            Ok(info) if info.detected_by == DetectionMethod::Deterministic => info,
+            Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
             _ => {
                 let pseudo_service = Service {
                     path: package.path.clone(),
@@ -143,18 +139,15 @@ async fn llm_fallback(
     service: &Service,
     manifest_content: &str,
     all_paths: &[PathBuf],
-    current_path: &PathBuf,
+    _current_path: &PathBuf,
 ) -> Result<DependencyInfo> {
     let prompt = build_llm_prompt(service, manifest_content, all_paths);
 
-    let request = crate::llm::types::ChatRequest {
-        messages: vec![crate::llm::types::Message {
-            role: "user".to_string(),
-            content: prompt,
-        }],
-        temperature: Some(0.1),
-        max_tokens: Some(800),
-    };
+    let request = crate::llm::LLMRequest::new(vec![
+        crate::llm::ChatMessage::user(prompt),
+    ])
+    .with_temperature(0.1)
+    .with_max_tokens(800);
 
     let response = llm_client
         .chat(request)
@@ -171,11 +164,25 @@ async fn llm_fallback(
         .context("Failed to parse dependency response")?;
 
     Ok(DependencyInfo {
-        path: current_path.clone(),
-        internal_deps: llm_deps.internal_deps.into_iter().map(PathBuf::from).collect(),
-        external_deps: llm_deps.external_deps,
+        internal_deps: llm_deps
+            .internal_deps
+            .into_iter()
+            .map(|name| Dependency {
+                name,
+                version: None,
+                is_internal: true,
+            })
+            .collect(),
+        external_deps: llm_deps
+            .external_deps
+            .into_iter()
+            .map(|name| Dependency {
+                name,
+                version: None,
+                is_internal: false,
+            })
+            .collect(),
         detected_by: DetectionMethod::LLM,
-        confidence: crate::languages::Confidence::Medium,
     })
 }
 

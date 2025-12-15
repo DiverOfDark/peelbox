@@ -132,21 +132,22 @@ pub struct DetectionResult {
     pub confidence: f64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum DetectionMethod {
     Deterministic,
     LLM,
     NotImplemented,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct Dependency {
     pub name: String,
     pub version: Option<String>,
     pub is_internal: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DependencyInfo {
     pub internal_deps: Vec<Dependency>,
     pub external_deps: Vec<Dependency>,
