@@ -214,6 +214,51 @@ impl LanguageDefinition for PythonLanguage {
             DependencyInfo::empty()
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (
+                r#"os\.environ\.get\(["']([A-Z_][A-Z0-9_]*)["']"#,
+                "os.environ",
+            ),
+            (r#"os\.getenv\(["']([A-Z_][A-Z0-9_]*)["']"#, "os.getenv"),
+        ]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r#"@app\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Flask"),
+            (r#"@app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "FastAPI"),
+        ]
+    }
+
+    fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(filename) = file_path.file_name().and_then(|f| f.to_str()) {
+            let entry_files = ["main.py", "app.py", "server.py", "__main__.py", "run.py"];
+            entry_files.contains(&filename)
+        } else {
+            false
+        }
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("/health", "FastAPI/Flask"),
+            ("/api/health", "FastAPI/Flask"),
+        ]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r"@app\.route.*:(\d{4,5})", "Flask route decorator"),
+            (r"app\.run\(.*port\s*=\s*(\d{4,5})", "app.run()"),
+            (r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})", "uvicorn.run()"),
+        ]
+    }
 }
 
 impl PythonLanguage {

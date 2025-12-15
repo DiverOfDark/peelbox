@@ -348,6 +348,49 @@ impl LanguageDefinition for JavaScriptLanguage {
             detected_by: DetectionMethod::Deterministic,
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r"process\.env\.([A-Z_][A-Z0-9_]*)", "process.env")]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Express")]
+    }
+
+    fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(filename) = file_path.file_name().and_then(|f| f.to_str()) {
+            let entry_files = [
+                "index.js",
+                "server.js",
+                "app.js",
+                "main.js",
+                "index.ts",
+                "server.ts",
+                "app.ts",
+                "main.ts",
+                "index.mjs",
+                "index.cjs",
+            ];
+            entry_files.contains(&filename)
+        } else {
+            false
+        }
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![("/health", "Express")]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r"\.listen\s*\(\s*(\d{4,5})", "listen()"),
+            (r"port\s*:\s*(\d{4,5})", "port config"),
+        ]
+    }
 }
 
 impl JavaScriptLanguage {

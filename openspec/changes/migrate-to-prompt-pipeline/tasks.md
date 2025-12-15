@@ -78,30 +78,30 @@
 
 ## Week 2 (continued): Code Extractors
 
-- [ ] Implement port extractor (`src/extractors/port.rs`)
-  - [ ] Extract from Dockerfile `EXPOSE` directives
-  - [ ] Extract from config files (application.yml, config.json, etc.)
-  - [ ] Extract from `.env.example` files
-  - [ ] Grep for port patterns in code (`.listen`, `::\d{4}`, etc.)
-  - [ ] Unit tests with fixture repos
+- [x] Implement port extractor (`src/extractors/port.rs`)
+  - [x] Extract from Dockerfile `EXPOSE` directives
+  - [x] Extract from config files (application.yml, config.json, etc.)
+  - [x] Extract from `.env.example` files
+  - [x] Grep for port patterns in code (`.listen`, `::\d{4}`, etc.)
+  - [x] Unit tests with fixture repos
 
-- [ ] Implement environment variable extractor (`src/extractors/env_vars.rs`)
-  - [ ] Extract from `.env.example`, `.env.template`, `.env.sample`
-  - [ ] Grep for runtime-specific patterns (`process.env`, `os.environ`, `std::env`, etc.)
-  - [ ] Extract from config files with placeholders
-  - [ ] Unit tests
+- [x] Implement environment variable extractor (`src/extractors/env_vars.rs`)
+  - [x] Extract from `.env.example`, `.env.template`, `.env.sample`
+  - [x] Grep for runtime-specific patterns (`process.env`, `os.environ`, `std::env`, etc.)
+  - [x] Extract from config files with placeholders
+  - [x] Unit tests
 
-- [ ] Implement health check extractor (`src/extractors/health.rs`)
-  - [ ] Extract route definitions from code (express, gin, fastapi, springboot, etc.)
-  - [ ] Extract from framework-specific config files
-  - [ ] Extract from existing K8s manifests
-  - [ ] Add framework default health endpoints
-  - [ ] Unit tests
+- [x] Implement health check extractor (`src/extractors/health.rs`)
+  - [x] Extract route definitions from code (express, gin, fastapi, springboot, etc.)
+  - [x] Extract from framework-specific config files
+  - [x] Extract from existing K8s manifests
+  - [x] Add framework default health endpoints
+  - [x] Unit tests
 
 **Checkpoint:**
-- [ ] Run `cargo fmt` - ensure code is formatted
-- [ ] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass
+- [x] Run `cargo fmt` - ensure code is formatted
+- [x] Run `cargo clippy` - fix all warnings
+- [x] Run `cargo test` - ensure all tests pass
 - [ ] Create git commit: `feat(extractors): add code-based extraction for ports, env vars, and health checks`
 
 ## Week 3: Implement Pipeline Structure (Phases 1-5)

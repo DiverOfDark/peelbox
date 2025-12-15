@@ -188,6 +188,41 @@ impl LanguageDefinition for DotNetLanguage {
             detected_by: DetectionMethod::Deterministic,
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(
+            r#"Environment\.GetEnvironmentVariable\("([A-Z_][A-Z0-9_]*)""#,
+            "Environment.GetEnvironmentVariable",
+        )]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "ASP.NET")]
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![("/health", "ASP.NET Core")]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
+            if file_name == "Program.cs" {
+                return true;
+            }
+        }
+
+        if let Ok(content) = fs.read_to_string(file_path) {
+            if content.contains("static void Main") || content.contains("static async Task Main") {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[cfg(test)]

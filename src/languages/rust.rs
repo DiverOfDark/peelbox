@@ -194,6 +194,46 @@ impl LanguageDefinition for RustLanguage {
             detected_by: DetectionMethod::Deterministic,
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#, "std::env"),
+            (r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#, "env::var"),
+        ]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        // Check if filename matches known entry points
+        if let Some(filename) = file_path.file_name().and_then(|f| f.to_str()) {
+            if filename == "main.rs" || filename == "lib.rs" {
+                return true;
+            }
+        }
+
+        // For other .rs files in bin/, check for main function
+        let path_str = file_path.to_string_lossy();
+        if path_str.contains("/bin/") && path_str.ends_with(".rs") {
+            if let Ok(content) = fs.read_to_string(file_path) {
+                use regex::Regex;
+                let main_re = Regex::new(r"fn\s+main\s*\(").expect("valid regex");
+                return main_re.is_match(&content);
+            }
+        }
+
+        false
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
 }
 
 #[cfg(test)]

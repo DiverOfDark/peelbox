@@ -229,6 +229,43 @@ impl LanguageDefinition for JavaLanguage {
             DependencyInfo::empty()
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#, "System.getenv")]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Spring")]
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![("/actuator/health", "Spring Boot")]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
+            if file_name.ends_with("Application.java") || file_name.ends_with("Application.kt") {
+                if let Some(path_str) = file_path.to_str() {
+                    if path_str.contains("src/main/java/") || path_str.contains("src/main/kotlin/")
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if let Ok(content) = fs.read_to_string(file_path) {
+            if content.contains("public static void main") {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 impl JavaLanguage {

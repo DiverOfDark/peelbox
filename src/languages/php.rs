@@ -162,6 +162,38 @@ impl LanguageDefinition for PhpLanguage {
             detected_by: DetectionMethod::Deterministic,
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#, "getenv")]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
+            if file_name == "index.php" {
+                return true;
+            }
+        }
+
+        if let Some(path_str) = file_path.to_str() {
+            if path_str.contains("/public/index.php") || path_str.contains("/bin/") {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[cfg(test)]

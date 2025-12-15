@@ -174,6 +174,47 @@ impl LanguageDefinition for GoLanguage {
             detected_by: DetectionMethod::Deterministic,
         }
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#, "os.Getenv"),
+            (r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#, "viper"),
+        ]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"router\.GET\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Gin")]
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![("/health", "Gin"), ("/healthz", "Kubernetes")]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
+            if file_name == "main.go" {
+                return true;
+            }
+        }
+
+        if let Some(path_str) = file_path.to_str() {
+            if path_str.contains("/cmd/") && path_str.ends_with("/main.go") {
+                return true;
+            }
+        }
+
+        if let Ok(content) = fs.read_to_string(file_path) {
+            if content.contains("func main()") {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 impl GoLanguage {

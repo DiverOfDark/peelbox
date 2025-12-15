@@ -77,6 +77,30 @@ pub trait LanguageDefinition: Send + Sync {
     ) -> DependencyInfo {
         DependencyInfo::empty()
     }
+
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, _file_path: &std::path::Path) -> bool {
+        false
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    fn default_env_vars(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
 }
 
 #[derive(Debug, Clone)]
