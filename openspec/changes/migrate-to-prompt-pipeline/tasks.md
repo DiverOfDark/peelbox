@@ -198,33 +198,33 @@
 
 ## Week 4: Implement Cache & Assembly (Phases 7-9)
 
-- [ ] Phase 7: Cache Detection (`src/pipeline/phases/cache.rs`)
-  - [ ] Implement deterministic cache directory mapping based on build system
-  - [ ] Map npm/pnpm/yarn → node_modules, .npm, .pnpm-store
-  - [ ] Map cargo → target
-  - [ ] Map maven/gradle → .m2/repository, .gradle, build
-  - [ ] Map go → go/pkg/mod
-  - [ ] Unit tests for each build system
+- [x] Phase 7: Cache Detection (`src/pipeline/phases/cache.rs`)
+  - [x] Implement deterministic cache directory mapping based on build system
+  - [x] Map npm/pnpm/yarn → node_modules, .npm, .pnpm-store
+  - [x] Map cargo → target
+  - [x] Map maven/gradle → .m2/repository, .gradle, build
+  - [x] Map go → go/pkg/mod
+  - [x] Unit tests for each build system
 
-- [ ] Phase 8: Root Cache Detection (`src/pipeline/phases/root_cache.rs`)
-  - [ ] Implement deterministic root cache based on monorepo tool
-  - [ ] Map pnpm → pnpm-store, node_modules
-  - [ ] Map yarn workspaces → node_modules, .yarn
-  - [ ] Map cargo workspace → target
-  - [ ] Map nx/turborepo → node_modules, .turbo
-  - [ ] Unit tests
+- [x] Phase 8: Root Cache Detection (`src/pipeline/phases/root_cache.rs`)
+  - [x] Implement deterministic root cache based on monorepo tool
+  - [x] Map pnpm → pnpm-store, node_modules
+  - [x] Map yarn workspaces → node_modules, .yarn
+  - [x] Map cargo workspace → target
+  - [x] Map nx/turborepo → node_modules, .turbo
+  - [x] Unit tests
 
-- [ ] Phase 9: Assemble (`src/pipeline/phases/assemble.rs`)
-  - [ ] Combine all phase outputs into `UniversalBuild` (or `Vec<UniversalBuild>` for monorepos)
-  - [ ] Merge confidence scores into metadata
-  - [ ] Populate build and runtime stages from phase results
-  - [ ] Validate complete `UniversalBuild` structure
-  - [ ] Unit tests
+- [x] Phase 9: Assemble (`src/pipeline/phases/assemble.rs`)
+  - [x] Combine all phase outputs into `UniversalBuild` (or `Vec<UniversalBuild>` for monorepos)
+  - [x] Merge confidence scores into metadata
+  - [x] Populate build and runtime stages from phase results
+  - [x] Validate complete `UniversalBuild` structure
+  - [x] Unit tests
 
 **Checkpoint:**
-- [ ] Run `cargo fmt` - ensure code is formatted
-- [ ] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass
+- [x] Run `cargo fmt` - ensure code is formatted
+- [x] Run `cargo clippy` - fix all warnings
+- [x] Run `cargo test` - ensure all tests pass
 - [ ] Create git commit: `feat(pipeline): implement phases 7-9 (cache detection and assembly)`
 
 ## Week 4 (continued): Orchestration
