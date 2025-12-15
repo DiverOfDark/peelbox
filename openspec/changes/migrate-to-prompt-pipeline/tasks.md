@@ -236,14 +236,14 @@
   - [x] Sequential phases 7-9
   - [x] Return `Vec<UniversalBuild>` (one per service/application)
 
-- [ ] Add heuristic logging to all LLM phases
-  - [ ] Log input/output for each prompt
-  - [ ] Log latency and token usage
-  - [ ] Write to JSONL file
+- [x] Add heuristic logging to all LLM phases
+  - [x] Log input/output for each prompt (JSONL format)
+  - [x] Log latency (token usage tracked by LLM client internally)
+  - [x] Write to JSONL file (thread-safe buffered writer)
 
-- [ ] Add progress reporting
-  - [ ] Emit events for each phase start/completion
-  - [ ] Report current service being analyzed (for monorepos)
+- [x] Add progress reporting
+  - [x] Emit events for each phase start/completion
+  - [x] Report current service being analyzed (for monorepos)
 
 **Note:** Dockerfile rendering (`src/output/dockerfile.rs`) already exists as a utility to convert UniversalBuild → Dockerfile. The pipeline only outputs UniversalBuild JSON; Dockerfile generation is optional and user-driven.
 
@@ -252,6 +252,8 @@
 - [x] Run `cargo clippy` - fix all warnings
 - [x] Run `cargo test` - ensure all tests pass (438 passing)
 - [x] Create git commit: `feat(pipeline): implement PipelineOrchestrator with 9-phase analysis`
+- [x] Create git commit: `feat(pipeline): add progress reporting with phase and service tracking`
+- [x] Create git commit: `feat(heuristics): implement JSONL heuristic logging infrastructure`
 
 ## Week 5: Monorepo Support & Testing
 

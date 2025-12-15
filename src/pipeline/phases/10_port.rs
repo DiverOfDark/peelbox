@@ -3,8 +3,10 @@ use super::structure::Service;
 use crate::extractors::port::PortExtractor;
 use crate::fs::RealFileSystem;
 use crate::languages::LanguageRegistry;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::Result;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,6 +69,7 @@ pub async fn execute(
     service: &Service,
     scan: &ScanResult,
     registry: &LanguageRegistry,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<PortInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
     let extractor = PortExtractor::with_registry(RealFileSystem, registry.clone());
@@ -88,7 +91,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, &extracted);
-    super::llm_helper::query_llm(llm_client, prompt, 300, "port detection").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 300, "port", logger).await
 }
 
 fn try_deterministic(service: &Service) -> Option<PortInfo> {

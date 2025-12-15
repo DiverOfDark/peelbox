@@ -1,6 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::{Service, StructureResult};
 use crate::languages::{Dependency, DependencyInfo, DetectionMethod, LanguageRegistry};
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -52,6 +53,7 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     scan: &ScanResult,
     structure: &StructureResult,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<DependencyResult> {
     let registry = Arc::new(LanguageRegistry::with_defaults());
     let mut dependencies = HashMap::new();
@@ -83,7 +85,7 @@ pub async fn execute(
         let final_dep_info = match dep_info {
             Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
             _ => {
-                llm_fallback(llm_client, service, &manifest_content, &all_paths)
+                llm_fallback(llm_client, service, &manifest_content, &all_paths, logger)
                     .await?
             }
         };
@@ -122,6 +124,7 @@ pub async fn execute(
                     &pseudo_service,
                     &manifest_content,
                     &all_paths,
+                    logger,
                 )
                 .await?
             }
@@ -138,16 +141,17 @@ async fn llm_fallback(
     service: &Service,
     manifest_content: &str,
     all_paths: &[PathBuf],
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<DependencyInfo> {
     let prompt = build_llm_prompt(service, manifest_content, all_paths);
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     struct LLMDeps {
         internal_deps: Vec<String>,
         external_deps: Vec<String>,
     }
 
-    let llm_deps: LLMDeps = super::llm_helper::query_llm(llm_client, prompt, 800, "dependency extraction").await?;
+    let llm_deps: LLMDeps = super::llm_helper::query_llm_with_logging(llm_client, prompt, 800, "dependencies", logger).await?;
 
     Ok(DependencyInfo {
         internal_deps: llm_deps

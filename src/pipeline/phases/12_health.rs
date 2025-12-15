@@ -4,8 +4,10 @@ use super::structure::Service;
 use crate::extractors::health::HealthCheckExtractor;
 use crate::fs::RealFileSystem;
 use crate::languages::LanguageRegistry;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::Result;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +76,7 @@ pub async fn execute(
     runtime: &RuntimeInfo,
     scan: &ScanResult,
     registry: &LanguageRegistry,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<HealthInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
     let extractor = HealthCheckExtractor::with_registry(RealFileSystem, registry.clone());
@@ -104,7 +107,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, runtime, &extracted);
-    super::llm_helper::query_llm(llm_client, prompt, 500, "health check detection").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "health", logger).await
 }
 
 fn try_framework_defaults(runtime: &RuntimeInfo) -> Option<HealthInfo> {

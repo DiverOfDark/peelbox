@@ -1,9 +1,11 @@
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::languages::LanguageRegistry;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntrypointInfo {
@@ -52,6 +54,7 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     service: &Service,
     scan: &ScanResult,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<EntrypointInfo> {
     if let Some(deterministic) = try_deterministic(service, scan)? {
         return Ok(deterministic);
@@ -60,7 +63,7 @@ pub async fn execute(
     let manifest_excerpt = extract_manifest_excerpt(scan, service)?;
 
     let prompt = build_prompt(service, manifest_excerpt.as_deref());
-    super::llm_helper::query_llm(llm_client, prompt, 300, "entrypoint detection").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 300, "entrypoint", logger).await
 }
 
 fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<EntrypointInfo>> {
@@ -117,6 +120,7 @@ fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Opti
 mod tests {
     use super::*;
     use std::path::PathBuf;
+use std::sync::Arc;
 
     #[test]
     fn test_build_prompt() {

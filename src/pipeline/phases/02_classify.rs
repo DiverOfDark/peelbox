@@ -1,8 +1,10 @@
 use super::scan::ScanResult;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClassifyResult {
@@ -74,13 +76,17 @@ Note: Use "." for root directory. Confidence: "high" | "medium" | "low"
     )
 }
 
-pub async fn execute(llm_client: &dyn LLMClient, scan: &ScanResult) -> Result<ClassifyResult> {
+pub async fn execute(
+    llm_client: &dyn LLMClient,
+    scan: &ScanResult,
+    logger: &Arc<HeuristicLogger>,
+) -> Result<ClassifyResult> {
     if can_skip_llm(scan) {
         return Ok(deterministic_classify(scan));
     }
 
     let prompt = build_prompt(scan);
-    super::llm_helper::query_llm(llm_client, prompt, 1000, "classification").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 1000, "classify", logger).await
 }
 
 fn can_skip_llm(scan: &ScanResult) -> bool {

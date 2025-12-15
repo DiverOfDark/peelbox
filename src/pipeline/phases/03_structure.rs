@@ -1,8 +1,10 @@
 use super::classify::{ClassifyResult, Confidence, PackagePath, ServicePath};
 use super::scan::ScanResult;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StructureResult {
@@ -92,6 +94,7 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     scan: &ScanResult,
     classify: &ClassifyResult,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<StructureResult> {
     if can_use_deterministic(scan, classify) {
         return Ok(deterministic_structure(scan, classify));
@@ -99,14 +102,14 @@ pub async fn execute(
 
     let prompt = build_prompt(scan, classify);
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Serialize)]
     struct LLMStructure {
         project_type: ProjectType,
         monorepo_tool: Option<MonorepoTool>,
         confidence: Confidence,
     }
 
-    let llm_result: LLMStructure = super::llm_helper::query_llm(llm_client, prompt, 500, "structure detection").await?;
+    let llm_result: LLMStructure = super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "structure", logger).await?;
 
     let services = build_services(scan, &classify.services);
     let packages = build_packages(scan, &classify.packages);

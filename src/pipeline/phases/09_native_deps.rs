@@ -1,8 +1,10 @@
 use super::scan::ScanResult;
 use super::structure::Service;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NativeDepsInfo {
@@ -58,6 +60,7 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     service: &Service,
     scan: &ScanResult,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<NativeDepsInfo> {
     let dependencies = extract_dependencies(scan, service)?;
 
@@ -66,7 +69,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, &dependencies);
-    super::llm_helper::query_llm(llm_client, prompt, 400, "native deps detection").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 400, "native_deps", logger).await
 }
 
 fn try_deterministic(dependencies: &[String]) -> Option<NativeDepsInfo> {

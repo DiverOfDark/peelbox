@@ -1,10 +1,12 @@
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::languages::LanguageRegistry;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildInfo {
@@ -55,6 +57,7 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     service: &Service,
     scan: &ScanResult,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<BuildInfo> {
     if let Some(deterministic) = try_deterministic(service) {
         return Ok(deterministic);
@@ -63,7 +66,7 @@ pub async fn execute(
     let scripts_excerpt = extract_scripts_excerpt(scan, service)?;
 
     let prompt = build_prompt(service, scripts_excerpt.as_deref());
-    super::llm_helper::query_llm(llm_client, prompt, 400, "build detection").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 400, "build", logger).await
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {

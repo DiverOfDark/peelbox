@@ -3,8 +3,10 @@ use super::structure::Service;
 use crate::extractors::env_vars::EnvVarExtractor;
 use crate::fs::RealFileSystem;
 use crate::languages::LanguageRegistry;
+use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use anyhow::Result;
+use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +71,7 @@ pub async fn execute(
     service: &Service,
     scan: &ScanResult,
     registry: &LanguageRegistry,
+    logger: &Arc<HeuristicLogger>,
 ) -> Result<EnvVarsInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
     let extractor = EnvVarExtractor::with_registry(RealFileSystem, registry.clone());
@@ -93,7 +96,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, &extracted);
-    super::llm_helper::query_llm(llm_client, prompt, 800, "env vars detection").await
+    super::llm_helper::query_llm_with_logging(llm_client, prompt, 800, "env_vars", logger).await
 }
 
 #[cfg(test)]

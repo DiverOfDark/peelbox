@@ -83,7 +83,7 @@ pub struct ToolDefinition {
     pub parameters: serde_json::Value,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMRequest {
     pub messages: Vec<ChatMessage>,
     pub tools: Vec<ToolDefinition>,
