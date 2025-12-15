@@ -147,53 +147,53 @@
 
 ## Week 3-4: Implement Service Analysis (Phases 6a-6g)
 
-- [ ] Phase 6a: Runtime Detection (`src/pipeline/phases/runtime.rs`)
-  - [ ] Implement prompt builder (private function)
-  - [ ] Extract file list and manifest excerpt
-  - [ ] Parse JSON response into `RuntimeInfo`
-  - [ ] Integration test
+- [x] Phase 6a: Runtime Detection (`src/pipeline/phases/runtime.rs`)
+  - [x] Implement prompt builder (private function)
+  - [x] Extract file list and manifest excerpt
+  - [x] Parse JSON response into `RuntimeInfo`
+  - [x] Integration test
 
-- [ ] Phase 6b: Build Detection (`src/pipeline/phases/build.rs`)
-  - [ ] Implement prompt builder (private function)
-  - [ ] Extract scripts/config excerpts
-  - [ ] Parse JSON response into `BuildInfo`
-  - [ ] Integration test
+- [x] Phase 6b: Build Detection (`src/pipeline/phases/build.rs`)
+  - [x] Implement prompt builder (private function)
+  - [x] Extract scripts/config excerpts
+  - [x] Parse JSON response into `BuildInfo`
+  - [x] Integration test
 
-- [ ] Phase 6c: Entrypoint Detection (`src/pipeline/phases/entrypoint.rs`)
-  - [ ] Implement prompt builder (private function)
-  - [ ] Extract manifest main/bin field
-  - [ ] Parse JSON response into `EntrypointInfo`
-  - [ ] Integration test
+- [x] Phase 6c: Entrypoint Detection (`src/pipeline/phases/entrypoint.rs`)
+  - [x] Implement prompt builder (private function)
+  - [x] Extract manifest main/bin field
+  - [x] Parse JSON response into `EntrypointInfo`
+  - [x] Integration test
 
-- [ ] Phase 6d: Native Dependencies Detection (`src/pipeline/phases/native_deps.rs`)
-  - [ ] Implement prompt builder (private function)
-  - [ ] Extract dependency list and special folders
-  - [ ] Parse JSON response into `NativeDepsInfo`
-  - [ ] Integration test
+- [x] Phase 6d: Native Dependencies Detection (`src/pipeline/phases/native_deps.rs`)
+  - [x] Implement prompt builder (private function)
+  - [x] Extract dependency list and special folders
+  - [x] Parse JSON response into `NativeDepsInfo`
+  - [x] Integration test
 
-- [ ] Phase 6e: Port Discovery (`src/pipeline/phases/port.rs`)
-  - [ ] Call port extractor first
-  - [ ] Build prompt with extracted sources (private function)
-  - [ ] Parse JSON response into `PortInfo`
-  - [ ] Integration test
+- [x] Phase 6e: Port Discovery (`src/pipeline/phases/port.rs`)
+  - [x] Call port extractor first
+  - [x] Build prompt with extracted sources (private function)
+  - [x] Parse JSON response into `PortInfo`
+  - [x] Integration test
 
-- [ ] Phase 6f: Environment Variables Discovery (`src/pipeline/phases/env_vars.rs`)
-  - [ ] Call env vars extractor first
-  - [ ] Build prompt with extracted sources (private function)
-  - [ ] Parse JSON response into `EnvVarsInfo`
-  - [ ] Integration test
+- [x] Phase 6f: Environment Variables Discovery (`src/pipeline/phases/env_vars.rs`)
+  - [x] Call env vars extractor first
+  - [x] Build prompt with extracted sources (private function)
+  - [x] Parse JSON response into `EnvVarsInfo`
+  - [x] Integration test
 
-- [ ] Phase 6g: Health Check Discovery (`src/pipeline/phases/health.rs`)
-  - [ ] Call health check extractor first
-  - [ ] Build prompt with extracted sources (private function)
-  - [ ] Apply framework defaults when no explicit endpoint found
-  - [ ] Parse JSON response into `HealthInfo`
-  - [ ] Integration test
+- [x] Phase 6g: Health Check Discovery (`src/pipeline/phases/health.rs`)
+  - [x] Call health check extractor first
+  - [x] Build prompt with extracted sources (private function)
+  - [x] Apply framework defaults when no explicit endpoint found
+  - [x] Parse JSON response into `HealthInfo`
+  - [x] Integration test
 
 **Checkpoint:**
-- [ ] Run `cargo fmt` - ensure code is formatted
-- [ ] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass
+- [x] Run `cargo fmt` - ensure code is formatted
+- [x] Run `cargo clippy` - fix all warnings
+- [x] Run `cargo test` - ensure all tests pass
 - [ ] Create git commit: `feat(pipeline): implement phases 6a-6g (service analysis)`
 
 ## Week 4: Implement Cache & Assembly (Phases 7-9)
