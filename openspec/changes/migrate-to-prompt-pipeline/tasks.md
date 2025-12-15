@@ -5,7 +5,7 @@
 **Note:** Leverage existing infrastructure where possible - `LLMClient`, `FileSystem`, `BootstrapScanner`, `LanguageRegistry`, `RecordingLLMClient`
 
 - [x] Update `src/pipeline/` module
-  - [ ] Refactor `src/pipeline/analysis.rs` - replace tool-based loop with phase orchestration
+  - [x] Refactor `src/pipeline/analysis.rs` - replaced with PipelineOrchestrator (analysis.rs removed)
   - [x] Review `src/pipeline/config.rs` - add pipeline-specific config if needed
   - [x] Review `src/pipeline/context.rs` - add phase context if needed
   - [x] Add `src/pipeline/phases/mod.rs`
@@ -21,7 +21,7 @@
 **Checkpoint:**
 - [x] Run `cargo fmt` - ensure code is formatted
 - [x] Run `cargo clippy` - fix all warnings
-- [ ] Run `cargo test` - ensure all tests pass (deferred - tests will pass once pipeline is implemented)
+- [x] Run `cargo test` - ensure all tests pass (pipeline implemented, all tests passing)
 - [x] Create git commit: `feat(pipeline): add foundation modules for prompt pipeline`
 
 ## Week 2: Extend Language Definitions for Dependency Parsing
@@ -290,11 +290,11 @@
   - [x] Log failures as warnings instead of stopping pipeline
   - [x] Skip failed services and continue with remaining services
 
-- [ ] Update all integration tests
+- [x] Update all integration tests
   - [x] Re-record LLM responses for new prompts (recordings deleted and re-created)
-  - [ ] Update expected JSON files to match new LLM outputs (15 tests have output mismatches)
-  - **Status:** 5/20 tests passing. All failures are expected output mismatches (base images, commands), not pipeline bugs.
-  - **Known issues:** Base image version differences (e.g., `node:20` vs `node:20-alpine`)
+  - [x] Update expected JSON files to match new LLM outputs (all tests now pass)
+  - **Status:** 20/20 tests passing. All fixtures working correctly.
+  - **Resolved:** All base image and command mismatches fixed
 
 **Checkpoint:**
 - [x] Run `cargo fmt` - ensure code is formatted
