@@ -66,22 +66,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, &dependencies);
-
-    let request = crate::llm::LLMRequest::new(vec![
-        crate::llm::ChatMessage::user(prompt),
-    ])
-    .with_temperature(0.1)
-    .with_max_tokens(400);
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for native deps detection")?;
-
-    let native_deps_info: NativeDepsInfo = serde_json::from_str(&response.content)
-        .context("Failed to parse native deps detection response")?;
-
-    Ok(native_deps_info)
+    super::llm_helper::query_llm(llm_client, prompt, 400, "native deps detection").await
 }
 
 fn try_deterministic(dependencies: &[String]) -> Option<NativeDepsInfo> {

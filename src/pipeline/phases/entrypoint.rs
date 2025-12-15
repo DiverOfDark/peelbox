@@ -60,22 +60,7 @@ pub async fn execute(
     let manifest_excerpt = extract_manifest_excerpt(scan, service)?;
 
     let prompt = build_prompt(service, manifest_excerpt.as_deref());
-
-    let request = crate::llm::LLMRequest::new(vec![
-        crate::llm::ChatMessage::user(prompt),
-    ])
-    .with_temperature(0.1)
-    .with_max_tokens(300);
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for entrypoint detection")?;
-
-    let entrypoint_info: EntrypointInfo = serde_json::from_str(&response.content)
-        .context("Failed to parse entrypoint detection response")?;
-
-    Ok(entrypoint_info)
+    super::llm_helper::query_llm(llm_client, prompt, 300, "entrypoint detection").await
 }
 
 fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<EntrypointInfo>> {

@@ -1,11 +1,8 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::extractors::context::ServiceContext;
 use crate::extractors::env_vars::EnvVarExtractor;
-use crate::fs::RealFileSystem;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,15 +67,8 @@ pub async fn execute(
     service: &Service,
     scan: &ScanResult,
 ) -> Result<EnvVarsInfo> {
-    let service_path = scan.repo_path.join(&service.path);
-    let fs = RealFileSystem;
-    let registry = LanguageRegistry::with_defaults();
-
-    let context = ServiceContext {
-        path: service_path,
-        language: Some(service.language.clone()),
-        build_system: Some(service.build_system.clone()),
-    };
+    let context = super::extractor_helper::create_service_context(scan, service);
+    let (fs, registry) = super::extractor_helper::create_extractor_components();
 
     let extractor = EnvVarExtractor::with_registry(fs, registry);
     let extracted_info = extractor.extract(&context);
@@ -102,22 +92,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, &extracted);
-
-    let request = crate::llm::LLMRequest::new(vec![
-        crate::llm::ChatMessage::user(prompt),
-    ])
-    .with_temperature(0.1)
-    .with_max_tokens(800);
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for env vars detection")?;
-
-    let env_vars_info: EnvVarsInfo = serde_json::from_str(&response.content)
-        .context("Failed to parse env vars detection response")?;
-
-    Ok(env_vars_info)
+    super::llm_helper::query_llm(llm_client, prompt, 800, "env vars detection").await
 }
 
 #[cfg(test)]

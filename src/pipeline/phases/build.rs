@@ -63,22 +63,7 @@ pub async fn execute(
     let scripts_excerpt = extract_scripts_excerpt(scan, service)?;
 
     let prompt = build_prompt(service, scripts_excerpt.as_deref());
-
-    let request = crate::llm::LLMRequest::new(vec![
-        crate::llm::ChatMessage::user(prompt),
-    ])
-    .with_temperature(0.1)
-    .with_max_tokens(400);
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for build detection")?;
-
-    let build_info: BuildInfo = serde_json::from_str(&response.content)
-        .context("Failed to parse build detection response")?;
-
-    Ok(build_info)
+    super::llm_helper::query_llm(llm_client, prompt, 400, "build detection").await
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {

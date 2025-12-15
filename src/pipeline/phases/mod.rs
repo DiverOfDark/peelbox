@@ -5,6 +5,7 @@
 // prompt builder and execution logic.
 
 pub mod llm_helper;
+pub mod extractor_helper;
 pub mod scan;
 pub mod classify;
 pub mod structure;

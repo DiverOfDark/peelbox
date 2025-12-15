@@ -83,7 +83,7 @@ pub async fn execute(
         let final_dep_info = match dep_info {
             Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
             _ => {
-                llm_fallback(llm_client, service, &manifest_content, &all_paths, &service.path)
+                llm_fallback(llm_client, service, &manifest_content, &all_paths)
                     .await?
             }
         };
@@ -122,7 +122,6 @@ pub async fn execute(
                     &pseudo_service,
                     &manifest_content,
                     &all_paths,
-                    &package.path,
                 )
                 .await?
             }
@@ -139,20 +138,8 @@ async fn llm_fallback(
     service: &Service,
     manifest_content: &str,
     all_paths: &[PathBuf],
-    _current_path: &PathBuf,
 ) -> Result<DependencyInfo> {
     let prompt = build_llm_prompt(service, manifest_content, all_paths);
-
-    let request = crate::llm::LLMRequest::new(vec![
-        crate::llm::ChatMessage::user(prompt),
-    ])
-    .with_temperature(0.1)
-    .with_max_tokens(800);
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for dependency extraction")?;
 
     #[derive(Deserialize)]
     struct LLMDeps {
@@ -160,8 +147,7 @@ async fn llm_fallback(
         external_deps: Vec<String>,
     }
 
-    let llm_deps: LLMDeps = serde_json::from_str(&response.content)
-        .context("Failed to parse dependency response")?;
+    let llm_deps: LLMDeps = super::llm_helper::query_llm(llm_client, prompt, 800, "dependency extraction").await?;
 
     Ok(DependencyInfo {
         internal_deps: llm_deps

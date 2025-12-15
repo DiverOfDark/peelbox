@@ -1,12 +1,9 @@
 use super::runtime::RuntimeInfo;
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::extractors::context::ServiceContext;
 use crate::extractors::health::HealthCheckExtractor;
-use crate::fs::RealFileSystem;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,15 +72,8 @@ pub async fn execute(
     runtime: &RuntimeInfo,
     scan: &ScanResult,
 ) -> Result<HealthInfo> {
-    let service_path = scan.repo_path.join(&service.path);
-    let fs = RealFileSystem;
-    let registry = LanguageRegistry::with_defaults();
-
-    let context = ServiceContext {
-        path: service_path,
-        language: Some(service.language.clone()),
-        build_system: Some(service.build_system.clone()),
-    };
+    let context = super::extractor_helper::create_service_context(scan, service);
+    let (fs, registry) = super::extractor_helper::create_extractor_components();
 
     let extractor = HealthCheckExtractor::with_registry(fs, registry);
     let extracted_info = extractor.extract(&context);
@@ -113,22 +103,7 @@ pub async fn execute(
     }
 
     let prompt = build_prompt(service, runtime, &extracted);
-
-    let request = crate::llm::LLMRequest::new(vec![
-        crate::llm::ChatMessage::user(prompt),
-    ])
-    .with_temperature(0.1)
-    .with_max_tokens(500);
-
-    let response = llm_client
-        .chat(request)
-        .await
-        .context("Failed to call LLM for health check detection")?;
-
-    let health_info: HealthInfo = serde_json::from_str(&response.content)
-        .context("Failed to parse health check detection response")?;
-
-    Ok(health_info)
+    super::llm_helper::query_llm(llm_client, prompt, 500, "health check detection").await
 }
 
 fn try_framework_defaults(runtime: &RuntimeInfo) -> Option<HealthInfo> {
