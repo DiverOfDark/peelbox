@@ -163,6 +163,27 @@ impl LanguageRegistry {
         }
         false
     }
+
+    /// Parse dependencies from a manifest file
+    pub fn parse_dependencies_by_manifest(
+        &self,
+        manifest_name: &str,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> Option<super::DependencyInfo> {
+        if let Some(candidates) = self.manifest_index.get(manifest_name) {
+            for &(lang_idx, _) in candidates {
+                let language = &self.languages[lang_idx];
+                if language
+                    .detect(manifest_name, Some(manifest_content))
+                    .is_some()
+                {
+                    return Some(language.parse_dependencies(manifest_content, all_internal_paths));
+                }
+            }
+        }
+        None
+    }
 }
 
 impl Default for LanguageRegistry {
@@ -174,6 +195,7 @@ impl Default for LanguageRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::languages::DetectionMethod;
 
     #[test]
     fn test_registry_creation() {
@@ -258,5 +280,153 @@ mod tests {
         // Should include workspace configs from languages
         assert!(configs.contains(&"pnpm-workspace.yaml"));
         assert!(configs.contains(&"go.work"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_cargo_toml() {
+        let registry = LanguageRegistry::with_defaults();
+        let content = r#"
+[package]
+name = "test"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+"#;
+
+        let deps = registry.parse_dependencies_by_manifest("Cargo.toml", content, &[]);
+        assert!(deps.is_some());
+
+        let deps = deps.unwrap();
+        assert_eq!(deps.external_deps.len(), 2);
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert!(deps.external_deps.iter().any(|d| d.name == "serde"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "tokio"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_package_json() {
+        let registry = LanguageRegistry::with_defaults();
+        let content = r#"{
+            "name": "test",
+            "dependencies": {
+                "react": "^18.0.0",
+                "express": "^4.18.0"
+            },
+            "devDependencies": {
+                "typescript": "^5.0.0"
+            }
+        }"#;
+
+        let deps = registry.parse_dependencies_by_manifest("package.json", content, &[]);
+        assert!(deps.is_some());
+
+        let deps = deps.unwrap();
+        assert_eq!(deps.external_deps.len(), 3);
+        assert!(deps.external_deps.iter().any(|d| d.name == "react"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "express"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "typescript"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_go_mod() {
+        let registry = LanguageRegistry::with_defaults();
+        let content = r#"
+module github.com/user/project
+
+go 1.21
+
+require (
+    github.com/gin-gonic/gin v1.9.0
+    github.com/lib/pq v1.10.7
+)
+"#;
+
+        let deps = registry.parse_dependencies_by_manifest("go.mod", content, &[]);
+        assert!(deps.is_some());
+
+        let deps = deps.unwrap();
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "github.com/gin-gonic/gin"));
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "github.com/lib/pq"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_pom_xml() {
+        let registry = LanguageRegistry::with_defaults();
+        let content = r#"
+<project>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.0</version>
+        </dependency>
+    </dependencies>
+</project>
+"#;
+
+        let deps = registry.parse_dependencies_by_manifest("pom.xml", content, &[]);
+        assert!(deps.is_some());
+
+        let deps = deps.unwrap();
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "org.springframework.boot:spring-boot-starter-web"));
+        assert!(deps
+            .external_deps
+            .iter()
+            .any(|d| d.name == "org.postgresql:postgresql"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_pyproject_toml() {
+        let registry = LanguageRegistry::with_defaults();
+        let content = r#"
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.0.0"
+pytest = "^7.0.0"
+"#;
+
+        let deps = registry.parse_dependencies_by_manifest("pyproject.toml", content, &[]);
+        assert!(deps.is_some());
+
+        let deps = deps.unwrap();
+        assert_eq!(deps.external_deps.len(), 2);
+        assert!(deps.external_deps.iter().any(|d| d.name == "flask"));
+        assert!(deps.external_deps.iter().any(|d| d.name == "pytest"));
+    }
+
+    #[test]
+    fn test_parse_dependencies_unknown_manifest() {
+        let registry = LanguageRegistry::with_defaults();
+        let deps = registry.parse_dependencies_by_manifest("unknown.txt", "content", &[]);
+        assert!(deps.is_none());
+    }
+
+    #[test]
+    fn test_parse_dependencies_invalid_content() {
+        let registry = LanguageRegistry::with_defaults();
+        let deps = registry.parse_dependencies_by_manifest("package.json", "invalid json {", &[]);
+        assert!(deps.is_some());
+
+        let deps = deps.unwrap();
+        assert_eq!(deps.external_deps.len(), 0);
+        assert_eq!(deps.internal_deps.len(), 0);
     }
 }
