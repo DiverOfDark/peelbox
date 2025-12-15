@@ -196,6 +196,16 @@ impl LanguageDefinition for DotNetLanguage {
         )]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r#"UseUrls\([^:)]*:(\d{4,5})"#, "UseUrls()"),
+            (
+                r#"ApplicationUrl['"]\s*=\s*[^:]*:(\d{4,5})"#,
+                "ApplicationUrl",
+            ),
+        ]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![(r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "ASP.NET")]
     }

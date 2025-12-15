@@ -182,6 +182,16 @@ impl LanguageDefinition for GoLanguage {
         ]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r"\.Run\([^:)]*:(\d{4,5})", "gin.Run()"),
+            (
+                r#"http\.ListenAndServe\([^:)]*:(\d{4,5})"#,
+                "http.ListenAndServe",
+            ),
+        ]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![(r#"router\.GET\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Gin")]
     }

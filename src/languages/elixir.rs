@@ -172,6 +172,16 @@ impl LanguageDefinition for ElixirLanguage {
         )]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r#"port:\s*(\d{4,5})"#, "config"),
+            (
+                r#"Plug\.Cowboy\.http\([^,)]*,\s*port:\s*(\d{4,5})"#,
+                "Plug.Cowboy",
+            ),
+        ]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![]
     }

@@ -202,6 +202,13 @@ impl LanguageDefinition for RustLanguage {
         ]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r"\.bind\([^,)]*:(\d{4,5})", "bind()"),
+            (r#"addr\s*=\s*"[^:]*:(\d{4,5})""#, "addr config"),
+        ]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![]
     }

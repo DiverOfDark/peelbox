@@ -174,6 +174,10 @@ impl LanguageDefinition for RubyLanguage {
         vec![(r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#, "ENV")]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"port:\s*(\d{4,5})"#, "config")]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![]
     }

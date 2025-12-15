@@ -167,6 +167,10 @@ impl LanguageDefinition for PhpLanguage {
         vec![(r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#, "getenv")]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"['"]SERVER_PORT['"].*?(\d{4,5})"#, "server port")]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![]
     }

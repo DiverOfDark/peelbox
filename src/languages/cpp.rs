@@ -199,6 +199,10 @@ impl LanguageDefinition for CppLanguage {
         vec![(r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#, "getenv")]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![(r#"bind\([^,)]*,\s*(\d{4,5})"#, "bind()")]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![]
     }

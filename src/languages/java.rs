@@ -234,6 +234,13 @@ impl LanguageDefinition for JavaLanguage {
         vec![(r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#, "System.getenv")]
     }
 
+    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![
+            (r#"server\.port\s*=\s*(\d{4,5})"#, "application.properties"),
+            (r#"port:\s*(\d{4,5})"#, "application.yml"),
+        ]
+    }
+
     fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![(r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Spring")]
     }
