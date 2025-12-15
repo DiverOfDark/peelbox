@@ -21,9 +21,7 @@ pub fn execute(dependencies: &DependencyResult) -> Result<BuildOrderResult> {
     })
 }
 
-fn build_dependency_graph(
-    dependencies: &DependencyResult,
-) -> HashMap<PathBuf, Vec<PathBuf>> {
+fn build_dependency_graph(dependencies: &DependencyResult) -> HashMap<PathBuf, Vec<PathBuf>> {
     let mut graph: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
 
     for (path, dep_info) in &dependencies.dependencies {
@@ -92,10 +90,7 @@ fn topological_sort(graph: &HashMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, bo
     let has_cycle = visited < nodes.len();
 
     if has_cycle {
-        let remaining: Vec<PathBuf> = nodes
-            .into_iter()
-            .filter(|n| !result.contains(n))
-            .collect();
+        let remaining: Vec<PathBuf> = nodes.into_iter().filter(|n| !result.contains(n)).collect();
         result.extend(remaining);
     }
 
@@ -138,8 +133,16 @@ mod tests {
         assert!(!result.has_cycle);
         assert_eq!(result.build_order.len(), 2);
 
-        let lib_idx = result.build_order.iter().position(|p| p == &PathBuf::from("lib")).unwrap();
-        let app_idx = result.build_order.iter().position(|p| p == &PathBuf::from("app")).unwrap();
+        let lib_idx = result
+            .build_order
+            .iter()
+            .position(|p| p == &PathBuf::from("lib"))
+            .unwrap();
+        let app_idx = result
+            .build_order
+            .iter()
+            .position(|p| p == &PathBuf::from("app"))
+            .unwrap();
 
         assert!(lib_idx < app_idx);
     }
@@ -152,8 +155,16 @@ mod tests {
             PathBuf::from("app"),
             DependencyInfo {
                 internal_deps: vec![
-                    Dependency { name: "lib1".to_string(), version: None, is_internal: true },
-                    Dependency { name: "lib2".to_string(), version: None, is_internal: true },
+                    Dependency {
+                        name: "lib1".to_string(),
+                        version: None,
+                        is_internal: true,
+                    },
+                    Dependency {
+                        name: "lib2".to_string(),
+                        version: None,
+                        is_internal: true,
+                    },
                 ],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
@@ -163,7 +174,11 @@ mod tests {
         deps.insert(
             PathBuf::from("lib1"),
             DependencyInfo {
-                internal_deps: vec![Dependency { name: "base".to_string(), version: None, is_internal: true }],
+                internal_deps: vec![Dependency {
+                    name: "base".to_string(),
+                    version: None,
+                    is_internal: true,
+                }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
             },
@@ -172,7 +187,11 @@ mod tests {
         deps.insert(
             PathBuf::from("lib2"),
             DependencyInfo {
-                internal_deps: vec![Dependency { name: "base".to_string(), version: None, is_internal: true }],
+                internal_deps: vec![Dependency {
+                    name: "base".to_string(),
+                    version: None,
+                    is_internal: true,
+                }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
             },
@@ -192,10 +211,26 @@ mod tests {
         assert!(!result.has_cycle);
         assert_eq!(result.build_order.len(), 4);
 
-        let base_idx = result.build_order.iter().position(|p| p == &PathBuf::from("base")).unwrap();
-        let lib1_idx = result.build_order.iter().position(|p| p == &PathBuf::from("lib1")).unwrap();
-        let lib2_idx = result.build_order.iter().position(|p| p == &PathBuf::from("lib2")).unwrap();
-        let app_idx = result.build_order.iter().position(|p| p == &PathBuf::from("app")).unwrap();
+        let base_idx = result
+            .build_order
+            .iter()
+            .position(|p| p == &PathBuf::from("base"))
+            .unwrap();
+        let lib1_idx = result
+            .build_order
+            .iter()
+            .position(|p| p == &PathBuf::from("lib1"))
+            .unwrap();
+        let lib2_idx = result
+            .build_order
+            .iter()
+            .position(|p| p == &PathBuf::from("lib2"))
+            .unwrap();
+        let app_idx = result
+            .build_order
+            .iter()
+            .position(|p| p == &PathBuf::from("app"))
+            .unwrap();
 
         assert!(base_idx < lib1_idx);
         assert!(base_idx < lib2_idx);
@@ -210,7 +245,11 @@ mod tests {
         deps.insert(
             PathBuf::from("app1"),
             DependencyInfo {
-                internal_deps: vec![Dependency { name: "app2".to_string(), version: None, is_internal: true }],
+                internal_deps: vec![Dependency {
+                    name: "app2".to_string(),
+                    version: None,
+                    is_internal: true,
+                }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
             },
@@ -219,7 +258,11 @@ mod tests {
         deps.insert(
             PathBuf::from("app2"),
             DependencyInfo {
-                internal_deps: vec![Dependency { name: "app1".to_string(), version: None, is_internal: true }],
+                internal_deps: vec![Dependency {
+                    name: "app1".to_string(),
+                    version: None,
+                    is_internal: true,
+                }],
                 external_deps: vec![],
                 detected_by: DetectionMethod::Deterministic,
             },

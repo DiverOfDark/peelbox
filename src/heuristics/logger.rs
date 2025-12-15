@@ -93,15 +93,15 @@ impl HeuristicLogger {
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to serialize heuristic entry for phase {}: {}", phase, e);
+                        warn!(
+                            "Failed to serialize heuristic entry for phase {}: {}",
+                            phase, e
+                        );
                     }
                 }
             }
         }
 
-        debug!(
-            "Heuristic log: phase={} latency_ms={}",
-            phase, latency_ms
-        );
+        debug!("Heuristic log: phase={} latency_ms={}", phase, latency_ms);
     }
 }

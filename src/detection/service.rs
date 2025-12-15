@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -191,6 +191,7 @@ impl ServiceError {
 
 pub struct DetectionService {
     client: Arc<dyn LLMClient>,
+    #[allow(dead_code)]
     context: Arc<PipelineContext>,
 }
 
@@ -227,36 +228,26 @@ impl DetectionService {
 
         info!("Starting detection for repository: {}", repo_path.display());
 
-        let bootstrap_context = match self.run_bootstrap_scan(&repo_path) {
-            Ok(context) => {
-                info!(
-                    detections_found = context.detections.len(),
-                    scan_time_ms = context.scan_time_ms,
-                    "Bootstrap scan completed successfully"
-                );
-                Some(context)
-            }
-            Err(e) => {
-                warn!(
-                    error = %e,
-                    "Bootstrap scan failed, continuing with normal detection"
-                );
-                None
-            }
+        use crate::heuristics::HeuristicLogger;
+        use crate::pipeline::PipelineOrchestrator;
+
+        let orchestrator = if let Some(progress_handler) = progress {
+            let heuristic_logger = Arc::new(HeuristicLogger::disabled());
+            PipelineOrchestrator::with_heuristic_logger(
+                self.client.clone(),
+                progress_handler,
+                heuristic_logger,
+            )
+        } else {
+            PipelineOrchestrator::new(self.client.clone())
         };
 
-        use crate::pipeline::AnalysisPipeline;
-
-        let pipeline = AnalysisPipeline::new((*self.context).clone());
-        let results = pipeline
-            .analyze(repo_path.clone(), bootstrap_context, progress)
-            .await
-            .map_err(|e| {
-                use crate::llm::BackendError;
-                ServiceError::BackendError(BackendError::Other {
-                    message: e.to_string(),
-                })
-            })?;
+        let results = orchestrator.execute(&repo_path).await.map_err(|e| {
+            use crate::llm::BackendError;
+            ServiceError::BackendError(BackendError::Other {
+                message: e.to_string(),
+            })
+        })?;
 
         let elapsed = start.elapsed();
 
@@ -267,25 +258,6 @@ impl DetectionService {
         );
 
         Ok(results)
-    }
-
-    fn run_bootstrap_scan(
-        &self,
-        repo_path: &Path,
-    ) -> Result<crate::bootstrap::BootstrapContext, ServiceError> {
-        use crate::bootstrap::BootstrapScanner;
-
-        let scanner = BootstrapScanner::with_registry(
-            repo_path.to_path_buf(),
-            self.context.language_registry.clone(),
-        )
-        .map_err(|e| {
-            ServiceError::DetectionFailed(format!("Bootstrap scan setup failed: {}", e))
-        })?;
-
-        scanner
-            .scan()
-            .map_err(|e| ServiceError::DetectionFailed(format!("Bootstrap scan failed: {}", e)))
     }
 
     fn validate_repo_path(&self, path: &Path) -> Result<(), ServiceError> {

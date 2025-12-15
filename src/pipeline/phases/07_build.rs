@@ -1,7 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::languages::LanguageRegistry;
 use crate::heuristics::HeuristicLogger;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -84,7 +84,10 @@ fn try_deterministic(service: &Service) -> Option<BuildInfo> {
             .to_string();
 
         if path.contains('*') {
-            PathBuf::from(&path).parent().unwrap_or(&PathBuf::from(&path)).to_path_buf()
+            PathBuf::from(&path)
+                .parent()
+                .unwrap_or(&PathBuf::from(&path))
+                .to_path_buf()
         } else {
             PathBuf::from(path)
         }
@@ -110,8 +113,8 @@ fn extract_scripts_excerpt(scan: &ScanResult, service: &Service) -> Result<Optio
     if service.manifest == "package.json" {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
             if let Some(scripts) = json.get("scripts") {
-                let excerpt = serde_json::to_string_pretty(scripts)
-                    .unwrap_or_else(|_| "{}".to_string());
+                let excerpt =
+                    serde_json::to_string_pretty(scripts).unwrap_or_else(|_| "{}".to_string());
                 return Ok(Some(excerpt));
             }
         }
@@ -155,7 +158,10 @@ mod tests {
         };
 
         let result = try_deterministic(&service).unwrap();
-        assert_eq!(result.build_cmd, Some("mvn clean package -DskipTests".to_string()));
+        assert_eq!(
+            result.build_cmd,
+            Some("mvn clean package -DskipTests".to_string())
+        );
         assert_eq!(result.output_dir, Some(PathBuf::from("target")));
     }
 

@@ -1,7 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::languages::LanguageRegistry;
 use crate::heuristics::HeuristicLogger;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

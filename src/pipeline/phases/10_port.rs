@@ -2,12 +2,12 @@ use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::port::PortExtractor;
 use crate::fs::RealFileSystem;
-use crate::languages::LanguageRegistry;
 use crate::heuristics::HeuristicLogger;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::Result;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PortInfo {

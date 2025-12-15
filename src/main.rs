@@ -59,7 +59,7 @@ fn init_logging_from_args(args: &CliArgs) {
 
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer().with_target(true))
+            .with(fmt::layer().with_target(true).with_writer(std::io::stderr))
             .init();
     });
 }

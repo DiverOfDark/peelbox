@@ -18,19 +18,16 @@ pub enum Confidence {
 
 pub fn execute(structure: &StructureResult) -> RootCacheInfo {
     let root_cache_dirs = match &structure.monorepo_tool {
-        Some(MonorepoTool::PnpmWorkspaces) => vec![
-            PathBuf::from("node_modules"),
-            PathBuf::from(".pnpm-store"),
-        ],
-        Some(MonorepoTool::YarnWorkspaces) | Some(MonorepoTool::NpmWorkspaces) => vec![
-            PathBuf::from("node_modules"),
-            PathBuf::from(".yarn/cache"),
-        ],
+        Some(MonorepoTool::PnpmWorkspaces) => {
+            vec![PathBuf::from("node_modules"), PathBuf::from(".pnpm-store")]
+        }
+        Some(MonorepoTool::YarnWorkspaces) | Some(MonorepoTool::NpmWorkspaces) => {
+            vec![PathBuf::from("node_modules"), PathBuf::from(".yarn/cache")]
+        }
         Some(MonorepoTool::CargoWorkspace) => vec![PathBuf::from("target")],
-        Some(MonorepoTool::Turborepo) => vec![
-            PathBuf::from("node_modules"),
-            PathBuf::from(".turbo"),
-        ],
+        Some(MonorepoTool::Turborepo) => {
+            vec![PathBuf::from("node_modules"), PathBuf::from(".turbo")]
+        }
         Some(MonorepoTool::Nx) => vec![PathBuf::from("node_modules"), PathBuf::from(".nx")],
         Some(MonorepoTool::Lerna) => vec![PathBuf::from("node_modules")],
         Some(MonorepoTool::GradleMultiproject) => vec![PathBuf::from(".gradle")],

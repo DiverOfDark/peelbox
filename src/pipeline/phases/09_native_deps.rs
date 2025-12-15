@@ -52,7 +52,12 @@ Rules:
         service.path.display(),
         service.build_system,
         service.language,
-        dependencies.iter().take(30).cloned().collect::<Vec<_>>().join(", ")
+        dependencies
+            .iter()
+            .take(30)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(", ")
     )
 }
 
@@ -127,8 +132,7 @@ fn extract_dependencies(scan: &ScanResult, service: &Service) -> Result<Vec<Stri
             if let Some(dependencies) = json.get("dependencies").and_then(|v| v.as_object()) {
                 deps.extend(dependencies.keys().cloned());
             }
-            if let Some(dev_dependencies) =
-                json.get("devDependencies").and_then(|v| v.as_object())
+            if let Some(dev_dependencies) = json.get("devDependencies").and_then(|v| v.as_object())
             {
                 deps.extend(dev_dependencies.keys().cloned());
             }

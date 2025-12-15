@@ -109,7 +109,9 @@ pub async fn execute(
         confidence: Confidence,
     }
 
-    let llm_result: LLMStructure = super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "structure", logger).await?;
+    let llm_result: LLMStructure =
+        super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "structure", logger)
+            .await?;
 
     let services = build_services(scan, &classify.services);
     let packages = build_packages(scan, &classify.packages);
@@ -124,9 +126,8 @@ pub async fn execute(
 }
 
 fn can_use_deterministic(scan: &ScanResult, classify: &ClassifyResult) -> bool {
-    let is_single = classify.services.len() == 1
-        && classify.packages.is_empty()
-        && classify.root_is_service;
+    let is_single =
+        classify.services.len() == 1 && classify.packages.is_empty() && classify.root_is_service;
 
     let has_workspace = scan.bootstrap_context.workspace.has_workspace_config;
 
@@ -134,9 +135,8 @@ fn can_use_deterministic(scan: &ScanResult, classify: &ClassifyResult) -> bool {
 }
 
 fn deterministic_structure(scan: &ScanResult, classify: &ClassifyResult) -> StructureResult {
-    let is_single = classify.services.len() == 1
-        && classify.packages.is_empty()
-        && classify.root_is_service;
+    let is_single =
+        classify.services.len() == 1 && classify.packages.is_empty() && classify.root_is_service;
 
     if is_single {
         let services = build_services(scan, &classify.services);

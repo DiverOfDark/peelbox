@@ -25,10 +25,7 @@ pub fn execute(service: &Service) -> CacheInfo {
             PathBuf::from(".yarn/cache"),
         ],
         "cargo" => vec![PathBuf::from("target")],
-        "maven" => vec![
-            PathBuf::from(".m2/repository"),
-            PathBuf::from("target"),
-        ],
+        "maven" => vec![PathBuf::from(".m2/repository"), PathBuf::from("target")],
         "gradle" => vec![PathBuf::from(".gradle"), PathBuf::from("build")],
         "go" => vec![PathBuf::from("go/pkg/mod")],
         "pip" | "poetry" => vec![

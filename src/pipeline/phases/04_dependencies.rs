@@ -1,7 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::{Service, StructureResult};
-use crate::languages::{Dependency, DependencyInfo, DetectionMethod, LanguageRegistry};
 use crate::heuristics::HeuristicLogger;
+use crate::languages::{Dependency, DependencyInfo, DetectionMethod, LanguageRegistry};
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -75,19 +75,15 @@ pub async fn execute(
         let manifest_content = std::fs::read_to_string(&manifest_path)
             .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
 
-        let dep_info = registry
-            .parse_dependencies_by_manifest(
-                &service.manifest,
-                &manifest_content,
-                &all_paths,
-            );
+        let dep_info = registry.parse_dependencies_by_manifest(
+            &service.manifest,
+            &manifest_content,
+            &all_paths,
+        );
 
         let final_dep_info = match dep_info {
             Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
-            _ => {
-                llm_fallback(llm_client, service, &manifest_content, &all_paths, logger)
-                    .await?
-            }
+            _ => llm_fallback(llm_client, service, &manifest_content, &all_paths, logger).await?,
         };
 
         dependencies.insert(service.path.clone(), final_dep_info);
@@ -103,12 +99,11 @@ pub async fn execute(
         let manifest_content = std::fs::read_to_string(&manifest_path)
             .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
 
-        let dep_info = registry
-            .parse_dependencies_by_manifest(
-                &package.manifest,
-                &manifest_content,
-                &all_paths,
-            );
+        let dep_info = registry.parse_dependencies_by_manifest(
+            &package.manifest,
+            &manifest_content,
+            &all_paths,
+        );
 
         let final_dep_info = match dep_info {
             Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
@@ -151,7 +146,9 @@ async fn llm_fallback(
         external_deps: Vec<String>,
     }
 
-    let llm_deps: LLMDeps = super::llm_helper::query_llm_with_logging(llm_client, prompt, 800, "dependencies", logger).await?;
+    let llm_deps: LLMDeps =
+        super::llm_helper::query_llm_with_logging(llm_client, prompt, 800, "dependencies", logger)
+            .await?;
 
     Ok(DependencyInfo {
         internal_deps: llm_deps

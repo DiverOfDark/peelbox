@@ -92,11 +92,7 @@ fn assemble_single_service(
             .map(|t| t.build_packages.clone())
             .unwrap_or_default(),
         env: HashMap::new(),
-        commands: result
-            .build
-            .build_cmd
-            .into_iter()
-            .collect::<Vec<_>>(),
+        commands: result.build.build_cmd.into_iter().collect::<Vec<_>>(),
         context: vec![ContextSpec {
             from: result.service.path.display().to_string(),
             to: "/app".to_string(),
@@ -124,7 +120,10 @@ fn assemble_single_service(
         .entrypoint
         .entrypoint
         .replace("{project_name}", &project_name);
-    let command_parts: Vec<String> = entrypoint_cmd.split_whitespace().map(String::from).collect();
+    let command_parts: Vec<String> = entrypoint_cmd
+        .split_whitespace()
+        .map(String::from)
+        .collect();
 
     let runtime = RuntimeStage {
         base: template
@@ -166,14 +165,16 @@ fn extract_project_name(service: &Service) -> String {
 }
 
 fn calculate_confidence(result: &ServiceAnalysisResults) -> f32 {
-    let mut scores = [confidence_to_f32(result.runtime.confidence),
+    let mut scores = [
+        confidence_to_f32(result.runtime.confidence),
         confidence_to_f32(result.build.confidence),
         confidence_to_f32(result.entrypoint.confidence),
         confidence_to_f32(result.native_deps.confidence),
         confidence_to_f32(result.port.confidence),
         confidence_to_f32(result.env_vars.confidence),
         confidence_to_f32(result.health.confidence),
-        confidence_to_f32(result.cache.confidence)];
+        confidence_to_f32(result.cache.confidence),
+    ];
 
     scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
 
@@ -280,7 +281,9 @@ impl From<super::cache::Confidence> for ConfidenceValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::phases::{runtime, build, entrypoint, native_deps, port, env_vars, health, cache};
+    use crate::pipeline::phases::{
+        build, cache, entrypoint, env_vars, health, native_deps, port, runtime,
+    };
     use std::path::PathBuf;
 
     #[test]

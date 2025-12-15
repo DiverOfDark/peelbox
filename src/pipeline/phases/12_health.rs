@@ -3,12 +3,12 @@ use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::health::HealthCheckExtractor;
 use crate::fs::RealFileSystem;
-use crate::languages::LanguageRegistry;
 use crate::heuristics::HeuristicLogger;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::Result;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthInfo {
@@ -81,7 +81,10 @@ pub async fn execute(
     let context = super::extractor_helper::create_service_context(scan, service);
     let extractor = HealthCheckExtractor::with_registry(RealFileSystem, registry.clone());
     let extracted_info = extractor.extract(&context);
-    let extracted: Vec<String> = extracted_info.iter().map(|info| info.endpoint.clone()).collect();
+    let extracted: Vec<String> = extracted_info
+        .iter()
+        .map(|info| info.endpoint.clone())
+        .collect();
 
     if !extracted.is_empty() {
         let health_endpoints: Vec<HealthEndpoint> = extracted
@@ -147,7 +150,10 @@ mod tests {
         let result = try_framework_defaults(&runtime).unwrap();
         assert_eq!(result.health_endpoints.len(), 1);
         assert_eq!(result.health_endpoints[0].path, "/actuator/health");
-        assert_eq!(result.recommended_liveness, Some("/actuator/health".to_string()));
+        assert_eq!(
+            result.recommended_liveness,
+            Some("/actuator/health".to_string())
+        );
     }
 
     #[test]

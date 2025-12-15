@@ -1,8 +1,8 @@
 pub mod analysis;
 pub mod config;
 pub mod context;
-pub mod phases;
 pub mod orchestrator;
+pub mod phases;
 
 pub use analysis::{AnalysisPipeline, PipelineError};
 pub use config::PipelineConfig;

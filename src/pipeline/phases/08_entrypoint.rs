@@ -1,7 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::languages::LanguageRegistry;
 use crate::heuristics::HeuristicLogger;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -120,7 +120,7 @@ fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Opti
 mod tests {
     use super::*;
     use std::path::PathBuf;
-use std::sync::Arc;
+    use std::sync::Arc;
 
     #[test]
     fn test_build_prompt() {

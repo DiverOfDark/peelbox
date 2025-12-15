@@ -33,8 +33,8 @@ impl ScanResult {
 pub fn execute(repo_path: &Path) -> Result<ScanResult> {
     let repo_path = repo_path.to_path_buf();
 
-    let scanner = BootstrapScanner::new(repo_path.clone())
-        .context("Failed to create BootstrapScanner")?;
+    let scanner =
+        BootstrapScanner::new(repo_path.clone()).context("Failed to create BootstrapScanner")?;
 
     let bootstrap_context = scanner.scan().context("Failed to scan repository")?;
 
