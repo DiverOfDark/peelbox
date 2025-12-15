@@ -201,6 +201,22 @@ impl LanguageDefinition for PhpLanguage {
 
         false
     }
+
+    fn runtime_name(&self) -> Option<&'static str> {
+        Some("php")
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        Some(8000)
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        Some("php -S 0.0.0.0:8000 public/index.php".to_string())
+    }
+
+    fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]

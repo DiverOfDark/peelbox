@@ -1,5 +1,6 @@
 use super::scan::ScanResult;
 use super::structure::Service;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -81,65 +82,31 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<EntrypointInfo>> {
+    let registry = LanguageRegistry::new();
+    let language_def = match registry.get_by_name(&service.language) {
+        Some(def) => def,
+        None => return Ok(None),
+    };
+
     let manifest_path = scan.repo_path.join(&service.path).join(&service.manifest);
 
-    if !manifest_path.exists() {
-        return Ok(None);
-    }
-
-    if service.manifest == "package.json" {
+    if manifest_path.exists() {
         let content = std::fs::read_to_string(&manifest_path)
             .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
 
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(main) = json.get("main").and_then(|v| v.as_str()) {
-                return Ok(Some(EntrypointInfo {
-                    entrypoint: format!("node {}", main),
-                    confidence: Confidence::High,
-                }));
-            }
-
-            if let Some(scripts) = json.get("scripts") {
-                if let Some(start) = scripts.get("start").and_then(|v| v.as_str()) {
-                    return Ok(Some(EntrypointInfo {
-                        entrypoint: start.to_string(),
-                        confidence: Confidence::High,
-                    }));
-                }
-            }
+        if let Some(entrypoint) = language_def.parse_entrypoint_from_manifest(&content) {
+            return Ok(Some(EntrypointInfo {
+                entrypoint,
+                confidence: Confidence::High,
+            }));
         }
     }
 
-    match service.build_system.as_str() {
-        "cargo" => {
-            let content = std::fs::read_to_string(&manifest_path).with_context(|| {
-                format!("Failed to read manifest: {}", manifest_path.display())
-            })?;
-
-            if let Ok(toml) = toml::from_str::<toml::Value>(&content) {
-                if let Some(package) = toml.get("package") {
-                    if let Some(name) = package.get("name").and_then(|v| v.as_str()) {
-                        return Ok(Some(EntrypointInfo {
-                            entrypoint: format!("./target/release/{}", name),
-                            confidence: Confidence::High,
-                        }));
-                    }
-                }
-            }
-        }
-        "maven" | "gradle" => {
-            return Ok(Some(EntrypointInfo {
-                entrypoint: "java -jar app.jar".to_string(),
-                confidence: Confidence::Medium,
-            }));
-        }
-        "go" => {
-            return Ok(Some(EntrypointInfo {
-                entrypoint: "./app".to_string(),
-                confidence: Confidence::Medium,
-            }));
-        }
-        _ => {}
+    if let Some(entrypoint) = language_def.default_entrypoint(&service.build_system) {
+        return Ok(Some(EntrypointInfo {
+            entrypoint,
+            confidence: Confidence::Medium,
+        }));
     }
 
     Ok(None)

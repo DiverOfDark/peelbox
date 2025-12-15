@@ -1,5 +1,6 @@
 use super::scan::ScanResult;
 use super::structure::Service;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -84,29 +85,23 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {
-    match service.build_system.as_str() {
-        "cargo" => Some(BuildInfo {
-            build_cmd: Some("cargo build --release".to_string()),
-            output_dir: Some(PathBuf::from("target/release")),
-            confidence: Confidence::High,
-        }),
-        "go" => Some(BuildInfo {
-            build_cmd: Some("go build".to_string()),
-            output_dir: None,
-            confidence: Confidence::High,
-        }),
-        "gradle" => Some(BuildInfo {
-            build_cmd: Some("./gradlew build".to_string()),
-            output_dir: Some(PathBuf::from("build/libs")),
-            confidence: Confidence::High,
-        }),
-        "maven" => Some(BuildInfo {
-            build_cmd: Some("mvn package".to_string()),
-            output_dir: Some(PathBuf::from("target")),
-            confidence: Confidence::High,
-        }),
-        _ => None,
-    }
+    let registry = LanguageRegistry::new();
+    let language_def = registry.get_by_name(&service.language)?;
+
+    let template = language_def.build_template(&service.build_system)?;
+
+    let build_cmd = template.build_commands.first().cloned();
+    let output_dir = template.artifacts.first().and_then(|artifact| {
+        let path_str = artifact.replace("{project_name}", "");
+        let path = PathBuf::from(path_str);
+        path.parent().map(|p| p.to_path_buf())
+    });
+
+    Some(BuildInfo {
+        build_cmd,
+        output_dir,
+        confidence: Confidence::High,
+    })
 }
 
 fn extract_scripts_excerpt(scan: &ScanResult, service: &Service) -> Result<Option<String>> {

@@ -259,6 +259,22 @@ impl LanguageDefinition for PythonLanguage {
             (r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})", "uvicorn.run()"),
         ]
     }
+
+    fn runtime_name(&self) -> Option<&'static str> {
+        Some("python")
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        Some(8000)
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        Some("python main.py".to_string())
+    }
+
+    fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
+        None
+    }
 }
 
 impl PythonLanguage {

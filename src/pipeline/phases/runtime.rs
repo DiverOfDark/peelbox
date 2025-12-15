@@ -1,5 +1,6 @@
 use super::scan::ScanResult;
 use super::structure::Service;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -98,19 +99,10 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service) -> Option<RuntimeInfo> {
-    let runtime = match service.language.as_str() {
-        "Rust" => "rust",
-        "JavaScript" | "TypeScript" => "node",
-        "Python" => "python",
-        "Java" | "Kotlin" => "java",
-        "Go" => "go",
-        "C#" => "dotnet",
-        "Ruby" => "ruby",
-        "PHP" => "php",
-        "C++" => return None,
-        "Elixir" => return None,
-        _ => return None,
-    };
+    let registry = LanguageRegistry::new();
+    let language_def = registry.get_by_name(&service.language)?;
+
+    let runtime = language_def.runtime_name()?;
 
     Some(RuntimeInfo {
         runtime: runtime.to_string(),

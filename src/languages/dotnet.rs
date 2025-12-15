@@ -233,6 +233,22 @@ impl LanguageDefinition for DotNetLanguage {
 
         false
     }
+
+    fn runtime_name(&self) -> Option<&'static str> {
+        Some("dotnet")
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        Some(8080)
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        Some("dotnet run".to_string())
+    }
+
+    fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]

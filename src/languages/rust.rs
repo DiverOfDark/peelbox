@@ -244,6 +244,30 @@ impl LanguageDefinition for RustLanguage {
     fn default_env_vars(&self) -> Vec<&'static str> {
         vec![]
     }
+
+    fn runtime_name(&self) -> Option<&'static str> {
+        Some("rust")
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        Some(8080)
+    }
+
+    fn default_entrypoint(&self, build_system: &str) -> Option<String> {
+        match build_system {
+            "cargo" => Some("./target/release/{project_name}".to_string()),
+            _ => None,
+        }
+    }
+
+    fn parse_entrypoint_from_manifest(&self, manifest_content: &str) -> Option<String> {
+        let parsed: toml::Value = toml::from_str(manifest_content).ok()?;
+        let package_name = parsed
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())?;
+        Some(format!("./target/release/{}", package_name))
+    }
 }
 
 #[cfg(test)]

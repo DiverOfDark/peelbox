@@ -2,6 +2,7 @@ use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::port::extract_ports;
 use crate::fs::RealFileSystem;
+use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -108,16 +109,10 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service) -> Option<PortInfo> {
-    let default_port = match service.language.as_str() {
-        "JavaScript" | "TypeScript" => 3000,
-        "Java" | "Kotlin" => 8080,
-        "Python" => 8000,
-        "Go" => 8080,
-        "Rust" => 8080,
-        "Ruby" => 3000,
-        "PHP" => 8000,
-        _ => return None,
-    };
+    let registry = LanguageRegistry::new();
+    let language_def = registry.get_by_name(&service.language)?;
+
+    let default_port = language_def.default_port()?;
 
     Some(PortInfo {
         port: Some(default_port),

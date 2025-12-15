@@ -391,6 +391,34 @@ impl LanguageDefinition for JavaScriptLanguage {
             (r"port\s*:\s*(\d{4,5})", "port config"),
         ]
     }
+
+    fn runtime_name(&self) -> Option<&'static str> {
+        Some("node")
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        Some(3000)
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        None
+    }
+
+    fn parse_entrypoint_from_manifest(&self, manifest_content: &str) -> Option<String> {
+        let parsed: serde_json::Value = serde_json::from_str(manifest_content).ok()?;
+
+        if let Some(main) = parsed.get("main").and_then(|v| v.as_str()) {
+            return Some(format!("node {}", main));
+        }
+
+        if let Some(scripts) = parsed.get("scripts") {
+            if let Some(start) = scripts.get("start").and_then(|v| v.as_str()) {
+                return Some(start.to_string());
+            }
+        }
+
+        None
+    }
 }
 
 impl JavaScriptLanguage {
