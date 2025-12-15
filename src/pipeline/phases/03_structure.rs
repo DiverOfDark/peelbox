@@ -223,17 +223,10 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
             let full_path = sp.path.join(&sp.manifest);
             tracing::debug!("Full path: {}", full_path.display());
 
-            let matched = scan.bootstrap_context
-                .detections
-                .iter()
-                .find(|d| {
-                    tracing::debug!(
-                        "Checking detection: manifest_path={}",
-                        d.manifest_path
-                    );
-                    d.manifest_path == sp.manifest
-                        || d.manifest_path == full_path.to_string_lossy()
-                });
+            let matched = scan.bootstrap_context.detections.iter().find(|d| {
+                tracing::debug!("Checking detection: manifest_path={}", d.manifest_path);
+                d.manifest_path == sp.manifest || d.manifest_path == full_path.to_string_lossy()
+            });
 
             if matched.is_none() {
                 tracing::warn!(

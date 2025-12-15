@@ -120,7 +120,11 @@ impl LanguageRegistry {
     }
 
     fn matches_pattern(pattern: &str, filename: &str) -> bool {
-        tracing::debug!("Matching pattern '{}' against filename '{}'", pattern, filename);
+        tracing::debug!(
+            "Matching pattern '{}' against filename '{}'",
+            pattern,
+            filename
+        );
         let matches = if pattern.contains('*') {
             let parts: Vec<&str> = pattern.split('*').collect();
             if parts.len() == 2 {
@@ -176,7 +180,9 @@ impl LanguageRegistry {
 
     /// Check if a filename is a known manifest
     pub fn is_manifest(&self, filename: &str) -> bool {
-        self.manifest_index.keys().any(|pattern| Self::matches_pattern(pattern, filename))
+        self.manifest_index
+            .keys()
+            .any(|pattern| Self::matches_pattern(pattern, filename))
     }
 
     /// Check if a manifest is a workspace root (monorepo indicator)

@@ -67,8 +67,12 @@ pub async fn execute(
     scan: &ScanResult,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<NativeDepsInfo> {
-    let dependencies = extract_dependencies(scan, service)
-        .with_context(|| format!("Failed to extract dependencies for service at {}", service.path.display()))?;
+    let dependencies = extract_dependencies(scan, service).with_context(|| {
+        format!(
+            "Failed to extract dependencies for service at {}",
+            service.path.display()
+        )
+    })?;
 
     if let Some(deterministic) = try_deterministic(&dependencies) {
         return Ok(deterministic);

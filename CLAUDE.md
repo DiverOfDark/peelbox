@@ -42,11 +42,11 @@ The following rules are MANDATORY for CLAUDE:
 
 **aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM function calling with iterative tool execution to analyze repositories on-demand, avoiding context window limitations.
 
-**Architecture**: Tool-based detection using LLM function calling
-- LLM explores repositories iteratively using 7 specialized tools
-- Avoids passing full repository context upfront
-- Scales to large repositories without exceeding context windows
-- LLM requests only the files it needs for accurate detection
+**Architecture**: Multi-phase pipeline with deterministic analysis
+- 9-phase sequential pipeline orchestrated by code, not LLM
+- Deterministic parsers for known formats (package.json, Cargo.toml, etc.)
+- LLM used only for unknowns with minimal context (~150-500 tokens per prompt)
+- Scales to large repositories with predictable token usage (1k-6k total)
 
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
@@ -177,18 +177,37 @@ aipack/
 │   │   ├── mod.rs
 │   │   ├── validator.rs     # Validator
 │   │   └── rules.rs         # ValidationRule trait + implementations
-│   ├── tools/               # Tool system
+│   ├── extractors/          # Code-based extraction
 │   │   ├── mod.rs
-│   │   ├── trait_def.rs     # Tool trait
-│   │   ├── implementations.rs # Tool implementations (list_files, read_file, etc.)
-│   │   ├── registry.rs      # ToolRegistry
-│   │   ├── cache.rs         # ToolCache
-│   │   └── system.rs        # ToolSystem facade
+│   │   ├── registry.rs      # ExtractorRegistry
+│   │   ├── port.rs          # Port extractor
+│   │   ├── env_vars.rs      # Environment variable extractor
+│   │   └── health.rs        # Health check extractor
+│   ├── heuristics/          # Heuristic logging
+│   │   ├── mod.rs
+│   │   └── logger.rs        # HeuristicLogger (JSONL)
 │   ├── pipeline/            # Analysis pipeline
 │   │   ├── mod.rs
 │   │   ├── config.rs        # PipelineConfig
 │   │   ├── context.rs       # PipelineContext (owns dependencies)
-│   │   └── analysis.rs      # AnalysisPipeline orchestrator
+│   │   ├── orchestrator.rs  # PipelineOrchestrator (9-phase pipeline)
+│   │   └── phases/          # Pipeline phases
+│   │       ├── mod.rs
+│   │       ├── scan.rs      # Phase 1: Scan
+│   │       ├── classify.rs  # Phase 2: Classify
+│   │       ├── structure.rs # Phase 3: Structure
+│   │       ├── dependencies.rs # Phase 4: Dependencies
+│   │       ├── build_order.rs  # Phase 5: Build Order
+│   │       ├── runtime.rs   # Phase 6a: Runtime
+│   │       ├── build.rs     # Phase 6b: Build
+│   │       ├── entrypoint.rs # Phase 6c: Entrypoint
+│   │       ├── native_deps.rs # Phase 6d: Native Dependencies
+│   │       ├── port.rs      # Phase 6e: Port
+│   │       ├── env_vars.rs  # Phase 6f: Environment Variables
+│   │       ├── health.rs    # Phase 6g: Health Check
+│   │       ├── cache.rs     # Phase 7: Cache
+│   │       ├── root_cache.rs # Phase 8: Root Cache
+│   │       └── assemble.rs  # Phase 9: Assemble
 │   ├── detection/           # Detection service
 │   │   ├── mod.rs
 │   │   ├── service.rs       # DetectionService (public API)
@@ -229,35 +248,46 @@ aipack/
 └── CLAUDE.md                # This file
 ```
 
-## Tool-Based Detection Architecture
+## Phase-Based Pipeline Architecture
 
-aipack uses LLM function calling to analyze repositories iteratively instead of passing all context upfront.
+aipack uses a 9-phase sequential pipeline where code orchestrates the workflow and LLMs are used only for unknowns.
 
-### How It Works
+### Pipeline Phases
 
-1. **LLM receives system prompt** explaining available tools
-2. **Iterative exploration**: LLM calls tools to explore the repository
-3. **On-demand file reading**: Only requested files are read and sent to LLM
-4. **Final submission**: LLM calls `submit_detection` with the result
+```
+1. Scan          → Pre-scan repository using BootstrapScanner
+2. Classify      → Identify if monorepo or single project (LLM)
+3. Structure     → Detect project structure and layout (LLM)
+4. Dependencies  → Parse dependency graphs (deterministic + LLM fallback)
+5. Build Order   → Topological sort of build dependencies (deterministic)
+6. Service Analysis (per service):
+   6a. Runtime   → Detect language/framework runtime (LLM)
+   6b. Build     → Extract build commands (LLM)
+   6c. Entrypoint→ Find application entrypoint (LLM)
+   6d. Native Deps→ Identify system packages needed (LLM)
+   6e. Port      → Discover exposed ports (deterministic + LLM)
+   6f. Env Vars  → Extract environment variables (deterministic + LLM)
+   6g. Health    → Find health check endpoints (deterministic + LLM)
+7. Cache         → Map cache directories by build system (deterministic)
+8. Root Cache    → Detect monorepo root cache (deterministic)
+9. Assemble      → Combine results into UniversalBuild (deterministic)
+```
 
-### Available Tools
+### Key Design Principles
 
-| Tool | Purpose | Example Use |
-|------|---------|-------------|
-| `list_files` | List directory contents with optional glob filtering | Find all `package.json` files |
-| `read_file` | Read file contents with size limits | Read `Cargo.toml` to confirm Rust project |
-| `search_files` | Search for files by name pattern | Find all `*.gradle` files |
-| `get_file_tree` | Get tree view of directory structure | Understand repository layout |
-| `grep_content` | Search file contents with regex | Find `"scripts"` in package.json files |
-| `get_best_practices` | Get language-specific build template | Retrieve best practices for cargo/Rust |
-| `submit_detection` | Submit final UniversalBuild result | Return complete build specification |
+- **Code-Driven**: Pipeline orchestration is deterministic, not LLM-controlled
+- **Minimal Context**: Each LLM prompt uses <500 tokens (vs 10k-50k in tool-based approach)
+- **Deterministic First**: Use parsers for known formats, LLM only for unknowns
+- **Sequential Execution**: Simple linear processing (no async complexity)
+- **Heuristic Logging**: All LLM calls logged for future optimization
 
 ### Benefits
 
-- **Scalability**: Works with large repositories without exceeding context windows
-- **Efficiency**: LLM only requests files it needs
-- **Accuracy**: Can explore deeply when needed
-- **Flexibility**: Adapts to any project structure
+- **85-95% token reduction**: From 10k-50k to 1k-6k tokens per detection
+- **Supports smallest models**: 8k context sufficient (enables 0.5B-1.5B models)
+- **Predictable cost**: Fixed max LLM calls (7-9 prompts vs unbounded iteration)
+- **Debuggable**: Each phase has clear input/output
+- **Deterministic cache detection**: Build system knowledge, not LLM guessing
 
 ## Using the Detection Service
 
@@ -555,14 +585,21 @@ pub trait LLMClient: Send + Sync {
 }
 ```
 
-All LLM integrations implement this trait, providing pluggable backends with tool calling support.
+All LLM integrations implement this trait, providing pluggable backends.
 
 #### 2. Pipeline Architecture
-The detection pipeline consists of several phases:
-- **Bootstrap** - Pre-scan repository to detect languages and manifests
-- **Tool Execution** - LLM iteratively explores using available tools
-- **Validation** - Validate UniversalBuild output for correctness
-- **Assembly** - Return final build specification(s)
+The detection pipeline consists of 9 sequential phases:
+- **Phase 1: Scan** - Pre-scan repository using BootstrapScanner
+- **Phase 2: Classify** - Identify if monorepo or single project (LLM)
+- **Phase 3: Structure** - Detect project structure (LLM)
+- **Phase 4: Dependencies** - Parse dependency graphs (deterministic + LLM fallback)
+- **Phase 5: Build Order** - Topological sort (deterministic)
+- **Phase 6: Service Analysis** - Per-service analysis with 7 sub-phases (runtime, build, entrypoint, native deps, port, env vars, health)
+- **Phase 7: Cache** - Map cache directories by build system (deterministic)
+- **Phase 8: Root Cache** - Detect monorepo root cache (deterministic)
+- **Phase 9: Assemble** - Combine results into UniversalBuild (deterministic)
+
+See `src/pipeline/orchestrator.rs` for implementation details.
 
 #### 3. UniversalBuild Output
 Multi-stage container build specification containing:
@@ -627,11 +664,6 @@ AIPACK_CACHE_DIR=/tmp/aipack-cache
 AIPACK_REQUEST_TIMEOUT=60          # Request timeout in seconds
 AIPACK_MAX_CONTEXT_SIZE=512000     # Maximum context size in tokens
 AIPACK_MAX_TOKENS=8192             # Max tokens per LLM response (default: 8192, min: 512, max: 128000)
-
-# Tool execution configuration
-AIPACK_MAX_TOOL_ITERATIONS=10      # Max conversation iterations (default: 10, max: 50)
-AIPACK_TOOL_TIMEOUT=30             # Tool execution timeout in seconds (default: 30, max: 300)
-AIPACK_MAX_FILE_SIZE=1048576       # Max file size to read in bytes (default: 1MB, max: 10MB)
 
 # Logging
 AIPACK_LOG_LEVEL=info              # "trace", "debug", "info", "warn", or "error"
@@ -728,9 +760,6 @@ pub struct AipackConfig {
     pub request_timeout_secs: u64,
     pub max_context_size: usize,
     pub log_level: String,
-    pub max_tool_iterations: usize,      // Max iterations for tool-based detection
-    pub tool_timeout_secs: u64,          // Timeout for individual tool executions
-    pub max_file_size_bytes: usize,      // Max file size for read_file tool
 }
 ```
 
