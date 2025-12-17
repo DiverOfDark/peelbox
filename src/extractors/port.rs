@@ -101,23 +101,14 @@ impl<F: FileSystem> PortExtractor<F> {
         ports: &mut Vec<PortInfo>,
         seen: &mut HashSet<u16>,
     ) {
-        let entries = match self.fs.read_dir(dir_path) {
-            Ok(e) => e,
-            Err(_) => return,
-        };
-
-        for entry in entries {
-            if entry.file_type() != crate::fs::FileType::File {
-                continue;
-            }
-
-            let file_path = entry.path();
-            if !lang.is_main_file(&self.fs, file_path) {
-                continue;
-            }
-
-            self.extract_ports_from_file(file_path, patterns, ports, seen);
-        }
+        crate::extractors::common::scan_directory_with_language_filter(
+            &self.fs,
+            dir_path,
+            lang,
+            |file_path| {
+                self.extract_ports_from_file(file_path, patterns, ports, seen);
+            },
+        );
     }
 
     fn extract_ports_from_file(

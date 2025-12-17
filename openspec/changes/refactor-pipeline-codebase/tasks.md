@@ -34,13 +34,13 @@
 - [x] 3.11 Remove `intermediate_responses` field from `src/llm/recording.rs` (always empty vec, never used)
 - [x] 3.12 Run `cargo check` - passed
 
-### 4. Extractor Consolidation (1-2 hours)
-- [ ] 4.1 Create `src/extractors/common.rs` with shared scanning logic
-- [ ] 4.2 Extract `scan_directory_with_patterns<F>()` function for common pattern
-- [ ] 4.3 Update `src/extractors/port.rs` to use common scanning
-- [ ] 4.4 Update `src/extractors/env_vars.rs` to use common scanning
-- [ ] 4.5 Update `src/extractors/health.rs` to use common scanning
-- [ ] 4.6 Run `cargo test` to validate extractor behavior unchanged
+### 4. Extractor Consolidation (1-2 hours) ✅
+- [x] 4.1 Create `src/extractors/common.rs` with shared scanning logic
+- [x] 4.2 Extract `scan_directory_with_language_filter<F>()` function for common pattern
+- [x] 4.3 Update `src/extractors/port.rs` to use common scanning
+- [x] 4.4 Update `src/extractors/env_vars.rs` to use common scanning
+- [x] 4.5 Update `src/extractors/health.rs` to use common scanning
+- [x] 4.6 Run `cargo test` to validate extractor behavior unchanged (41 tests passed)
 
 ### 5. Registry Optimization (1 hour)
 - [ ] 5.1 Replace O(n²) deduplication in `src/languages/registry.rs` with HashSet (O(n))

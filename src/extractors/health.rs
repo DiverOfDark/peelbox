@@ -93,23 +93,14 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
         health_checks: &mut Vec<HealthCheckInfo>,
         seen: &mut HashSet<String>,
     ) {
-        let entries = match self.fs.read_dir(dir_path) {
-            Ok(e) => e,
-            Err(_) => return,
-        };
-
-        for entry in entries {
-            if entry.file_type() != crate::fs::FileType::File {
-                continue;
-            }
-
-            let file_path = entry.path();
-            if !lang.is_main_file(&self.fs, file_path) {
-                continue;
-            }
-
-            self.extract_health_checks_from_file(file_path, patterns, health_checks, seen);
-        }
+        crate::extractors::common::scan_directory_with_language_filter(
+            &self.fs,
+            dir_path,
+            lang,
+            |file_path| {
+                self.extract_health_checks_from_file(file_path, patterns, health_checks, seen);
+            },
+        );
     }
 
     fn extract_health_checks_from_file(

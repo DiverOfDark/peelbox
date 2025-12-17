@@ -4,6 +4,7 @@
 // runtime information like ports, environment variables, and health endpoints
 // without requiring LLM inference.
 
+pub mod common;
 pub mod context;
 pub mod env_vars;
 pub mod health;
