@@ -1,4 +1,5 @@
 use super::structure::{MonorepoTool, StructureResult};
+use crate::pipeline::Confidence;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -8,13 +9,6 @@ pub struct RootCacheInfo {
     pub confidence: Confidence,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Confidence {
-    High,
-    Medium,
-    Low,
-}
 
 pub fn execute(structure: &StructureResult) -> RootCacheInfo {
     let root_cache_dirs = match &structure.monorepo_tool {
@@ -45,7 +39,7 @@ pub fn execute(structure: &StructureResult) -> RootCacheInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::phases::classify::Confidence as StructConfidence;
+    use crate::pipeline::Confidence;
     use crate::pipeline::phases::structure::ProjectType;
 
     #[test]
@@ -55,7 +49,7 @@ mod tests {
             monorepo_tool: Some(MonorepoTool::PnpmWorkspaces),
             services: vec![],
             packages: vec![],
-            confidence: StructConfidence::High,
+            confidence: Confidence::High,
         };
 
         let result = execute(&structure);
@@ -75,7 +69,7 @@ mod tests {
             monorepo_tool: Some(MonorepoTool::CargoWorkspace),
             services: vec![],
             packages: vec![],
-            confidence: StructConfidence::High,
+            confidence: Confidence::High,
         };
 
         let result = execute(&structure);
@@ -90,7 +84,7 @@ mod tests {
             monorepo_tool: Some(MonorepoTool::Turborepo),
             services: vec![],
             packages: vec![],
-            confidence: StructConfidence::High,
+            confidence: Confidence::High,
         };
 
         let result = execute(&structure);
@@ -107,7 +101,7 @@ mod tests {
             monorepo_tool: None,
             services: vec![],
             packages: vec![],
-            confidence: StructConfidence::High,
+            confidence: Confidence::High,
         };
 
         let result = execute(&structure);
@@ -122,7 +116,7 @@ mod tests {
             monorepo_tool: Some(MonorepoTool::Nx),
             services: vec![],
             packages: vec![],
-            confidence: StructConfidence::High,
+            confidence: Confidence::High,
         };
 
         let result = execute(&structure);

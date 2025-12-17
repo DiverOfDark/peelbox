@@ -6,6 +6,7 @@ use crate::fs::RealFileSystem;
 use crate::heuristics::HeuristicLogger;
 use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
+use crate::pipeline::Confidence;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -24,13 +25,6 @@ pub struct HealthEndpoint {
     pub method: String,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Confidence {
-    High,
-    Medium,
-    Low,
-}
 
 fn build_prompt(service: &Service, runtime: &RuntimeInfo, extracted: &[String]) -> String {
     format!(
@@ -144,7 +138,7 @@ mod tests {
             runtime: "java".to_string(),
             runtime_version: None,
             framework: Some("spring-boot".to_string()),
-            confidence: super::super::runtime::Confidence::High,
+            confidence: crate::pipeline::Confidence::High,
         };
 
         let result = try_framework_defaults(&runtime).unwrap();
@@ -169,7 +163,7 @@ mod tests {
             runtime: "node".to_string(),
             runtime_version: None,
             framework: Some("express".to_string()),
-            confidence: super::super::runtime::Confidence::High,
+            confidence: crate::pipeline::Confidence::High,
         };
 
         let extracted = vec!["/health".to_string(), "/api/status".to_string()];

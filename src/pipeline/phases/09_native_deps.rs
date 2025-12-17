@@ -2,6 +2,7 @@ use super::scan::ScanResult;
 use super::structure::Service;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
+use crate::pipeline::Confidence;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -15,13 +16,6 @@ pub struct NativeDepsInfo {
     pub confidence: Confidence,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Confidence {
-    High,
-    Medium,
-    Low,
-}
 
 fn build_prompt(service: &Service, dependencies: &[String]) -> String {
     format!(

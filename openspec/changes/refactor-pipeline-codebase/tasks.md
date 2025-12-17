@@ -59,14 +59,14 @@
 - [x] 6.5 Add `ignore = "0.4"` dependency to `Cargo.toml` (industry-standard gitignore support)
 - [x] 6.6 Run `cargo test` to validate scanner behavior (all 9 scanner tests passed, now supports wildcards)
 
-### 7. Confidence Consolidation (1 hour)
-- [ ] 7.1 Create `src/pipeline/confidence.rs` with shared Confidence enum
-- [ ] 7.2 Update all 11 pipeline phase files to `use crate::pipeline::confidence::Confidence`
-- [ ] 7.3 Remove local Confidence enum definitions from each phase file
-- [ ] 7.4 Remove conversion boilerplate from `src/pipeline/phases/15_assemble.rs`
-- [ ] 7.5 Update `src/pipeline/mod.rs` exports
-- [ ] 7.6 Run `cargo check` to verify all references updated
-- [ ] 7.7 Run `cargo test` to ensure behavior unchanged
+### 7. Confidence Consolidation (1 hour) ✅
+- [x] 7.1 Create `src/pipeline/confidence.rs` with shared Confidence enum (with to_f64() and to_f32() methods)
+- [x] 7.2 Update all 11 pipeline phase files to `use crate::pipeline::confidence::Confidence`
+- [x] 7.3 Remove local Confidence enum definitions from each phase file (10 duplicates removed)
+- [x] 7.4 Remove conversion boilerplate from `src/pipeline/phases/15_assemble.rs` (~103 lines removed)
+- [x] 7.5 Update `src/pipeline/mod.rs` exports
+- [x] 7.6 Run `cargo check` to verify all references updated (passed)
+- [x] 7.7 Run `cargo test` to ensure behavior unchanged (394 tests passed)
 
 ## Phase B: Architectural (8-12 hours)
 

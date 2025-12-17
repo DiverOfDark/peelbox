@@ -166,14 +166,14 @@ fn extract_project_name(service: &Service) -> String {
 
 fn calculate_confidence(result: &ServiceAnalysisResults) -> f32 {
     let mut scores = [
-        confidence_to_f32(result.runtime.confidence),
-        confidence_to_f32(result.build.confidence),
-        confidence_to_f32(result.entrypoint.confidence),
-        confidence_to_f32(result.native_deps.confidence),
-        confidence_to_f32(result.port.confidence),
-        confidence_to_f32(result.env_vars.confidence),
-        confidence_to_f32(result.health.confidence),
-        confidence_to_f32(result.cache.confidence),
+        result.runtime.confidence.to_f32(),
+        result.build.confidence.to_f32(),
+        result.entrypoint.confidence.to_f32(),
+        result.native_deps.confidence.to_f32(),
+        result.port.confidence.to_f32(),
+        result.env_vars.confidence.to_f32(),
+        result.health.confidence.to_f32(),
+        result.cache.confidence.to_f32(),
     ];
 
     scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
@@ -181,109 +181,10 @@ fn calculate_confidence(result: &ServiceAnalysisResults) -> f32 {
     scores.iter().take(5).sum::<f32>() / 5.0
 }
 
-fn confidence_to_f32<T>(conf: T) -> f32
-where
-    T: Into<ConfidenceValue>,
-{
-    match conf.into() {
-        ConfidenceValue::High => 0.95,
-        ConfidenceValue::Medium => 0.7,
-        ConfidenceValue::Low => 0.4,
-    }
-}
-
-enum ConfidenceValue {
-    High,
-    Medium,
-    Low,
-}
-
-impl From<super::runtime::Confidence> for ConfidenceValue {
-    fn from(c: super::runtime::Confidence) -> Self {
-        match c {
-            super::runtime::Confidence::High => ConfidenceValue::High,
-            super::runtime::Confidence::Medium => ConfidenceValue::Medium,
-            super::runtime::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::build::Confidence> for ConfidenceValue {
-    fn from(c: super::build::Confidence) -> Self {
-        match c {
-            super::build::Confidence::High => ConfidenceValue::High,
-            super::build::Confidence::Medium => ConfidenceValue::Medium,
-            super::build::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::entrypoint::Confidence> for ConfidenceValue {
-    fn from(c: super::entrypoint::Confidence) -> Self {
-        match c {
-            super::entrypoint::Confidence::High => ConfidenceValue::High,
-            super::entrypoint::Confidence::Medium => ConfidenceValue::Medium,
-            super::entrypoint::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::native_deps::Confidence> for ConfidenceValue {
-    fn from(c: super::native_deps::Confidence) -> Self {
-        match c {
-            super::native_deps::Confidence::High => ConfidenceValue::High,
-            super::native_deps::Confidence::Medium => ConfidenceValue::Medium,
-            super::native_deps::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::port::Confidence> for ConfidenceValue {
-    fn from(c: super::port::Confidence) -> Self {
-        match c {
-            super::port::Confidence::High => ConfidenceValue::High,
-            super::port::Confidence::Medium => ConfidenceValue::Medium,
-            super::port::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::env_vars::Confidence> for ConfidenceValue {
-    fn from(c: super::env_vars::Confidence) -> Self {
-        match c {
-            super::env_vars::Confidence::High => ConfidenceValue::High,
-            super::env_vars::Confidence::Medium => ConfidenceValue::Medium,
-            super::env_vars::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::health::Confidence> for ConfidenceValue {
-    fn from(c: super::health::Confidence) -> Self {
-        match c {
-            super::health::Confidence::High => ConfidenceValue::High,
-            super::health::Confidence::Medium => ConfidenceValue::Medium,
-            super::health::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
-impl From<super::cache::Confidence> for ConfidenceValue {
-    fn from(c: super::cache::Confidence) -> Self {
-        match c {
-            super::cache::Confidence::High => ConfidenceValue::High,
-            super::cache::Confidence::Medium => ConfidenceValue::Medium,
-            super::cache::Confidence::Low => ConfidenceValue::Low,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::phases::{
-        build, cache, entrypoint, env_vars, health, native_deps, port, runtime,
-    };
+    use crate::pipeline::Confidence;
     use std::path::PathBuf;
 
     #[test]
@@ -325,43 +226,43 @@ mod tests {
                 runtime: "node".to_string(),
                 runtime_version: None,
                 framework: None,
-                confidence: runtime::Confidence::High,
+                confidence: Confidence::High,
             },
             build: BuildInfo {
                 build_cmd: Some("npm run build".to_string()),
                 output_dir: Some(PathBuf::from("dist")),
-                confidence: build::Confidence::High,
+                confidence: Confidence::High,
             },
             entrypoint: EntrypointInfo {
                 entrypoint: "node dist/main.js".to_string(),
-                confidence: entrypoint::Confidence::High,
+                confidence: Confidence::High,
             },
             native_deps: NativeDepsInfo {
                 needs_build_deps: false,
                 has_native_modules: false,
                 has_prisma: false,
                 native_deps: vec![],
-                confidence: native_deps::Confidence::High,
+                confidence: Confidence::High,
             },
             port: PortInfo {
                 port: Some(3000),
                 from_env: false,
                 env_var: None,
-                confidence: port::Confidence::High,
+                confidence: Confidence::High,
             },
             env_vars: EnvVarsInfo {
                 env_vars: vec![],
-                confidence: env_vars::Confidence::High,
+                confidence: Confidence::High,
             },
             health: HealthInfo {
                 health_endpoints: vec![],
                 recommended_liveness: None,
                 recommended_readiness: None,
-                confidence: health::Confidence::High,
+                confidence: Confidence::High,
             },
             cache: CacheInfo {
                 cache_dirs: vec![],
-                confidence: cache::Confidence::High,
+                confidence: Confidence::High,
             },
         };
 

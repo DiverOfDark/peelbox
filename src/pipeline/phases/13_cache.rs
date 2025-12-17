@@ -1,4 +1,5 @@
 use super::structure::Service;
+use crate::pipeline::Confidence;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -8,13 +9,6 @@ pub struct CacheInfo {
     pub confidence: Confidence,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Confidence {
-    High,
-    Medium,
-    Low,
-}
 
 pub fn execute(service: &Service) -> CacheInfo {
     let cache_dirs = match service.build_system.as_str() {

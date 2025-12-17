@@ -1,6 +1,7 @@
 use super::scan::ScanResult;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
+use crate::pipeline::Confidence;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -26,13 +27,6 @@ pub struct PackagePath {
     pub manifest: String,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum Confidence {
-    High,
-    Medium,
-    Low,
-}
 
 fn build_prompt(scan: &ScanResult) -> String {
     let manifest_list: Vec<String> = scan

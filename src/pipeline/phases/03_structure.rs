@@ -1,4 +1,5 @@
-use super::classify::{ClassifyResult, Confidence, PackagePath, ServicePath};
+use super::classify::{ClassifyResult, PackagePath, ServicePath};
+use crate::pipeline::Confidence;
 use super::scan::ScanResult;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
