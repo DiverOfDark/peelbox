@@ -3,7 +3,6 @@ use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatte
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
 use aipack::llm::{select_llm_client, RecordingLLMClient, RecordingMode};
-use aipack::progress::{LoggingHandler, ProgressHandler};
 use aipack::VERSION;
 use genai::adapter::AdapterKind;
 
@@ -259,14 +258,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
     info!("Analyzing repository: {}", repo_path.display());
 
-    let progress: Option<Arc<dyn ProgressHandler>> = if verbose {
-        Some(Arc::new(LoggingHandler))
-    } else {
-        None
-    };
-
     let results = match service
-        .detect_with_progress(repo_path.clone(), progress)
+        .detect_with_progress(repo_path.clone(), verbose)
         .await
     {
         Ok(r) => r,

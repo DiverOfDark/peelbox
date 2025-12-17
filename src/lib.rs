@@ -19,8 +19,8 @@ pub use languages::{LanguageDefinition, LanguageRegistry};
 pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
-pub use progress::{LoggingHandler, NoOpHandler, ProgressEvent, ProgressHandler};
-pub use validation::{ValidationRule, Validator};
+pub use progress::{LoggingHandler, ProgressEvent};
+pub use validation::Validator;
 
 pub fn init_default() {
     use std::sync::Once;

@@ -1,7 +1,7 @@
 use crate::llm::BackendError;
 use crate::llm::LLMClient;
 use crate::output::UniversalBuild;
-use crate::progress::ProgressHandler;
+use crate::progress::LoggingHandler;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -211,13 +211,13 @@ impl DetectionService {
     }
 
     pub async fn detect(&self, repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError> {
-        self.detect_with_progress(repo_path, None).await
+        self.detect_with_progress(repo_path, false).await
     }
 
     pub async fn detect_with_progress(
         &self,
         repo_path: PathBuf,
-        progress: Option<Arc<dyn ProgressHandler>>,
+        enable_progress: bool,
     ) -> Result<Vec<UniversalBuild>, ServiceError> {
         let start = Instant::now();
 
@@ -228,11 +228,11 @@ impl DetectionService {
         use crate::heuristics::HeuristicLogger;
         use crate::pipeline::PipelineOrchestrator;
 
-        let orchestrator = if let Some(progress_handler) = progress {
+        let orchestrator = if enable_progress {
             let heuristic_logger = Arc::new(HeuristicLogger::disabled());
             PipelineOrchestrator::with_heuristic_logger(
                 self.client.clone(),
-                progress_handler,
+                Some(LoggingHandler),
                 heuristic_logger,
             )
         } else {

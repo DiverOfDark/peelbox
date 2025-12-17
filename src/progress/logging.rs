@@ -1,14 +1,13 @@
 //! Logging-based progress handler
 
-use super::{ProgressEvent, ProgressHandler};
+use super::ProgressEvent;
 use tracing::{debug, info, warn};
 
-/// Handler that logs progress events using tracing
 #[derive(Debug, Default, Clone, Copy)]
 pub struct LoggingHandler;
 
-impl ProgressHandler for LoggingHandler {
-    fn on_progress(&self, event: &ProgressEvent) {
+impl LoggingHandler {
+    pub fn on_progress(&self, event: &ProgressEvent) {
         match event {
             ProgressEvent::Started { repo_path } => {
                 info!(repo = %repo_path, "Starting detection");
@@ -137,7 +136,6 @@ mod tests {
     #[test]
     fn test_logging_handler_creation() {
         let handler = LoggingHandler;
-        // Should not panic
         handler.on_progress(&ProgressEvent::Started {
             repo_path: "/test".to_string(),
         });
@@ -147,7 +145,6 @@ mod tests {
     fn test_logging_all_events() {
         let handler = LoggingHandler;
 
-        // Test all event types to ensure they don't panic
         let events = vec![
             ProgressEvent::Started {
                 repo_path: "/test".to_string(),

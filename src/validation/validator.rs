@@ -1,46 +1,39 @@
 use crate::output::schema::UniversalBuild;
 use crate::validation::rules::{
-    ConfidenceRangeRule, NonEmptyArtifactsRule, NonEmptyCommandsRule, NonEmptyContextRule,
-    RequiredFieldsRule, ValidCopySpecsRule, ValidImageNameRule, ValidationRule,
+    validate_confidence_range, validate_non_empty_artifacts, validate_non_empty_commands,
+    validate_non_empty_context, validate_required_fields, validate_valid_copy_specs,
+    validate_valid_image_name,
 };
 use anyhow::Result;
 
-pub struct Validator {
-    rules: Vec<Box<dyn ValidationRule>>,
-}
+pub struct Validator;
 
 impl Validator {
     pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn with_rules(rules: Vec<Box<dyn ValidationRule>>) -> Self {
-        Self { rules }
+        Self
     }
 
     pub fn validate(&self, build: &UniversalBuild) -> Result<()> {
-        for rule in &self.rules {
-            if let Err(e) = rule.validate(build) {
-                anyhow::bail!("[{}] {}", rule.name(), e);
-            }
-        }
+        validate_required_fields(build).map_err(|e| anyhow::anyhow!("[RequiredFields] {}", e))?;
+        validate_non_empty_commands(build)
+            .map_err(|e| anyhow::anyhow!("[NonEmptyCommands] {}", e))?;
+        validate_valid_image_name(build)
+            .map_err(|e| anyhow::anyhow!("[ValidImageName] {}", e))?;
+        validate_confidence_range(build)
+            .map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
+        validate_non_empty_context(build)
+            .map_err(|e| anyhow::anyhow!("[NonEmptyContext] {}", e))?;
+        validate_non_empty_artifacts(build)
+            .map_err(|e| anyhow::anyhow!("[NonEmptyArtifacts] {}", e))?;
+        validate_valid_copy_specs(build)
+            .map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
         Ok(())
     }
 }
 
 impl Default for Validator {
     fn default() -> Self {
-        Self {
-            rules: vec![
-                Box::new(RequiredFieldsRule),
-                Box::new(NonEmptyCommandsRule),
-                Box::new(ValidImageNameRule),
-                Box::new(ConfidenceRangeRule),
-                Box::new(NonEmptyContextRule),
-                Box::new(NonEmptyArtifactsRule),
-                Box::new(ValidCopySpecsRule),
-            ],
-        }
+        Self::new()
     }
 }
 

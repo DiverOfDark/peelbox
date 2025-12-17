@@ -3,5 +3,5 @@
 mod handler;
 mod logging;
 
-pub use handler::{NoOpHandler, ProgressEvent, ProgressHandler};
+pub use handler::ProgressEvent;
 pub use logging::LoggingHandler;
