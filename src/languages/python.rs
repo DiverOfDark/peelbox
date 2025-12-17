@@ -1,8 +1,8 @@
 //! Python language definition (pip, poetry, pipenv)
 
 use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
+    parsers::{DependencyParser, RegexDependencyParser},
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition,
 };
 use regex::Regex;
 use std::collections::HashSet;
@@ -170,10 +170,6 @@ impl LanguageDefinition for PythonLanguage {
         ]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
-        vec![]
-    }
-
     fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![
             (r"@app\.route.*:(\d{4,5})", "Flask route decorator"),
@@ -249,50 +245,12 @@ impl PythonLanguage {
     }
 
     fn parse_requirements_txt(&self, content: &str) -> DependencyInfo {
-        let mut external_deps = Vec::new();
-        let mut seen = HashSet::new();
-
-        let dep_re = Regex::new(r"^([a-zA-Z0-9_-]+)(?:==|>=|<=|~=|!=)?([^\s#]*)").ok();
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('-') {
-                continue;
-            }
-
-            if let Some(ref re) = dep_re {
-                if let Some(caps) = re.captures(trimmed) {
-                    if let Some(name) = caps.get(1) {
-                        let name_str = name.as_str().to_string();
-                        if seen.contains(&name_str) {
-                            continue;
-                        }
-                        seen.insert(name_str.clone());
-
-                        let version = caps.get(2).and_then(|v| {
-                            let s = v.as_str().trim();
-                            if s.is_empty() {
-                                None
-                            } else {
-                                Some(s.to_string())
-                            }
-                        });
-
-                        external_deps.push(Dependency {
-                            name: name_str,
-                            version,
-                            is_internal: false,
-                        });
-                    }
-                }
-            }
+        let dep_re = Regex::new(r"^([a-zA-Z0-9_-]+)(?:==|>=|<=|~=|!=)?([^\s#]*)").unwrap();
+        RegexDependencyParser {
+            line_pattern: dep_re,
+            internal_check: |_name, _paths| false,
         }
-
-        DependencyInfo {
-            internal_deps: vec![],
-            external_deps,
-            detected_by: DetectionMethod::Deterministic,
-        }
+        .parse(content, &[])
     }
 }
 

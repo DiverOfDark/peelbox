@@ -185,10 +185,6 @@ impl LanguageDefinition for JavaLanguage {
         vec![("/actuator/health", "Spring Boot")]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
-        vec![]
-    }
-
     fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
         if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
             if file_name.ends_with("Application.java") || file_name.ends_with("Application.kt") {

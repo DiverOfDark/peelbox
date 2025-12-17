@@ -146,14 +146,6 @@ impl LanguageDefinition for PhpLanguage {
         ]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
-    }
-
-    fn default_env_vars(&self) -> Vec<&'static str> {
-        vec![]
-    }
-
     fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
         if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
             if file_name == "index.php" {

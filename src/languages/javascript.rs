@@ -1,11 +1,12 @@
 //! JavaScript/TypeScript language definition (npm, yarn, pnpm, bun)
 
 use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
+    parsers::{DependencyParser, JsonDependencyParser},
+    DependencyInfo, DetectionResult, LanguageDefinition,
 };
+#[cfg(test)]
+use super::DetectionMethod;
 use regex::Regex;
-use std::collections::HashSet;
 
 pub struct JavaScriptLanguage;
 
@@ -160,95 +161,11 @@ impl LanguageDefinition for JavaScriptLanguage {
         manifest_content: &str,
         all_internal_paths: &[std::path::PathBuf],
     ) -> DependencyInfo {
-        let parsed: serde_json::Value = match serde_json::from_str(manifest_content) {
-            Ok(v) => v,
-            Err(_) => return DependencyInfo::empty(),
-        };
-
-        let mut internal_deps = Vec::new();
-        let mut external_deps = Vec::new();
-        let mut seen = HashSet::new();
-
-        // Extract dependencies and devDependencies
-        for dep_type in &["dependencies", "devDependencies", "peerDependencies"] {
-            if let Some(deps) = parsed.get(dep_type).and_then(|v| v.as_object()) {
-                for (name, version) in deps {
-                    if seen.contains(name) {
-                        continue;
-                    }
-                    seen.insert(name.clone());
-
-                    let version_str = version.as_str().map(|s| s.to_string());
-
-                    // Check if it's a workspace reference (file:, workspace:, link:)
-                    let is_internal = if let Some(v) = version_str.as_deref() {
-                        v.starts_with("file:")
-                            || v.starts_with("workspace:")
-                            || v.starts_with("link:")
-                    } else {
-                        false
-                    };
-
-                    let dep = Dependency {
-                        name: name.clone(),
-                        version: version_str,
-                        is_internal,
-                    };
-
-                    if is_internal {
-                        internal_deps.push(dep);
-                    } else {
-                        external_deps.push(dep);
-                    }
-                }
-            }
+        JsonDependencyParser {
+            dependencies_keys: &["dependencies", "devDependencies", "peerDependencies"],
+            workspace_key: Some("workspaces"),
         }
-
-        // Check for workspace packages
-        if let Some(workspaces) = parsed.get("workspaces") {
-            let workspace_patterns: Vec<String> = if let Some(arr) = workspaces.as_array() {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            } else if let Some(obj) = workspaces.as_object() {
-                if let Some(packages) = obj.get("packages").and_then(|v| v.as_array()) {
-                    packages
-                        .iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                } else {
-                    vec![]
-                }
-            } else {
-                vec![]
-            };
-
-            // Match workspace patterns against internal paths
-            for pattern in workspace_patterns {
-                for path in all_internal_paths {
-                    let path_str = path.display().to_string();
-                    if self.matches_workspace_pattern(&path_str, &pattern) {
-                        // Extract package name from path (e.g., "packages/foo" -> "foo")
-                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                            if !seen.contains(name) {
-                                internal_deps.push(Dependency {
-                                    name: name.to_string(),
-                                    version: Some("workspace:*".to_string()),
-                                    is_internal: true,
-                                });
-                                seen.insert(name.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        DependencyInfo {
-            internal_deps,
-            external_deps,
-            detected_by: DetectionMethod::Deterministic,
-        }
+        .parse(manifest_content, all_internal_paths)
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
@@ -281,10 +198,6 @@ impl LanguageDefinition for JavaScriptLanguage {
 
     fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
         vec![("/health", "Express")]
-    }
-
-    fn default_env_vars(&self) -> Vec<&'static str> {
-        vec![]
     }
 
     fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
@@ -320,19 +233,6 @@ impl LanguageDefinition for JavaScriptLanguage {
         }
 
         None
-    }
-}
-
-impl JavaScriptLanguage {
-    fn matches_workspace_pattern(&self, path: &str, pattern: &str) -> bool {
-        // Simple glob matching for workspace patterns
-        // Supports: packages/*, apps/*, libs/*
-        let pattern_regex = pattern.replace('*', "[^/]+");
-        if let Ok(re) = Regex::new(&format!("^{}$", pattern_regex)) {
-            re.is_match(path)
-        } else {
-            false
-        }
     }
 }
 #[cfg(test)]

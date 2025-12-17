@@ -4,6 +4,7 @@ mod elixir;
 mod go;
 mod java;
 mod javascript;
+pub mod parsers;
 mod php;
 mod python;
 mod registry;

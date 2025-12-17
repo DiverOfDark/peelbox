@@ -1,10 +1,11 @@
 //! Rust language definition
 
 use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
+    parsers::{DependencyParser, TomlDependencyParser},
+    DependencyInfo, DetectionResult, LanguageDefinition,
 };
-use std::collections::HashSet;
+#[cfg(test)]
+use super::DetectionMethod;
 
 /// Rust language definition
 pub struct RustLanguage;
@@ -49,10 +50,6 @@ impl LanguageDefinition for RustLanguage {
         &["target", ".cargo"]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
-    }
-
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
         let content = manifest_content?;
         // Check rust-toolchain.toml or rust-toolchain file format
@@ -91,80 +88,13 @@ impl LanguageDefinition for RustLanguage {
     fn parse_dependencies(
         &self,
         manifest_content: &str,
-        _all_internal_paths: &[std::path::PathBuf],
+        all_internal_paths: &[std::path::PathBuf],
     ) -> DependencyInfo {
-        let parsed: toml::Value = match toml::from_str(manifest_content) {
-            Ok(v) => v,
-            Err(_) => return DependencyInfo::empty(),
-        };
-
-        let mut internal_deps = Vec::new();
-        let mut external_deps = Vec::new();
-        let mut seen = HashSet::new();
-
-        for dep_section in &["dependencies", "dev-dependencies", "build-dependencies"] {
-            if let Some(deps) = parsed.get(dep_section).and_then(|v| v.as_table()) {
-                for (name, value) in deps {
-                    if seen.contains(name) {
-                        continue;
-                    }
-                    seen.insert(name.clone());
-
-                    let (version, is_internal) = if let Some(table) = value.as_table() {
-                        let version = table
-                            .get("version")
-                            .and_then(|v| v.as_str())
-                            .map(String::from);
-                        let is_path = table.get("path").is_some();
-                        (version, is_path)
-                    } else if let Some(ver) = value.as_str() {
-                        (Some(ver.to_string()), false)
-                    } else {
-                        (None, false)
-                    };
-
-                    let dep = Dependency {
-                        name: name.clone(),
-                        version,
-                        is_internal,
-                    };
-
-                    if is_internal {
-                        internal_deps.push(dep);
-                    } else {
-                        external_deps.push(dep);
-                    }
-                }
-            }
+        TomlDependencyParser {
+            dependencies_keys: &["dependencies", "dev-dependencies", "build-dependencies"],
+            workspace_members_key: Some("members"),
         }
-
-        if let Some(workspace) = parsed.get("workspace").and_then(|v| v.as_table()) {
-            if let Some(members) = workspace.get("members").and_then(|v| v.as_array()) {
-                for member in members {
-                    if let Some(member_name) = member.as_str() {
-                        let name = member_name
-                            .split('/')
-                            .next_back()
-                            .unwrap_or(member_name)
-                            .to_string();
-                        if !seen.contains(&name) {
-                            internal_deps.push(Dependency {
-                                name: name.clone(),
-                                version: Some("workspace".to_string()),
-                                is_internal: true,
-                            });
-                            seen.insert(name);
-                        }
-                    }
-                }
-            }
-        }
-
-        DependencyInfo {
-            internal_deps,
-            external_deps,
-            detected_by: DetectionMethod::Deterministic,
-        }
+        .parse(manifest_content, all_internal_paths)
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
@@ -207,14 +137,6 @@ impl LanguageDefinition for RustLanguage {
         }
 
         false
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
-    }
-
-    fn default_env_vars(&self) -> Vec<&'static str> {
-        vec![]
     }
 
     fn runtime_name(&self) -> Option<&'static str> {
