@@ -45,6 +45,8 @@ pub struct BuildMetadata {
     pub language: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub build_system: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub framework: Option<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub confidence: f32,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -126,6 +128,7 @@ mod tests {
                 project_name: Some("test-app".to_string()),
                 language: "rust".to_string(),
                 build_system: "cargo".to_string(),
+                framework: None,
                 confidence: 0.95,
                 reasoning: "Detected Cargo.toml".to_string(),
             },
@@ -360,6 +363,7 @@ mod tests {
                 project_name: None,
                 language: "".to_string(),
                 build_system: "".to_string(),
+                framework: None,
                 confidence: 0.0,
                 reasoning: "".to_string(),
             },

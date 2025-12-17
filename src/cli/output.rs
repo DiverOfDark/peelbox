@@ -137,6 +137,7 @@ mod tests {
                 project_name: Some("test-app".to_string()),
                 language: "rust".to_string(),
                 build_system: "cargo".to_string(),
+                framework: None,
                 confidence: 0.95,
                 reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
             },

@@ -64,6 +64,7 @@ fn assemble_single_service(
         project_name: Some(project_name.clone()),
         language: result.service.language.clone(),
         build_system: result.service.build_system.clone(),
+        framework: result.runtime.framework.clone(),
         confidence,
         reasoning: format!(
             "Detected from {} in {}",
