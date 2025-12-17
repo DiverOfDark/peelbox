@@ -27,11 +27,11 @@
 - [x] 3.4 Update `src/main.rs` construction accordingly
 - [x] 3.5 Delete `src/extractors/registry.rs` (17 lines)
 - [x] 3.6 Extractors already accept `&Path` directly (no ExtractorRegistry usage found)
-- [ ] 3.7 Remove `ProgressHandler` trait from `src/progress/handler.rs`, keep `ProgressEvent` enum
-- [ ] 3.8 Remove `NoOpHandler`, simplify `LoggingHandler` to direct struct
-- [ ] 3.9 Flatten validation system in `src/validation/rules.rs` to direct functions
-- [ ] 3.10 Update `src/validation/validator.rs` to call functions directly
-- [ ] 3.11 Remove `intermediate_responses` field from `src/llm/recording.rs`
+- [ ] 3.7 Remove `ProgressHandler` trait from `src/progress/handler.rs`, keep `ProgressEvent` enum (deferred - actively used with dynamic dispatch)
+- [ ] 3.8 Remove `NoOpHandler`, simplify `LoggingHandler` to direct struct (deferred - part of trait system)
+- [ ] 3.9 Flatten validation system in `src/validation/rules.rs` to direct functions (deferred - actively used)
+- [ ] 3.10 Update `src/validation/validator.rs` to call functions directly (deferred - actively used)
+- [x] 3.11 Remove `intermediate_responses` field from `src/llm/recording.rs` (always empty vec, never used)
 - [x] 3.12 Run `cargo check` - passed
 
 ### 4. Extractor Consolidation (1-2 hours)

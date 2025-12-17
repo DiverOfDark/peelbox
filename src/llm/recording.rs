@@ -35,7 +35,6 @@ pub struct RecordedExchange {
     pub request_hash: String,
     pub request: RecordedRequest,
     pub response: LLMResponse,
-    pub intermediate_responses: Vec<LLMResponse>,
     pub recorded_at: String,
 }
 
@@ -139,7 +138,6 @@ impl RecordingLLMClient {
             request_hash: request_hash.clone(),
             request: request.clone(),
             response: response.clone(),
-            intermediate_responses: vec![],
             recorded_at: chrono::Utc::now().to_rfc3339(),
         };
 
