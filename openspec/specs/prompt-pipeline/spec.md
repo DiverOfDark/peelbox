@@ -37,6 +37,13 @@ The system SHALL execute repository analysis as a multi-phase pipeline where cod
 
 The system SHALL use deterministic parsers for known manifest formats, bypassing LLM calls when possible.
 
+**Implementation Note**: Parsers are consolidated in `src/languages/parsers.rs` as reusable traits to eliminate duplication:
+- `TomlDependencyParser` - Shared by Rust (Cargo.toml), Python (pyproject.toml with Poetry)
+- `JsonDependencyParser` - Shared by Node.js (package.json), npm/yarn/pnpm monorepos
+- `RegexDependencyParser` - Generic regex-based parser for simple dependency formats
+
+Build system detection now uses `BuildSystemRegistry` which delegates to individual build system implementations. Each build system (Maven, Gradle, npm, etc.) implements the `BuildSystem` trait with its own `detect()` and `parse_dependencies()` methods.
+
 #### Scenario: Node.js package.json parsing
 
 **Given** a repository with a valid `package.json`
@@ -65,6 +72,8 @@ The system SHALL use deterministic parsers for known manifest formats, bypassing
 - `pom.xml` (Maven)
 - `build.gradle`, `build.gradle.kts` (Gradle)
 - `pyproject.toml`, `requirements.txt` (Python)
+
+---
 
 ### Requirement: Parallel Execution
 
@@ -170,6 +179,8 @@ The system SHALL log all LLM inputs and outputs to enable future optimization th
 
 The system SHALL extract structured data from code and configuration files before invoking LLM prompts, reducing context size.
 
+**Implementation Note**: Extractors now use shared scanning logic from `src/extractors/common.rs` to eliminate duplication. The `scan_directory_with_patterns<F>()` function provides a unified scanning implementation used by port, environment variable, and health check extractors.
+
 #### Scenario: Port extraction from code
 
 **Given** a Node.js service with `app.listen(3000)`
@@ -190,6 +201,8 @@ The system SHALL extract structured data from code and configuration files befor
 **When** phase 6g (health check discovery) executes
 **Then** the health check extractor SHALL find the route via regex
 **And** the LLM prompt SHALL include the matched route definition
+
+---
 
 ### Requirement: Framework Defaults
 
@@ -262,4 +275,77 @@ The system SHALL achieve significant performance improvements over the tool-base
 **When** analyzing any repository
 **Then** all prompts SHALL fit within the model's context window
 **And** detection SHALL complete successfully
+
+### Requirement: Build System Abstraction
+
+The system SHALL treat build systems as first-class entities separate from language definitions, enabling reusability across languages.
+
+**Implementation Details**:
+- Build systems implement the `BuildSystem` trait defined in `src/build_systems/mod.rs`
+- Each build system knows its manifest patterns, cache paths, and dependency parsing logic
+- `BuildSystemRegistry` provides centralized lookup and detection
+- Languages declare compatibility via `compatible_build_systems()` method
+
+**Supported Build Systems** (13 total):
+1. **Maven** (`pom.xml`) - Java, Kotlin, Scala, Groovy
+2. **Gradle** (`build.gradle`, `build.gradle.kts`) - Java, Kotlin, Scala, Groovy
+3. **npm** (`package.json` + `package-lock.json`) - JavaScript, TypeScript
+4. **yarn** (`package.json` + `yarn.lock`) - JavaScript, TypeScript
+5. **pnpm** (`package.json` + `pnpm-lock.yaml`) - JavaScript, TypeScript
+6. **bun** (`package.json` + `bun.lockb`) - JavaScript, TypeScript
+7. **pip** (`requirements.txt`) - Python
+8. **poetry** (`pyproject.toml` with `[tool.poetry]`) - Python
+9. **pipenv** (`Pipfile`) - Python
+10. **cargo** (`Cargo.toml`) - Rust
+11. **go** (`go.mod`) - Go
+12. **dotnet** (`*.csproj`, `*.fsproj`) - C#, F#
+13. **composer** (`composer.json`) - PHP
+
+#### Scenario: Build system reusability
+
+**Given** Java and Kotlin projects both use Maven
+**When** build templates are generated
+**Then** both SHALL use the same `MavenBuildSystem` implementation
+**And** Maven logic SHALL be defined only once in `src/build_systems/maven.rs`
+
+#### Scenario: Many-to-many relationships
+
+**Given** a language supports multiple build systems
+**When** querying compatible build systems
+**Then** the language SHALL declare all compatible systems via `compatible_build_systems()`
+**And** the detection pipeline SHALL use `BuildSystemRegistry` to select the correct one
+
+#### Scenario: Build system detection
+
+**Given** a repository with a `pom.xml` file
+**When** bootstrap scanner detects the manifest
+**Then** `BuildSystemRegistry.detect()` SHALL return the Maven build system
+**And** confidence SHALL be based on content analysis (presence of `<project>` tag)
+
+---
+
+### Requirement: Confidence Type Consolidation
+
+The system SHALL use a single shared `Confidence` enum across all pipeline phases to eliminate duplication.
+
+**Implementation Details**:
+- `Confidence` enum defined in `src/pipeline/confidence.rs`
+- All 11 pipeline phase files import from shared module
+- Eliminates previous 11× duplication across phase files
+
+#### Scenario: Shared confidence type
+
+**Given** any pipeline phase executes
+**When** a result is produced with a confidence score
+**Then** it SHALL use `crate::pipeline::confidence::Confidence`
+**And** the confidence SHALL be one of: `High`, `Medium`, or `Low`
+
+#### Scenario: Confidence serialization
+
+**Given** a `UniversalBuild` is serialized to JSON
+**When** the confidence field is written
+**Then** it SHALL serialize as lowercase strings: `"high"`, `"medium"`, or `"low"`
+**And** deserialization SHALL accept the same format
+
+---
 
