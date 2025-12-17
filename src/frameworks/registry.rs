@@ -26,11 +26,19 @@ impl FrameworkRegistry {
             Box::new(DjangoFramework),
             Box::new(FlaskFramework),
             Box::new(FastApiFramework),
-            // Other frameworks
+            // Ruby frameworks
             Box::new(RailsFramework),
-            Box::new(AspNetFramework),
+            Box::new(SinatraFramework),
+            // Rust frameworks
+            Box::new(ActixFramework),
+            Box::new(AxumFramework),
+            // Go frameworks
             Box::new(GinFramework),
+            Box::new(EchoFramework),
+            // Other frameworks
+            Box::new(AspNetFramework),
             Box::new(LaravelFramework),
+            Box::new(PhoenixFramework),
         ];
 
         Self { frameworks }

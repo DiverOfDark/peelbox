@@ -84,8 +84,11 @@ pub trait Framework: Send + Sync {
     }
 }
 
+pub mod actix;
 pub mod aspnet;
+pub mod axum;
 pub mod django;
+pub mod echo;
 pub mod express;
 pub mod fastapi;
 pub mod fastify;
@@ -96,13 +99,18 @@ pub mod laravel;
 pub mod micronaut;
 pub mod nestjs;
 pub mod nextjs;
+pub mod phoenix;
 pub mod quarkus;
 pub mod rails;
 pub mod registry;
+pub mod sinatra;
 pub mod spring_boot;
 
+pub use actix::ActixFramework;
 pub use aspnet::AspNetFramework;
+pub use axum::AxumFramework;
 pub use django::DjangoFramework;
+pub use echo::EchoFramework;
 pub use express::ExpressFramework;
 pub use fastapi::FastApiFramework;
 pub use fastify::FastifyFramework;
@@ -113,7 +121,9 @@ pub use laravel::LaravelFramework;
 pub use micronaut::MicronautFramework;
 pub use nestjs::NestJsFramework;
 pub use nextjs::NextJsFramework;
+pub use phoenix::PhoenixFramework;
 pub use quarkus::QuarkusFramework;
 pub use rails::RailsFramework;
 pub use registry::FrameworkRegistry;
+pub use sinatra::SinatraFramework;
 pub use spring_boot::SpringBootFramework;
