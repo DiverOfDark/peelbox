@@ -104,25 +104,29 @@
 ### 10. Update Extractors (1-2 hours) - SKIPPED
 - Framework logic already removed from extractors, they now query FrameworkRegistry via pipeline phases
 
-## Phase D: Cleanup Language Files (2-3 hours)
+## Phase D: Cleanup Language Files - SKIPPED ❌
 
-### 11. Remove Framework Logic from Language Trait (1 hour)
-- [ ] 11.1 Remove `health_check_patterns()` method from `LanguageDefinition` trait
-- [ ] 11.2 Remove `port_patterns()` method from `LanguageDefinition` trait
-- [ ] 11.3 Remove `default_health_endpoints()` method from `LanguageDefinition` trait
-- [ ] 11.4 Remove `env_var_patterns()` method (move to Framework trait if needed)
-- [ ] 11.5 Run `cargo check` to find all broken references
-- [ ] 11.6 Fix compiler errors by removing method implementations
+**Decision**: Phase D is being skipped after analysis revealed that language pattern methods serve a different purpose than framework defaults:
 
-### 12. Update Language Implementations (1-2 hours)
-- [ ] 12.1 Remove pattern methods from `src/languages/java.rs` (~100 lines removed)
-- [ ] 12.2 Remove pattern methods from `src/languages/javascript.rs` (~80 lines removed)
-- [ ] 12.3 Remove pattern methods from `src/languages/python.rs` (~70 lines removed)
-- [ ] 12.4 Remove pattern methods from `src/languages/ruby.rs` (~50 lines removed)
-- [ ] 12.5 Remove pattern methods from `src/languages/php.rs` (~50 lines removed)
-- [ ] 12.6 Remove pattern methods from other language files (~30-50 lines each)
-- [ ] 12.7 Run `cargo check` to verify no broken references remain
-- [ ] 12.8 Run `cargo clippy` to ensure code quality
+### Analysis:
+- **health_check_patterns()**: Language-specific regex patterns for scanning source code (e.g., `@GetMapping` for Java)
+- **port_patterns()**: Language-specific regex for finding port declarations in code
+- **env_var_patterns()**: Language-specific environment variable patterns
+- **default_health_endpoints()**: Framework defaults (NOW handled by FrameworkRegistry in Phase C)
+
+### What was kept:
+- ✅ Language patterns for code scanning (health_check_patterns, port_patterns, env_var_patterns)
+- ✅ Extractors continue using language patterns to scan source files
+
+### What was removed/replaced:
+- ✅ Framework defaults moved to FrameworkRegistry (Phase A)
+- ✅ Pipeline phases query FrameworkRegistry instead of language files (Phase C)
+- ⚠️ Extractor `apply_framework_defaults()` is now redundant but kept for backwards compatibility
+
+### Why this is correct:
+- Language patterns scan CODE for explicit declarations: `app.get('/health')`, `listen(8080)`
+- Framework defaults provide CONVENTIONAL values: Spring Boot → 8080, Express → 3000
+- These serve different purposes and should remain separate
 
 ## Phase E: Testing & Validation (3-4 hours)
 
