@@ -42,14 +42,14 @@
 - [x] 4.5 Update `src/extractors/health.rs` to use common scanning
 - [x] 4.6 Run `cargo test` to validate extractor behavior unchanged (41 tests passed)
 
-### 5. Registry Optimization (1 hour)
-- [ ] 5.1 Replace O(n²) deduplication in `src/languages/registry.rs` with HashSet (O(n))
-- [ ] 5.2 Update `all_excluded_dirs()` to use HashSet
-- [ ] 5.3 Update `all_workspace_configs()` to use HashSet
-- [ ] 5.4 Replace 21-line pattern matching with `glob::Pattern` (3 lines)
-- [ ] 5.5 Add `glob = "0.3"` dependency to `Cargo.toml`
-- [ ] 5.6 Simplify `detect()` to single-pass algorithm
-- [ ] 5.7 Run `cargo test` to validate registry behavior
+### 5. Registry Optimization (1 hour) ✅
+- [x] 5.1 Replace O(n²) deduplication in `src/languages/registry.rs` with HashSet (O(n))
+- [x] 5.2 Update `all_excluded_dirs()` to use HashSet (15→11 lines, O(n²)→O(n))
+- [x] 5.3 Update `all_workspace_configs()` to use HashSet (10→8 lines, O(n²)→O(n))
+- [x] 5.4 Replace 21-line pattern matching with `glob::Pattern` (21→5 lines)
+- [x] 5.5 Add `glob = "0.3"` dependency to `Cargo.toml` (already present)
+- [x] 5.6 Simplify `detect()` to single-pass algorithm (already optimal, no changes needed)
+- [x] 5.7 Run `cargo test` to validate registry behavior (15 tests passed)
 
 ### 6. Scanner Optimization (1-2 hours)
 - [ ] 6.1 Update `src/bootstrap/scanner.rs` to use `WalkDir::min_depth(1)`

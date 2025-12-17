@@ -1,5 +1,5 @@
 use super::{LanguageDefinition, LanguageDetection};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -32,32 +32,26 @@ impl LanguageRegistry {
     }
 
     pub fn all_excluded_dirs(&self) -> Vec<&str> {
-        let mut dirs: Vec<&str> = Vec::new();
+        let mut set = HashSet::new();
         for lang in &self.languages {
             for dir in lang.excluded_dirs() {
-                if !dirs.contains(dir) {
-                    dirs.push(dir);
-                }
+                set.insert(*dir);
             }
         }
         for dir in &[".git", ".idea", ".vscode", "vendor"] {
-            if !dirs.contains(dir) {
-                dirs.push(dir);
-            }
+            set.insert(*dir);
         }
-        dirs
+        set.into_iter().collect()
     }
 
     pub fn all_workspace_configs(&self) -> Vec<&str> {
-        let mut configs: Vec<&str> = Vec::new();
+        let mut set = HashSet::new();
         for lang in &self.languages {
             for config in lang.workspace_configs() {
-                if !configs.contains(config) {
-                    configs.push(config);
-                }
+                set.insert(*config);
             }
         }
-        configs
+        set.into_iter().collect()
     }
 
     pub fn register(&mut self, language: Arc<dyn LanguageDefinition>) {
@@ -120,25 +114,10 @@ impl LanguageRegistry {
     }
 
     fn matches_pattern(pattern: &str, filename: &str) -> bool {
-        tracing::debug!(
-            "Matching pattern '{}' against filename '{}'",
-            pattern,
-            filename
-        );
-        let matches = if pattern.contains('*') {
-            let parts: Vec<&str> = pattern.split('*').collect();
-            if parts.len() == 2 {
-                let prefix = parts[0];
-                let suffix = parts[1];
-                filename.starts_with(prefix) && filename.ends_with(suffix)
-            } else {
-                false
-            }
-        } else {
-            pattern == filename
-        };
-        tracing::debug!("Pattern match result: {}", matches);
-        matches
+        glob::Pattern::new(pattern)
+            .ok()
+            .map(|p| p.matches(filename))
+            .unwrap_or(false)
     }
 
     pub fn detect_all(&self, manifests: &[(String, Option<String>)]) -> Vec<LanguageDetection> {
