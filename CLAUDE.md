@@ -26,7 +26,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 The following rules are MANDATORY for CLAUDE:
  - Keep comments to the minimum, only in cases when it's required. No examples.
  - Don't keep code for backwards compatibility – remove it
- - Never postpone a task if it was asked for, never cut corners
+ - Never postpone a task, never cut corners
+ - No planned work is optional. There should be a valid technical reason for it.
  - Code simplicity is most important.
  - Dead code is a smell. Remove it, unless you think it will be required later – then ask the user whether it should be kept.
 
