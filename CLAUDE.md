@@ -21,7 +21,12 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the aipack project.
 
-## Claude Rules
+## Claude Rules - CRITICAL
+
+**RULE 0 (MOST IMPORTANT):**
+- **NEVER keep code for backwards compatibility** – breaking changes are preferred
+- **ALWAYS remove dead code** – if you find unused code, delete it immediately
+- If unsure whether code is needed → ASK, don't assume it should stay
 
 The following rules are MANDATORY for CLAUDE:
  - Keep comments to the minimum, only in cases when it's required. No examples.
@@ -30,6 +35,53 @@ The following rules are MANDATORY for CLAUDE:
  - No planned work is optional. There should be a valid technical reason for it.
  - Code simplicity is most important.
  - Dead code is a smell. Remove it, unless you think it will be required later – then ask the user whether it should be kept.
+
+## Decision Checkpoints
+
+Before making ANY of these decisions, STOP and re-read the Claude Rules above:
+- Keeping old code/APIs/files "for compatibility"
+- Marking tasks as "SKIPPED" or "OPTIONAL"
+- Deciding "this can be done later"
+- Choosing not to remove dead code
+- Preserving deprecated functionality
+
+If you're about to do any of these → You're probably violating a rule → ASK THE USER FIRST.
+
+## When You MUST Ask the User
+
+ALWAYS ask before:
+1. Skipping any planned task (even if it seems unnecessary)
+2. Keeping old code instead of removing it
+3. Marking work as "backward compatible" or "optional"
+4. Deciding a breaking change is "too risky"
+5. Finding dead code and thinking "maybe someone uses this"
+
+Default answer: REMOVE IT. Only keep if user explicitly says to.
+
+## Common Mistakes to Avoid
+
+### ❌ WRONG: "I'll keep the old API for backward compatibility"
+### ✅ RIGHT: Remove old API, update all callers
+
+### ❌ WRONG: "Tests use FrameworkRegistry, so I can't remove it"
+### ✅ RIGHT: Update tests to use StackRegistry, then remove FrameworkRegistry
+
+### ❌ WRONG: "This task seems optional, I'll mark it SKIPPED"
+### ✅ RIGHT: Complete the task OR ask user if it should be skipped
+
+### ❌ WRONG: "OpenSpec says 'minimal changes', so I'll keep old code"
+### ✅ RIGHT: Project-specific rules (CLAUDE.md) override general guidelines
+
+## Before Marking Work Complete
+
+Run this checklist:
+- [ ] Did I remove ALL dead/old code? (No files named *_old, *_legacy, or unused registries)
+- [ ] Did I complete ALL tasks in tasks.md? (No SKIPPED items without user approval)
+- [ ] Did I make any "backward compatibility" decisions? (If yes, WRONG - remove them)
+- [ ] Are all tests passing? (Not just "most tests")
+- [ ] Did I ask the user about ANY uncertainty? (Don't assume, ask)
+
+If ANY checkbox fails → You violated a rule → Fix it before claiming completion.
 
 ## Development Policy
 
