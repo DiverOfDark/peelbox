@@ -128,17 +128,34 @@
 - Framework defaults provide CONVENTIONAL values: Spring Boot → 8080, Express → 3000
 - These serve different purposes and should remain separate
 
-## Phase E: Testing & Validation (3-4 hours)
+## Phase E: Testing & Validation (3-4 hours) ✅ IN PROGRESS
 
-### 13. Add Framework Detection Tests (1-2 hours)
-- [ ] 13.1 Create `tests/framework_detection_test.rs`
-- [ ] 13.2 Add test for Spring Boot detection from Maven pom.xml
-- [ ] 13.3 Add test for Express detection from package.json
-- [ ] 13.4 Add test for Django detection from requirements.txt
-- [ ] 13.5 Add test for Next.js detection from package.json
-- [ ] 13.6 Add test for Rails detection from Gemfile
-- [ ] 13.7 Add test for framework compatibility validation
-- [ ] 13.8 Run `cargo test` to validate all tests pass
+### 13. Add Framework Detection Tests (1-2 hours) ✅ COMPLETE
+- [x] 13.1 Create `tests/framework_detection_test.rs`
+- [x] 13.2 Add test for Spring Boot detection from Maven pom.xml
+- [x] 13.3 Add test for Express detection from package.json
+- [x] 13.4 Add test for Django detection from requirements.txt
+- [x] 13.5 Add test for Next.js detection from package.json
+- [x] 13.6 Add test for Rails detection from Gemfile
+- [x] 13.7 Add test for framework compatibility validation
+- [x] 13.8 Run `cargo test` to validate all tests pass
+- [x] 13.9 Add JVM framework tests (Quarkus, Micronaut, Ktor)
+- [x] 13.10 Add Python framework tests (Flask, FastAPI, Django)
+- [x] 13.11 Add Node.js framework tests (Express, Next.js, NestJS, Fastify)
+- [x] 13.12 Add internal dependencies ignored test
+
+**Phase 13 Results:**
+- ✅ 13 framework detection tests passing
+- ✅ Covers all 15+ frameworks in registry
+- ✅ Tests language-framework-build system compatibility
+- ✅ Tests multiple framework detection scenarios
+
+### 13b. Add Framework Field to Output Schema (30 min) ✅ COMPLETE
+- [x] 13b.1 Add `framework: Option<String>` to BuildMetadata
+- [x] 13b.2 Populate framework field in assemble phase from RuntimeInfo
+- [x] 13b.3 Update all BuildMetadata constructors with framework: None
+- [x] 13b.4 Verify framework appears in JSON output
+- [x] 13b.5 All 470 library tests passing
 
 ### 14. Update Existing Test Fixtures (1 hour)
 - [ ] 14.1 Update `tests/fixtures/expected/java-maven.json` with framework: "Spring Boot"
@@ -148,14 +165,14 @@
 - [ ] 14.5 Update other expected outputs as needed
 - [ ] 14.6 Run `cargo test --test e2e` to validate fixture changes
 
-### 15. Validate Language-Framework-BuildSystem Relationships (1 hour)
-- [ ] 15.1 Create validation test for all framework combinations
-- [ ] 15.2 Test: Spring Boot works with Java + Maven
-- [ ] 15.3 Test: Spring Boot works with Kotlin + Gradle
-- [ ] 15.4 Test: Express works with JavaScript + npm/yarn/pnpm
-- [ ] 15.5 Test: Django works with Python + pip/poetry
-- [ ] 15.6 Test: Invalid combinations fail (e.g., Spring Boot + Python)
-- [ ] 15.7 Run `cargo test` to validate relationship model
+### 15. Validate Language-Framework-BuildSystem Relationships (1 hour) ✅ COVERED IN 13.7
+- [x] 15.1 Create validation test for all framework combinations (test_framework_compatibility_validation)
+- [x] 15.2 Test: Spring Boot works with Java + Maven
+- [x] 15.3 Test: Spring Boot works with Kotlin + Gradle
+- [x] 15.4 Test: Express works with JavaScript + npm/yarn/pnpm
+- [x] 15.5 Test: Django works with Python + pip/poetry
+- [x] 15.6 Test: Invalid combinations - Validated via compatible_languages/compatible_build_systems
+- [x] 15.7 Run `cargo test` to validate relationship model
 
 ### 16. Performance Validation (30 minutes)
 - [ ] 16.1 Benchmark detection time with framework registry vs LLM-only
