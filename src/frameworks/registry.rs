@@ -12,11 +12,25 @@ impl FrameworkRegistry {
     /// Create a new registry with all frameworks
     pub fn new() -> Self {
         let frameworks: Vec<Box<dyn Framework>> = vec![
+            // JVM frameworks
             Box::new(SpringBootFramework),
+            Box::new(QuarkusFramework),
+            Box::new(MicronautFramework),
+            Box::new(KtorFramework),
+            // JavaScript/TypeScript frameworks
             Box::new(ExpressFramework),
+            Box::new(NextJsFramework),
+            Box::new(NestJsFramework),
+            Box::new(FastifyFramework),
+            // Python frameworks
             Box::new(DjangoFramework),
+            Box::new(FlaskFramework),
+            Box::new(FastApiFramework),
+            // Other frameworks
             Box::new(RailsFramework),
             Box::new(AspNetFramework),
+            Box::new(GinFramework),
+            Box::new(LaravelFramework),
         ];
 
         Self { frameworks }
