@@ -1,4 +1,5 @@
 pub mod bootstrap;
+pub mod build_systems;
 pub mod cli;
 pub mod config;
 pub mod detection;
@@ -12,6 +13,7 @@ pub mod pipeline;
 pub mod progress;
 pub mod validation;
 
+pub use build_systems::{BuildSystem, BuildSystemRegistry, BuildTemplate};
 pub use config::{AipackConfig, ConfigError};
 pub use detection::service::{DetectionService, ServiceError};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};

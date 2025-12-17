@@ -71,22 +71,22 @@
 ## Phase B: Architectural (8-12 hours)
 
 ### 8. Build System Extraction (8-12 hours)
-- [ ] 8.1 Create `src/build_systems/mod.rs` with BuildSystem trait and BuildTemplate struct
-- [ ] 8.2 Create `src/build_systems/registry.rs` with BuildSystemRegistry
-- [ ] 8.3 Implement build system modules (one commit per build system):
-  - [ ] 8.3.1 `src/build_systems/cargo.rs` (Rust)
-  - [ ] 8.3.2 `src/build_systems/maven.rs` (Java, Kotlin, Scala)
-  - [ ] 8.3.3 `src/build_systems/gradle.rs` (Java, Kotlin)
-  - [ ] 8.3.4 `src/build_systems/npm.rs` (JavaScript, TypeScript)
-  - [ ] 8.3.5 `src/build_systems/yarn.rs` (JavaScript, TypeScript)
-  - [ ] 8.3.6 `src/build_systems/pnpm.rs` (JavaScript, TypeScript)
-  - [ ] 8.3.7 `src/build_systems/bun.rs` (JavaScript, TypeScript)
-  - [ ] 8.3.8 `src/build_systems/pip.rs` (Python)
-  - [ ] 8.3.9 `src/build_systems/poetry.rs` (Python)
-  - [ ] 8.3.10 `src/build_systems/pipenv.rs` (Python)
-  - [ ] 8.3.11 `src/build_systems/go.rs` (Go)
-  - [ ] 8.3.12 `src/build_systems/dotnet.rs` (C#)
-  - [ ] 8.3.13 `src/build_systems/composer.rs` (PHP)
+- [x] 8.1 Create `src/build_systems/mod.rs` with BuildSystem trait and BuildTemplate struct
+- [x] 8.2 Create `src/build_systems/registry.rs` with BuildSystemRegistry (8 tests passing)
+- [x] 8.3 Implement build system modules (all in single commit):
+  - [x] 8.3.1 `src/build_systems/cargo.rs` (Rust - workspace detection)
+  - [x] 8.3.2 `src/build_systems/maven.rs` (Java, Kotlin, Scala - multi-module)
+  - [x] 8.3.3 `src/build_systems/gradle.rs` (Java, Kotlin - multi-project)
+  - [x] 8.3.4 `src/build_systems/npm.rs` (JavaScript, TypeScript - workspaces)
+  - [x] 8.3.5 `src/build_systems/yarn.rs` (JavaScript, TypeScript - yarn.lock detection)
+  - [x] 8.3.6 `src/build_systems/pnpm.rs` (JavaScript, TypeScript - pnpm-lock.yaml detection)
+  - [x] 8.3.7 `src/build_systems/bun.rs` (JavaScript, TypeScript - bun.lockb detection)
+  - [x] 8.3.8 `src/build_systems/pip.rs` (Python - requirements.txt)
+  - [x] 8.3.9 `src/build_systems/poetry.rs` (Python - pyproject.toml with [tool.poetry])
+  - [x] 8.3.10 `src/build_systems/pipenv.rs` (Python - Pipfile)
+  - [x] 8.3.11 `src/build_systems/go_mod.rs` (Go - go.work workspace)
+  - [x] 8.3.12 `src/build_systems/dotnet.rs` (C# - *.csproj, *.sln)
+  - [x] 8.3.13 `src/build_systems/composer.rs` (PHP - composer.json)
 - [ ] 8.4 Update Language trait in `src/languages/mod.rs`:
   - [ ] 8.4.1 Add `compatible_build_systems()` method
   - [ ] 8.4.2 Remove `build_template()` method
