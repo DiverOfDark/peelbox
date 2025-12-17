@@ -119,22 +119,13 @@ impl<F: FileSystem> EnvVarExtractor<F> {
         };
 
         let patterns = lang.env_var_patterns();
-        self.scan_directory_for_env_vars(&context.path, lang, &patterns, env_vars);
-    }
-
-    fn scan_directory_for_env_vars(
-        &self,
-        dir_path: &std::path::Path,
-        lang: &dyn crate::languages::LanguageDefinition,
-        patterns: &[(&str, &str)],
-        env_vars: &mut HashMap<String, EnvVarInfo>,
-    ) {
+        let dir_path = &context.path;
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
             lang,
             |file_path| {
-                self.extract_env_vars_from_file(file_path, patterns, env_vars);
+                self.extract_env_vars_from_file(file_path, &patterns, env_vars);
             },
         );
     }

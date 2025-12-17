@@ -90,23 +90,13 @@ impl<F: FileSystem> PortExtractor<F> {
             return;
         }
 
-        self.scan_directory_for_ports(&context.path, lang, &patterns, ports, seen);
-    }
-
-    fn scan_directory_for_ports(
-        &self,
-        dir_path: &std::path::Path,
-        lang: &dyn crate::languages::LanguageDefinition,
-        patterns: &[(&str, &str)],
-        ports: &mut Vec<PortInfo>,
-        seen: &mut HashSet<u16>,
-    ) {
+        let dir_path = &context.path;
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
             lang,
             |file_path| {
-                self.extract_ports_from_file(file_path, patterns, ports, seen);
+                self.extract_ports_from_file(file_path, &patterns, ports, seen);
             },
         );
     }

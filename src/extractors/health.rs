@@ -82,23 +82,13 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
         };
 
         let patterns = lang.health_check_patterns();
-        self.scan_directory_for_health_checks(&context.path, lang, &patterns, health_checks, seen);
-    }
-
-    fn scan_directory_for_health_checks(
-        &self,
-        dir_path: &std::path::Path,
-        lang: &dyn crate::languages::LanguageDefinition,
-        patterns: &[(&str, &str)],
-        health_checks: &mut Vec<HealthCheckInfo>,
-        seen: &mut HashSet<String>,
-    ) {
+        let dir_path = &context.path;
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
             lang,
             |file_path| {
-                self.extract_health_checks_from_file(file_path, patterns, health_checks, seen);
+                self.extract_health_checks_from_file(file_path, &patterns, health_checks, seen);
             },
         );
     }
