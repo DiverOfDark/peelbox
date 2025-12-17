@@ -5,9 +5,10 @@ use super::*;
 pub struct NestJsFramework;
 
 impl Framework for NestJsFramework {
-    fn name(&self) -> &str {
-        "NestJS"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::NestJs
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["TypeScript", "JavaScript"]

@@ -1,5 +1,5 @@
 use super::{BootstrapContext, LanguageDetection};
-use crate::languages::LanguageRegistry;
+use crate::stack::StackRegistry;
 use anyhow::{Context, Result};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use std::path::{Path, PathBuf};
@@ -26,8 +26,7 @@ impl Default for ScanConfig {
 
 pub struct BootstrapScanner {
     repo_path: PathBuf,
-    registry: Arc<LanguageRegistry>,
-    build_system_registry: Arc<crate::build_systems::BuildSystemRegistry>,
+    stack_registry: Arc<StackRegistry>,
     config: ScanConfig,
 }
 
@@ -35,15 +34,13 @@ impl BootstrapScanner {
     pub fn new(repo_path: PathBuf) -> Result<Self> {
         Self::with_registry(
             repo_path,
-            Arc::new(LanguageRegistry::with_defaults()),
-            Arc::new(crate::build_systems::BuildSystemRegistry::with_defaults()),
+            Arc::new(StackRegistry::with_defaults()),
         )
     }
 
     pub fn with_registry(
         repo_path: PathBuf,
-        registry: Arc<LanguageRegistry>,
-        build_system_registry: Arc<crate::build_systems::BuildSystemRegistry>,
+        stack_registry: Arc<StackRegistry>,
     ) -> Result<Self> {
         if !repo_path.exists() {
             return Err(anyhow::anyhow!(
@@ -69,8 +66,7 @@ impl BootstrapScanner {
 
         Ok(Self {
             repo_path,
-            registry,
-            build_system_registry,
+            stack_registry,
             config: ScanConfig::default(),
         })
     }
@@ -95,7 +91,7 @@ impl BootstrapScanner {
         let mut has_workspace_config = false;
 
         let mut override_builder = OverrideBuilder::new(&self.repo_path);
-        for excluded in self.registry.all_excluded_dirs() {
+        for excluded in self.stack_registry.all_excluded_dirs() {
             override_builder.add(&format!("!{}/", excluded)).ok();
         }
         let overrides = override_builder.build().unwrap_or_else(|_| {
@@ -141,7 +137,7 @@ impl BootstrapScanner {
                     has_workspace_config = true;
                 }
 
-                if self.registry.is_manifest(filename, &self.build_system_registry) {
+                if self.stack_registry.is_manifest(filename) {
                     if let Some(detection) = self.detect_language(path, filename)? {
                         debug!(
                             path = %path.display(),
@@ -186,17 +182,19 @@ impl BootstrapScanner {
 
         let depth = rel_path.matches('/').count();
 
-        if let Some(detection) = self.registry.detect(filename, content.as_deref(), &self.build_system_registry) {
+        if let Some(detection_stack) = self.stack_registry.detect_stack_opt(path, content.as_deref()) {
             let is_workspace_root = self
-                .registry
+                .stack_registry
                 .is_workspace_root(filename, content.as_deref());
 
+            let (build_system, language, _) = detection_stack.to_string_parts();
+
             Ok(Some(LanguageDetection {
-                language: detection.language,
-                build_system: detection.build_system,
+                language,
+                build_system,
                 manifest_path: rel_path,
                 depth,
-                confidence: detection.confidence,
+                confidence: detection_stack.confidence,
                 is_workspace_root,
             }))
         } else {
@@ -209,7 +207,7 @@ impl BootstrapScanner {
             return false;
         }
 
-        let excluded_dirs = self.registry.all_excluded_dirs();
+        let excluded_dirs = self.stack_registry.all_excluded_dirs();
 
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             if excluded_dirs.contains(&name) {
@@ -224,7 +222,7 @@ impl BootstrapScanner {
     }
 
     fn is_workspace_config(&self, filename: &str) -> bool {
-        self.registry.all_workspace_configs().contains(&filename)
+        self.stack_registry.all_workspace_configs().contains(&filename)
     }
 }
 
@@ -386,7 +384,7 @@ mod tests {
 
         assert!(prompt.contains("Pre-scanned Repository"));
         assert!(prompt.contains("Rust"));
-        assert!(prompt.contains("cargo"));
+        assert!(prompt.contains("Cargo"));
     }
 
     #[test]

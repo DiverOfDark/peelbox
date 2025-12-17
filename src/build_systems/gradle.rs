@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct GradleBuildSystem;
 
 impl BuildSystem for GradleBuildSystem {
-    fn name(&self) -> &str {
-        "gradle"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Gradle
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

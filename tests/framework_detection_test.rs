@@ -18,7 +18,7 @@ fn test_spring_boot_detection_from_maven() {
     assert!(result.is_some());
 
     let (framework, confidence) = result.unwrap();
-    assert_eq!(framework.name(), "Spring Boot");
+    assert_eq!(framework.id().name(), "Spring Boot");
     assert_eq!(confidence, 0.95);
 
     assert_eq!(framework.default_ports(), &[8080]);
@@ -44,7 +44,7 @@ fn test_express_detection_from_npm() {
     assert!(result.is_some());
 
     let (framework, confidence) = result.unwrap();
-    assert_eq!(framework.name(), "Express");
+    assert_eq!(framework.id().name(), "Express");
     assert_eq!(confidence, 0.95);
 
     assert_eq!(framework.default_ports(), &[3000]);
@@ -66,7 +66,7 @@ fn test_django_detection_from_pip() {
     assert!(result.is_some());
 
     let (framework, confidence) = result.unwrap();
-    assert_eq!(framework.name(), "Django");
+    assert_eq!(framework.id().name(), "Django");
     assert_eq!(confidence, 0.95);
 
     assert_eq!(framework.default_ports(), &[8000]);
@@ -88,7 +88,7 @@ fn test_nextjs_detection() {
     assert!(result.is_some());
 
     let (framework, confidence) = result.unwrap();
-    assert_eq!(framework.name(), "Next.js");
+    assert_eq!(framework.id().name(), "Next.js");
     assert_eq!(confidence, 0.95);
 
     assert_eq!(framework.default_ports(), &[3000]);
@@ -109,7 +109,7 @@ fn test_rails_detection() {
     assert!(result.is_some());
 
     let (framework, confidence) = result.unwrap();
-    assert_eq!(framework.name(), "Rails");
+    assert_eq!(framework.id().name(), "Rails");
     assert_eq!(confidence, 0.95);
 
     assert_eq!(framework.default_ports(), &[3000]);
@@ -135,7 +135,7 @@ fn test_framework_compatibility_validation() {
         let framework = registry.get_by_name(framework_name)
             .unwrap_or_else(|| panic!("Framework {} not found in registry", framework_name));
 
-        assert_eq!(framework.name(), framework_name);
+        assert_eq!(framework.id().name(), framework_name);
 
         for lang in expected_languages {
             assert!(
@@ -193,7 +193,7 @@ fn test_multiple_frameworks_detection() {
 
     let (framework, _) = result.unwrap();
     assert!(
-        framework.name() == "Next.js" || framework.name() == "Express",
+        framework.id().name() == "Next.js" || framework.id().name() == "Express",
         "Should detect either Next.js or Express"
     );
 }
@@ -251,7 +251,7 @@ fn test_jvm_framework_detection() {
         assert!(result.is_some(), "Should detect {} from {}", expected_framework, dependency);
 
         let (framework, _) = result.unwrap();
-        assert_eq!(framework.name(), expected_framework);
+        assert_eq!(framework.id().name(), expected_framework);
     }
 }
 
@@ -277,7 +277,7 @@ fn test_python_framework_detection() {
         assert!(result.is_some(), "Should detect {} from {}", expected_framework, dependency);
 
         let (framework, _) = result.unwrap();
-        assert_eq!(framework.name(), expected_framework);
+        assert_eq!(framework.id().name(), expected_framework);
     }
 }
 
@@ -304,7 +304,7 @@ fn test_nodejs_framework_detection() {
         assert!(result.is_some(), "Should detect {} from {}", expected_framework, dependency);
 
         let (framework, _) = result.unwrap();
-        assert_eq!(framework.name(), expected_framework);
+        assert_eq!(framework.id().name(), expected_framework);
     }
 }
 

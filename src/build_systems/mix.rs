@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct MixBuildSystem;
 
 impl BuildSystem for MixBuildSystem {
-    fn name(&self) -> &str {
-        "mix"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Mix
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

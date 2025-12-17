@@ -5,9 +5,10 @@ use super::*;
 pub struct SinatraFramework;
 
 impl Framework for SinatraFramework {
-    fn name(&self) -> &str {
-        "Sinatra"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Sinatra
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Ruby"]

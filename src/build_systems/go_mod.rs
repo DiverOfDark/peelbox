@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct GoModBuildSystem;
 
 impl BuildSystem for GoModBuildSystem {
-    fn name(&self) -> &str {
-        "go"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::GoMod
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

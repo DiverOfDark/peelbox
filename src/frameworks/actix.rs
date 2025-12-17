@@ -5,9 +5,10 @@ use super::*;
 pub struct ActixFramework;
 
 impl Framework for ActixFramework {
-    fn name(&self) -> &str {
-        "Actix Web"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::ActixWeb
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Rust"]

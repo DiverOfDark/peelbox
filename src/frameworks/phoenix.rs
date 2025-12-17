@@ -5,9 +5,10 @@ use super::*;
 pub struct PhoenixFramework;
 
 impl Framework for PhoenixFramework {
-    fn name(&self) -> &str {
-        "Phoenix"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Phoenix
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Elixir"]

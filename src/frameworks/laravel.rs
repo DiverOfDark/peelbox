@@ -5,9 +5,10 @@ use super::*;
 pub struct LaravelFramework;
 
 impl Framework for LaravelFramework {
-    fn name(&self) -> &str {
-        "Laravel"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Laravel
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["PHP"]

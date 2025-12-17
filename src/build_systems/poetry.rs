@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct PoetryBuildSystem;
 
 impl BuildSystem for PoetryBuildSystem {
-    fn name(&self) -> &str {
-        "poetry"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Poetry
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

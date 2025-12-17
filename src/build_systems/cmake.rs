@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct CMakeBuildSystem;
 
 impl BuildSystem for CMakeBuildSystem {
-    fn name(&self) -> &str {
-        "cmake"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::CMake
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

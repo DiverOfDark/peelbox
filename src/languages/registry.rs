@@ -63,13 +63,13 @@ impl LanguageRegistry {
         build_system_registry: &crate::build_systems::BuildSystemRegistry,
     ) -> Option<LanguageDetection> {
         let build_system = build_system_registry.detect(manifest_name, manifest_content)?;
-        let build_system_name = build_system.name();
+        let build_system_name = build_system.id().name().to_lowercase();
 
         for language in &self.languages {
-            if language.compatible_build_systems().contains(&build_system_name) {
+            if language.compatible_build_systems().iter().any(|bs| bs.eq_ignore_ascii_case(&build_system_name)) {
                 if let Some(result) = language.detect(manifest_name, manifest_content) {
                     return Some(LanguageDetection {
-                        language: language.name().to_string(),
+                        language: language.id().name().to_string(),
                         build_system: result.build_system,
                         confidence: result.confidence,
                         manifest_path: manifest_name.to_string(),
@@ -113,13 +113,13 @@ impl LanguageRegistry {
     pub fn get_language(&self, name: &str) -> Option<&dyn LanguageDefinition> {
         self.languages
             .iter()
-            .find(|l| l.name().eq_ignore_ascii_case(name))
+            .find(|l| l.id().name().eq_ignore_ascii_case(name))
             .map(|l| l.as_ref())
     }
 
     /// Get all registered language names
     pub fn language_names(&self) -> Vec<&str> {
-        self.languages.iter().map(|l| l.name()).collect()
+        self.languages.iter().map(|l| l.id().name()).collect()
     }
 
     /// Check if a filename is a known manifest
@@ -201,7 +201,7 @@ mod tests {
         let registry = LanguageRegistry::with_defaults();
         let rust = registry.get_language("rust");
         assert!(rust.is_some());
-        assert_eq!(rust.unwrap().name(), "Rust");
+        assert_eq!(rust.unwrap().id().name(), "Rust");
 
         let unknown = registry.get_language("cobol");
         assert!(unknown.is_none());

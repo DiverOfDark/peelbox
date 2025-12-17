@@ -5,9 +5,10 @@ use super::*;
 pub struct GinFramework;
 
 impl Framework for GinFramework {
-    fn name(&self) -> &str {
-        "Gin"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Gin
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Go"]

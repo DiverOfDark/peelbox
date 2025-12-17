@@ -5,9 +5,10 @@ use super::*;
 pub struct EchoFramework;
 
 impl Framework for EchoFramework {
-    fn name(&self) -> &str {
-        "Echo"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Echo
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Go"]

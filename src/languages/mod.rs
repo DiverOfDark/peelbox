@@ -44,7 +44,7 @@ pub struct BuildTemplate {
 }
 
 pub trait LanguageDefinition: Send + Sync {
-    fn name(&self) -> &str;
+    fn id(&self) -> crate::stack::LanguageId;
     fn extensions(&self) -> &[&str];
     fn detect(
         &self,

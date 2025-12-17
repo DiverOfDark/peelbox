@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct DotNetBuildSystem;
 
 impl BuildSystem for DotNetBuildSystem {
-    fn name(&self) -> &str {
-        "dotnet"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::DotNet
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

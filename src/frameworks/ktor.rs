@@ -5,9 +5,10 @@ use super::*;
 pub struct KtorFramework;
 
 impl Framework for KtorFramework {
-    fn name(&self) -> &str {
-        "Ktor"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Ktor
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Kotlin"]

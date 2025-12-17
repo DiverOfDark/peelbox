@@ -9,8 +9,8 @@ use regex::Regex;
 pub struct CppLanguage;
 
 impl LanguageDefinition for CppLanguage {
-    fn name(&self) -> &str {
-        "C++"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Cpp
     }
 
     fn extensions(&self) -> &[&str] {
@@ -189,12 +189,6 @@ impl LanguageDefinition for CppLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = CppLanguage;
-        assert_eq!(lang.name(), "C++");
-    }
 
     #[test]
     fn test_extensions() {

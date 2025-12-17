@@ -12,6 +12,7 @@ pub mod llm;
 pub mod output;
 pub mod pipeline;
 pub mod progress;
+pub mod stack;
 pub mod validation;
 
 pub use build_systems::{BuildSystem, BuildSystemRegistry, BuildTemplate};
@@ -24,6 +25,9 @@ pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
 pub use progress::{LoggingHandler, ProgressEvent};
+pub use stack::{BuildSystemId, FrameworkId, LanguageId};
+pub use stack::detection::DetectionStack;
+pub use stack::registry::StackRegistry;
 pub use validation::Validator;
 
 pub fn init_default() {

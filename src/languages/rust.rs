@@ -11,8 +11,8 @@ use super::DetectionMethod;
 pub struct RustLanguage;
 
 impl LanguageDefinition for RustLanguage {
-    fn name(&self) -> &str {
-        "Rust"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Rust
     }
 
     fn extensions(&self) -> &[&str] {
@@ -167,12 +167,6 @@ impl LanguageDefinition for RustLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = RustLanguage;
-        assert_eq!(lang.name(), "Rust");
-    }
 
     #[test]
     fn test_extensions() {

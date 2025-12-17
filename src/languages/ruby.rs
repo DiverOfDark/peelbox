@@ -9,8 +9,8 @@ use regex::Regex;
 pub struct RubyLanguage;
 
 impl LanguageDefinition for RubyLanguage {
-    fn name(&self) -> &str {
-        "Ruby"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Ruby
     }
 
     fn extensions(&self) -> &[&str] {
@@ -202,12 +202,6 @@ impl LanguageDefinition for RubyLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = RubyLanguage;
-        assert_eq!(lang.name(), "Ruby");
-    }
 
     #[test]
     fn test_extensions() {

@@ -5,9 +5,10 @@ use super::*;
 pub struct NextJsFramework;
 
 impl Framework for NextJsFramework {
-    fn name(&self) -> &str {
-        "Next.js"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::NextJs
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["JavaScript", "TypeScript"]

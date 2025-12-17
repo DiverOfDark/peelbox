@@ -2,12 +2,11 @@ use super::runtime::RuntimeInfo;
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::health::HealthCheckExtractor;
-use crate::frameworks::FrameworkRegistry;
 use crate::fs::RealFileSystem;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
+use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -70,12 +69,11 @@ pub async fn execute(
     service: &Service,
     runtime: &RuntimeInfo,
     scan: &ScanResult,
-    registry: &LanguageRegistry,
-    framework_registry: &FrameworkRegistry,
+    stack_registry: &Arc<StackRegistry>,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<HealthInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
-    let extractor = HealthCheckExtractor::with_registry(RealFileSystem, registry.clone());
+    let extractor = HealthCheckExtractor::new(RealFileSystem);
     let extracted_info = extractor.extract(&context);
     let extracted: Vec<String> = extracted_info
         .iter()
@@ -101,7 +99,7 @@ pub async fn execute(
         });
     }
 
-    if let Some(framework_default) = try_framework_defaults(runtime, framework_registry) {
+    if let Some(framework_default) = try_framework_defaults(runtime, stack_registry) {
         return Ok(framework_default);
     }
 
@@ -111,32 +109,38 @@ pub async fn execute(
 
 fn try_framework_defaults(
     runtime: &RuntimeInfo,
-    framework_registry: &FrameworkRegistry,
+    stack_registry: &Arc<crate::stack::StackRegistry>,
 ) -> Option<HealthInfo> {
     let framework_name = runtime.framework.as_deref()?;
-    let framework = framework_registry.get_by_name(framework_name)?;
 
-    let endpoints = framework.health_endpoints();
-    if endpoints.is_empty() {
-        return None;
+    for fw_id in crate::stack::FrameworkId::all_variants() {
+        if let Some(fw) = stack_registry.get_framework(*fw_id) {
+            if fw.id().name() == framework_name {
+                let endpoints = fw.health_endpoints();
+                if endpoints.is_empty() {
+                    return None;
+                }
+
+                let health_endpoints: Vec<HealthEndpoint> = endpoints
+                    .iter()
+                    .map(|path| HealthEndpoint {
+                        path: path.to_string(),
+                        method: "GET".to_string(),
+                    })
+                    .collect();
+
+                let recommended = endpoints.first().map(|e| e.to_string());
+
+                return Some(HealthInfo {
+                    health_endpoints,
+                    recommended_liveness: recommended.clone(),
+                    recommended_readiness: recommended,
+                    confidence: Confidence::High,
+                });
+            }
+        }
     }
-
-    let health_endpoints: Vec<HealthEndpoint> = endpoints
-        .iter()
-        .map(|path| HealthEndpoint {
-            path: path.to_string(),
-            method: "GET".to_string(),
-        })
-        .collect();
-
-    let recommended = endpoints.first().map(|e| e.to_string());
-
-    Some(HealthInfo {
-        health_endpoints,
-        recommended_liveness: recommended.clone(),
-        recommended_readiness: recommended,
-        confidence: Confidence::High,
-    })
+    None
 }
 
 #[cfg(test)]
@@ -153,8 +157,8 @@ mod tests {
             confidence: crate::pipeline::Confidence::High,
         };
 
-        let framework_registry = FrameworkRegistry::new();
-        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let result = try_framework_defaults(&runtime, &stack_registry).unwrap();
         assert_eq!(result.health_endpoints.len(), 3);
         assert_eq!(result.health_endpoints[0].path, "/actuator/health");
         assert_eq!(
@@ -173,8 +177,8 @@ mod tests {
             confidence: crate::pipeline::Confidence::High,
         };
 
-        let framework_registry = FrameworkRegistry::new();
-        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let result = try_framework_defaults(&runtime, &stack_registry).unwrap();
         assert!(!result.health_endpoints.is_empty());
         assert_eq!(result.confidence, Confidence::High);
     }

@@ -9,8 +9,8 @@ use regex::Regex;
 pub struct PhpLanguage;
 
 impl LanguageDefinition for PhpLanguage {
-    fn name(&self) -> &str {
-        "PHP"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::PHP
     }
 
     fn extensions(&self) -> &[&str] {
@@ -182,12 +182,6 @@ impl LanguageDefinition for PhpLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = PhpLanguage;
-        assert_eq!(lang.name(), "PHP");
-    }
 
     #[test]
     fn test_extensions() {

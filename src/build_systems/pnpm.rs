@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct PnpmBuildSystem;
 
 impl BuildSystem for PnpmBuildSystem {
-    fn name(&self) -> &str {
-        "pnpm"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Pnpm
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

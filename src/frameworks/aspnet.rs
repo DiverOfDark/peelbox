@@ -5,9 +5,10 @@ use super::*;
 pub struct AspNetFramework;
 
 impl Framework for AspNetFramework {
-    fn name(&self) -> &str {
-        "ASP.NET Core"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::AspNetCore
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["C#", "F#"]

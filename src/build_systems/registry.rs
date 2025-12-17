@@ -86,7 +86,7 @@ impl BuildSystemRegistry {
     pub fn get(&self, name: &str) -> Option<&dyn BuildSystem> {
         self.systems
             .iter()
-            .find(|s| s.name().eq_ignore_ascii_case(name))
+            .find(|s| s.id().name().eq_ignore_ascii_case(name))
             .map(|s| s.as_ref())
     }
 
@@ -142,7 +142,7 @@ mod tests {
         let registry = BuildSystemRegistry::with_defaults();
         let result = registry.detect("Cargo.toml", Some("[package]\nname = \"test\""));
         assert!(result.is_some());
-        assert_eq!(result.unwrap().name(), "cargo");
+        assert_eq!(result.unwrap().id().name(), "Cargo");
     }
 
     #[test]
@@ -150,7 +150,7 @@ mod tests {
         let registry = BuildSystemRegistry::with_defaults();
         let result = registry.detect("package-lock.json", None);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().name(), "npm");
+        assert_eq!(result.unwrap().id().name(), "npm");
     }
 
     #[test]
@@ -158,7 +158,7 @@ mod tests {
         let registry = BuildSystemRegistry::with_defaults();
         let result = registry.detect("yarn.lock", None);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().name(), "yarn");
+        assert_eq!(result.unwrap().id().name(), "Yarn");
     }
 
     #[test]
@@ -166,7 +166,7 @@ mod tests {
         let registry = BuildSystemRegistry::with_defaults();
         let result = registry.detect("pnpm-lock.yaml", None);
         assert!(result.is_some());
-        assert_eq!(result.unwrap().name(), "pnpm");
+        assert_eq!(result.unwrap().id().name(), "pnpm");
     }
 
     #[test]
@@ -174,7 +174,7 @@ mod tests {
         let registry = BuildSystemRegistry::with_defaults();
         let result = registry.detect("pom.xml", Some("<project>"));
         assert!(result.is_some());
-        assert_eq!(result.unwrap().name(), "maven");
+        assert_eq!(result.unwrap().id().name(), "Maven");
     }
 
     #[test]
@@ -206,11 +206,11 @@ mod tests {
 
         let csproj_result = registry.detect("App.csproj", Some("<Project Sdk=\"Microsoft.NET.Sdk\">"));
         assert!(csproj_result.is_some());
-        assert_eq!(csproj_result.unwrap().name(), "dotnet");
+        assert_eq!(csproj_result.unwrap().id().name(), ".NET");
 
         let fsproj_result = registry.detect("MyProject.fsproj", Some("<Project Sdk=\"Microsoft.NET.Sdk\">"));
         assert!(fsproj_result.is_some());
-        assert_eq!(fsproj_result.unwrap().name(), "dotnet");
+        assert_eq!(fsproj_result.unwrap().id().name(), ".NET");
     }
 
     #[test]
@@ -219,6 +219,6 @@ mod tests {
 
         let exact_match = registry.detect("Cargo.toml", Some("[package]\nname = \"test\""));
         assert!(exact_match.is_some());
-        assert_eq!(exact_match.unwrap().name(), "cargo");
+        assert_eq!(exact_match.unwrap().id().name(), "Cargo");
     }
 }

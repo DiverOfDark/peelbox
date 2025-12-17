@@ -55,8 +55,7 @@ impl DependencyPattern {
 
 /// Framework trait defining framework-specific behavior
 pub trait Framework: Send + Sync {
-    /// Framework name (e.g., "Spring Boot", "Express", "Django")
-    fn name(&self) -> &str;
+    fn id(&self) -> crate::stack::FrameworkId;
 
     /// Compatible language names (e.g., ["Java", "Kotlin"] for Spring Boot)
     fn compatible_languages(&self) -> &[&str];

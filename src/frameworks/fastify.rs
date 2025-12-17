@@ -5,9 +5,10 @@ use super::*;
 pub struct FastifyFramework;
 
 impl Framework for FastifyFramework {
-    fn name(&self) -> &str {
-        "Fastify"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Fastify
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["JavaScript", "TypeScript"]

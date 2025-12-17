@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct MavenBuildSystem;
 
 impl BuildSystem for MavenBuildSystem {
-    fn name(&self) -> &str {
-        "maven"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Maven
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct CargoBuildSystem;
 
 impl BuildSystem for CargoBuildSystem {
-    fn name(&self) -> &str {
-        "cargo"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Cargo
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

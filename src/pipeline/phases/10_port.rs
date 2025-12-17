@@ -2,12 +2,11 @@ use super::runtime::RuntimeInfo;
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::port::PortExtractor;
-use crate::frameworks::FrameworkRegistry;
 use crate::fs::RealFileSystem;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
+use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -65,12 +64,11 @@ pub async fn execute(
     service: &Service,
     runtime: &RuntimeInfo,
     scan: &ScanResult,
-    registry: &LanguageRegistry,
-    framework_registry: &FrameworkRegistry,
+    stack_registry: &Arc<StackRegistry>,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<PortInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
-    let extractor = PortExtractor::with_registry(RealFileSystem, registry.clone());
+    let extractor = PortExtractor::new(RealFileSystem);
     let extracted_info = extractor.extract(&context);
     let extracted: Vec<u16> = extracted_info.iter().map(|info| info.port).collect();
 
@@ -84,11 +82,11 @@ pub async fn execute(
         });
     }
 
-    if let Some(framework_default) = try_framework_defaults(runtime, framework_registry) {
+    if let Some(framework_default) = try_framework_defaults(runtime, stack_registry) {
         return Ok(framework_default);
     }
 
-    if let Some(deterministic) = try_deterministic(service) {
+    if let Some(deterministic) = try_deterministic(service, stack_registry) {
         return Ok(deterministic);
     }
 
@@ -98,27 +96,31 @@ pub async fn execute(
 
 fn try_framework_defaults(
     runtime: &RuntimeInfo,
-    framework_registry: &FrameworkRegistry,
+    stack_registry: &Arc<crate::stack::StackRegistry>,
 ) -> Option<PortInfo> {
     let framework_name = runtime.framework.as_deref()?;
-    let framework = framework_registry.get_by_name(framework_name)?;
 
-    let ports = framework.default_ports();
-    if ports.is_empty() {
-        return None;
+    for fw_id in crate::stack::FrameworkId::all_variants() {
+        if let Some(fw) = stack_registry.get_framework(*fw_id) {
+            if fw.id().name() == framework_name {
+                let ports = fw.default_ports();
+                if !ports.is_empty() {
+                    return Some(PortInfo {
+                        port: Some(ports[0]),
+                        from_env: true,
+                        env_var: Some("PORT".to_string()),
+                        confidence: Confidence::High,
+                    });
+                }
+            }
+        }
     }
-
-    Some(PortInfo {
-        port: Some(ports[0]),
-        from_env: true,
-        env_var: Some("PORT".to_string()),
-        confidence: Confidence::High,
-    })
+    None
 }
 
-fn try_deterministic(service: &Service) -> Option<PortInfo> {
-    let registry = LanguageRegistry::with_defaults();
-    let language_def = registry.get_language(&service.language)?;
+fn try_deterministic(service: &Service, stack_registry: &Arc<crate::stack::StackRegistry>) -> Option<PortInfo> {
+    let language_id = crate::stack::LanguageId::from_name(&service.language)?;
+    let language_def = stack_registry.get_language(language_id)?;
 
     let default_port = language_def.default_port()?;
 
@@ -144,8 +146,8 @@ mod tests {
             confidence: crate::pipeline::Confidence::High,
         };
 
-        let framework_registry = FrameworkRegistry::new();
-        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let result = try_framework_defaults(&runtime, &stack_registry).unwrap();
         assert_eq!(result.port, Some(8080));
         assert!(result.from_env);
         assert_eq!(result.confidence, Confidence::High);
@@ -160,8 +162,8 @@ mod tests {
             confidence: crate::pipeline::Confidence::High,
         };
 
-        let framework_registry = FrameworkRegistry::new();
-        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let result = try_framework_defaults(&runtime, &stack_registry).unwrap();
         assert_eq!(result.port, Some(3000));
         assert_eq!(result.confidence, Confidence::High);
     }
@@ -175,7 +177,8 @@ mod tests {
             build_system: "npm".to_string(),
         };
 
-        let result = try_deterministic(&service).unwrap();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let result = try_deterministic(&service, &stack_registry).unwrap();
         assert_eq!(result.port, Some(3000));
         assert!(result.from_env);
         assert_eq!(result.env_var, Some("PORT".to_string()));
@@ -190,7 +193,8 @@ mod tests {
             build_system: "maven".to_string(),
         };
 
-        let result = try_deterministic(&service).unwrap();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let result = try_deterministic(&service, &stack_registry).unwrap();
         assert_eq!(result.port, Some(8080));
     }
 

@@ -5,9 +5,10 @@ use super::*;
 pub struct ExpressFramework;
 
 impl Framework for ExpressFramework {
-    fn name(&self) -> &str {
-        "Express"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Express
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["JavaScript", "TypeScript"]

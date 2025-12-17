@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct NpmBuildSystem;
 
 impl BuildSystem for NpmBuildSystem {
-    fn name(&self) -> &str {
-        "npm"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Npm
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

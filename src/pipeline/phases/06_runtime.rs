@@ -1,11 +1,10 @@
 use super::dependencies::DependencyResult;
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::frameworks::FrameworkRegistry;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
+use crate::stack::StackRegistry;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -67,10 +66,10 @@ pub async fn execute(
     service: &Service,
     scan: &ScanResult,
     dependencies: &DependencyResult,
-    framework_registry: &FrameworkRegistry,
+    stack_registry: &Arc<StackRegistry>,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<RuntimeInfo> {
-    if let Some(deterministic) = try_deterministic(service, dependencies, framework_registry) {
+    if let Some(deterministic) = try_deterministic(service, dependencies, stack_registry) {
         return Ok(deterministic);
     }
 
@@ -84,18 +83,30 @@ pub async fn execute(
 fn try_deterministic(
     service: &Service,
     dependencies: &DependencyResult,
-    framework_registry: &FrameworkRegistry,
+    stack_registry: &Arc<StackRegistry>,
 ) -> Option<RuntimeInfo> {
-    let registry = LanguageRegistry::with_defaults();
-    let language_def = registry.get_language(&service.language)?;
+    let language_id = crate::stack::LanguageId::from_name(&service.language)?;
+    let language_def = stack_registry.get_language(language_id)?;
 
     let runtime = language_def.runtime_name()?;
 
     let framework = dependencies
         .dependencies
         .get(&service.path)
-        .and_then(|deps| framework_registry.detect_from_dependencies(deps))
-        .map(|(fw, _confidence)| fw.name().to_string());
+        .and_then(|deps| {
+            for fw_id in crate::stack::FrameworkId::all_variants() {
+                if let Some(fw) = stack_registry.get_framework(*fw_id) {
+                    let patterns = fw.dependency_patterns();
+                    for pattern in &patterns {
+                        if deps.external_deps.iter().any(|d| pattern.matches(d))
+                            || deps.internal_deps.iter().any(|d| pattern.matches(d)) {
+                            return Some(fw.id().name().to_string());
+                        }
+                    }
+                }
+            }
+            None
+        });
 
     Some(RuntimeInfo {
         runtime: runtime.to_string(),
@@ -153,9 +164,9 @@ mod tests {
         let dependencies = DependencyResult {
             dependencies: HashMap::new(),
         };
-        let framework_registry = FrameworkRegistry::new();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
 
-        let result = try_deterministic(&service, &dependencies, &framework_registry).unwrap();
+        let result = try_deterministic(&service, &dependencies, &stack_registry).unwrap();
         assert_eq!(result.runtime, "rust");
         assert_eq!(result.confidence, Confidence::High);
         assert_eq!(result.framework, None);
@@ -173,9 +184,9 @@ mod tests {
         let dependencies = DependencyResult {
             dependencies: HashMap::new(),
         };
-        let framework_registry = FrameworkRegistry::new();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
 
-        let result = try_deterministic(&service, &dependencies, &framework_registry).unwrap();
+        let result = try_deterministic(&service, &dependencies, &stack_registry).unwrap();
         assert_eq!(result.runtime, "node");
         assert_eq!(result.confidence, Confidence::High);
         assert_eq!(result.framework, None);
@@ -203,9 +214,9 @@ mod tests {
         let dependencies = DependencyResult {
             dependencies: deps_map,
         };
-        let framework_registry = FrameworkRegistry::new();
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
 
-        let result = try_deterministic(&service, &dependencies, &framework_registry).unwrap();
+        let result = try_deterministic(&service, &dependencies, &stack_registry).unwrap();
         assert_eq!(result.runtime, "node");
         assert_eq!(result.framework, Some("Express".to_string()));
         assert_eq!(result.confidence, Confidence::High);

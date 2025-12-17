@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct BundlerBuildSystem;
 
 impl BuildSystem for BundlerBuildSystem {
-    fn name(&self) -> &str {
-        "bundler"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Bundler
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

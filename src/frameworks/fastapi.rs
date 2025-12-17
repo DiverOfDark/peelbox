@@ -5,9 +5,10 @@ use super::*;
 pub struct FastApiFramework;
 
 impl Framework for FastApiFramework {
-    fn name(&self) -> &str {
-        "FastAPI"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::FastApi
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Python"]

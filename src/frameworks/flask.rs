@@ -5,9 +5,10 @@ use super::*;
 pub struct FlaskFramework;
 
 impl Framework for FlaskFramework {
-    fn name(&self) -> &str {
-        "Flask"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Flask
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Python"]

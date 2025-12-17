@@ -5,9 +5,10 @@ use super::*;
 pub struct DjangoFramework;
 
 impl Framework for DjangoFramework {
-    fn name(&self) -> &str {
-        "Django"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Django
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Python"]

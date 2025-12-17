@@ -5,9 +5,10 @@ use super::*;
 pub struct SpringBootFramework;
 
 impl Framework for SpringBootFramework {
-    fn name(&self) -> &str {
-        "Spring Boot"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::SpringBoot
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Java", "Kotlin"]

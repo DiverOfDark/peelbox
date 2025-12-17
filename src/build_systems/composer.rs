@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct ComposerBuildSystem;
 
 impl BuildSystem for ComposerBuildSystem {
-    fn name(&self) -> &str {
-        "composer"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Composer
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

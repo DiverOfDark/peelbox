@@ -9,8 +9,8 @@ use regex::Regex;
 pub struct DotNetLanguage;
 
 impl LanguageDefinition for DotNetLanguage {
-    fn name(&self) -> &str {
-        ".NET"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::CSharp
     }
 
     fn extensions(&self) -> &[&str] {
@@ -209,12 +209,6 @@ impl LanguageDefinition for DotNetLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = DotNetLanguage;
-        assert_eq!(lang.name(), ".NET");
-    }
 
     #[test]
     fn test_extensions() {

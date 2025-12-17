@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct PipenvBuildSystem;
 
 impl BuildSystem for PipenvBuildSystem {
-    fn name(&self) -> &str {
-        "pipenv"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Pipenv
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

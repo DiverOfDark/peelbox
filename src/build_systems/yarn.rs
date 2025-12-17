@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct YarnBuildSystem;
 
 impl BuildSystem for YarnBuildSystem {
-    fn name(&self) -> &str {
-        "yarn"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Yarn
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

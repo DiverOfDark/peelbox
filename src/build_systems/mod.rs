@@ -28,8 +28,7 @@ pub struct ManifestPattern {
 
 /// Build system trait
 pub trait BuildSystem: Send + Sync {
-    /// Build system name (e.g., "cargo", "npm", "maven")
-    fn name(&self) -> &str;
+    fn id(&self) -> crate::stack::BuildSystemId;
 
     /// Manifest file patterns (e.g., "Cargo.toml", "package.json")
     fn manifest_patterns(&self) -> &[ManifestPattern];

@@ -9,8 +9,8 @@ use regex::Regex;
 pub struct ElixirLanguage;
 
 impl LanguageDefinition for ElixirLanguage {
-    fn name(&self) -> &str {
-        "Elixir"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Elixir
     }
 
     fn extensions(&self) -> &[&str] {
@@ -192,12 +192,6 @@ impl LanguageDefinition for ElixirLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = ElixirLanguage;
-        assert_eq!(lang.name(), "Elixir");
-    }
 
     #[test]
     fn test_extensions() {

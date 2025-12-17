@@ -10,8 +10,8 @@ use std::collections::HashSet;
 pub struct GoLanguage;
 
 impl LanguageDefinition for GoLanguage {
-    fn name(&self) -> &str {
-        "Go"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Go
     }
 
     fn extensions(&self) -> &[&str] {
@@ -258,12 +258,6 @@ impl GoLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = GoLanguage;
-        assert_eq!(lang.name(), "Go");
-    }
 
     #[test]
     fn test_extensions() {

@@ -3,9 +3,9 @@ use super::structure::Service;
 use crate::extractors::env_vars::EnvVarExtractor;
 use crate::fs::RealFileSystem;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
+use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -64,11 +64,11 @@ pub async fn execute(
     llm_client: &dyn LLMClient,
     service: &Service,
     scan: &ScanResult,
-    registry: &LanguageRegistry,
+    _stack_registry: &Arc<StackRegistry>,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<EnvVarsInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
-    let extractor = EnvVarExtractor::with_registry(RealFileSystem, registry.clone());
+    let extractor = EnvVarExtractor::new(RealFileSystem);
     let extracted_info = extractor.extract(&context);
     let extracted: Vec<String> = extracted_info
         .iter()

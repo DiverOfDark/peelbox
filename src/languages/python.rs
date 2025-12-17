@@ -10,8 +10,8 @@ use std::collections::HashSet;
 pub struct PythonLanguage;
 
 impl LanguageDefinition for PythonLanguage {
-    fn name(&self) -> &str {
-        "Python"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Python
     }
 
     fn extensions(&self) -> &[&str] {
@@ -257,12 +257,6 @@ impl PythonLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = PythonLanguage;
-        assert_eq!(lang.name(), "Python");
-    }
 
     #[test]
     fn test_extensions() {

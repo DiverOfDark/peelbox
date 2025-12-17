@@ -77,7 +77,7 @@ impl FrameworkRegistry {
     pub fn get_by_name(&self, name: &str) -> Option<&dyn Framework> {
         self.frameworks
             .iter()
-            .find(|f| f.name().eq_ignore_ascii_case(name))
+            .find(|f| f.id().name().eq_ignore_ascii_case(name))
             .map(|f| f.as_ref())
     }
 
@@ -137,7 +137,7 @@ mod tests {
         assert!(result.is_some());
 
         let (framework, confidence) = result.unwrap();
-        assert_eq!(framework.name(), "Spring Boot");
+        assert_eq!(framework.id().name(), "Spring Boot");
         assert!(confidence >= 0.9);
     }
 
@@ -156,7 +156,7 @@ mod tests {
         assert!(result.is_some());
 
         let (framework, confidence) = result.unwrap();
-        assert_eq!(framework.name(), "Express");
+        assert_eq!(framework.id().name(), "Express");
         assert!(confidence >= 0.9);
     }
 
@@ -166,11 +166,11 @@ mod tests {
 
         let spring = registry.get_by_name("Spring Boot");
         assert!(spring.is_some());
-        assert_eq!(spring.unwrap().name(), "Spring Boot");
+        assert_eq!(spring.unwrap().id().name(), "Spring Boot");
 
         let express = registry.get_by_name("express");
         assert!(express.is_some());
-        assert_eq!(express.unwrap().name(), "Express");
+        assert_eq!(express.unwrap().id().name(), "Express");
     }
 
     #[test]

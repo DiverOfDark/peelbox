@@ -3,12 +3,11 @@ use super::phases::{
     build, build_order, cache, classify, dependencies, entrypoint, env_vars, health, native_deps,
     port, root_cache, runtime, scan, structure,
 };
-use crate::frameworks::FrameworkRegistry;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
 use crate::progress::{LoggingHandler, ProgressEvent};
+use crate::stack::StackRegistry;
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::Arc;
@@ -17,8 +16,7 @@ use tracing::{debug, info};
 
 pub struct PipelineOrchestrator {
     llm_client: Arc<dyn LLMClient>,
-    registry: LanguageRegistry,
-    framework_registry: FrameworkRegistry,
+    stack_registry: Arc<StackRegistry>,
     progress_handler: Option<LoggingHandler>,
     heuristic_logger: Arc<HeuristicLogger>,
 }
@@ -27,8 +25,7 @@ impl PipelineOrchestrator {
     pub fn new(llm_client: Arc<dyn LLMClient>) -> Self {
         Self {
             llm_client,
-            registry: LanguageRegistry::with_defaults(),
-            framework_registry: FrameworkRegistry::new(),
+            stack_registry: Arc::new(StackRegistry::with_defaults()),
             progress_handler: None,
             heuristic_logger: Arc::new(HeuristicLogger::disabled()),
         }
@@ -37,8 +34,7 @@ impl PipelineOrchestrator {
     pub fn with_progress_handler(llm_client: Arc<dyn LLMClient>) -> Self {
         Self {
             llm_client,
-            registry: LanguageRegistry::with_defaults(),
-            framework_registry: FrameworkRegistry::new(),
+            stack_registry: Arc::new(StackRegistry::with_defaults()),
             progress_handler: Some(LoggingHandler),
             heuristic_logger: Arc::new(HeuristicLogger::disabled()),
         }
@@ -51,8 +47,7 @@ impl PipelineOrchestrator {
     ) -> Self {
         Self {
             llm_client,
-            registry: LanguageRegistry::with_defaults(),
-            framework_registry: FrameworkRegistry::new(),
+            stack_registry: Arc::new(StackRegistry::with_defaults()),
             progress_handler,
             heuristic_logger,
         }
@@ -214,7 +209,7 @@ impl PipelineOrchestrator {
                     service,
                     &scan,
                     &dependencies,
-                    &self.framework_registry,
+                    &self.stack_registry,
                     &self.heuristic_logger,
                 )
                 .await
@@ -256,8 +251,7 @@ impl PipelineOrchestrator {
                     service,
                     &runtime,
                     &scan,
-                    &self.registry,
-                    &self.framework_registry,
+                    &self.stack_registry,
                     &self.heuristic_logger,
                 )
                 .await
@@ -268,7 +262,7 @@ impl PipelineOrchestrator {
                     self.llm_client.as_ref(),
                     service,
                     &scan,
-                    &self.registry,
+                    &self.stack_registry,
                     &self.heuristic_logger,
                 )
                 .await
@@ -280,8 +274,7 @@ impl PipelineOrchestrator {
                     service,
                     &runtime,
                     &scan,
-                    &self.registry,
-                    &self.framework_registry,
+                    &self.stack_registry,
                     &self.heuristic_logger,
                 )
                 .await

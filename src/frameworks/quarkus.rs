@@ -5,9 +5,10 @@ use super::*;
 pub struct QuarkusFramework;
 
 impl Framework for QuarkusFramework {
-    fn name(&self) -> &str {
-        "Quarkus"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Quarkus
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Java", "Kotlin"]

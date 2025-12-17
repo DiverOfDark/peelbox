@@ -11,8 +11,8 @@ use regex::Regex;
 pub struct JavaScriptLanguage;
 
 impl LanguageDefinition for JavaScriptLanguage {
-    fn name(&self) -> &str {
-        "JavaScript"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::JavaScript
     }
 
     fn extensions(&self) -> &[&str] {
@@ -238,12 +238,6 @@ impl LanguageDefinition for JavaScriptLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = JavaScriptLanguage;
-        assert_eq!(lang.name(), "JavaScript");
-    }
 
     #[test]
     fn test_extensions() {

@@ -5,9 +5,10 @@ use super::*;
 pub struct RailsFramework;
 
 impl Framework for RailsFramework {
-    fn name(&self) -> &str {
-        "Rails"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Rails
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Ruby"]

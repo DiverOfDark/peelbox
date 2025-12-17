@@ -5,9 +5,10 @@ use super::*;
 pub struct AxumFramework;
 
 impl Framework for AxumFramework {
-    fn name(&self) -> &str {
-        "Axum"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Axum
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Rust"]

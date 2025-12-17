@@ -5,8 +5,8 @@ use super::{BuildSystem, BuildTemplate, ManifestPattern};
 pub struct BunBuildSystem;
 
 impl BuildSystem for BunBuildSystem {
-    fn name(&self) -> &str {
-        "bun"
+    fn id(&self) -> crate::stack::BuildSystemId {
+        crate::stack::BuildSystemId::Bun
     }
 
     fn manifest_patterns(&self) -> &[ManifestPattern] {

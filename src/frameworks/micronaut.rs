@@ -5,9 +5,10 @@ use super::*;
 pub struct MicronautFramework;
 
 impl Framework for MicronautFramework {
-    fn name(&self) -> &str {
-        "Micronaut"
+    fn id(&self) -> crate::stack::FrameworkId {
+        crate::stack::FrameworkId::Micronaut
     }
+
 
     fn compatible_languages(&self) -> &[&str] {
         &["Java", "Kotlin"]

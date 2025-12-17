@@ -10,8 +10,8 @@ use std::collections::HashSet;
 pub struct JavaLanguage;
 
 impl LanguageDefinition for JavaLanguage {
-    fn name(&self) -> &str {
-        "Java"
+    fn id(&self) -> crate::stack::LanguageId {
+        crate::stack::LanguageId::Java
     }
 
     fn extensions(&self) -> &[&str] {
@@ -318,12 +318,6 @@ impl JavaLanguage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_name() {
-        let lang = JavaLanguage;
-        assert_eq!(lang.name(), "Java");
-    }
 
     #[test]
     fn test_extensions() {
