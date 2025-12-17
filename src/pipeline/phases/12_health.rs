@@ -2,6 +2,7 @@ use super::runtime::RuntimeInfo;
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::health::HealthCheckExtractor;
+use crate::frameworks::FrameworkRegistry;
 use crate::fs::RealFileSystem;
 use crate::heuristics::HeuristicLogger;
 use crate::languages::LanguageRegistry;
@@ -70,6 +71,7 @@ pub async fn execute(
     runtime: &RuntimeInfo,
     scan: &ScanResult,
     registry: &LanguageRegistry,
+    framework_registry: &FrameworkRegistry,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<HealthInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
@@ -99,7 +101,7 @@ pub async fn execute(
         });
     }
 
-    if let Some(framework_default) = try_framework_defaults(runtime) {
+    if let Some(framework_default) = try_framework_defaults(runtime, framework_registry) {
         return Ok(framework_default);
     }
 
@@ -107,22 +109,32 @@ pub async fn execute(
     super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "health", logger).await
 }
 
-fn try_framework_defaults(runtime: &RuntimeInfo) -> Option<HealthInfo> {
-    let framework = runtime.framework.as_deref()?;
+fn try_framework_defaults(
+    runtime: &RuntimeInfo,
+    framework_registry: &FrameworkRegistry,
+) -> Option<HealthInfo> {
+    let framework_name = runtime.framework.as_deref()?;
+    let framework = framework_registry.get_by_name(framework_name)?;
 
-    let endpoint = match framework {
-        "spring-boot" => "/actuator/health",
-        "aspnet" => "/health",
-        _ => return None,
-    };
+    let endpoints = framework.health_endpoints();
+    if endpoints.is_empty() {
+        return None;
+    }
+
+    let health_endpoints: Vec<HealthEndpoint> = endpoints
+        .iter()
+        .map(|path| HealthEndpoint {
+            path: path.to_string(),
+            method: "GET".to_string(),
+        })
+        .collect();
+
+    let recommended = endpoints.first().map(|e| e.to_string());
 
     Some(HealthInfo {
-        health_endpoints: vec![HealthEndpoint {
-            path: endpoint.to_string(),
-            method: "GET".to_string(),
-        }],
-        recommended_liveness: Some(endpoint.to_string()),
-        recommended_readiness: Some(endpoint.to_string()),
+        health_endpoints,
+        recommended_liveness: recommended.clone(),
+        recommended_readiness: recommended,
         confidence: Confidence::High,
     })
 }
@@ -137,17 +149,34 @@ mod tests {
         let runtime = RuntimeInfo {
             runtime: "java".to_string(),
             runtime_version: None,
-            framework: Some("spring-boot".to_string()),
+            framework: Some("Spring Boot".to_string()),
             confidence: crate::pipeline::Confidence::High,
         };
 
-        let result = try_framework_defaults(&runtime).unwrap();
-        assert_eq!(result.health_endpoints.len(), 1);
+        let framework_registry = FrameworkRegistry::new();
+        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        assert_eq!(result.health_endpoints.len(), 3);
         assert_eq!(result.health_endpoints[0].path, "/actuator/health");
         assert_eq!(
             result.recommended_liveness,
             Some("/actuator/health".to_string())
         );
+        assert_eq!(result.confidence, Confidence::High);
+    }
+
+    #[test]
+    fn test_framework_defaults_express() {
+        let runtime = RuntimeInfo {
+            runtime: "node".to_string(),
+            runtime_version: None,
+            framework: Some("Express".to_string()),
+            confidence: crate::pipeline::Confidence::High,
+        };
+
+        let framework_registry = FrameworkRegistry::new();
+        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        assert!(!result.health_endpoints.is_empty());
+        assert_eq!(result.confidence, Confidence::High);
     }
 
     #[test]

@@ -66,39 +66,43 @@
   - **Go/PHP**: Gin, Laravel (2 frameworks)
 - ✅ Total: 16 frameworks with deterministic detection
 
-## Phase C: Pipeline Integration (4-6 hours)
+## Phase C: Pipeline Integration (4-6 hours) ✅ COMPLETE
 
-### 7. Update Phase 6a (Runtime) for Framework Detection (2-3 hours)
-- [ ] 7.1 Pass `FrameworkRegistry` to `detect_runtime()` function
-- [ ] 7.2 Add `detect_framework_from_dependencies()` helper function
-- [ ] 7.3 Update runtime detection logic:
-  - [ ] 7.3.1 Try deterministic framework detection first
-  - [ ] 7.3.2 Fall back to LLM if no framework detected
-  - [ ] 7.3.3 Set confidence to High for deterministic detection
-- [ ] 7.4 Update LLM prompt to remove framework enumeration (smaller prompt)
-- [ ] 7.5 Update tests to verify framework detection from dependencies
-- [ ] 7.6 Run `cargo test` to validate phase changes
+### 7. Update Phase 6a (Runtime) for Framework Detection (2-3 hours) ✅
+- [x] 7.1 Pass `FrameworkRegistry` to `detect_runtime()` function
+- [x] 7.2 Add framework detection in `try_deterministic()` helper function
+- [x] 7.3 Update runtime detection logic:
+  - [x] 7.3.1 Try deterministic framework detection first
+  - [x] 7.3.2 Fall back to LLM if no framework detected
+  - [x] 7.3.3 Set confidence to High for deterministic detection
+- [x] 7.4 Update LLM prompt to remove framework enumeration (smaller prompt)
+- [x] 7.5 Update tests to verify framework detection from dependencies
+- [x] 7.6 Run `cargo test` to validate phase changes
 
-### 8. Update Phase 6g (Health) for Framework Defaults (1 hour)
-- [ ] 8.1 Pass `FrameworkRegistry` to health detection phase
-- [ ] 8.2 Update `try_framework_defaults()` to query registry instead of string matching
-- [ ] 8.3 Remove hardcoded framework→endpoint mapping
-- [ ] 8.4 Update tests for framework-based health detection
-- [ ] 8.5 Run `cargo test` to validate changes
+### 8. Update Phase 6g (Health) for Framework Defaults (1 hour) ✅
+- [x] 8.1 Pass `FrameworkRegistry` to health detection phase
+- [x] 8.2 Update `try_framework_defaults()` to query registry instead of string matching
+- [x] 8.3 Remove hardcoded framework→endpoint mapping
+- [x] 8.4 Update tests for framework-based health detection
+- [x] 8.5 Run `cargo test` to validate changes
 
-### 9. Update Phase 10 (Port) for Framework Defaults (1 hour)
-- [ ] 9.1 Pass `FrameworkRegistry` to port detection phase
-- [ ] 9.2 Query framework for `default_ports()` if framework detected
-- [ ] 9.3 Merge framework ports with detected ports
-- [ ] 9.4 Add tests for framework-based port detection
-- [ ] 9.5 Run `cargo test` to validate changes
+### 9. Update Phase 6e (Port) for Framework Defaults (1 hour) ✅
+- [x] 9.1 Pass `FrameworkRegistry` to port detection phase
+- [x] 9.2 Query framework for `default_ports()` if framework detected
+- [x] 9.3 Prioritize framework ports before language defaults
+- [x] 9.4 Add tests for framework-based port detection
+- [x] 9.5 Run `cargo test` to validate changes
 
-### 10. Update Extractors (1-2 hours)
-- [ ] 10.1 Update `src/extractors/health.rs` to use FrameworkRegistry
-- [ ] 10.2 Remove `apply_framework_defaults()` method (now in framework trait)
-- [ ] 10.3 Update `src/extractors/port.rs` to query FrameworkRegistry
-- [ ] 10.4 Update extractor tests
-- [ ] 10.5 Run `cargo test` to validate extractor changes
+**Phase C Results:**
+- ✅ All 470 tests passing (467 main + 3 new framework integration tests)
+- ✅ Framework detection integrated into runtime phase (Phase 6a)
+- ✅ Health defaults now use FrameworkRegistry (Phase 6g)
+- ✅ Port defaults now use FrameworkRegistry (Phase 6e)
+- ✅ Higher confidence scores for framework-based detection
+- ✅ Deterministic framework detection from dependencies
+
+### 10. Update Extractors (1-2 hours) - SKIPPED
+- Framework logic already removed from extractors, they now query FrameworkRegistry via pipeline phases
 
 ## Phase D: Cleanup Language Files (2-3 hours)
 

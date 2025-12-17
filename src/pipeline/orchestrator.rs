@@ -3,6 +3,7 @@ use super::phases::{
     build, build_order, cache, classify, dependencies, entrypoint, env_vars, health, native_deps,
     port, root_cache, runtime, scan, structure,
 };
+use crate::frameworks::FrameworkRegistry;
 use crate::heuristics::HeuristicLogger;
 use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
@@ -17,6 +18,7 @@ use tracing::{debug, info};
 pub struct PipelineOrchestrator {
     llm_client: Arc<dyn LLMClient>,
     registry: LanguageRegistry,
+    framework_registry: FrameworkRegistry,
     progress_handler: Option<LoggingHandler>,
     heuristic_logger: Arc<HeuristicLogger>,
 }
@@ -26,6 +28,7 @@ impl PipelineOrchestrator {
         Self {
             llm_client,
             registry: LanguageRegistry::with_defaults(),
+            framework_registry: FrameworkRegistry::new(),
             progress_handler: None,
             heuristic_logger: Arc::new(HeuristicLogger::disabled()),
         }
@@ -35,6 +38,7 @@ impl PipelineOrchestrator {
         Self {
             llm_client,
             registry: LanguageRegistry::with_defaults(),
+            framework_registry: FrameworkRegistry::new(),
             progress_handler: Some(LoggingHandler),
             heuristic_logger: Arc::new(HeuristicLogger::disabled()),
         }
@@ -48,6 +52,7 @@ impl PipelineOrchestrator {
         Self {
             llm_client,
             registry: LanguageRegistry::with_defaults(),
+            framework_registry: FrameworkRegistry::new(),
             progress_handler,
             heuristic_logger,
         }
@@ -208,6 +213,8 @@ impl PipelineOrchestrator {
                     self.llm_client.as_ref(),
                     service,
                     &scan,
+                    &dependencies,
+                    &self.framework_registry,
                     &self.heuristic_logger,
                 )
                 .await
@@ -247,8 +254,10 @@ impl PipelineOrchestrator {
                 let port = port::execute(
                     self.llm_client.as_ref(),
                     service,
+                    &runtime,
                     &scan,
                     &self.registry,
+                    &self.framework_registry,
                     &self.heuristic_logger,
                 )
                 .await
@@ -272,6 +281,7 @@ impl PipelineOrchestrator {
                     &runtime,
                     &scan,
                     &self.registry,
+                    &self.framework_registry,
                     &self.heuristic_logger,
                 )
                 .await

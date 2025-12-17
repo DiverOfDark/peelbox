@@ -1,6 +1,8 @@
+use super::runtime::RuntimeInfo;
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::port::PortExtractor;
+use crate::frameworks::FrameworkRegistry;
 use crate::fs::RealFileSystem;
 use crate::heuristics::HeuristicLogger;
 use crate::languages::LanguageRegistry;
@@ -61,8 +63,10 @@ Rules:
 pub async fn execute(
     llm_client: &dyn LLMClient,
     service: &Service,
+    runtime: &RuntimeInfo,
     scan: &ScanResult,
     registry: &LanguageRegistry,
+    framework_registry: &FrameworkRegistry,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<PortInfo> {
     let context = super::extractor_helper::create_service_context(scan, service);
@@ -80,12 +84,36 @@ pub async fn execute(
         });
     }
 
+    if let Some(framework_default) = try_framework_defaults(runtime, framework_registry) {
+        return Ok(framework_default);
+    }
+
     if let Some(deterministic) = try_deterministic(service) {
         return Ok(deterministic);
     }
 
     let prompt = build_prompt(service, &extracted);
     super::llm_helper::query_llm_with_logging(llm_client, prompt, 300, "port", logger).await
+}
+
+fn try_framework_defaults(
+    runtime: &RuntimeInfo,
+    framework_registry: &FrameworkRegistry,
+) -> Option<PortInfo> {
+    let framework_name = runtime.framework.as_deref()?;
+    let framework = framework_registry.get_by_name(framework_name)?;
+
+    let ports = framework.default_ports();
+    if ports.is_empty() {
+        return None;
+    }
+
+    Some(PortInfo {
+        port: Some(ports[0]),
+        from_env: true,
+        env_var: Some("PORT".to_string()),
+        confidence: Confidence::High,
+    })
 }
 
 fn try_deterministic(service: &Service) -> Option<PortInfo> {
@@ -106,6 +134,37 @@ fn try_deterministic(service: &Service) -> Option<PortInfo> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_framework_defaults_spring() {
+        let runtime = RuntimeInfo {
+            runtime: "java".to_string(),
+            runtime_version: None,
+            framework: Some("Spring Boot".to_string()),
+            confidence: crate::pipeline::Confidence::High,
+        };
+
+        let framework_registry = FrameworkRegistry::new();
+        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        assert_eq!(result.port, Some(8080));
+        assert!(result.from_env);
+        assert_eq!(result.confidence, Confidence::High);
+    }
+
+    #[test]
+    fn test_framework_defaults_express() {
+        let runtime = RuntimeInfo {
+            runtime: "node".to_string(),
+            runtime_version: None,
+            framework: Some("Express".to_string()),
+            confidence: crate::pipeline::Confidence::High,
+        };
+
+        let framework_registry = FrameworkRegistry::new();
+        let result = try_framework_defaults(&runtime, &framework_registry).unwrap();
+        assert_eq!(result.port, Some(3000));
+        assert_eq!(result.confidence, Confidence::High);
+    }
 
     #[test]
     fn test_deterministic_node() {
