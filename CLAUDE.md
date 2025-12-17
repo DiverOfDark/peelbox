@@ -151,6 +151,7 @@ aipack/
 │   ├── languages/           # Language registry
 │   │   ├── mod.rs
 │   │   ├── registry.rs      # LanguageRegistry
+│   │   ├── parsers.rs       # DependencyParser trait + implementations
 │   │   ├── rust.rs          # Rust language definition
 │   │   ├── javascript.rs    # JavaScript/TypeScript
 │   │   ├── python.rs        # Python
@@ -160,7 +161,24 @@ aipack/
 │   │   ├── ruby.rs          # Ruby
 │   │   ├── php.rs           # PHP
 │   │   ├── cpp.rs           # C++
+│   │   ├── kotlin.rs        # Kotlin
 │   │   └── elixir.rs        # Elixir
+│   ├── build_systems/       # Build system abstraction
+│   │   ├── mod.rs           # BuildSystem trait, BuildTemplate
+│   │   ├── registry.rs      # BuildSystemRegistry
+│   │   ├── cargo.rs         # Rust - cargo
+│   │   ├── maven.rs         # Java, Kotlin - Maven
+│   │   ├── gradle.rs        # Java, Kotlin - Gradle
+│   │   ├── npm.rs           # JavaScript, TypeScript - npm
+│   │   ├── yarn.rs          # JavaScript, TypeScript - yarn
+│   │   ├── pnpm.rs          # JavaScript, TypeScript - pnpm
+│   │   ├── bun.rs           # JavaScript, TypeScript - bun
+│   │   ├── pip.rs           # Python - pip
+│   │   ├── poetry.rs        # Python - poetry
+│   │   ├── pipenv.rs        # Python - pipenv
+│   │   ├── go_mod.rs        # Go - go modules
+│   │   ├── dotnet.rs        # .NET - dotnet CLI
+│   │   └── composer.rs      # PHP - composer
 │   ├── fs/                  # FileSystem abstraction
 │   │   ├── mod.rs
 │   │   ├── trait.rs         # FileSystem trait
@@ -172,15 +190,14 @@ aipack/
 │   │   └── context.rs       # BootstrapContext, RepoSummary
 │   ├── progress/            # Progress reporting
 │   │   ├── mod.rs
-│   │   ├── handler.rs       # ProgressHandler trait
-│   │   └── logging.rs       # LoggingHandler implementation
+│   │   └── logging.rs       # LoggingHandler (Option-based, no trait)
 │   ├── validation/          # Validation system
 │   │   ├── mod.rs
 │   │   ├── validator.rs     # Validator
-│   │   └── rules.rs         # ValidationRule trait + implementations
+│   │   └── rules.rs         # Direct validation functions
 │   ├── extractors/          # Code-based extraction
 │   │   ├── mod.rs
-│   │   ├── registry.rs      # ExtractorRegistry
+│   │   ├── common.rs        # Shared scanning logic
 │   │   ├── port.rs          # Port extractor
 │   │   ├── env_vars.rs      # Environment variable extractor
 │   │   └── health.rs        # Health check extractor
@@ -189,8 +206,7 @@ aipack/
 │   │   └── logger.rs        # HeuristicLogger (JSONL)
 │   ├── pipeline/            # Analysis pipeline
 │   │   ├── mod.rs
-│   │   ├── config.rs        # PipelineConfig
-│   │   ├── context.rs       # PipelineContext (owns dependencies)
+│   │   ├── confidence.rs    # Shared Confidence enum
 │   │   ├── orchestrator.rs  # PipelineOrchestrator (9-phase pipeline)
 │   │   └── phases/          # Pipeline phases
 │   │       ├── mod.rs
@@ -211,9 +227,7 @@ aipack/
 │   │       └── assemble.rs  # Phase 9: Assemble
 │   ├── detection/           # Detection service
 │   │   ├── mod.rs
-│   │   ├── service.rs       # DetectionService (public API)
-│   │   ├── types.rs         # UniversalBuild and related types
-│   │   └── analyzer.rs      # Legacy analyzer
+│   │   └── service.rs       # DetectionService (public API)
 │   ├── output/              # Output formatting
 │   │   ├── mod.rs
 │   │   ├── schema.rs        # JSON schema output
@@ -229,11 +243,9 @@ aipack/
 │   ├── mock_detection_test.rs # Mock-based detection tests
 │   ├── embedded_llm_test.rs # Embedded LLM integration tests
 │   ├── bootstrap_integration_test.rs # Bootstrap scanner tests
-│   ├── error_handling_test.rs # Error handling scenarios
 │   ├── backend_health_test.rs # Backend health checks
-│   ├── analyzer_integration.rs # Legacy analyzer tests
 │   ├── fixtures/            # Test fixture repositories
-│   │   ├── single-language/ # Rust, Node.js, Python, Java, Go, .NET
+│   │   ├── single-language/ # Rust, Node.js, Python, Java, Go, .NET, Ruby, PHP, C++, Elixir
 │   │   ├── monorepo/        # npm-workspaces, cargo-workspace, etc.
 │   │   ├── edge-cases/      # empty-repo, no-manifest, nested-projects
 │   │   ├── expected/        # Expected JSON outputs

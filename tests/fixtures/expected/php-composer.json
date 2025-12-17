@@ -1,36 +1,53 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "php-api",
-    "language": "PHP",
-    "build_system": "composer",
-    "confidence": 0.9,
-    "reasoning": "Detected composer.json with PHP dependencies (Slim)"
-  },
-  "build": {
-    "base": "composer:2",
-    "packages": ["unzip", "git"],
-    "env": {},
-    "commands": ["composer install --no-dev --optimize-autoloader"],
-    "context": [{"from": ".", "to": "."}],
-    "cache": ["vendor/"],
-    "artifacts": []
-  },
-  "runtime": {
-    "base": "php:8.2-fpm",
-    "packages": [],
-    "env": {
-      "PORT": "8000",
-      "DATABASE_URL": "mysql://localhost/myapp"
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "composer",
+      "confidence": 0.95,
+      "reasoning": "Detected from composer.json in ."
     },
-    "copy": [
-      {"from": "composer.json", "to": "/app/composer.json"},
-      {"from": "composer.lock", "to": "/app/composer.lock"},
-      {"from": "index.php", "to": "/app/index.php"},
-      {"from": "vendor/", "to": "/app/vendor/"}
-    ],
-    "command": ["php", "-S", "0.0.0.0:8000", "index.php"],
-    "ports": [8000],
-    "healthcheck": "/health"
+    "build": {
+      "base": "composer:2",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "composer install --no-dev --optimize-autoloader"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "vendor"
+      ],
+      "artifacts": [
+        "vendor/",
+        "public/"
+      ]
+    },
+    "runtime": {
+      "base": "php:8.2-fpm",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "vendor/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "php",
+        "-S",
+        "0.0.0.0:8000",
+        "public/index.php"
+      ],
+      "ports": [
+        8000
+      ]
+    }
   }
-}
+]

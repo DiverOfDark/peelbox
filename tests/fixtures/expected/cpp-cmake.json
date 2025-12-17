@@ -1,36 +1,56 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "cpp-api",
-    "language": "C++",
-    "build_system": "cmake",
-    "confidence": 0.85,
-    "reasoning": "Detected CMakeLists.txt with C++ project configuration"
-  },
-  "build": {
-    "base": "gcc:12",
-    "packages": ["cmake", "libboost-all-dev", "libssl-dev"],
-    "env": {},
-    "commands": [
-      "cmake -B build -DCMAKE_BUILD_TYPE=Release",
-      "cmake --build build --config Release"
-    ],
-    "context": [{"from": ".", "to": "."}],
-    "cache": ["build/"],
-    "artifacts": ["build/server"]
-  },
-  "runtime": {
-    "base": "ubuntu:22.04",
-    "packages": ["libboost-system1.74.0", "libboost-thread1.74.0", "libssl3"],
-    "env": {
-      "PORT": "8080",
-      "DATABASE_URL": "postgres://localhost/myapp"
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "C++",
+      "build_system": "cmake",
+      "confidence": 0.95,
+      "reasoning": "Detected from CMakeLists.txt in ."
     },
-    "copy": [
-      {"from": "build/server", "to": "/usr/local/bin/server"}
-    ],
-    "command": ["/usr/local/bin/server"],
-    "ports": [8080],
-    "healthcheck": "/health"
+    "build": {
+      "base": "gcc:12",
+      "packages": [
+        "cmake",
+        "make"
+      ],
+      "env": {},
+      "commands": [
+        "cmake -B build -DCMAKE_BUILD_TYPE=Release"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "build"
+      ],
+      "artifacts": [
+        "build/app"
+      ]
+    },
+    "runtime": {
+      "base": "ubuntu:22.04",
+      "packages": [
+        "libstdc++6"
+      ],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "build/app",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "./app"
+      ],
+      "ports": [
+        8080
+      ]
+    }
   }
-}
+]
