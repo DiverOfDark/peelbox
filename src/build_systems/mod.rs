@@ -68,6 +68,9 @@ pub mod pipenv;
 pub mod go_mod;
 pub mod dotnet;
 pub mod composer;
+pub mod bundler;
+pub mod cmake;
+pub mod mix;
 pub mod registry;
 
 pub use cargo::CargoBuildSystem;
@@ -83,4 +86,7 @@ pub use pipenv::PipenvBuildSystem;
 pub use go_mod::GoModBuildSystem;
 pub use dotnet::DotNetBuildSystem;
 pub use composer::ComposerBuildSystem;
+pub use bundler::BundlerBuildSystem;
+pub use cmake::CMakeBuildSystem;
+pub use mix::MixBuildSystem;
 pub use registry::BuildSystemRegistry;

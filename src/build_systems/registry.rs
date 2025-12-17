@@ -34,6 +34,9 @@ impl BuildSystemRegistry {
         registry.register(Arc::new(super::GoModBuildSystem));
         registry.register(Arc::new(super::DotNetBuildSystem));
         registry.register(Arc::new(super::ComposerBuildSystem));
+        registry.register(Arc::new(super::BundlerBuildSystem));
+        registry.register(Arc::new(super::CMakeBuildSystem));
+        registry.register(Arc::new(super::MixBuildSystem));
         registry
     }
 
@@ -102,7 +105,7 @@ mod tests {
     #[test]
     fn test_registry_with_defaults() {
         let registry = BuildSystemRegistry::with_defaults();
-        assert_eq!(registry.systems.len(), 13);
+        assert_eq!(registry.systems.len(), 16);
     }
 
     #[test]

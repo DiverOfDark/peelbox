@@ -1,8 +1,8 @@
 //! PHP language definition
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 
@@ -15,21 +15,6 @@ impl LanguageDefinition for PhpLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["php", "phtml"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[
-            ManifestPattern {
-                filename: "composer.json",
-                build_system: "composer",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "composer.lock",
-                build_system: "composer",
-                priority: 12,
-            },
-        ]
     }
 
     fn detect(
@@ -58,24 +43,7 @@ impl LanguageDefinition for PhpLanguage {
         }
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        if build_system != "composer" {
-            return None;
-        }
-
-        Some(BuildTemplate {
-            build_image: "composer:2".to_string(),
-            runtime_image: "php:8.2-fpm".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
-            build_commands: vec!["composer install --no-dev --optimize-autoloader".to_string()],
-            cache_paths: vec!["/root/.composer/cache/".to_string()],
-            artifacts: vec!["vendor/".to_string(), "public/".to_string()],
-            common_ports: vec![9000, 80],
-        })
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["composer"]
     }
 
@@ -262,13 +230,9 @@ mod tests {
     }
 
     #[test]
-    fn test_build_template() {
+    fn test_compatible_build_systems() {
         let lang = PhpLanguage;
-        let template = lang.build_template("composer");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("composer"));
-        assert!(t.runtime_image.contains("php"));
+        assert_eq!(lang.compatible_build_systems(), &["composer"]);
     }
 
     #[test]

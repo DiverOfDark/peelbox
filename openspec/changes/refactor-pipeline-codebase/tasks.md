@@ -87,12 +87,12 @@
   - [x] 8.3.11 `src/build_systems/go_mod.rs` (Go - go.work workspace)
   - [x] 8.3.12 `src/build_systems/dotnet.rs` (C# - *.csproj, *.sln)
   - [x] 8.3.13 `src/build_systems/composer.rs` (PHP - composer.json)
-- [ ] 8.4 Update Language trait in `src/languages/mod.rs`:
-  - [ ] 8.4.1 Add `compatible_build_systems()` method
-  - [ ] 8.4.2 Remove `build_template()` method
-  - [ ] 8.4.3 Remove `build_systems()` method
-  - [ ] 8.4.4 Remove `manifest_files()` method
-- [ ] 8.5 Update all 10 language implementations to use new trait
+- [x] 8.4 Update Language trait in `src/languages/mod.rs`:
+  - [x] 8.4.1 Add `compatible_build_systems()` method
+  - [x] 8.4.2 Remove `build_template()` method
+  - [x] 8.4.3 Remove `build_systems()` method
+  - [x] 8.4.4 Remove `manifest_files()` method (moved to BuildSystemRegistry)
+- [x] 8.5 Update all 10 language implementations to use new trait (~480 lines removed)
 - [ ] 8.6 Update `src/bootstrap/scanner.rs` to use BuildSystemRegistry
 - [ ] 8.7 Update pipeline phases to query BuildSystemRegistry directly
 - [ ] 8.8 Run `cargo check` after each build system implementation

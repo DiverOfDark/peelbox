@@ -1,8 +1,8 @@
 //! Ruby language definition
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 
@@ -15,21 +15,6 @@ impl LanguageDefinition for RubyLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["rb", "rake", "gemspec"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[
-            ManifestPattern {
-                filename: "Gemfile",
-                build_system: "bundler",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "Gemfile.lock",
-                build_system: "bundler",
-                priority: 12,
-            },
-        ]
     }
 
     fn detect(
@@ -58,27 +43,7 @@ impl LanguageDefinition for RubyLanguage {
         }
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        if build_system != "bundler" {
-            return None;
-        }
-
-        Some(BuildTemplate {
-            build_image: "ruby:3.2".to_string(),
-            runtime_image: "ruby:3.2-slim".to_string(),
-            build_packages: vec!["build-essential".to_string()],
-            runtime_packages: vec![],
-            build_commands: vec![
-                "bundle config set --local deployment 'true'".to_string(),
-                "bundle install".to_string(),
-            ],
-            cache_paths: vec!["vendor/bundle/".to_string()],
-            artifacts: vec!["vendor/bundle/".to_string(), "app/".to_string()],
-            common_ports: vec![3000],
-        })
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["bundler"]
     }
 
@@ -283,13 +248,9 @@ gem 'rails', '~> 7.0'
     }
 
     #[test]
-    fn test_build_template() {
+    fn test_compatible_build_systems() {
         let lang = RubyLanguage;
-        let template = lang.build_template("bundler");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("ruby"));
-        assert!(t.build_commands.iter().any(|c| c.contains("bundle")));
+        assert_eq!(lang.compatible_build_systems(), &["bundler"]);
     }
 
     #[test]

@@ -45,14 +45,12 @@ pub struct BuildTemplate {
 pub trait LanguageDefinition: Send + Sync {
     fn name(&self) -> &str;
     fn extensions(&self) -> &[&str];
-    fn manifest_files(&self) -> &[ManifestPattern];
     fn detect(
         &self,
         manifest_name: &str,
         manifest_content: Option<&str>,
     ) -> Option<DetectionResult>;
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate>;
-    fn build_systems(&self) -> &[&str];
+    fn compatible_build_systems(&self) -> &[&str];
 
     fn excluded_dirs(&self) -> &[&str] {
         &[]
@@ -120,13 +118,6 @@ pub trait LanguageDefinition: Send + Sync {
 }
 
 #[derive(Debug, Clone)]
-pub struct ManifestPattern {
-    pub filename: &'static str,
-    pub build_system: &'static str,
-    pub priority: u8,
-}
-
-#[derive(Debug, Clone)]
 pub struct DetectionResult {
     pub build_system: String,
     pub confidence: f64,
@@ -164,24 +155,3 @@ impl DependencyInfo {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_build_template_default() {
-        let template = BuildTemplate {
-            build_image: "rust:1.75".to_string(),
-            runtime_image: "debian:bookworm-slim".to_string(),
-            build_packages: vec!["pkg-config".to_string()],
-            runtime_packages: vec!["ca-certificates".to_string()],
-            build_commands: vec!["cargo build --release".to_string()],
-            cache_paths: vec!["target/".to_string()],
-            artifacts: vec!["target/release/*".to_string()],
-            common_ports: vec![8080],
-        };
-
-        assert_eq!(template.build_image, "rust:1.75");
-        assert!(!template.build_commands.is_empty());
-    }
-}

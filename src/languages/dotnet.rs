@@ -1,8 +1,8 @@
 //! .NET language definition (C#, F#, VB)
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 
@@ -15,31 +15,6 @@ impl LanguageDefinition for DotNetLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["cs", "fs", "vb"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[
-            ManifestPattern {
-                filename: "*.csproj",
-                build_system: "dotnet",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "*.fsproj",
-                build_system: "dotnet",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "*.vbproj",
-                build_system: "dotnet",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "*.sln",
-                build_system: "dotnet",
-                priority: 8,
-            },
-        ]
     }
 
     fn detect(
@@ -69,27 +44,7 @@ impl LanguageDefinition for DotNetLanguage {
         })
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        if build_system != "dotnet" {
-            return None;
-        }
-
-        Some(BuildTemplate {
-            build_image: "mcr.microsoft.com/dotnet/sdk:8.0".to_string(),
-            runtime_image: "mcr.microsoft.com/dotnet/aspnet:8.0".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
-            build_commands: vec![
-                "dotnet restore".to_string(),
-                "dotnet publish -c Release -o out".to_string(),
-            ],
-            cache_paths: vec!["/root/.nuget/packages/".to_string(), "obj/".to_string()],
-            artifacts: vec!["out/".to_string()],
-            common_ports: vec![8080, 5000],
-        })
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["dotnet"]
     }
 
@@ -302,13 +257,9 @@ mod tests {
     }
 
     #[test]
-    fn test_build_template() {
+    fn test_compatible_build_systems() {
         let lang = DotNetLanguage;
-        let template = lang.build_template("dotnet");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("dotnet/sdk"));
-        assert!(t.runtime_image.contains("dotnet/aspnet"));
+        assert_eq!(lang.compatible_build_systems(), &["dotnet"]);
     }
 
     #[test]

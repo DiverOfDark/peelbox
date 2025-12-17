@@ -1,8 +1,8 @@
 //! C/C++ language definition
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 
@@ -15,26 +15,6 @@ impl LanguageDefinition for CppLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["cpp", "cc", "cxx", "c", "h", "hpp", "hxx"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[
-            ManifestPattern {
-                filename: "CMakeLists.txt",
-                build_system: "cmake",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "Makefile",
-                build_system: "make",
-                priority: 8,
-            },
-            ManifestPattern {
-                filename: "meson.build",
-                build_system: "meson",
-                priority: 10,
-            },
-        ]
     }
 
     fn detect(
@@ -75,50 +55,8 @@ impl LanguageDefinition for CppLanguage {
         }
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        match build_system {
-            "cmake" => Some(BuildTemplate {
-                build_image: "gcc:13".to_string(),
-                runtime_image: "debian:bookworm-slim".to_string(),
-                build_packages: vec!["cmake".to_string(), "make".to_string()],
-                runtime_packages: vec!["libstdc++6".to_string()],
-                build_commands: vec![
-                    "cmake -B build -DCMAKE_BUILD_TYPE=Release".to_string(),
-                    "cmake --build build --config Release".to_string(),
-                ],
-                cache_paths: vec!["build/".to_string()],
-                artifacts: vec!["build/{project_name}".to_string()],
-                common_ports: vec![8080],
-            }),
-            "make" => Some(BuildTemplate {
-                build_image: "gcc:13".to_string(),
-                runtime_image: "debian:bookworm-slim".to_string(),
-                build_packages: vec!["make".to_string()],
-                runtime_packages: vec!["libstdc++6".to_string()],
-                build_commands: vec!["make".to_string()],
-                cache_paths: vec![],
-                artifacts: vec!["{project_name}".to_string()],
-                common_ports: vec![8080],
-            }),
-            "meson" => Some(BuildTemplate {
-                build_image: "gcc:13".to_string(),
-                runtime_image: "debian:bookworm-slim".to_string(),
-                build_packages: vec!["meson".to_string(), "ninja-build".to_string()],
-                runtime_packages: vec!["libstdc++6".to_string()],
-                build_commands: vec![
-                    "meson setup builddir --buildtype=release".to_string(),
-                    "meson compile -C builddir".to_string(),
-                ],
-                cache_paths: vec!["builddir/".to_string()],
-                artifacts: vec!["builddir/{project_name}".to_string()],
-                common_ports: vec![8080],
-            }),
-            _ => None,
-        }
-    }
-
-    fn build_systems(&self) -> &[&str] {
-        &["cmake", "make", "meson"]
+    fn compatible_build_systems(&self) -> &[&str] {
+        &["cmake"]
     }
 
     fn excluded_dirs(&self) -> &[&str] {
@@ -304,30 +242,9 @@ mod tests {
     }
 
     #[test]
-    fn test_build_template_cmake() {
+    fn test_compatible_build_systems() {
         let lang = CppLanguage;
-        let template = lang.build_template("cmake");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_commands.iter().any(|c| c.contains("cmake")));
-    }
-
-    #[test]
-    fn test_build_template_make() {
-        let lang = CppLanguage;
-        let template = lang.build_template("make");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_commands.iter().any(|c| c.contains("make")));
-    }
-
-    #[test]
-    fn test_build_template_meson() {
-        let lang = CppLanguage;
-        let template = lang.build_template("meson");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_commands.iter().any(|c| c.contains("meson")));
+        assert_eq!(lang.compatible_build_systems(), &["cmake"]);
     }
 
     #[test]

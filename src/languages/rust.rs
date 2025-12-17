@@ -1,8 +1,8 @@
 //! Rust language definition
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use std::collections::HashSet;
 
@@ -16,14 +16,6 @@ impl LanguageDefinition for RustLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["rs"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "Cargo.toml",
-            build_system: "cargo",
-            priority: 10,
-        }]
     }
 
     fn detect(
@@ -49,27 +41,7 @@ impl LanguageDefinition for RustLanguage {
         })
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        if build_system != "cargo" {
-            return None;
-        }
-
-        Some(BuildTemplate {
-            build_image: "rust:1.75".to_string(),
-            runtime_image: "debian:bookworm-slim".to_string(),
-            build_packages: vec!["pkg-config".to_string(), "libssl-dev".to_string()],
-            runtime_packages: vec!["ca-certificates".to_string(), "libssl3".to_string()],
-            build_commands: vec!["cargo build --release".to_string()],
-            cache_paths: vec![
-                "target/".to_string(),
-                "/usr/local/cargo/registry/".to_string(),
-            ],
-            artifacts: vec!["target/release/{project_name}".to_string()],
-            common_ports: vec![8080],
-        })
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["cargo"]
     }
 
@@ -287,15 +259,6 @@ mod tests {
     }
 
     #[test]
-    fn test_manifest_files() {
-        let lang = RustLanguage;
-        let manifests = lang.manifest_files();
-        assert_eq!(manifests.len(), 1);
-        assert_eq!(manifests[0].filename, "Cargo.toml");
-        assert_eq!(manifests[0].build_system, "cargo");
-    }
-
-    #[test]
     fn test_detect_cargo_toml() {
         let lang = RustLanguage;
         let result = lang.detect("Cargo.toml", None);
@@ -340,29 +303,9 @@ members = ["crate1", "crate2"]
     }
 
     #[test]
-    fn test_build_template() {
+    fn test_compatible_build_systems() {
         let lang = RustLanguage;
-        let template = lang.build_template("cargo");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert_eq!(t.build_image, "rust:1.75");
-        assert_eq!(t.runtime_image, "debian:bookworm-slim");
-        assert!(t
-            .build_commands
-            .contains(&"cargo build --release".to_string()));
-    }
-
-    #[test]
-    fn test_build_template_invalid_system() {
-        let lang = RustLanguage;
-        let template = lang.build_template("maven");
-        assert!(template.is_none());
-    }
-
-    #[test]
-    fn test_build_systems() {
-        let lang = RustLanguage;
-        assert_eq!(lang.build_systems(), &["cargo"]);
+        assert_eq!(lang.compatible_build_systems(), &["cargo"]);
     }
 
     #[test]

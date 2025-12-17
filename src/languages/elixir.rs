@@ -1,8 +1,8 @@
 //! Elixir language definition
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 
@@ -15,21 +15,6 @@ impl LanguageDefinition for ElixirLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["ex", "exs"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[
-            ManifestPattern {
-                filename: "mix.exs",
-                build_system: "mix",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "mix.lock",
-                build_system: "mix",
-                priority: 12,
-            },
-        ]
     }
 
     fn detect(
@@ -58,30 +43,7 @@ impl LanguageDefinition for ElixirLanguage {
         }
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        if build_system != "mix" {
-            return None;
-        }
-
-        Some(BuildTemplate {
-            build_image: "elixir:1.15".to_string(),
-            runtime_image: "elixir:1.15-slim".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
-            build_commands: vec![
-                "mix local.hex --force".to_string(),
-                "mix local.rebar --force".to_string(),
-                "mix deps.get --only prod".to_string(),
-                "MIX_ENV=prod mix compile".to_string(),
-                "MIX_ENV=prod mix release".to_string(),
-            ],
-            cache_paths: vec!["deps/".to_string(), "_build/".to_string()],
-            artifacts: vec!["_build/prod/rel/".to_string()],
-            common_ports: vec![4000],
-        })
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["mix"]
     }
 
@@ -279,13 +241,9 @@ end
     }
 
     #[test]
-    fn test_build_template() {
+    fn test_compatible_build_systems() {
         let lang = ElixirLanguage;
-        let template = lang.build_template("mix");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("elixir"));
-        assert!(t.build_commands.iter().any(|c| c.contains("mix")));
+        assert_eq!(lang.compatible_build_systems(), &["mix"]);
     }
 
     #[test]

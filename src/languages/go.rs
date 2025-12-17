@@ -1,8 +1,8 @@
 //! Go language definition
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 use std::collections::HashSet;
@@ -16,14 +16,6 @@ impl LanguageDefinition for GoLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["go"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "go.mod",
-            build_system: "go",
-            priority: 10,
-        }]
     }
 
     fn detect(
@@ -48,27 +40,7 @@ impl LanguageDefinition for GoLanguage {
         })
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        if build_system != "go" {
-            return None;
-        }
-
-        Some(BuildTemplate {
-            build_image: "golang:1.21".to_string(),
-            runtime_image: "alpine:3.19".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec!["ca-certificates".to_string()],
-            build_commands: vec!["go build -o app .".to_string()],
-            cache_paths: vec![
-                "/go/pkg/mod/".to_string(),
-                "/root/.cache/go-build/".to_string(),
-            ],
-            artifacts: vec!["app".to_string()],
-            common_ports: vec![8080],
-        })
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["go"]
     }
 
@@ -319,13 +291,9 @@ mod tests {
     }
 
     #[test]
-    fn test_build_template() {
+    fn test_compatible_build_systems() {
         let lang = GoLanguage;
-        let template = lang.build_template("go");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("golang"));
-        assert_eq!(t.runtime_image, "alpine:3.19");
+        assert_eq!(lang.compatible_build_systems(), &["go"]);
     }
 
     #[test]

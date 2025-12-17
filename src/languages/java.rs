@@ -1,8 +1,8 @@
 //! Java/Kotlin language definition (Maven and Gradle)
 
 use super::{
-    BuildTemplate, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition, ManifestPattern,
+    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
 };
 use regex::Regex;
 use std::collections::HashSet;
@@ -16,41 +16,6 @@ impl LanguageDefinition for JavaLanguage {
 
     fn extensions(&self) -> &[&str] {
         &["java", "kt", "kts"]
-    }
-
-    fn manifest_files(&self) -> &[ManifestPattern] {
-        &[
-            ManifestPattern {
-                filename: "pom.xml",
-                build_system: "maven",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "build.gradle",
-                build_system: "gradle",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "build.gradle.kts",
-                build_system: "gradle",
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "settings.gradle",
-                build_system: "gradle",
-                priority: 5,
-            },
-            ManifestPattern {
-                filename: "settings.gradle.kts",
-                build_system: "gradle",
-                priority: 5,
-            },
-            ManifestPattern {
-                filename: ".java-version",
-                build_system: "maven",
-                priority: 3,
-            },
-        ]
     }
 
     fn detect(
@@ -95,36 +60,7 @@ impl LanguageDefinition for JavaLanguage {
         }
     }
 
-    fn build_template(&self, build_system: &str) -> Option<BuildTemplate> {
-        match build_system {
-            "maven" => Some(BuildTemplate {
-                build_image: "maven:3.9-eclipse-temurin-21".to_string(),
-                runtime_image: "eclipse-temurin:21-jre".to_string(),
-                build_packages: vec![],
-                runtime_packages: vec![],
-                build_commands: vec!["mvn clean package -DskipTests".to_string()],
-                cache_paths: vec!["/root/.m2/repository/".to_string()],
-                artifacts: vec!["target/*.jar".to_string()],
-                common_ports: vec![8080],
-            }),
-            "gradle" => Some(BuildTemplate {
-                build_image: "gradle:8.5-jdk21".to_string(),
-                runtime_image: "eclipse-temurin:21-jre".to_string(),
-                build_packages: vec![],
-                runtime_packages: vec![],
-                build_commands: vec!["gradle build -x test".to_string()],
-                cache_paths: vec![
-                    "/root/.gradle/caches/".to_string(),
-                    "/root/.gradle/wrapper/".to_string(),
-                ],
-                artifacts: vec!["build/libs/*.jar".to_string()],
-                common_ports: vec![8080],
-            }),
-            _ => None,
-        }
-    }
-
-    fn build_systems(&self) -> &[&str] {
+    fn compatible_build_systems(&self) -> &[&str] {
         &["maven", "gradle"]
     }
 
@@ -402,15 +338,6 @@ mod tests {
     }
 
     #[test]
-    fn test_manifest_files() {
-        let lang = JavaLanguage;
-        let manifests = lang.manifest_files();
-        assert!(manifests.iter().any(|m| m.filename == "pom.xml"));
-        assert!(manifests.iter().any(|m| m.filename == "build.gradle"));
-        assert!(manifests.iter().any(|m| m.filename == "build.gradle.kts"));
-    }
-
-    #[test]
     fn test_detect_maven() {
         let lang = JavaLanguage;
         let result = lang.detect("pom.xml", None);
@@ -448,23 +375,11 @@ mod tests {
     }
 
     #[test]
-    fn test_build_template_maven() {
+    fn test_compatible_build_systems() {
         let lang = JavaLanguage;
-        let template = lang.build_template("maven");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("maven"));
-        assert!(t.build_commands.iter().any(|c| c.contains("mvn")));
-    }
-
-    #[test]
-    fn test_build_template_gradle() {
-        let lang = JavaLanguage;
-        let template = lang.build_template("gradle");
-        assert!(template.is_some());
-        let t = template.unwrap();
-        assert!(t.build_image.contains("gradle"));
-        assert!(t.build_commands.iter().any(|c| c.contains("gradle")));
+        let systems = lang.compatible_build_systems();
+        assert!(systems.contains(&"maven"));
+        assert!(systems.contains(&"gradle"));
     }
 
     #[test]
