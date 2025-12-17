@@ -1,0 +1,99 @@
+//! Framework definitions
+//!
+//! Frameworks are first-class entities that declare compatibility with languages and build systems.
+//! Framework detection is deterministic via dependency pattern matching, avoiding LLM calls for
+//! major frameworks (Spring Boot, Express, Django, Next.js, Rails, ASP.NET Core).
+
+use crate::build_systems::BuildTemplate;
+use crate::languages::Dependency;
+use regex::Regex;
+
+/// Dependency pattern for framework detection
+#[derive(Debug, Clone)]
+pub struct DependencyPattern {
+    pub pattern_type: DependencyPatternType,
+    pub pattern: String,
+    pub confidence: f32,
+}
+
+/// Type of dependency pattern matching
+#[derive(Debug, Clone)]
+pub enum DependencyPatternType {
+    /// Maven group:artifact pattern (e.g., "org.springframework.boot:spring-boot-starter-web")
+    MavenGroupArtifact,
+    /// NPM package name (e.g., "express")
+    NpmPackage,
+    /// PyPI package name (e.g., "django")
+    PypiPackage,
+    /// Regex pattern for flexible matching
+    Regex,
+}
+
+impl DependencyPattern {
+    /// Check if a dependency matches this pattern
+    pub fn matches(&self, dep: &Dependency) -> bool {
+        match self.pattern_type {
+            DependencyPatternType::MavenGroupArtifact => {
+                // Maven dependencies have format "group:artifact" or "group.subgroup:artifact"
+                dep.name.contains(&self.pattern) || dep.name == self.pattern
+            }
+            DependencyPatternType::NpmPackage | DependencyPatternType::PypiPackage => {
+                // Direct package name match
+                dep.name == self.pattern
+            }
+            DependencyPatternType::Regex => {
+                // Regex matching
+                if let Ok(re) = Regex::new(&self.pattern) {
+                    re.is_match(&dep.name)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+/// Framework trait defining framework-specific behavior
+pub trait Framework: Send + Sync {
+    /// Framework name (e.g., "Spring Boot", "Express", "Django")
+    fn name(&self) -> &str;
+
+    /// Compatible language names (e.g., ["Java", "Kotlin"] for Spring Boot)
+    fn compatible_languages(&self) -> &[&str];
+
+    /// Compatible build system names (e.g., ["maven", "gradle"] for Spring Boot)
+    fn compatible_build_systems(&self) -> &[&str];
+
+    /// Dependency patterns for framework detection
+    fn dependency_patterns(&self) -> Vec<DependencyPattern>;
+
+    /// Default ports for this framework (e.g., [8080] for Spring Boot, [3000] for Express)
+    fn default_ports(&self) -> &[u16];
+
+    /// Health check endpoints (e.g., ["/actuator/health"] for Spring Boot)
+    fn health_endpoints(&self) -> &[&str];
+
+    /// Environment variable patterns (regex, description)
+    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+        vec![]
+    }
+
+    /// Customize build template with framework-specific optimizations
+    fn customize_build_template(&self, template: BuildTemplate) -> BuildTemplate {
+        template
+    }
+}
+
+pub mod aspnet;
+pub mod django;
+pub mod express;
+pub mod rails;
+pub mod registry;
+pub mod spring_boot;
+
+pub use aspnet::AspNetFramework;
+pub use django::DjangoFramework;
+pub use express::ExpressFramework;
+pub use rails::RailsFramework;
+pub use registry::FrameworkRegistry;
+pub use spring_boot::SpringBootFramework;

@@ -4,6 +4,7 @@ pub mod cli;
 pub mod config;
 pub mod detection;
 pub mod extractors;
+pub mod frameworks;
 pub mod fs;
 pub mod heuristics;
 pub mod languages;
@@ -15,6 +16,7 @@ pub mod validation;
 
 pub use build_systems::{BuildSystem, BuildSystemRegistry, BuildTemplate};
 pub use config::{AipackConfig, ConfigError};
+pub use frameworks::{Framework, FrameworkRegistry};
 pub use detection::service::{DetectionService, ServiceError};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::{LanguageDefinition, LanguageRegistry};
