@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "ruby-api",
+    "language": "Ruby",
+    "build_system": "bundler",
+    "confidence": 0.9,
+    "reasoning": "Detected Gemfile with Ruby dependencies (Sinatra, Puma)"
+  },
+  "build": {
+    "base": "ruby:3.2",
+    "packages": ["build-essential", "libpq-dev"],
+    "env": {},
+    "commands": ["bundle install --deployment --without development test", "bundle exec rackup"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["vendor/bundle/"],
+    "artifacts": []
+  },
+  "runtime": {
+    "base": "ruby:3.2-slim",
+    "packages": ["libpq5"],
+    "env": {
+      "PORT": "4567",
+      "DATABASE_URL": "postgres://localhost/myapp"
+    },
+    "copy": [
+      {"from": "Gemfile", "to": "/app/Gemfile"},
+      {"from": "Gemfile.lock", "to": "/app/Gemfile.lock"},
+      {"from": "app.rb", "to": "/app/app.rb"},
+      {"from": "vendor/bundle/", "to": "/app/vendor/bundle/"}
+    ],
+    "command": ["bundle", "exec", "ruby", "app.rb"],
+    "ports": [4567],
+    "healthcheck": "/health"
+  }
+}

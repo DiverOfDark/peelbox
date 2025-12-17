@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "elixir-api",
+    "language": "Elixir",
+    "build_system": "mix",
+    "confidence": 0.9,
+    "reasoning": "Detected mix.exs with Elixir dependencies (Plug, Cowboy)"
+  },
+  "build": {
+    "base": "elixir:1.15",
+    "packages": ["git"],
+    "env": {"MIX_ENV": "prod"},
+    "commands": [
+      "mix local.hex --force",
+      "mix local.rebar --force",
+      "mix deps.get --only prod",
+      "mix compile"
+    ],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["_build/", "deps/"],
+    "artifacts": []
+  },
+  "runtime": {
+    "base": "elixir:1.15-slim",
+    "packages": [],
+    "env": {
+      "PORT": "4000",
+      "DATABASE_URL": "postgres://localhost/myapp",
+      "MIX_ENV": "prod"
+    },
+    "copy": [
+      {"from": "mix.exs", "to": "/app/mix.exs"},
+      {"from": "lib/", "to": "/app/lib/"},
+      {"from": "_build/", "to": "/app/_build/"},
+      {"from": "deps/", "to": "/app/deps/"}
+    ],
+    "command": ["mix", "run", "--no-halt"],
+    "ports": [4000],
+    "healthcheck": "/health"
+  }
+}

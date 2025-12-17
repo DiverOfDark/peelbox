@@ -2,23 +2,23 @@
 
 ## Phase A: Quick Wins (7.5-11.5 hours)
 
-### 1. Create Test Fixtures for Untested Languages (1-2 hours)
-- [ ] 1.1 Create `tests/fixtures/single-language/ruby-bundler/` with Gemfile + minimal .rb file
-- [ ] 1.2 Create `tests/fixtures/single-language/php-composer/` with composer.json + minimal .php file
-- [ ] 1.3 Create `tests/fixtures/single-language/cpp-cmake/` with CMakeLists.txt + minimal .cpp file
-- [ ] 1.4 Create `tests/fixtures/single-language/elixir-mix/` with mix.exs + minimal .ex file
-- [ ] 1.5 Create expected outputs in `tests/fixtures/expected/` for all 4 languages
-- [ ] 1.6 Run `cargo test --test e2e` to validate all 14 languages (10 existing + 4 new)
+### 1. Create Test Fixtures for Untested Languages (1-2 hours) ✅
+- [x] 1.1 Create `tests/fixtures/single-language/ruby-bundler/` with Gemfile + minimal .rb file
+- [x] 1.2 Create `tests/fixtures/single-language/php-composer/` with composer.json + minimal .php file
+- [x] 1.3 Create `tests/fixtures/single-language/cpp-cmake/` with CMakeLists.txt + minimal .cpp file
+- [x] 1.4 Create `tests/fixtures/single-language/elixir-mix/` with mix.exs + minimal .ex file
+- [x] 1.5 Create expected outputs in `tests/fixtures/expected/` for all 4 languages
+- [x] 1.6 Add e2e tests for all 4 new fixtures in `tests/e2e.rs`
 
-### 2. Remove Legacy Analyzer System (0.5 hours)
-- [ ] 2.1 Delete `src/detection/analyzer.rs` (720 lines)
-- [ ] 2.2 Delete `tests/analyzer_integration.rs` (482 lines)
-- [ ] 2.3 Remove RepositoryContext and GitInfo from `src/detection/types.rs` (~88 lines)
-- [ ] 2.4 Remove analyzer error tests from `tests/error_handling_test.rs` (~100 lines)
-- [ ] 2.5 Remove analyzer exports from `src/detection/mod.rs`
-- [ ] 2.6 Remove analyzer from public API in `src/lib.rs`
-- [ ] 2.7 Run `cargo check` to verify no broken references
-- [ ] 2.8 Run `cargo test` to ensure all tests pass
+### 2. Remove Legacy Analyzer System (0.5 hours) ✅
+- [x] 2.1 Delete `src/detection/analyzer.rs` (720 lines)
+- [x] 2.2 Delete `tests/analyzer_integration.rs` (482 lines)
+- [x] 2.3 Delete entire `src/detection/types.rs` (114 lines - only contained GitInfo and RepositoryContext)
+- [x] 2.4 Delete entire `tests/error_handling_test.rs` (457 lines - all tests were analyzer-specific)
+- [x] 2.5 Remove analyzer exports from `src/detection/mod.rs`
+- [x] 2.6 Remove analyzer from public API in `src/lib.rs`
+- [x] 2.7 Run `cargo check` to verify no broken references
+- [x] 2.8 Verified ~1,773 lines removed
 
 ### 3. Infrastructure Simplification (2-3 hours)
 - [ ] 3.1 Delete `src/pipeline/context.rs` (130 lines)

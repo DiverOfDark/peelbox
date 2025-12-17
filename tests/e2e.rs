@@ -284,6 +284,46 @@ fn test_go_mod_detection() {
     assert_detection(&results, "go", "go-mod");
 }
 
+#[test]
+#[serial]
+fn test_ruby_bundler_detection() {
+    let fixture = fixture_path("single-language", "ruby-bundler");
+    let results =
+        run_detection(fixture, "e2e_test_ruby_bundler_detection").expect("Detection failed");
+
+    assert_detection(&results, "bundler", "ruby-bundler");
+}
+
+#[test]
+#[serial]
+fn test_php_composer_detection() {
+    let fixture = fixture_path("single-language", "php-composer");
+    let results =
+        run_detection(fixture, "e2e_test_php_composer_detection").expect("Detection failed");
+
+    assert_detection(&results, "composer", "php-composer");
+}
+
+#[test]
+#[serial]
+fn test_cpp_cmake_detection() {
+    let fixture = fixture_path("single-language", "cpp-cmake");
+    let results =
+        run_detection(fixture, "e2e_test_cpp_cmake_detection").expect("Detection failed");
+
+    assert_detection(&results, "cmake", "cpp-cmake");
+}
+
+#[test]
+#[serial]
+fn test_elixir_mix_detection() {
+    let fixture = fixture_path("single-language", "elixir-mix");
+    let results =
+        run_detection(fixture, "e2e_test_elixir_mix_detection").expect("Detection failed");
+
+    assert_detection(&results, "mix", "elixir-mix");
+}
+
 //
 // Special case tests
 //

@@ -13,9 +13,7 @@ pub mod progress;
 pub mod validation;
 
 pub use config::{AipackConfig, ConfigError};
-pub use detection::analyzer::{AnalysisError, AnalyzerConfig, RepositoryAnalyzer};
 pub use detection::service::{DetectionService, ServiceError};
-pub use detection::types::{GitInfo, RepositoryContext};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::{LanguageDefinition, LanguageRegistry};
 pub use llm::{AdapterKind, BackendError};

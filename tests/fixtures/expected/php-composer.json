@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "php-api",
+    "language": "PHP",
+    "build_system": "composer",
+    "confidence": 0.9,
+    "reasoning": "Detected composer.json with PHP dependencies (Slim)"
+  },
+  "build": {
+    "base": "php:8.1-cli",
+    "packages": ["unzip", "git"],
+    "env": {},
+    "commands": ["composer install --no-dev --optimize-autoloader"],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["vendor/"],
+    "artifacts": []
+  },
+  "runtime": {
+    "base": "php:8.1-cli",
+    "packages": [],
+    "env": {
+      "PORT": "8000",
+      "DATABASE_URL": "mysql://localhost/myapp"
+    },
+    "copy": [
+      {"from": "composer.json", "to": "/app/composer.json"},
+      {"from": "composer.lock", "to": "/app/composer.lock"},
+      {"from": "index.php", "to": "/app/index.php"},
+      {"from": "vendor/", "to": "/app/vendor/"}
+    ],
+    "command": ["php", "-S", "0.0.0.0:8000", "index.php"],
+    "ports": [8000],
+    "healthcheck": "/health"
+  }
+}

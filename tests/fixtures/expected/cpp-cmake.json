@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "cpp-api",
+    "language": "C++",
+    "build_system": "cmake",
+    "confidence": 0.85,
+    "reasoning": "Detected CMakeLists.txt with C++ project configuration"
+  },
+  "build": {
+    "base": "gcc:13",
+    "packages": ["cmake", "libboost-all-dev", "libssl-dev"],
+    "env": {},
+    "commands": [
+      "cmake -B build -DCMAKE_BUILD_TYPE=Release",
+      "cmake --build build --config Release"
+    ],
+    "context": [{"from": ".", "to": "."}],
+    "cache": ["build/"],
+    "artifacts": ["build/server"]
+  },
+  "runtime": {
+    "base": "debian:bookworm-slim",
+    "packages": ["libboost-system1.74.0", "libboost-thread1.74.0", "libssl3"],
+    "env": {
+      "PORT": "8080",
+      "DATABASE_URL": "postgres://localhost/myapp"
+    },
+    "copy": [
+      {"from": "build/server", "to": "/usr/local/bin/server"}
+    ],
+    "command": ["/usr/local/bin/server"],
+    "ports": [8080],
+    "healthcheck": "/health"
+  }
+}
