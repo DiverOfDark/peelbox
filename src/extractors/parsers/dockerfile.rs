@@ -74,7 +74,7 @@ mod tests {
 
     #[test]
     fn test_parse_expose() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "Dockerfile",
             r#"

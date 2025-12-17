@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_extract_from_dockerfile() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "Dockerfile",
             r#"
@@ -169,7 +169,7 @@ CMD ["node", "server.js"]
 
     #[test]
     fn test_extract_from_env_file() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             ".env.example",
             r#"
@@ -190,7 +190,7 @@ SERVER_PORT=3000
 
     #[test]
     fn test_extract_from_yaml_config() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "application.yml",
             r#"
@@ -212,7 +212,7 @@ management:
 
     #[test]
     fn test_extract_from_json_config() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "config.json",
             r#"
@@ -236,7 +236,7 @@ management:
 
     #[test]
     fn test_extract_from_code_listen_pattern() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "server.js",
             r#"
@@ -264,7 +264,7 @@ app.listen(3000, () => {
 
     #[test]
     fn test_deduplication() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file("Dockerfile", "EXPOSE 3000");
         fs.add_file(".env.example", "PORT=3000");
         fs.add_file("application.yml", "server:\n  port: 3000");
@@ -290,7 +290,7 @@ app.listen(3000, () => {
 
     #[test]
     fn test_invalid_port_ignored() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file("Dockerfile", "EXPOSE 999999");
         fs.add_file(".env.example", "PORT=abc");
 

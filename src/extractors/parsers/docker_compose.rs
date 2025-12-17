@@ -37,7 +37,7 @@ mod tests {
 
     #[test]
     fn test_parse_env_vars() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "docker-compose.yml",
             r#"

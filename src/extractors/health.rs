@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_extract_from_dockerfile() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "Dockerfile",
             r#"
@@ -181,7 +181,7 @@ HEALTHCHECK CMD curl http://localhost:3000/health
 
     #[test]
     fn test_extract_from_k8s_manifest() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "deployment.yaml",
             r#"
@@ -213,7 +213,7 @@ spec:
 
     #[test]
     fn test_extract_from_express_route() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "server.js",
             r#"
@@ -244,7 +244,7 @@ app.get('/health', (req, res) => {
 
     #[test]
     fn test_extract_from_spring_boot() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "src/main/java/HealthController.java",
             r#"
@@ -304,7 +304,7 @@ public class HealthController {
 
     #[test]
     fn test_deduplication() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "Dockerfile",
             "HEALTHCHECK CMD curl http://localhost:3000/health",

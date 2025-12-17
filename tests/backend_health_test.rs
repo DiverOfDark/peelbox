@@ -166,20 +166,31 @@ fn test_config_validation_all_fields() {
 #[test]
 fn test_config_validation_edge_cases() {
     // Test minimum valid timeout
-    let mut config = AipackConfig::default();
-    config.request_timeout_secs = 1;
+    let config = AipackConfig {
+        request_timeout_secs: 1,
+        ..Default::default()
+    };
     assert!(config.validate().is_ok());
 
     // Test maximum valid timeout
-    config.request_timeout_secs = 600;
+    let config = AipackConfig {
+        request_timeout_secs: 600,
+        ..Default::default()
+    };
     assert!(config.validate().is_ok());
 
     // Test minimum valid context size
-    config.max_context_size = 1024;
+    let config = AipackConfig {
+        max_context_size: 1024,
+        ..Default::default()
+    };
     assert!(config.validate().is_ok());
 
     // Test maximum valid context size
-    config.max_context_size = 10_485_760;
+    let config = AipackConfig {
+        max_context_size: 10_485_760,
+        ..Default::default()
+    };
     assert!(config.validate().is_ok());
 }
 

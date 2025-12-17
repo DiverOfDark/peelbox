@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_parse_env_vars() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "deployment.yaml",
             r#"
@@ -118,7 +118,7 @@ spec:
 
     #[test]
     fn test_parse_health_checks() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "deployment.yaml",
             r#"

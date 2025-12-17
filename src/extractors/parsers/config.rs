@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_parse_yaml_ports() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "application.yml",
             r#"
@@ -99,7 +99,7 @@ management:
 
     #[test]
     fn test_parse_json_ports() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "config.json",
             r#"

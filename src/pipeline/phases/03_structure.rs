@@ -318,7 +318,7 @@ mod tests {
                 },
                 scan_time_ms: 50,
             },
-            file_tree: files.iter().map(|f| PathBuf::from(f)).collect(),
+            file_tree: files.iter().map(PathBuf::from).collect(),
         }
     }
 }

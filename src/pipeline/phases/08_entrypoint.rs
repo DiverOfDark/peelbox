@@ -114,7 +114,6 @@ fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Opti
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use std::sync::Arc;
 
     #[test]
     fn test_build_prompt() {

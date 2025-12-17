@@ -51,11 +51,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_version_exists() {
-        assert!(!VERSION.is_empty());
-    }
-
-    #[test]
     fn test_name_is_aipack() {
         assert_eq!(NAME, "aipack");
     }

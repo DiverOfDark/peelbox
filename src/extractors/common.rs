@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn test_scan_directory_filters_files() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file("server.js", "content");
         fs.add_file("README.md", "docs");
         fs.add_file("package.json", "{}");

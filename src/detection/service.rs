@@ -359,7 +359,7 @@ mod tests {
 
         let service = DetectionService::new(client);
 
-        let result = service.validate_repo_path(&temp_dir.path().to_path_buf());
+        let result = service.validate_repo_path(temp_dir.path());
         assert!(result.is_ok());
     }
 }

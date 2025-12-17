@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn test_extract_from_env_example() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             ".env.example",
             r#"
@@ -203,7 +203,7 @@ SECRET_KEY=REQUIRED
 
     #[test]
     fn test_extract_from_docker_compose() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "docker-compose.yml",
             r#"
@@ -229,7 +229,7 @@ services:
 
     #[test]
     fn test_extract_from_code_nodejs() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "server.js",
             r#"
@@ -255,7 +255,7 @@ const dbUrl = process.env.DATABASE_URL;
 
     #[test]
     fn test_extract_from_code_python() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "app.py",
             r#"
@@ -278,7 +278,7 @@ api_key = os.getenv('API_KEY')
 
     #[test]
     fn test_extract_from_code_rust() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             "main.rs",
             r#"
@@ -303,7 +303,7 @@ fn main() {
 
     #[test]
     fn test_deduplication_prefers_env_example() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(".env.example", "PORT=3000");
         fs.add_file("server.js", "const port = process.env.PORT;");
 

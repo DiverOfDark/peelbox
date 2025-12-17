@@ -46,10 +46,12 @@ fn load_expected(fixture_name: &str) -> Option<Vec<UniversalBuild>> {
         return None;
     }
 
-    let content = std::fs::read_to_string(&expected_path).expect(&format!(
-        "Failed to read expected JSON: {}",
-        expected_path.display()
-    ));
+    let content = std::fs::read_to_string(&expected_path).unwrap_or_else(|_| {
+        panic!(
+            "Failed to read expected JSON: {}",
+            expected_path.display()
+        )
+    });
 
     // Try parsing as array of UniversalBuild first (for monorepos)
     if let Ok(multi) = serde_json::from_str::<Vec<UniversalBuild>>(&content) {

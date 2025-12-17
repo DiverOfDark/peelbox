@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_parse_ports() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(
             ".env.example",
             r#"
@@ -65,7 +65,7 @@ SERVER_PORT=3000
 
     #[test]
     fn test_multiple_env_files() {
-        let mut fs = MockFileSystem::new();
+        let fs = MockFileSystem::new();
         fs.add_file(".env.example", "PORT=8080\n");
         fs.add_file(".env.template", "API_PORT=9000\n");
         fs.add_file(".env.sample", "ADMIN_PORT=7000\n");

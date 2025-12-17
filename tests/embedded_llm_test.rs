@@ -430,7 +430,7 @@ async fn test_embedded_llm_tool_call_chain() {
             EmbeddedModel::ALL_MODELS
                 .iter()
                 .find(|m| m.params == model_size)
-                .expect(&format!("Model size {} not found", model_size))
+                .unwrap_or_else(|| panic!("Model size {} not found", model_size))
         } else {
             // Default to 7B (only available model)
             EmbeddedModel::ALL_MODELS

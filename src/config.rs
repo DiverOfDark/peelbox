@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_default_configuration() {
-        let _guards = vec![
+        let _guards = [
             EnvGuard::set("AIPACK_PROVIDER", "ollama"),
             EnvGuard::set("AIPACK_LOG_LEVEL", DEFAULT_LOG_LEVEL),
         ];
@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_environment_variable_parsing() {
-        let _guards = vec![
+        let _guards = [
             EnvGuard::set("AIPACK_PROVIDER", "claude"),
             EnvGuard::set("AIPACK_MODEL", "custom-model"),
             EnvGuard::set("AIPACK_LOG_LEVEL", "debug"),
@@ -378,8 +378,10 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_timeout() {
-        let mut config = AipackConfig::default();
-        config.request_timeout_secs = 0;
+        let config = AipackConfig {
+            request_timeout_secs: 0,
+            ..Default::default()
+        };
 
         let result = config.validate();
         assert!(result.is_err());
@@ -387,8 +389,10 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_log_level() {
-        let mut config = AipackConfig::default();
-        config.log_level = "invalid".to_string();
+        let config = AipackConfig {
+            log_level: "invalid".to_string(),
+            ..Default::default()
+        };
 
         let result = config.validate();
         assert!(result.is_err());
@@ -396,8 +400,10 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_max_tokens_too_low() {
-        let mut config = AipackConfig::default();
-        config.max_tokens = 256;
+        let config = AipackConfig {
+            max_tokens: 256,
+            ..Default::default()
+        };
 
         let result = config.validate();
         assert!(result.is_err());
@@ -406,8 +412,10 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_max_tokens_too_high() {
-        let mut config = AipackConfig::default();
-        config.max_tokens = 200_000;
+        let config = AipackConfig {
+            max_tokens: 200_000,
+            ..Default::default()
+        };
 
         let result = config.validate();
         assert!(result.is_err());

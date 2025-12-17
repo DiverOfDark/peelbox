@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_default_detect_args() {
-        let args = CliArgs::parse_from(&["aipack", "detect"]);
+        let args = CliArgs::parse_from(["aipack", "detect"]);
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Json);
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_detect_with_path() {
-        let args = CliArgs::parse_from(&["aipack", "detect", "/tmp/repo"]);
+        let args = CliArgs::parse_from(["aipack", "detect", "/tmp/repo"]);
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_detect_with_options() {
-        let args = CliArgs::parse_from(&[
+        let args = CliArgs::parse_from([
             "aipack",
             "detect",
             "--format",
@@ -235,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_health_command() {
-        let args = CliArgs::parse_from(&["aipack", "health"]);
+        let args = CliArgs::parse_from(["aipack", "health"]);
         match args.command {
             Commands::Health(health_args) => {
                 assert!(health_args.backend.is_none());
@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn test_health_with_backend() {
-        let args = CliArgs::parse_from(&["aipack", "health", "--backend", "ollama"]);
+        let args = CliArgs::parse_from(["aipack", "health", "--backend", "ollama"]);
         match args.command {
             Commands::Health(health_args) => {
                 assert_eq!(health_args.backend, Some(AdapterKind::Ollama));
@@ -258,21 +258,21 @@ mod tests {
 
     #[test]
     fn test_global_verbose_flag() {
-        let args = CliArgs::parse_from(&["aipack", "-v", "detect"]);
+        let args = CliArgs::parse_from(["aipack", "-v", "detect"]);
         assert!(args.verbose);
         assert!(!args.quiet);
     }
 
     #[test]
     fn test_global_quiet_flag() {
-        let args = CliArgs::parse_from(&["aipack", "-q", "detect"]);
+        let args = CliArgs::parse_from(["aipack", "-q", "detect"]);
         assert!(!args.verbose);
         assert!(args.quiet);
     }
 
     #[test]
     fn test_log_level_flag() {
-        let args = CliArgs::parse_from(&["aipack", "--log-level", "debug", "detect"]);
+        let args = CliArgs::parse_from(["aipack", "--log-level", "debug", "detect"]);
         assert_eq!(args.log_level, Some("debug".to_string()));
     }
 
