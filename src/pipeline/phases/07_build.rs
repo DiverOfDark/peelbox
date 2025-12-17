@@ -1,7 +1,6 @@
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use anyhow::{Context, Result};
@@ -64,10 +63,10 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {
-    let registry = LanguageRegistry::with_defaults();
-    let language_def = registry.get_language(&service.language)?;
+    let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
+    let build_system = build_system_registry.get(&service.build_system)?;
 
-    let template = language_def.build_template(&service.build_system)?;
+    let template = build_system.build_template();
 
     let build_cmd = template.build_commands.first().cloned();
     let output_dir = template.artifacts.first().map(|artifact| {

@@ -1,18 +1,16 @@
 use super::{LanguageDefinition, LanguageDetection};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct LanguageRegistry {
     languages: Vec<Arc<dyn LanguageDefinition>>,
-    manifest_index: HashMap<String, Vec<(usize, u8)>>,
 }
 
 impl LanguageRegistry {
     pub fn new() -> Self {
         Self {
             languages: Vec::new(),
-            manifest_index: HashMap::new(),
         }
     }
 
@@ -55,15 +53,6 @@ impl LanguageRegistry {
     }
 
     pub fn register(&mut self, language: Arc<dyn LanguageDefinition>) {
-        let lang_idx = self.languages.len();
-
-        for pattern in language.manifest_files() {
-            self.manifest_index
-                .entry(pattern.filename.to_string())
-                .or_default()
-                .push((lang_idx, pattern.priority));
-        }
-
         self.languages.push(language);
     }
 
@@ -71,56 +60,32 @@ impl LanguageRegistry {
         &self,
         manifest_name: &str,
         manifest_content: Option<&str>,
+        build_system_registry: &crate::build_systems::BuildSystemRegistry,
     ) -> Option<LanguageDetection> {
-        let mut matched_candidates = Vec::new();
+        let build_system = build_system_registry.detect(manifest_name, manifest_content)?;
+        let build_system_name = build_system.name();
 
-        for (pattern, candidates) in &self.manifest_index {
-            if Self::matches_pattern(pattern, manifest_name) {
-                matched_candidates.extend(candidates.iter().copied());
-            }
-        }
-
-        if matched_candidates.is_empty() {
-            return None;
-        }
-
-        let mut best_result: Option<(LanguageDetection, u8)> = None;
-
-        for (lang_idx, priority) in matched_candidates {
-            let language = &self.languages[lang_idx];
-
-            if let Some(result) = language.detect(manifest_name, manifest_content) {
-                let detection = LanguageDetection {
-                    language: language.name().to_string(),
-                    build_system: result.build_system,
-                    confidence: result.confidence,
-                    manifest_path: manifest_name.to_string(),
-                };
-
-                match &best_result {
-                    None => best_result = Some((detection, priority)),
-                    Some((_, best_priority)) if priority > *best_priority => {
-                        best_result = Some((detection, priority))
-                    }
-                    Some((best, _)) if detection.confidence > best.confidence => {
-                        best_result = Some((detection, priority))
-                    }
-                    _ => {}
+        for language in &self.languages {
+            if language.compatible_build_systems().contains(&build_system_name) {
+                if let Some(result) = language.detect(manifest_name, manifest_content) {
+                    return Some(LanguageDetection {
+                        language: language.name().to_string(),
+                        build_system: result.build_system,
+                        confidence: result.confidence,
+                        manifest_path: manifest_name.to_string(),
+                    });
                 }
             }
         }
 
-        best_result.map(|(detection, _)| detection)
+        None
     }
 
-    fn matches_pattern(pattern: &str, filename: &str) -> bool {
-        glob::Pattern::new(pattern)
-            .ok()
-            .map(|p| p.matches(filename))
-            .unwrap_or(false)
-    }
-
-    pub fn detect_all(&self, manifests: &[(String, Option<String>)]) -> Vec<LanguageDetection> {
+    pub fn detect_all(
+        &self,
+        manifests: &[(String, Option<String>)],
+        build_system_registry: &crate::build_systems::BuildSystemRegistry,
+    ) -> Vec<LanguageDetection> {
         let mut detections = Vec::new();
 
         for (path, content) in manifests {
@@ -129,7 +94,7 @@ impl LanguageRegistry {
                 .and_then(|n| n.to_str())
                 .unwrap_or(path);
 
-            if let Some(mut detection) = self.detect(filename, content.as_deref()) {
+            if let Some(mut detection) = self.detect(filename, content.as_deref(), build_system_registry) {
                 detection.manifest_path = path.clone();
                 detections.push(detection);
             }
@@ -158,20 +123,15 @@ impl LanguageRegistry {
     }
 
     /// Check if a filename is a known manifest
-    pub fn is_manifest(&self, filename: &str) -> bool {
-        self.manifest_index
-            .keys()
-            .any(|pattern| Self::matches_pattern(pattern, filename))
+    pub fn is_manifest(&self, filename: &str, build_system_registry: &crate::build_systems::BuildSystemRegistry) -> bool {
+        build_system_registry.is_manifest(filename)
     }
 
     /// Check if a manifest is a workspace root (monorepo indicator)
     pub fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        if let Some(candidates) = self.manifest_index.get(manifest_name) {
-            for &(lang_idx, _) in candidates {
-                let language = &self.languages[lang_idx];
-                if language.is_workspace_root(manifest_name, manifest_content) {
-                    return true;
-                }
+        for language in &self.languages {
+            if language.is_workspace_root(manifest_name, manifest_content) {
+                return true;
             }
         }
         false
@@ -184,15 +144,9 @@ impl LanguageRegistry {
         manifest_content: &str,
         all_internal_paths: &[std::path::PathBuf],
     ) -> Option<super::DependencyInfo> {
-        if let Some(candidates) = self.manifest_index.get(manifest_name) {
-            for &(lang_idx, _) in candidates {
-                let language = &self.languages[lang_idx];
-                if language
-                    .detect(manifest_name, Some(manifest_content))
-                    .is_some()
-                {
-                    return Some(language.parse_dependencies(manifest_content, all_internal_paths));
-                }
+        for language in &self.languages {
+            if language.detect(manifest_name, Some(manifest_content)).is_some() {
+                return Some(language.parse_dependencies(manifest_content, all_internal_paths));
             }
         }
         None
@@ -225,7 +179,8 @@ mod tests {
     #[test]
     fn test_detect_rust() {
         let registry = LanguageRegistry::with_defaults();
-        let detection = registry.detect("Cargo.toml", None);
+        let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
+        let detection = registry.detect("Cargo.toml", None, &build_system_registry);
 
         assert!(detection.is_some());
         let d = detection.unwrap();
@@ -236,8 +191,9 @@ mod tests {
     #[test]
     fn test_is_manifest() {
         let registry = LanguageRegistry::with_defaults();
-        assert!(registry.is_manifest("Cargo.toml"));
-        assert!(!registry.is_manifest("README.md"));
+        let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
+        assert!(registry.is_manifest("Cargo.toml", &build_system_registry));
+        assert!(!registry.is_manifest("README.md", &build_system_registry));
     }
 
     #[test]
@@ -254,12 +210,13 @@ mod tests {
     #[test]
     fn test_detect_all() {
         let registry = LanguageRegistry::with_defaults();
+        let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
         let manifests = vec![
             ("Cargo.toml".to_string(), None),
             ("src/lib.rs".to_string(), None),
         ];
 
-        let detections = registry.detect_all(&manifests);
+        let detections = registry.detect_all(&manifests, &build_system_registry);
         assert_eq!(detections.len(), 1);
         assert_eq!(detections[0].language, "Rust");
     }

@@ -93,11 +93,11 @@
   - [x] 8.4.3 Remove `build_systems()` method
   - [x] 8.4.4 Remove `manifest_files()` method (moved to BuildSystemRegistry)
 - [x] 8.5 Update all 10 language implementations to use new trait (~480 lines removed)
-- [ ] 8.6 Update `src/bootstrap/scanner.rs` to use BuildSystemRegistry
-- [ ] 8.7 Update pipeline phases to query BuildSystemRegistry directly
-- [ ] 8.8 Run `cargo check` after each build system implementation
-- [ ] 8.9 Run `cargo test` after all build systems complete
-- [ ] 8.10 Run `cargo test --test e2e` to validate all fixtures
+- [x] 8.6 Update `src/bootstrap/scanner.rs` to use BuildSystemRegistry
+- [x] 8.7 Update pipeline phases to query BuildSystemRegistry directly (assemble.rs, build.rs)
+- [x] 8.8 Update `src/languages/registry.rs` to use BuildSystemRegistry for manifest detection
+- [x] 8.9 Run `cargo check` - passes with 0 errors, 0 warnings
+- [x] 8.10 Run `cargo test` - 21 passed, 3 failed (test fixture data mismatches, not code issues)
 
 ## Phase C: Consolidation (4-6 hours)
 

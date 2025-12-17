@@ -27,15 +27,24 @@ impl Default for ScanConfig {
 pub struct BootstrapScanner {
     repo_path: PathBuf,
     registry: Arc<LanguageRegistry>,
+    build_system_registry: Arc<crate::build_systems::BuildSystemRegistry>,
     config: ScanConfig,
 }
 
 impl BootstrapScanner {
     pub fn new(repo_path: PathBuf) -> Result<Self> {
-        Self::with_registry(repo_path, Arc::new(LanguageRegistry::with_defaults()))
+        Self::with_registry(
+            repo_path,
+            Arc::new(LanguageRegistry::with_defaults()),
+            Arc::new(crate::build_systems::BuildSystemRegistry::with_defaults()),
+        )
     }
 
-    pub fn with_registry(repo_path: PathBuf, registry: Arc<LanguageRegistry>) -> Result<Self> {
+    pub fn with_registry(
+        repo_path: PathBuf,
+        registry: Arc<LanguageRegistry>,
+        build_system_registry: Arc<crate::build_systems::BuildSystemRegistry>,
+    ) -> Result<Self> {
         if !repo_path.exists() {
             return Err(anyhow::anyhow!(
                 "Repository path does not exist: {:?}",
@@ -61,6 +70,7 @@ impl BootstrapScanner {
         Ok(Self {
             repo_path,
             registry,
+            build_system_registry,
             config: ScanConfig::default(),
         })
     }
@@ -131,7 +141,7 @@ impl BootstrapScanner {
                     has_workspace_config = true;
                 }
 
-                if self.registry.is_manifest(filename) {
+                if self.registry.is_manifest(filename, &self.build_system_registry) {
                     if let Some(detection) = self.detect_language(path, filename)? {
                         debug!(
                             path = %path.display(),
@@ -176,7 +186,7 @@ impl BootstrapScanner {
 
         let depth = rel_path.matches('/').count();
 
-        if let Some(detection) = self.registry.detect(filename, content.as_deref()) {
+        if let Some(detection) = self.registry.detect(filename, content.as_deref(), &self.build_system_registry) {
             let is_workspace_root = self
                 .registry
                 .is_workspace_root(filename, content.as_deref());

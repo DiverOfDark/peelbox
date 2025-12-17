@@ -33,10 +33,11 @@ pub fn execute(
     root_cache: &RootCacheInfo,
 ) -> Result<Vec<UniversalBuild>> {
     let registry = LanguageRegistry::with_defaults();
+    let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
     let mut builds = Vec::new();
 
     for result in analysis_results {
-        let build = assemble_single_service(result, root_cache, &registry)?;
+        let build = assemble_single_service(result, root_cache, &registry, &build_system_registry)?;
         builds.push(build);
     }
 
@@ -47,10 +48,13 @@ fn assemble_single_service(
     result: ServiceAnalysisResults,
     root_cache: &RootCacheInfo,
     registry: &LanguageRegistry,
+    build_system_registry: &crate::build_systems::BuildSystemRegistry,
 ) -> Result<UniversalBuild> {
-    let language_def = registry.get_language(&result.service.language);
+    let _language_def = registry.get_language(&result.service.language);
 
-    let template = language_def.and_then(|def| def.build_template(&result.service.build_system));
+    let template = build_system_registry
+        .get(&result.service.build_system)
+        .map(|bs| bs.build_template());
 
     let project_name = extract_project_name(&result.service);
 
