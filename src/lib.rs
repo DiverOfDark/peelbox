@@ -19,7 +19,6 @@ pub use languages::{LanguageDefinition, LanguageRegistry};
 pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
-pub use pipeline::{PipelineConfig, PipelineContext};
 pub use progress::{LoggingHandler, NoOpHandler, ProgressEvent, ProgressHandler};
 pub use validation::{ValidationRule, Validator};
 

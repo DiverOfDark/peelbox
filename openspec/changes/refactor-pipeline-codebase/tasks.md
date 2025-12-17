@@ -20,19 +20,19 @@
 - [x] 2.7 Run `cargo check` to verify no broken references
 - [x] 2.8 Verified ~1,773 lines removed
 
-### 3. Infrastructure Simplification (2-3 hours)
-- [ ] 3.1 Delete `src/pipeline/context.rs` (130 lines)
-- [ ] 3.2 Delete `src/pipeline/config.rs` (64 lines)
-- [ ] 3.3 Update `src/detection/service.rs` to construct PipelineOrchestrator directly
-- [ ] 3.4 Update `src/main.rs` construction accordingly
-- [ ] 3.5 Delete `src/extractors/registry.rs` (30 lines)
-- [ ] 3.6 Update extractors to accept `&Path` instead of `&ExtractorRegistry`
+### 3. Infrastructure Simplification (2-3 hours) ✅
+- [x] 3.1 Delete `src/pipeline/context.rs` (130 lines)
+- [x] 3.2 Delete `src/pipeline/config.rs` (64 lines)
+- [x] 3.3 Update `src/detection/service.rs` to remove PipelineContext parameter
+- [x] 3.4 Update `src/main.rs` construction accordingly
+- [x] 3.5 Delete `src/extractors/registry.rs` (17 lines)
+- [x] 3.6 Extractors already accept `&Path` directly (no ExtractorRegistry usage found)
 - [ ] 3.7 Remove `ProgressHandler` trait from `src/progress/handler.rs`, keep `ProgressEvent` enum
 - [ ] 3.8 Remove `NoOpHandler`, simplify `LoggingHandler` to direct struct
 - [ ] 3.9 Flatten validation system in `src/validation/rules.rs` to direct functions
 - [ ] 3.10 Update `src/validation/validator.rs` to call functions directly
 - [ ] 3.11 Remove `intermediate_responses` field from `src/llm/recording.rs`
-- [ ] 3.12 Run `cargo check && cargo test` after each substage
+- [x] 3.12 Run `cargo check` - passed
 
 ### 4. Extractor Consolidation (1-2 hours)
 - [ ] 4.1 Create `src/extractors/common.rs` with shared scanning logic

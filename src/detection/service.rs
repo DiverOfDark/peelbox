@@ -1,7 +1,6 @@
 use crate::llm::BackendError;
 use crate::llm::LLMClient;
 use crate::output::UniversalBuild;
-use crate::pipeline::PipelineContext;
 use crate::progress::ProgressHandler;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -191,8 +190,6 @@ impl ServiceError {
 
 pub struct DetectionService {
     client: Arc<dyn LLMClient>,
-    #[allow(dead_code)]
-    context: Arc<PipelineContext>,
 }
 
 impl std::fmt::Debug for DetectionService {
@@ -204,13 +201,13 @@ impl std::fmt::Debug for DetectionService {
 }
 
 impl DetectionService {
-    pub fn new(client: Arc<dyn LLMClient>, context: Arc<PipelineContext>) -> Self {
+    pub fn new(client: Arc<dyn LLMClient>) -> Self {
         info!(
             "Detection service initialized with client: {}",
             client.name()
         );
 
-        Self { client, context }
+        Self { client }
     }
 
     pub async fn detect(&self, repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError> {
@@ -306,8 +303,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_not_exists() {
-        use crate::pipeline::PipelineContext;
-
         let client = Arc::new(
             GenAIClient::new(
                 AdapterKind::Ollama,
@@ -318,8 +313,7 @@ mod tests {
             .unwrap(),
         ) as Arc<dyn LLMClient>;
 
-        let (context, _temp_dir) = PipelineContext::with_mocks();
-        let service = DetectionService::new(client, Arc::new(context));
+        let service = DetectionService::new(client);
 
         let result = service.validate_repo_path(&PathBuf::from("/nonexistent/path"));
         assert!(result.is_err());
@@ -328,8 +322,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_is_file() {
-        use crate::pipeline::PipelineContext;
-
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("file.txt");
         std::fs::write(&file_path, "content").unwrap();
@@ -344,8 +336,7 @@ mod tests {
             .unwrap(),
         ) as Arc<dyn LLMClient>;
 
-        let (context, _mock_temp_dir) = PipelineContext::with_mocks();
-        let service = DetectionService::new(client, Arc::new(context));
+        let service = DetectionService::new(client);
 
         let result = service.validate_repo_path(&file_path);
         assert!(result.is_err());
@@ -354,8 +345,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_validate_repo_path_success() {
-        use crate::pipeline::PipelineContext;
-
         let temp_dir = TempDir::new().unwrap();
 
         let client = Arc::new(
@@ -368,31 +357,9 @@ mod tests {
             .unwrap(),
         ) as Arc<dyn LLMClient>;
 
-        let (context, _mock_temp_dir) = PipelineContext::with_mocks();
-        let service = DetectionService::new(client, Arc::new(context));
+        let service = DetectionService::new(client);
 
         let result = service.validate_repo_path(&temp_dir.path().to_path_buf());
         assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_with_context() {
-        use crate::pipeline::PipelineContext;
-
-        let client = Arc::new(
-            GenAIClient::new(
-                AdapterKind::Ollama,
-                "qwen2.5-coder:7b".to_string(),
-                Duration::from_secs(30),
-            )
-            .await
-            .unwrap(),
-        ) as Arc<dyn LLMClient>;
-
-        let (context, _temp_dir) = PipelineContext::with_mocks();
-        let service = DetectionService::new(client, Arc::new(context));
-
-        let registry = (*service.context.language_registry).clone();
-        assert!(registry.get_language("rust").is_some());
     }
 }

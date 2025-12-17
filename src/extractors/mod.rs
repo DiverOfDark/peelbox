@@ -9,10 +9,8 @@ pub mod env_vars;
 pub mod health;
 pub mod parsers;
 pub mod port;
-pub mod registry;
 
 pub use context::ServiceContext;
 pub use env_vars::{EnvVarExtractor, EnvVarInfo, EnvVarSource};
 pub use health::{HealthCheckExtractor, HealthCheckInfo, HealthCheckSource};
 pub use port::{PortExtractor, PortInfo, PortSource};
-pub use registry::ExtractorRegistry;

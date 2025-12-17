@@ -221,20 +221,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
             }
         };
 
-        use aipack::fs::RealFileSystem;
-        use aipack::languages::LanguageRegistry;
-        use aipack::pipeline::{PipelineConfig, PipelineContext};
-        use aipack::validation::Validator;
-
-        let context = Arc::new(PipelineContext::new(
-            client.clone(),
-            Arc::new(RealFileSystem),
-            Arc::new(LanguageRegistry::with_defaults()),
-            Arc::new(Validator::new()),
-            PipelineConfig::default(),
-        ));
-
-        DetectionService::new(client, context)
+        DetectionService::new(client)
     } else {
         info!("Auto-selecting best available backend");
         let interactive = atty::is(atty::Stream::Stdout);
@@ -248,20 +235,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
                 let client = wrap_with_recording(selected.client);
 
-                use aipack::fs::RealFileSystem;
-                use aipack::languages::LanguageRegistry;
-                use aipack::pipeline::{PipelineConfig, PipelineContext};
-                use aipack::validation::Validator;
-
-                let context = Arc::new(PipelineContext::new(
-                    client.clone(),
-                    Arc::new(RealFileSystem),
-                    Arc::new(LanguageRegistry::with_defaults()),
-                    Arc::new(Validator::new()),
-                    PipelineConfig::default(),
-                ));
-
-                DetectionService::new(client, context)
+                DetectionService::new(client)
             }
             Err(e) => {
                 error!("Failed to auto-select backend: {}", e);

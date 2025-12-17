@@ -100,23 +100,11 @@ async fn test_service_creation_with_unreachable_backend() {
 
     // GenAI client creation is lazy and may succeed
     if let Ok(client) = client_result {
-        use aipack::fs::RealFileSystem;
-        use aipack::languages::LanguageRegistry;
-        use aipack::pipeline::{PipelineConfig, PipelineContext};
-        use aipack::validation::Validator;
         use std::sync::Arc;
 
         let client_arc: Arc<dyn aipack::llm::LLMClient> = Arc::new(client);
 
-        let context = Arc::new(PipelineContext::new(
-            client_arc.clone(),
-            Arc::new(RealFileSystem),
-            Arc::new(LanguageRegistry::with_defaults()),
-            Arc::new(Validator::new()),
-            PipelineConfig::default(),
-        ));
-
-        let _service = DetectionService::new(client_arc, context);
+        let _service = DetectionService::new(client_arc);
         // Service creation succeeded
     }
 
