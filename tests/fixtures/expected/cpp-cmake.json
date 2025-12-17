@@ -8,7 +8,7 @@
     "reasoning": "Detected CMakeLists.txt with C++ project configuration"
   },
   "build": {
-    "base": "gcc:13",
+    "base": "gcc:12",
     "packages": ["cmake", "libboost-all-dev", "libssl-dev"],
     "env": {},
     "commands": [
@@ -20,7 +20,7 @@
     "artifacts": ["build/server"]
   },
   "runtime": {
-    "base": "debian:bookworm-slim",
+    "base": "ubuntu:22.04",
     "packages": ["libboost-system1.74.0", "libboost-thread1.74.0", "libssl3"],
     "env": {
       "PORT": "8080",

@@ -8,7 +8,7 @@
     "reasoning": "Detected composer.json with PHP dependencies (Slim)"
   },
   "build": {
-    "base": "php:8.1-cli",
+    "base": "composer:2",
     "packages": ["unzip", "git"],
     "env": {},
     "commands": ["composer install --no-dev --optimize-autoloader"],
@@ -17,7 +17,7 @@
     "artifacts": []
   },
   "runtime": {
-    "base": "php:8.1-cli",
+    "base": "php:8.2-fpm",
     "packages": [],
     "env": {
       "PORT": "8000",

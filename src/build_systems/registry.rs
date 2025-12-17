@@ -55,12 +55,27 @@ impl BuildSystemRegistry {
 
     /// Detect build system from manifest
     pub fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> Option<&dyn BuildSystem> {
-        let candidates = self.manifest_index.get(manifest_name)?;
+        if let Some(candidates) = self.manifest_index.get(manifest_name) {
+            for &(idx, _priority) in candidates {
+                let system = &self.systems[idx];
+                if system.detect(manifest_name, manifest_content) {
+                    return Some(system.as_ref());
+                }
+            }
+        }
 
-        for &(idx, _priority) in candidates {
-            let system = &self.systems[idx];
-            if system.detect(manifest_name, manifest_content) {
-                return Some(system.as_ref());
+        for (pattern_str, candidates) in &self.manifest_index {
+            if pattern_str.contains('*') {
+                if let Ok(pattern) = glob::Pattern::new(pattern_str) {
+                    if pattern.matches(manifest_name) {
+                        for &(idx, _priority) in candidates {
+                            let system = &self.systems[idx];
+                            if system.detect(manifest_name, manifest_content) {
+                                return Some(system.as_ref());
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -88,7 +103,21 @@ impl BuildSystemRegistry {
 
     /// Check if manifest is a known build manifest
     pub fn is_manifest(&self, filename: &str) -> bool {
-        self.manifest_index.contains_key(filename)
+        if self.manifest_index.contains_key(filename) {
+            return true;
+        }
+
+        for pattern_str in self.manifest_index.keys() {
+            if pattern_str.contains('*') {
+                if let Ok(pattern) = glob::Pattern::new(pattern_str) {
+                    if pattern.matches(filename) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
 
@@ -164,5 +193,32 @@ mod tests {
         assert!(registry.is_manifest("package.json"));
         assert!(registry.is_manifest("pom.xml"));
         assert!(!registry.is_manifest("README.md"));
+    }
+
+    #[test]
+    fn test_detect_dotnet_glob_patterns() {
+        let registry = BuildSystemRegistry::with_defaults();
+
+        assert!(registry.is_manifest("App.csproj"));
+        assert!(registry.is_manifest("MyProject.fsproj"));
+        assert!(registry.is_manifest("Console.vbproj"));
+        assert!(registry.is_manifest("MySolution.sln"));
+
+        let csproj_result = registry.detect("App.csproj", Some("<Project Sdk=\"Microsoft.NET.Sdk\">"));
+        assert!(csproj_result.is_some());
+        assert_eq!(csproj_result.unwrap().name(), "dotnet");
+
+        let fsproj_result = registry.detect("MyProject.fsproj", Some("<Project Sdk=\"Microsoft.NET.Sdk\">"));
+        assert!(fsproj_result.is_some());
+        assert_eq!(fsproj_result.unwrap().name(), "dotnet");
+    }
+
+    #[test]
+    fn test_glob_pattern_priority() {
+        let registry = BuildSystemRegistry::with_defaults();
+
+        let exact_match = registry.detect("Cargo.toml", Some("[package]\nname = \"test\""));
+        assert!(exact_match.is_some());
+        assert_eq!(exact_match.unwrap().name(), "cargo");
     }
 }
