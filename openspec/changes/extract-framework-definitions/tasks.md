@@ -1,0 +1,161 @@
+# Implementation Tasks
+
+## Phase A: Framework Module Foundation (6-8 hours)
+
+### 1. Create Framework Module Structure (1-2 hours)
+- [ ] 1.1 Create `src/frameworks/mod.rs` with Framework trait definition
+- [ ] 1.2 Create `src/frameworks/registry.rs` with FrameworkRegistry
+- [ ] 1.3 Define `DependencyPattern` and `DependencyPatternType` enums
+- [ ] 1.4 Define `FrameworkTemplate` struct (may be alias to BuildTemplate initially)
+- [ ] 1.5 Add framework module exports to `src/lib.rs`
+- [ ] 1.6 Run `cargo check` to verify module structure
+
+### 2. Implement Core Frameworks (5-6 hours)
+- [ ] 2.1 Create `src/frameworks/spring_boot.rs` (Spring Boot for Java/Kotlin + Maven/Gradle)
+- [ ] 2.2 Create `src/frameworks/express.rs` (Express for JavaScript/TypeScript + npm/yarn/pnpm)
+- [ ] 2.3 Create `src/frameworks/django.rs` (Django for Python + pip/poetry)
+- [ ] 2.4 Create `src/frameworks/rails.rs` (Rails for Ruby + bundler)
+- [ ] 2.5 Create `src/frameworks/aspnet.rs` (ASP.NET Core for .NET + dotnet)
+- [ ] 2.6 Add unit tests for each framework's dependency pattern matching
+- [ ] 2.7 Run `cargo test` to validate framework implementations
+
+## Phase B: Remaining Frameworks (4-6 hours)
+
+### 3. Implement JVM Frameworks (1-2 hours)
+- [ ] 3.1 Create `src/frameworks/quarkus.rs` (Quarkus for Java/Kotlin + Maven/Gradle)
+- [ ] 3.2 Create `src/frameworks/micronaut.rs` (Micronaut for Java/Kotlin + Maven/Gradle)
+- [ ] 3.3 Create `src/frameworks/ktor.rs` (Ktor for Kotlin + Gradle)
+- [ ] 3.4 Add dependency patterns for each framework
+- [ ] 3.5 Add tests for JVM framework detection
+
+### 4. Implement JavaScript/TypeScript Frameworks (1-2 hours)
+- [ ] 4.1 Create `src/frameworks/nextjs.rs` (Next.js for JavaScript/TypeScript + npm/yarn/pnpm)
+- [ ] 4.2 Create `src/frameworks/nestjs.rs` (Nest.js for TypeScript + npm/yarn/pnpm)
+- [ ] 4.3 Create `src/frameworks/fastify.rs` (Fastify for JavaScript/TypeScript + npm/yarn/pnpm)
+- [ ] 4.4 Add dependency patterns (e.g., `next`, `@nestjs/core`, `fastify`)
+- [ ] 4.5 Add tests for Node.js framework detection
+
+### 5. Implement Python Frameworks (1 hour)
+- [ ] 5.1 Create `src/frameworks/flask.rs` (Flask for Python + pip/poetry)
+- [ ] 5.2 Create `src/frameworks/fastapi.rs` (FastAPI for Python + pip/poetry)
+- [ ] 5.3 Add dependency patterns (`flask`, `fastapi`)
+- [ ] 5.4 Add tests for Python framework detection
+
+### 6. Implement Go, PHP, Ruby Frameworks (1-2 hours)
+- [ ] 6.1 Create `src/frameworks/gin.rs` (Gin for Go + go)
+- [ ] 6.2 Create `src/frameworks/echo.rs` (Echo for Go + go)
+- [ ] 6.3 Create `src/frameworks/laravel.rs` (Laravel for PHP + composer)
+- [ ] 6.4 Create `src/frameworks/symfony.rs` (Symfony for PHP + composer)
+- [ ] 6.5 Create `src/frameworks/sinatra.rs` (Sinatra for Ruby + bundler)
+- [ ] 6.6 Add dependency patterns and tests
+
+## Phase C: Pipeline Integration (4-6 hours)
+
+### 7. Update Phase 6a (Runtime) for Framework Detection (2-3 hours)
+- [ ] 7.1 Pass `FrameworkRegistry` to `detect_runtime()` function
+- [ ] 7.2 Add `detect_framework_from_dependencies()` helper function
+- [ ] 7.3 Update runtime detection logic:
+  - [ ] 7.3.1 Try deterministic framework detection first
+  - [ ] 7.3.2 Fall back to LLM if no framework detected
+  - [ ] 7.3.3 Set confidence to High for deterministic detection
+- [ ] 7.4 Update LLM prompt to remove framework enumeration (smaller prompt)
+- [ ] 7.5 Update tests to verify framework detection from dependencies
+- [ ] 7.6 Run `cargo test` to validate phase changes
+
+### 8. Update Phase 6g (Health) for Framework Defaults (1 hour)
+- [ ] 8.1 Pass `FrameworkRegistry` to health detection phase
+- [ ] 8.2 Update `try_framework_defaults()` to query registry instead of string matching
+- [ ] 8.3 Remove hardcoded framework→endpoint mapping
+- [ ] 8.4 Update tests for framework-based health detection
+- [ ] 8.5 Run `cargo test` to validate changes
+
+### 9. Update Phase 10 (Port) for Framework Defaults (1 hour)
+- [ ] 9.1 Pass `FrameworkRegistry` to port detection phase
+- [ ] 9.2 Query framework for `default_ports()` if framework detected
+- [ ] 9.3 Merge framework ports with detected ports
+- [ ] 9.4 Add tests for framework-based port detection
+- [ ] 9.5 Run `cargo test` to validate changes
+
+### 10. Update Extractors (1-2 hours)
+- [ ] 10.1 Update `src/extractors/health.rs` to use FrameworkRegistry
+- [ ] 10.2 Remove `apply_framework_defaults()` method (now in framework trait)
+- [ ] 10.3 Update `src/extractors/port.rs` to query FrameworkRegistry
+- [ ] 10.4 Update extractor tests
+- [ ] 10.5 Run `cargo test` to validate extractor changes
+
+## Phase D: Cleanup Language Files (2-3 hours)
+
+### 11. Remove Framework Logic from Language Trait (1 hour)
+- [ ] 11.1 Remove `health_check_patterns()` method from `LanguageDefinition` trait
+- [ ] 11.2 Remove `port_patterns()` method from `LanguageDefinition` trait
+- [ ] 11.3 Remove `default_health_endpoints()` method from `LanguageDefinition` trait
+- [ ] 11.4 Remove `env_var_patterns()` method (move to Framework trait if needed)
+- [ ] 11.5 Run `cargo check` to find all broken references
+- [ ] 11.6 Fix compiler errors by removing method implementations
+
+### 12. Update Language Implementations (1-2 hours)
+- [ ] 12.1 Remove pattern methods from `src/languages/java.rs` (~100 lines removed)
+- [ ] 12.2 Remove pattern methods from `src/languages/javascript.rs` (~80 lines removed)
+- [ ] 12.3 Remove pattern methods from `src/languages/python.rs` (~70 lines removed)
+- [ ] 12.4 Remove pattern methods from `src/languages/ruby.rs` (~50 lines removed)
+- [ ] 12.5 Remove pattern methods from `src/languages/php.rs` (~50 lines removed)
+- [ ] 12.6 Remove pattern methods from other language files (~30-50 lines each)
+- [ ] 12.7 Run `cargo check` to verify no broken references remain
+- [ ] 12.8 Run `cargo clippy` to ensure code quality
+
+## Phase E: Testing & Validation (3-4 hours)
+
+### 13. Add Framework Detection Tests (1-2 hours)
+- [ ] 13.1 Create `tests/framework_detection_test.rs`
+- [ ] 13.2 Add test for Spring Boot detection from Maven pom.xml
+- [ ] 13.3 Add test for Express detection from package.json
+- [ ] 13.4 Add test for Django detection from requirements.txt
+- [ ] 13.5 Add test for Next.js detection from package.json
+- [ ] 13.6 Add test for Rails detection from Gemfile
+- [ ] 13.7 Add test for framework compatibility validation
+- [ ] 13.8 Run `cargo test` to validate all tests pass
+
+### 14. Update Existing Test Fixtures (1 hour)
+- [ ] 14.1 Update `tests/fixtures/expected/java-maven.json` with framework: "Spring Boot"
+- [ ] 14.2 Update `tests/fixtures/expected/node-npm.json` with framework: "Express"
+- [ ] 14.3 Update `tests/fixtures/expected/python-pip.json` with framework: "Flask"
+- [ ] 14.4 Update `tests/fixtures/expected/ruby-bundler.json` with framework: "Rails"
+- [ ] 14.5 Update other expected outputs as needed
+- [ ] 14.6 Run `cargo test --test e2e` to validate fixture changes
+
+### 15. Validate Language-Framework-BuildSystem Relationships (1 hour)
+- [ ] 15.1 Create validation test for all framework combinations
+- [ ] 15.2 Test: Spring Boot works with Java + Maven
+- [ ] 15.3 Test: Spring Boot works with Kotlin + Gradle
+- [ ] 15.4 Test: Express works with JavaScript + npm/yarn/pnpm
+- [ ] 15.5 Test: Django works with Python + pip/poetry
+- [ ] 15.6 Test: Invalid combinations fail (e.g., Spring Boot + Python)
+- [ ] 15.7 Run `cargo test` to validate relationship model
+
+### 16. Performance Validation (30 minutes)
+- [ ] 16.1 Benchmark detection time with framework registry vs LLM-only
+- [ ] 16.2 Verify LLM prompt size reduction (10-15% smaller)
+- [ ] 16.3 Verify LLM call reduction (6-8 prompts instead of 7-9)
+- [ ] 16.4 Document performance improvements in proposal
+
+## Final Validation (1 hour)
+
+### 17. Cleanup and Documentation (1 hour)
+- [ ] 17.1 Run `cargo clippy -- -W unused` to find dead code
+- [ ] 17.2 Run `cargo fix --allow-dirty` to auto-fix warnings
+- [ ] 17.3 Update `CLAUDE.md` to reflect framework module (add to project structure)
+- [ ] 17.4 Run full test suite: `cargo test`
+- [ ] 17.5 Run with replay mode: `AIPACK_RECORDING_MODE=replay cargo test`
+- [ ] 17.6 Run e2e tests: `cargo test --test e2e`
+- [ ] 17.7 Validate detection on fixtures: `cargo run -- detect tests/fixtures/monorepo/polyglot`
+- [ ] 17.8 Final validation: `openspec validate extract-framework-definitions --strict`
+
+## Success Metrics
+- [ ] All tests pass (`cargo test`) - 400+ tests passing
+- [ ] No clippy warnings
+- [ ] Framework detection is deterministic for 10+ major frameworks
+- [ ] LLM prompts reduced by 10-15% (measured in tokens)
+- [ ] All 14 language fixtures validate with framework detection
+- [ ] ~500-800 lines removed from language files
+- [ ] Recording system works in replay mode
+- [ ] Language-Framework-BuildSystem relationships validated
