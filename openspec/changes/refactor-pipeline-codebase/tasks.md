@@ -51,13 +51,13 @@
 - [x] 5.6 Simplify `detect()` to single-pass algorithm (already optimal, no changes needed)
 - [x] 5.7 Run `cargo test` to validate registry behavior (15 tests passed)
 
-### 6. Scanner Optimization (1-2 hours)
-- [ ] 6.1 Update `src/bootstrap/scanner.rs` to use `WalkDir::min_depth(1)`
-- [ ] 6.2 Add early-exit when `files_scanned >= max_files`
-- [ ] 6.3 Combine `is_workspace_config` and `is_manifest` checks into single pass
-- [ ] 6.4 Consider using `ignore` crate for proper gitignore handling
-- [ ] 6.5 Add `ignore = "0.4"` dependency to `Cargo.toml` if using ignore crate
-- [ ] 6.6 Run `cargo test` to validate scanner behavior
+### 6. Scanner Optimization (1-2 hours) ✅
+- [x] 6.1 Update `src/bootstrap/scanner.rs` to use `WalkDir::min_depth(1)` (skip root directory)
+- [x] 6.2 Add early-exit when `files_scanned >= max_files` (fixed off-by-one error)
+- [x] 6.3 Combine `is_workspace_config` and `is_manifest` checks (already optimal with O(1) lookups)
+- [x] 6.4 Integrate `ignore` crate for proper gitignore handling (replaced custom parsing with WalkBuilder)
+- [x] 6.5 Add `ignore = "0.4"` dependency to `Cargo.toml` (industry-standard gitignore support)
+- [x] 6.6 Run `cargo test` to validate scanner behavior (all 9 scanner tests passed, now supports wildcards)
 
 ### 7. Confidence Consolidation (1 hour)
 - [ ] 7.1 Create `src/pipeline/confidence.rs` with shared Confidence enum

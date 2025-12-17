@@ -1,11 +1,11 @@
 use super::{BootstrapContext, LanguageDetection};
 use crate::languages::LanguageRegistry;
 use anyhow::{Context, Result};
+use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, warn};
-use walkdir::WalkDir;
 
 #[derive(Debug, Clone)]
 pub struct ScanConfig {
@@ -28,7 +28,6 @@ pub struct BootstrapScanner {
     repo_path: PathBuf,
     registry: Arc<LanguageRegistry>,
     config: ScanConfig,
-    gitignore_dirs: Vec<String>,
 }
 
 impl BootstrapScanner {
@@ -54,11 +53,8 @@ impl BootstrapScanner {
             .canonicalize()
             .context("Failed to canonicalize repository path")?;
 
-        let gitignore_dirs = Self::parse_gitignore(&repo_path);
-
         debug!(
             repo_path = %repo_path.display(),
-            gitignore_entries = gitignore_dirs.len(),
             "BootstrapScanner initialized"
         );
 
@@ -66,39 +62,7 @@ impl BootstrapScanner {
             repo_path,
             registry,
             config: ScanConfig::default(),
-            gitignore_dirs,
         })
-    }
-
-    fn parse_gitignore(repo_path: &Path) -> Vec<String> {
-        let gitignore_path = repo_path.join(".gitignore");
-        if !gitignore_path.exists() {
-            return Vec::new();
-        }
-
-        let content = match std::fs::read_to_string(&gitignore_path) {
-            Ok(c) => c,
-            Err(_) => return Vec::new(),
-        };
-
-        content
-            .lines()
-            .filter_map(|line| {
-                let line = line.trim();
-                if line.is_empty() || line.starts_with('#') {
-                    return None;
-                }
-                let pattern = line.trim_start_matches('/').trim_end_matches('/');
-                if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
-                    return None;
-                }
-                if !pattern.contains('/') && !pattern.is_empty() {
-                    Some(pattern.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 
     pub fn with_config(mut self, config: ScanConfig) -> Self {
@@ -120,20 +84,39 @@ impl BootstrapScanner {
         let mut files_scanned = 0;
         let mut has_workspace_config = false;
 
-        for entry in WalkDir::new(&self.repo_path)
-            .max_depth(self.config.max_depth)
-            .into_iter()
-            .filter_entry(|e| !self.is_excluded(e.path()))
+        let mut override_builder = OverrideBuilder::new(&self.repo_path);
+        for excluded in self.registry.all_excluded_dirs() {
+            override_builder.add(&format!("!{}/", excluded)).ok();
+        }
+        let overrides = override_builder.build().unwrap_or_else(|_| {
+            OverrideBuilder::new(&self.repo_path).build().unwrap()
+        });
+
+        for result in WalkBuilder::new(&self.repo_path)
+            .max_depth(Some(self.config.max_depth))
+            .hidden(false)
+            .git_ignore(true)
+            .overrides(overrides)
+            .build()
         {
-            let entry = entry.context("Failed to read directory entry")?;
+            let entry = match result {
+                Ok(e) => e,
+                Err(err) => {
+                    warn!(error = %err, "Failed to read directory entry");
+                    continue;
+                }
+            };
             let path = entry.path();
 
             if !path.is_file() {
                 continue;
             }
 
-            files_scanned += 1;
-            if files_scanned > self.config.max_files {
+            if self.is_excluded(path) {
+                continue;
+            }
+
+            if files_scanned >= self.config.max_files {
                 warn!(
                     files_scanned,
                     max_files = self.config.max_files,
@@ -141,6 +124,7 @@ impl BootstrapScanner {
                 );
                 break;
             }
+            files_scanned += 1;
 
             if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
                 if self.is_workspace_config(filename) {
@@ -221,9 +205,6 @@ impl BootstrapScanner {
             if excluded_dirs.contains(&name) {
                 return true;
             }
-            if self.gitignore_dirs.iter().any(|d| d == name) {
-                return true;
-            }
             if path.is_dir() && name.starts_with('.') && name.len() > 1 {
                 return true;
             }
@@ -247,6 +228,9 @@ mod tests {
     fn create_test_repo() -> TempDir {
         let dir = TempDir::new().unwrap();
         let base = dir.path();
+
+        // Initialize git repo (required for .gitignore to be respected by ignore crate)
+        fs::create_dir(base.join(".git")).unwrap();
 
         // Root level Cargo.toml
         fs::File::create(base.join("Cargo.toml"))
@@ -343,6 +327,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let base = temp_dir.path();
 
+        // Initialize git repo (required for .gitignore to be respected by ignore crate)
+        fs::create_dir(base.join(".git")).unwrap();
+
         fs::File::create(base.join("package.json"))
             .unwrap()
             .write_all(b"{\"name\": \"root\"}")
@@ -397,10 +384,13 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let base = dir.path();
 
-        // Create .gitignore with custom_build directory
+        // Initialize git repo (required for .gitignore to be respected by ignore crate)
+        fs::create_dir(base.join(".git")).unwrap();
+
+        // Create .gitignore with various patterns including wildcards
         fs::write(
             base.join(".gitignore"),
-            "custom_build/\n# comment\nsome_cache\n",
+            "custom_build/\n# comment\nsome_cache\n*.tmp\n",
         )
         .unwrap();
 
@@ -417,10 +407,16 @@ mod tests {
             .write_all(b"{\"name\": \"ignored\"}")
             .unwrap();
 
+        // Create a .tmp file (should be ignored by wildcard)
+        fs::File::create(base.join("test.tmp"))
+            .unwrap()
+            .write_all(b"temporary")
+            .unwrap();
+
         let scanner = BootstrapScanner::new(base.to_path_buf()).unwrap();
         let context = scanner.scan().unwrap();
 
-        // Should only find root package.json, not the one in custom_build
+        // Should only find root package.json
         assert_eq!(context.detections.len(), 1);
         assert_eq!(context.detections[0].manifest_path, "package.json");
     }
