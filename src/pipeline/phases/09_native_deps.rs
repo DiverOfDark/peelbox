@@ -16,7 +16,6 @@ pub struct NativeDepsInfo {
     pub confidence: Confidence,
 }
 
-
 fn build_prompt(service: &Service, dependencies: &[String]) -> String {
     format!(
         r#"Detect native dependencies and build requirements for this service.

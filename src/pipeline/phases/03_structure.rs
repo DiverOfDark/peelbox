@@ -1,8 +1,8 @@
 use super::classify::{ClassifyResult, PackagePath, ServicePath};
-use crate::pipeline::Confidence;
 use super::scan::ScanResult;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
+use crate::pipeline::Confidence;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -226,7 +226,10 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
             tracing::debug!("Full path: {}", full_path.display());
 
             let matched = scan.detections.iter().find(|d| {
-                tracing::debug!("Checking detection: manifest_path={}", d.manifest_path.display());
+                tracing::debug!(
+                    "Checking detection: manifest_path={}",
+                    d.manifest_path.display()
+                );
                 d.manifest_path.to_string_lossy() == sp.manifest || d.manifest_path == full_path
             });
 

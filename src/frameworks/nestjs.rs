@@ -9,7 +9,6 @@ impl Framework for NestJsFramework {
         crate::stack::FrameworkId::NestJs
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["TypeScript", "JavaScript"]
     }

@@ -9,7 +9,6 @@ impl Framework for FlaskFramework {
         crate::stack::FrameworkId::Flask
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Python"]
     }

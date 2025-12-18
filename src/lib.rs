@@ -16,17 +16,17 @@ pub mod validation;
 
 pub use build_systems::{BuildSystem, BuildTemplate};
 pub use config::{AipackConfig, ConfigError};
-pub use frameworks::Framework;
 pub use detection::service::{DetectionService, ServiceError};
+pub use frameworks::Framework;
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use languages::LanguageDefinition;
 pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
 pub use progress::{LoggingHandler, ProgressEvent};
-pub use stack::{BuildSystemId, FrameworkId, LanguageId};
 pub use stack::detection::DetectionStack;
 pub use stack::registry::StackRegistry;
+pub use stack::{BuildSystemId, FrameworkId, LanguageId};
 pub use validation::Validator;
 
 pub fn init_default() {

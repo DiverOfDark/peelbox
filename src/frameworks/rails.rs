@@ -9,7 +9,6 @@ impl Framework for RailsFramework {
         crate::stack::FrameworkId::Rails
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Ruby"]
     }
@@ -19,13 +18,11 @@ impl Framework for RailsFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::Regex,
-                pattern: r"^rails$".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::Regex,
+            pattern: r"^rails$".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {

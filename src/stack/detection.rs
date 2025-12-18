@@ -14,11 +14,7 @@ pub struct DetectionStack {
 }
 
 impl DetectionStack {
-    pub fn new(
-        build_system: BuildSystemId,
-        language: LanguageId,
-        manifest_path: PathBuf,
-    ) -> Self {
+    pub fn new(build_system: BuildSystemId, language: LanguageId, manifest_path: PathBuf) -> Self {
         Self {
             build_system,
             language,

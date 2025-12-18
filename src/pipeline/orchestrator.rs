@@ -22,25 +22,7 @@ pub struct PipelineOrchestrator {
 }
 
 impl PipelineOrchestrator {
-    pub fn new(llm_client: Arc<dyn LLMClient>) -> Self {
-        Self {
-            llm_client,
-            stack_registry: Arc::new(StackRegistry::with_defaults()),
-            progress_handler: None,
-            heuristic_logger: Arc::new(HeuristicLogger::disabled()),
-        }
-    }
-
-    pub fn with_progress_handler(llm_client: Arc<dyn LLMClient>) -> Self {
-        Self {
-            llm_client,
-            stack_registry: Arc::new(StackRegistry::with_defaults()),
-            progress_handler: Some(LoggingHandler),
-            heuristic_logger: Arc::new(HeuristicLogger::disabled()),
-        }
-    }
-
-    pub fn with_heuristic_logger(
+    pub fn new(
         llm_client: Arc<dyn LLMClient>,
         progress_handler: Option<LoggingHandler>,
         heuristic_logger: Arc<HeuristicLogger>,
@@ -80,10 +62,7 @@ impl PipelineOrchestrator {
                 duration: phase_start.elapsed(),
             });
         }
-        debug!(
-            "Scan complete: {} detections",
-            scan.detections.len()
-        );
+        debug!("Scan complete: {} detections", scan.detections.len());
 
         info!("Phase 2: Classifying directories");
         if let Some(handler) = &self.progress_handler {
@@ -384,7 +363,8 @@ mod tests {
     #[tokio::test]
     async fn test_orchestrator_creation() {
         let mock_client = Arc::new(MockLLMClient::new());
-        let orchestrator = PipelineOrchestrator::new(mock_client);
+        let orchestrator =
+            PipelineOrchestrator::new(mock_client, None, Arc::new(HeuristicLogger::disabled()));
 
         assert!(std::ptr::eq(
             orchestrator.llm_client.as_ref(),

@@ -9,7 +9,6 @@ impl Framework for ActixFramework {
         crate::stack::FrameworkId::ActixWeb
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Rust"]
     }
@@ -19,13 +18,11 @@ impl Framework for ActixFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::Regex,
-                pattern: r"actix-web".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::Regex,
+            pattern: r"actix-web".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {

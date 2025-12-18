@@ -9,7 +9,6 @@ impl Framework for QuarkusFramework {
         crate::stack::FrameworkId::Quarkus
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Java", "Kotlin"]
     }

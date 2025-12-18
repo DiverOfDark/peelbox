@@ -15,7 +15,6 @@ pub struct BuildInfo {
     pub confidence: Confidence,
 }
 
-
 fn build_prompt(service: &Service, scripts_excerpt: Option<&str>) -> String {
     format!(
         r#"Detect the build command and output directory for this service.

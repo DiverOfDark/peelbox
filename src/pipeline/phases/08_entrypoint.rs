@@ -1,9 +1,9 @@
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::heuristics::HeuristicLogger;
-use crate::stack::registry::StackRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
+use crate::stack::registry::StackRegistry;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -13,7 +13,6 @@ pub struct EntrypointInfo {
     pub entrypoint: String,
     pub confidence: Confidence,
 }
-
 
 fn build_prompt(service: &Service, manifest_excerpt: Option<&str>) -> String {
     format!(

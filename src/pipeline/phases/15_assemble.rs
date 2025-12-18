@@ -8,10 +8,10 @@ use super::port::PortInfo;
 use super::root_cache::RootCacheInfo;
 use super::runtime::RuntimeInfo;
 use super::structure::{Service, StructureResult};
-use crate::stack::registry::StackRegistry;
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
+use crate::stack::registry::StackRegistry;
 use anyhow::Result;
 use std::collections::HashMap;
 

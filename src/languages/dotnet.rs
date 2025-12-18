@@ -1,9 +1,6 @@
 //! .NET language definition (C#, F#, VB)
 
-use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
-};
+use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
 use regex::Regex;
 
 pub struct DotNetLanguage;

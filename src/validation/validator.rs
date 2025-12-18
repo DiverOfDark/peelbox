@@ -17,16 +17,13 @@ impl Validator {
         validate_required_fields(build).map_err(|e| anyhow::anyhow!("[RequiredFields] {}", e))?;
         validate_non_empty_commands(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyCommands] {}", e))?;
-        validate_valid_image_name(build)
-            .map_err(|e| anyhow::anyhow!("[ValidImageName] {}", e))?;
-        validate_confidence_range(build)
-            .map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
+        validate_valid_image_name(build).map_err(|e| anyhow::anyhow!("[ValidImageName] {}", e))?;
+        validate_confidence_range(build).map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
         validate_non_empty_context(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyContext] {}", e))?;
         validate_non_empty_artifacts(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyArtifacts] {}", e))?;
-        validate_valid_copy_specs(build)
-            .map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
+        validate_valid_copy_specs(build).map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
         Ok(())
     }
 }

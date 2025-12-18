@@ -60,7 +60,9 @@ mod tests {
         fs.add_file("package.json", "{}");
 
         let registry = StackRegistry::with_defaults();
-        let lang = registry.get_language(crate::stack::LanguageId::JavaScript).unwrap();
+        let lang = registry
+            .get_language(crate::stack::LanguageId::JavaScript)
+            .unwrap();
 
         let mut found_files = Vec::new();
         scan_directory_with_language_filter(&fs, Path::new("."), lang, |path| {
@@ -75,7 +77,9 @@ mod tests {
     fn test_scan_directory_handles_empty_dir() {
         let fs = MockFileSystem::new();
         let registry = StackRegistry::with_defaults();
-        let lang = registry.get_language(crate::stack::LanguageId::JavaScript).unwrap();
+        let lang = registry
+            .get_language(crate::stack::LanguageId::JavaScript)
+            .unwrap();
 
         let mut found_files: Vec<PathBuf> = Vec::new();
         scan_directory_with_language_filter(&fs, Path::new("."), lang, |path| {
@@ -89,7 +93,9 @@ mod tests {
     fn test_scan_directory_handles_nonexistent_dir() {
         let fs = MockFileSystem::new();
         let registry = StackRegistry::with_defaults();
-        let lang = registry.get_language(crate::stack::LanguageId::JavaScript).unwrap();
+        let lang = registry
+            .get_language(crate::stack::LanguageId::JavaScript)
+            .unwrap();
 
         let mut found_files: Vec<PathBuf> = Vec::new();
         scan_directory_with_language_filter(&fs, Path::new("nonexistent"), lang, |path| {

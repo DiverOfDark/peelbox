@@ -9,7 +9,6 @@ impl Framework for AspNetFramework {
         crate::stack::FrameworkId::AspNetCore
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["C#", "F#"]
     }

@@ -34,10 +34,6 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
         }
     }
 
-    pub fn with_registry(fs: F, registry: StackRegistry) -> Self {
-        Self { fs, registry }
-    }
-
     pub fn extract(&self, context: &ServiceContext) -> Vec<HealthCheckInfo> {
         let mut health_checks = Vec::new();
         let mut seen = HashSet::new();
@@ -257,8 +253,11 @@ public class HealthController {
         );
 
         let extractor = HealthCheckExtractor::new(fs);
-        let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Java), None);
+        let context = ServiceContext::with_detection(
+            PathBuf::from("."),
+            Some(crate::stack::LanguageId::Java),
+            None,
+        );
         let health_checks = extractor.extract(&context);
 
         assert_eq!(health_checks.len(), 1);
@@ -269,8 +268,11 @@ public class HealthController {
     fn test_framework_default_spring_boot() {
         let fs = MockFileSystem::new();
         let extractor = HealthCheckExtractor::new(fs);
-        let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Java), None);
+        let context = ServiceContext::with_detection(
+            PathBuf::from("."),
+            Some(crate::stack::LanguageId::Java),
+            None,
+        );
         let health_checks = extractor.extract(&context);
 
         assert_eq!(health_checks.len(), 1);

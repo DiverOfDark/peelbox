@@ -24,7 +24,6 @@ pub struct EnvVar {
     pub description: Option<String>,
 }
 
-
 fn build_prompt(service: &Service, extracted_vars: &[String]) -> String {
     format!(
         r#"Detect environment variables required by this service.

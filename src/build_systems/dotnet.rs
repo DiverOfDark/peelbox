@@ -64,7 +64,11 @@ impl BuildSystem for DotNetBuildSystem {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".nuget/packages".to_string(), "bin".to_string(), "obj".to_string()]
+        vec![
+            ".nuget/packages".to_string(),
+            "bin".to_string(),
+            "obj".to_string(),
+        ]
     }
 
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {

@@ -19,7 +19,6 @@ pub struct PortInfo {
     pub confidence: Confidence,
 }
 
-
 fn build_prompt(service: &Service, extracted_ports: &[u16]) -> String {
     format!(
         r#"Detect the port this service listens on.
@@ -118,7 +117,10 @@ fn try_framework_defaults(
     None
 }
 
-fn try_deterministic(service: &Service, stack_registry: &Arc<crate::stack::StackRegistry>) -> Option<PortInfo> {
+fn try_deterministic(
+    service: &Service,
+    stack_registry: &Arc<crate::stack::StackRegistry>,
+) -> Option<PortInfo> {
     let language_def = stack_registry.get_language(service.language)?;
 
     let default_port = language_def.default_port()?;

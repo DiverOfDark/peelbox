@@ -9,7 +9,6 @@ impl Framework for EchoFramework {
         crate::stack::FrameworkId::Echo
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Go"]
     }
@@ -19,13 +18,11 @@ impl Framework for EchoFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::Regex,
-                pattern: r"github\.com/labstack/echo".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::Regex,
+            pattern: r"github\.com/labstack/echo".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {
@@ -37,9 +34,7 @@ impl Framework for EchoFramework {
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![
-            (r"PORT\s*=\s*(\d+)", "Server port"),
-        ]
+        vec![(r"PORT\s*=\s*(\d+)", "Server port")]
     }
 }
 

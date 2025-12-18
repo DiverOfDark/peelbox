@@ -1,9 +1,6 @@
 //! Java/Kotlin language definition (Maven and Gradle)
 
-use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
-};
+use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
 use regex::Regex;
 use std::collections::HashSet;
 

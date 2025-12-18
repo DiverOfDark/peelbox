@@ -1,7 +1,7 @@
 //! Service context for extractor operations
 
-use std::path::PathBuf;
 use crate::stack::{BuildSystemId, LanguageId};
+use std::path::PathBuf;
 
 /// Context for service-level analysis
 ///

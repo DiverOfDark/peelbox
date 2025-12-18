@@ -9,7 +9,6 @@ pub struct RootCacheInfo {
     pub confidence: Confidence,
 }
 
-
 pub fn execute(structure: &StructureResult) -> RootCacheInfo {
     let root_cache_dirs = match &structure.monorepo_tool {
         Some(MonorepoTool::PnpmWorkspaces) => {
@@ -39,8 +38,8 @@ pub fn execute(structure: &StructureResult) -> RootCacheInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::Confidence;
     use crate::pipeline::phases::structure::ProjectType;
+    use crate::pipeline::Confidence;
 
     #[test]
     fn test_root_cache_pnpm() {

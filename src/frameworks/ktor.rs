@@ -9,7 +9,6 @@ impl Framework for KtorFramework {
         crate::stack::FrameworkId::Ktor
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Kotlin"]
     }

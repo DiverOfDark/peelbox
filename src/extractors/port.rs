@@ -34,10 +34,6 @@ impl<F: FileSystem> PortExtractor<F> {
         }
     }
 
-    pub fn with_registry(fs: F, registry: StackRegistry) -> Self {
-        Self { fs, registry }
-    }
-
     pub fn extract(&self, context: &ServiceContext) -> Vec<PortInfo> {
         let mut ports = Vec::new();
         let mut seen = HashSet::new();

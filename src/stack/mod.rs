@@ -253,10 +253,7 @@ mod tests {
             serde_json::to_string(&LanguageId::CSharp).unwrap(),
             "\"csharp\""
         );
-        assert_eq!(
-            serde_json::to_string(&LanguageId::Cpp).unwrap(),
-            "\"c++\""
-        );
+        assert_eq!(serde_json::to_string(&LanguageId::Cpp).unwrap(), "\"c++\"");
     }
 
     #[test]

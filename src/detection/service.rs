@@ -228,16 +228,17 @@ impl DetectionService {
         use crate::heuristics::HeuristicLogger;
         use crate::pipeline::PipelineOrchestrator;
 
-        let orchestrator = if enable_progress {
-            let heuristic_logger = Arc::new(HeuristicLogger::disabled());
-            PipelineOrchestrator::with_heuristic_logger(
-                self.client.clone(),
-                Some(LoggingHandler),
-                heuristic_logger,
-            )
+        let progress_handler = if enable_progress {
+            Some(LoggingHandler)
         } else {
-            PipelineOrchestrator::new(self.client.clone())
+            None
         };
+
+        let orchestrator = PipelineOrchestrator::new(
+            self.client.clone(),
+            progress_handler,
+            Arc::new(HeuristicLogger::disabled()),
+        );
 
         let results = orchestrator.execute(&repo_path).await.map_err(|e| {
             use crate::llm::BackendError;

@@ -9,7 +9,6 @@ impl Framework for DjangoFramework {
         crate::stack::FrameworkId::Django
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Python"]
     }
@@ -43,7 +42,10 @@ impl Framework for DjangoFramework {
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![
-            (r"DJANGO_SETTINGS_MODULE\s*=\s*(\S+)", "Django settings module"),
+            (
+                r"DJANGO_SETTINGS_MODULE\s*=\s*(\S+)",
+                "Django settings module",
+            ),
             (r"SECRET_KEY\s*=\s*", "Django secret key"),
         ]
     }

@@ -9,7 +9,6 @@ impl Framework for MicronautFramework {
         crate::stack::FrameworkId::Micronaut
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Java", "Kotlin"]
     }
@@ -43,8 +42,14 @@ impl Framework for MicronautFramework {
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![
-            (r"MICRONAUT_SERVER_PORT\s*=\s*(\d+)", "Micronaut server port"),
-            (r"MICRONAUT_ENVIRONMENTS\s*=\s*(\w+)", "Micronaut environments"),
+            (
+                r"MICRONAUT_SERVER_PORT\s*=\s*(\d+)",
+                "Micronaut server port",
+            ),
+            (
+                r"MICRONAUT_ENVIRONMENTS\s*=\s*(\w+)",
+                "Micronaut environments",
+            ),
         ]
     }
 }

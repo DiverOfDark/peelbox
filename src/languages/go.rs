@@ -1,9 +1,6 @@
 //! Go language definition
 
-use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
-};
+use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
 use regex::Regex;
 use std::collections::HashSet;
 

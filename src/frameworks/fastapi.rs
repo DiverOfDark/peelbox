@@ -9,7 +9,6 @@ impl Framework for FastApiFramework {
         crate::stack::FrameworkId::FastApi
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Python"]
     }
@@ -19,13 +18,11 @@ impl Framework for FastApiFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::PypiPackage,
-                pattern: "fastapi".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::PypiPackage,
+            pattern: "fastapi".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {

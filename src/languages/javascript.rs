@@ -1,11 +1,11 @@
 //! JavaScript/TypeScript language definition (npm, yarn, pnpm, bun)
 
+#[cfg(test)]
+use super::DetectionMethod;
 use super::{
     parsers::{DependencyParser, JsonDependencyParser},
     DependencyInfo, DetectionResult, LanguageDefinition,
 };
-#[cfg(test)]
-use super::DetectionMethod;
 use regex::Regex;
 
 pub struct JavaScriptLanguage;

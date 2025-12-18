@@ -9,7 +9,6 @@ impl Framework for NextJsFramework {
         crate::stack::FrameworkId::NextJs
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["JavaScript", "TypeScript"]
     }
@@ -19,13 +18,11 @@ impl Framework for NextJsFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::NpmPackage,
-                pattern: "next".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::NpmPackage,
+            pattern: "next".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {

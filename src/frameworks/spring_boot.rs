@@ -9,7 +9,6 @@ impl Framework for SpringBootFramework {
         crate::stack::FrameworkId::SpringBoot
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Java", "Kotlin"]
     }
@@ -43,7 +42,11 @@ impl Framework for SpringBootFramework {
     }
 
     fn health_endpoints(&self) -> &[&str] {
-        &["/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness"]
+        &[
+            "/actuator/health",
+            "/actuator/health/liveness",
+            "/actuator/health/readiness",
+        ]
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {

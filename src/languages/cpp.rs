@@ -1,9 +1,6 @@
 //! C/C++ language definition
 
-use super::{
-    Dependency, DependencyInfo, DetectionMethod, DetectionResult,
-    LanguageDefinition,
-};
+use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
 use regex::Regex;
 
 pub struct CppLanguage;

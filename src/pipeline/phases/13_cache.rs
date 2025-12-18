@@ -9,16 +9,17 @@ pub struct CacheInfo {
     pub confidence: Confidence,
 }
 
-
 pub fn execute(service: &Service) -> CacheInfo {
     use crate::stack::BuildSystemId;
     let cache_dirs = match service.build_system {
-        BuildSystemId::Npm | BuildSystemId::Yarn | BuildSystemId::Pnpm | BuildSystemId::Bun => vec![
-            PathBuf::from("node_modules"),
-            PathBuf::from(".npm"),
-            PathBuf::from(".pnpm-store"),
-            PathBuf::from(".yarn/cache"),
-        ],
+        BuildSystemId::Npm | BuildSystemId::Yarn | BuildSystemId::Pnpm | BuildSystemId::Bun => {
+            vec![
+                PathBuf::from("node_modules"),
+                PathBuf::from(".npm"),
+                PathBuf::from(".pnpm-store"),
+                PathBuf::from(".yarn/cache"),
+            ]
+        }
         BuildSystemId::Cargo => vec![PathBuf::from("target")],
         BuildSystemId::Maven => vec![PathBuf::from(".m2/repository"), PathBuf::from("target")],
         BuildSystemId::Gradle => vec![PathBuf::from(".gradle"), PathBuf::from("build")],

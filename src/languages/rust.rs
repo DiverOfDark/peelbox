@@ -1,11 +1,11 @@
 //! Rust language definition
 
+#[cfg(test)]
+use super::DetectionMethod;
 use super::{
     parsers::{DependencyParser, TomlDependencyParser},
     DependencyInfo, DetectionResult, LanguageDefinition,
 };
-#[cfg(test)]
-use super::DetectionMethod;
 
 /// Rust language definition
 pub struct RustLanguage;

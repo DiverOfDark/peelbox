@@ -9,7 +9,6 @@ impl Framework for PhoenixFramework {
         crate::stack::FrameworkId::Phoenix
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["Elixir"]
     }
@@ -19,13 +18,11 @@ impl Framework for PhoenixFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::Regex,
-                pattern: r"phoenix".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::Regex,
+            pattern: r"phoenix".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {

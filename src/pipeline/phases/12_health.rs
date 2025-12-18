@@ -25,7 +25,6 @@ pub struct HealthEndpoint {
     pub method: String,
 }
 
-
 fn build_prompt(service: &Service, runtime: &RuntimeInfo, extracted: &[String]) -> String {
     format!(
         r#"Detect health check endpoints for this service.

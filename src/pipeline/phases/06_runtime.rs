@@ -18,7 +18,6 @@ pub struct RuntimeInfo {
     pub confidence: Confidence,
 }
 
-
 fn build_prompt(service: &Service, files: &[PathBuf], manifest_excerpt: Option<&str>) -> String {
     let file_list: Vec<String> = files
         .iter()
@@ -98,7 +97,8 @@ fn try_deterministic(
                     let patterns = fw.dependency_patterns();
                     for pattern in &patterns {
                         if deps.external_deps.iter().any(|d| pattern.matches(d))
-                            || deps.internal_deps.iter().any(|d| pattern.matches(d)) {
+                            || deps.internal_deps.iter().any(|d| pattern.matches(d))
+                        {
                             return Some(fw.id().name().to_string());
                         }
                     }

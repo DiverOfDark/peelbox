@@ -27,18 +27,27 @@ pub struct PackagePath {
     pub manifest: String,
 }
 
-
 fn build_prompt(scan: &ScanResult) -> String {
     let manifest_list: Vec<String> = scan
         .detections
         .iter()
         .map(|d| {
-            let dir = d.manifest_path.parent().and_then(|p| p.to_str()).unwrap_or(".");
-            let file = d.manifest_path
+            let dir = d
+                .manifest_path
+                .parent()
+                .and_then(|p| p.to_str())
+                .unwrap_or(".");
+            let file = d
+                .manifest_path
                 .file_name()
                 .and_then(|f| f.to_str())
                 .unwrap_or("");
-            format!("- {} in directory '{}' ({})", file, dir, d.build_system.name())
+            format!(
+                "- {} in directory '{}' ({})",
+                file,
+                dir,
+                d.build_system.name()
+            )
         })
         .collect();
 

@@ -35,10 +35,6 @@ impl<F: FileSystem> EnvVarExtractor<F> {
         }
     }
 
-    pub fn with_registry(fs: F, registry: StackRegistry) -> Self {
-        Self { fs, registry }
-    }
-
     pub fn extract(&self, context: &ServiceContext) -> Vec<EnvVarInfo> {
         let mut env_vars = HashMap::new();
 
@@ -266,8 +262,11 @@ api_key = os.getenv('API_KEY')
         );
 
         let extractor = EnvVarExtractor::new(fs);
-        let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Python), None);
+        let context = ServiceContext::with_detection(
+            PathBuf::from("."),
+            Some(crate::stack::LanguageId::Python),
+            None,
+        );
         let env_vars = extractor.extract(&context);
 
         assert_eq!(env_vars.len(), 2);
@@ -291,8 +290,11 @@ fn main() {
         );
 
         let extractor = EnvVarExtractor::new(fs);
-        let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Rust), None);
+        let context = ServiceContext::with_detection(
+            PathBuf::from("."),
+            Some(crate::stack::LanguageId::Rust),
+            None,
+        );
         let env_vars = extractor.extract(&context);
 
         assert_eq!(env_vars.len(), 2);

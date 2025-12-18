@@ -9,7 +9,6 @@ impl Framework for LaravelFramework {
         crate::stack::FrameworkId::Laravel
     }
 
-
     fn compatible_languages(&self) -> &[&str] {
         &["PHP"]
     }
@@ -19,13 +18,11 @@ impl Framework for LaravelFramework {
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
-        vec![
-            DependencyPattern {
-                pattern_type: DependencyPatternType::Regex,
-                pattern: r"laravel/framework".to_string(),
-                confidence: 0.95,
-            },
-        ]
+        vec![DependencyPattern {
+            pattern_type: DependencyPatternType::Regex,
+            pattern: r"laravel/framework".to_string(),
+            confidence: 0.95,
+        }]
     }
 
     fn default_ports(&self) -> &[u16] {
