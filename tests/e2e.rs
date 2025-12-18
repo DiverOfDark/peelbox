@@ -390,7 +390,7 @@ fn test_cargo_workspace_detection() {
 
     // Workspace should detect cargo as build system
     assert!(!results.is_empty(), "Should detect workspace");
-    assert_eq!(results[0].metadata.build_system, "cargo");
+    assert_eq!(results[0].metadata.build_system, "Cargo");
 }
 
 #[test]

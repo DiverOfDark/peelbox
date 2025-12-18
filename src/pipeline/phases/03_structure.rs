@@ -276,11 +276,28 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
             tracing::debug!("Full path: {}", full_path.display());
 
             let matched = scan.detections.iter().find(|d| {
+                let detection_rel_path = d.manifest_path.strip_prefix(&scan.repo_path)
+                    .unwrap_or(&d.manifest_path);
+
+                let detection_filename = d.manifest_path.file_name().and_then(|f| f.to_str()).unwrap_or("");
+                let sp_path_str = sp.path.to_str().unwrap_or(".");
+                let detection_dir_raw = detection_rel_path.parent().and_then(|p| p.to_str()).unwrap_or("");
+                // Normalize empty string to "." for comparison
+                let detection_dir = if detection_dir_raw.is_empty() { "." } else { detection_dir_raw };
+
                 tracing::debug!(
-                    "Checking detection: manifest_path={}",
-                    d.manifest_path.display()
+                    "Checking detection: manifest_path={}, relative={}, filename={}, dir={}",
+                    d.manifest_path.display(),
+                    detection_rel_path.display(),
+                    detection_filename,
+                    detection_dir
                 );
-                d.manifest_path.to_string_lossy() == sp.manifest || d.manifest_path == full_path
+
+                // Match if:
+                // 1. Relative detection path matches the full service path (e.g., "app/Cargo.toml")
+                // 2. Detection filename matches manifest AND directories match (e.g., "Cargo.toml" in "app" and "app")
+                detection_rel_path == full_path
+                    || (detection_filename == sp.manifest && detection_dir == sp_path_str)
             });
 
             if matched.is_none() {
@@ -305,11 +322,24 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
     package_paths
         .iter()
         .filter_map(|pp| {
+            let full_path = pp.path.join(&pp.manifest);
             scan.detections
                 .iter()
                 .find(|d| {
-                    d.manifest_path.to_string_lossy() == pp.manifest
-                        || d.manifest_path == pp.path.join(&pp.manifest)
+                    let detection_rel_path = d.manifest_path.strip_prefix(&scan.repo_path)
+                        .unwrap_or(&d.manifest_path);
+
+                    let detection_filename = d.manifest_path.file_name().and_then(|f| f.to_str()).unwrap_or("");
+                    let pp_path_str = pp.path.to_str().unwrap_or(".");
+                    let detection_dir_raw = detection_rel_path.parent().and_then(|p| p.to_str()).unwrap_or("");
+                    // Normalize empty string to "." for comparison
+                    let detection_dir = if detection_dir_raw.is_empty() { "." } else { detection_dir_raw };
+
+                    // Match if:
+                    // 1. Relative detection path matches the full package path
+                    // 2. Detection filename matches manifest AND directories match
+                    detection_rel_path == full_path
+                        || (detection_filename == pp.manifest && detection_dir == pp_path_str)
                 })
                 .map(|d| Package {
                     path: pp.path.clone(),

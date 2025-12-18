@@ -24,7 +24,7 @@ impl BuildSystem for PoetryBuildSystem {
         if let Some(content) = manifest_content {
             content.contains("[tool.poetry]")
         } else {
-            false
+            true
         }
     }
 

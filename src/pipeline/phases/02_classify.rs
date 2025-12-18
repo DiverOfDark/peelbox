@@ -32,11 +32,18 @@ fn build_prompt(scan: &ScanResult) -> String {
         .detections
         .iter()
         .map(|d| {
-            let dir = d
-                .manifest_path
+            // Get relative path to manifest
+            let rel_path = d.manifest_path.strip_prefix(&scan.repo_path)
+                .unwrap_or(&d.manifest_path);
+
+            // Get directory part (relative)
+            let dir_raw = rel_path
                 .parent()
                 .and_then(|p| p.to_str())
-                .unwrap_or(".");
+                .unwrap_or("");
+            // Normalize empty to "."
+            let dir = if dir_raw.is_empty() { "." } else { dir_raw };
+
             let file = d
                 .manifest_path
                 .file_name()
@@ -118,10 +125,16 @@ fn deterministic_classify(scan: &ScanResult) -> ClassifyResult {
     let detections = &scan.detections;
 
     if detections.len() == 1 && detections[0].depth == 0 {
+        let manifest_filename = detections[0].manifest_path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("manifest")
+            .to_string();
+
         return ClassifyResult {
             services: vec![ServicePath {
                 path: PathBuf::from("."),
-                manifest: detections[0].manifest_path.to_string_lossy().to_string(),
+                manifest: manifest_filename,
             }],
             packages: vec![],
             root_is_service: true,

@@ -2,6 +2,60 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "api",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.95,
+      "reasoning": "Detected from package.json in packages/api"
+    },
+    "build": {
+      "base": "node:20",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "packages/api",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".pnpm-store",
+        ".yarn/cache"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
+    },
+    "runtime": {
+      "base": "node:20-slim",
+      "packages": [],
+      "env": {
+        "PORT": "3000"
+      },
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "node",
+        "dist/index.js"
+      ],
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "web",
       "language": "JavaScript",
       "build_system": "npm",
