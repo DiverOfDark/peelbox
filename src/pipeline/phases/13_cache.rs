@@ -34,6 +34,8 @@ pub fn execute(service: &Service) -> CacheInfo {
         BuildSystemId::Mix => vec![PathBuf::from("_build"), PathBuf::from("deps")],
         BuildSystemId::DotNet => vec![PathBuf::from("obj"), PathBuf::from("bin")],
         BuildSystemId::CMake => vec![PathBuf::from("build")],
+        BuildSystemId::Make => vec![],
+        BuildSystemId::Meson => vec![PathBuf::from("builddir")],
         BuildSystemId::Pipenv => vec![],
     };
 

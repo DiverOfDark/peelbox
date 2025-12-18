@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
 #[derive(Debug, Clone)]
 pub struct ScanConfig {
@@ -263,10 +263,12 @@ pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanR
         .build()
         .unwrap_or_else(|_| OverrideBuilder::new(&repo_path).build().unwrap());
 
+    let has_git_dir = repo_path.join(".git").exists();
+
     for result in WalkBuilder::new(&repo_path)
         .max_depth(Some(config.max_depth))
         .hidden(false)
-        .git_ignore(true)
+        .git_ignore(has_git_dir)
         .git_global(false)
         .git_exclude(false)
         .overrides(overrides)
@@ -300,11 +302,24 @@ pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanR
         file_tree.push(rel_path.clone());
 
         if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+            trace!(
+                file = filename,
+                path = %path.display(),
+                "Checking file"
+            );
+
             if stack_registry.all_workspace_configs().contains(&filename) {
                 has_workspace_config = true;
             }
 
-            if stack_registry.is_manifest(filename) {
+            let is_manifest = stack_registry.is_manifest(filename);
+            trace!(
+                file = filename,
+                is_manifest = is_manifest,
+                "Manifest check result"
+            );
+
+            if is_manifest {
                 if let Some(detection) = detect_language(
                     path,
                     filename,
@@ -355,11 +370,24 @@ fn detect_language(
         None
     };
 
+    trace!(
+        file = filename,
+        has_content = content.is_some(),
+        "Read manifest content"
+    );
+
     let rel_path = path.strip_prefix(repo_path).unwrap_or(path);
 
     let depth = rel_path.to_string_lossy().matches('/').count();
 
-    if let Some(mut detection_stack) = stack_registry.detect_stack_opt(path, content.as_deref()) {
+    let detection_result = stack_registry.detect_stack_opt(path, content.as_deref());
+    trace!(
+        file = filename,
+        detected = detection_result.is_some(),
+        "Stack detection result"
+    );
+
+    if let Some(mut detection_stack) = detection_result {
         let is_workspace_root = stack_registry.is_workspace_root(filename, content.as_deref());
 
         detection_stack.depth = depth;

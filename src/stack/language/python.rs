@@ -25,12 +25,12 @@ impl LanguageDefinition for PythonLanguage {
     ) -> Option<DetectionResult> {
         match manifest_name {
             "pyproject.toml" => {
-                let mut build_system = "pip".to_string();
+                let mut build_system = crate::stack::BuildSystemId::Pip;
                 let mut confidence = 0.85;
 
                 if let Some(content) = manifest_content {
                     if content.contains("[tool.poetry]") {
-                        build_system = "poetry".to_string();
+                        build_system = crate::stack::BuildSystemId::Poetry;
                         confidence = 1.0;
                     } else if content.contains("[project]") {
                         confidence = 0.9;
@@ -43,7 +43,7 @@ impl LanguageDefinition for PythonLanguage {
                 })
             }
             "Pipfile" => Some(DetectionResult {
-                build_system: "pipenv".to_string(),
+                build_system: crate::stack::BuildSystemId::Pipenv,
                 confidence: 1.0,
             }),
             "requirements.txt" => {
@@ -57,12 +57,12 @@ impl LanguageDefinition for PythonLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "pip".to_string(),
+                    build_system: crate::stack::BuildSystemId::Pip,
                     confidence,
                 })
             }
             "setup.py" | "setup.cfg" => Some(DetectionResult {
-                build_system: "pip".to_string(),
+                build_system: crate::stack::BuildSystemId::Pip,
                 confidence: 0.85,
             }),
             _ => None,
@@ -270,7 +270,7 @@ mod tests {
         let result = lang.detect("requirements.txt", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "pip");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Pip);
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod tests {
         let result = lang.detect("Pipfile", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "pipenv");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Pipenv);
         assert_eq!(r.confidence, 1.0);
     }
 
@@ -294,7 +294,7 @@ version = "0.1.0"
         let result = lang.detect("pyproject.toml", Some(content));
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "poetry");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Poetry);
         assert_eq!(r.confidence, 1.0);
     }
 
@@ -309,7 +309,7 @@ version = "0.1.0"
         let result = lang.detect("pyproject.toml", Some(content));
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "pip");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Pip);
     }
 
     #[test]

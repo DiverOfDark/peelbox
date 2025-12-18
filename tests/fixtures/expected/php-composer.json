@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "app",
       "language": "PHP",
-      "build_system": "composer",
+      "build_system": "Composer",
       "confidence": 0.95,
       "reasoning": "Detected from composer.json in ."
     },

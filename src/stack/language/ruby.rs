@@ -28,12 +28,12 @@ impl LanguageDefinition for RubyLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "bundler".to_string(),
+                    build_system: crate::stack::BuildSystemId::Bundler,
                     confidence,
                 })
             }
             "Gemfile.lock" => Some(DetectionResult {
-                build_system: "bundler".to_string(),
+                build_system: crate::stack::BuildSystemId::Bundler,
                 confidence: 1.0,
             }),
             _ => None,
@@ -212,7 +212,7 @@ mod tests {
         let result = lang.detect("Gemfile", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "bundler");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Bundler);
     }
 
     #[test]

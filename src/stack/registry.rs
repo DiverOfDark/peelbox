@@ -53,6 +53,8 @@ impl StackRegistry {
         registry.register_build_system(Arc::new(ComposerBuildSystem));
         registry.register_build_system(Arc::new(BundlerBuildSystem));
         registry.register_build_system(Arc::new(CMakeBuildSystem));
+        registry.register_build_system(Arc::new(MakeBuildSystem));
+        registry.register_build_system(Arc::new(MesonBuildSystem));
         registry.register_build_system(Arc::new(MixBuildSystem));
 
         registry.register_framework(Box::new(SpringBootFramework));
@@ -153,11 +155,10 @@ impl StackRegistry {
         build_system: BuildSystemId,
     ) -> Option<LanguageId> {
         let filename = manifest_path.file_name()?.to_str()?;
-        let build_system_name_lower = build_system.name().to_lowercase();
 
         for (id, language) in &self.languages {
             if let Some(result) = language.detect(filename, content) {
-                if result.build_system.to_lowercase() == build_system_name_lower {
+                if result.build_system == build_system {
                     return Some(*id);
                 }
             }

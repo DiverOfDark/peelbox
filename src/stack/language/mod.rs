@@ -110,7 +110,7 @@ pub trait LanguageDefinition: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct DetectionResult {
-    pub build_system: String,
+    pub build_system: crate::stack::BuildSystemId,
     pub confidence: f64,
 }
 

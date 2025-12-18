@@ -32,7 +32,7 @@ impl LanguageDefinition for GoLanguage {
         }
 
         Some(DetectionResult {
-            build_system: "go".to_string(),
+            build_system: crate::stack::BuildSystemId::GoMod,
             confidence,
         })
     }
@@ -268,7 +268,7 @@ mod tests {
         let result = lang.detect("go.mod", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "go");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::GoMod);
     }
 
     #[test]

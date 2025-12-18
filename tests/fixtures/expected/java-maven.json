@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "app",
       "language": "Java",
-      "build_system": "maven",
+      "build_system": "Maven",
       "confidence": 0.95,
       "reasoning": "Detected from pom.xml in ."
     },

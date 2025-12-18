@@ -29,7 +29,7 @@ impl LanguageDefinition for JavaLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "maven".to_string(),
+                    build_system: crate::stack::BuildSystemId::Maven,
                     confidence,
                 })
             }
@@ -41,16 +41,16 @@ impl LanguageDefinition for JavaLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "gradle".to_string(),
+                    build_system: crate::stack::BuildSystemId::Gradle,
                     confidence,
                 })
             }
             "settings.gradle" | "settings.gradle.kts" => Some(DetectionResult {
-                build_system: "gradle".to_string(),
+                build_system: crate::stack::BuildSystemId::Gradle,
                 confidence: 0.7,
             }),
             ".java-version" => Some(DetectionResult {
-                build_system: "maven".to_string(),
+                build_system: crate::stack::BuildSystemId::Maven,
                 confidence: 0.5,
             }),
             _ => None,
@@ -330,7 +330,7 @@ mod tests {
         let result = lang.detect("pom.xml", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "maven");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Maven);
     }
 
     #[test]
@@ -349,7 +349,7 @@ mod tests {
         let result = lang.detect("build.gradle", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "gradle");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Gradle);
     }
 
     #[test]
@@ -358,7 +358,7 @@ mod tests {
         let result = lang.detect("build.gradle.kts", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "gradle");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Gradle);
     }
 
     #[test]

@@ -37,7 +37,7 @@ impl LanguageDefinition for RustLanguage {
         }
 
         Some(DetectionResult {
-            build_system: "cargo".to_string(),
+            build_system: crate::stack::BuildSystemId::Cargo,
             confidence,
         })
     }
@@ -180,7 +180,7 @@ mod tests {
         let result = lang.detect("Cargo.toml", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "cargo");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Cargo);
         assert_eq!(r.confidence, 0.9);
     }
 

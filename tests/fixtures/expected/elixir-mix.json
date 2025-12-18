@@ -3,7 +3,7 @@
   "metadata": {
     "project_name": "elixir-api",
     "language": "Elixir",
-    "build_system": "mix",
+    "build_system": "Mix",
     "confidence": 0.9,
     "reasoning": "Detected mix.exs with Elixir dependencies (Plug, Cowboy)"
   },

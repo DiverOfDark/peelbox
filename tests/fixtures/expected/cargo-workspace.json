@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "cargo-workspace",
       "language": "Rust",
-      "build_system": "cargo",
+      "build_system": "Cargo",
       "confidence": 0.95,
       "reasoning": "Detected Cargo workspace with multiple members"
     },

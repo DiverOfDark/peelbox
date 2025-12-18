@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "app",
       "language": "Python",
-      "build_system": "poetry",
+      "build_system": "Poetry",
       "confidence": 0.95,
       "reasoning": "Detected from pyproject.toml in ."
     },

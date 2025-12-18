@@ -322,42 +322,4 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-
-
-    fn create_scan_with_files(files: Vec<&str>) -> ScanResult {
-        use crate::pipeline::phases::scan::{RepoSummary, WorkspaceInfo};
-        use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
-        use std::collections::HashMap;
-        use std::path::PathBuf;
-
-        ScanResult {
-            repo_path: PathBuf::from("."),
-            summary: RepoSummary {
-                manifest_count: 1,
-                primary_language: Some("Rust".to_string()),
-                primary_build_system: Some("cargo".to_string()),
-                is_monorepo: false,
-                root_manifests: vec![],
-            },
-            detections: vec![DetectionStack::new(
-                BuildSystemId::Cargo,
-                LanguageId::Rust,
-                PathBuf::from("Cargo.toml"),
-            )
-            .with_depth(0)
-            .with_confidence(1.0)
-            .with_workspace_root(false)],
-            workspace: WorkspaceInfo {
-                root_manifests: vec![],
-                nested_by_depth: HashMap::new(),
-                max_depth: 0,
-                has_workspace_config: false,
-            },
-            file_tree: files.iter().map(PathBuf::from).collect(),
-            scan_time_ms: 50,
-        }
-    }
-}
+mod tests {}

@@ -28,12 +28,12 @@ impl LanguageDefinition for CppLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "cmake".to_string(),
+                    build_system: crate::stack::BuildSystemId::CMake,
                     confidence,
                 })
             }
             "Makefile" => Some(DetectionResult {
-                build_system: "make".to_string(),
+                build_system: crate::stack::BuildSystemId::Make,
                 confidence: 0.85,
             }),
             "meson.build" => {
@@ -44,7 +44,7 @@ impl LanguageDefinition for CppLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "meson".to_string(),
+                    build_system: crate::stack::BuildSystemId::Meson,
                     confidence,
                 })
             }
@@ -53,7 +53,7 @@ impl LanguageDefinition for CppLanguage {
     }
 
     fn compatible_build_systems(&self) -> &[&str] {
-        &["cmake"]
+        &["cmake", "make", "meson"]
     }
 
     fn excluded_dirs(&self) -> &[&str] {
@@ -201,7 +201,7 @@ mod tests {
         let result = lang.detect("CMakeLists.txt", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "cmake");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::CMake);
     }
 
     #[test]
@@ -220,7 +220,7 @@ mod tests {
         let result = lang.detect("Makefile", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "make");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Make);
     }
 
     #[test]
@@ -229,13 +229,13 @@ mod tests {
         let result = lang.detect("meson.build", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "meson");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Meson);
     }
 
     #[test]
     fn test_compatible_build_systems() {
         let lang = CppLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["cmake"]);
+        assert_eq!(lang.compatible_build_systems(), &["cmake", "make", "meson"]);
     }
 
     #[test]

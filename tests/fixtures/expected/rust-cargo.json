@@ -3,7 +3,7 @@
   "metadata": {
     "project_name": "test-rust-project",
     "language": "Rust",
-    "build_system": "cargo",
+    "build_system": "Cargo",
     "confidence": 0.95,
     "reasoning": "Detected Cargo.toml with Rust dependencies"
   },

@@ -36,7 +36,7 @@ impl LanguageDefinition for DotNetLanguage {
         }
 
         Some(DetectionResult {
-            build_system: "dotnet".to_string(),
+            build_system: crate::stack::BuildSystemId::DotNet,
             confidence,
         })
     }
@@ -220,7 +220,7 @@ mod tests {
         let result = lang.detect("MyApp.csproj", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "dotnet");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::DotNet);
     }
 
     #[test]

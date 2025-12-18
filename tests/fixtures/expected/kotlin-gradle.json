@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "app",
       "language": "Java",
-      "build_system": "gradle",
+      "build_system": "Gradle",
       "confidence": 0.95,
       "reasoning": "Detected from build.gradle.kts in ."
     },

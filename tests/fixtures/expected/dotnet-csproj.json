@@ -3,8 +3,8 @@
     "version": "1.0",
     "metadata": {
       "project_name": "app",
-      "language": ".NET",
-      "build_system": "dotnet",
+      "language": "C#",
+      "build_system": ".NET",
       "confidence": 0.95,
       "reasoning": "Detected from App.csproj in ."
     },

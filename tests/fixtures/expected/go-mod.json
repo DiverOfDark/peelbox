@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "app",
       "language": "Go",
-      "build_system": "go",
+      "build_system": "go mod",
       "confidence": 0.95,
       "reasoning": "Detected from go.mod in ."
     },

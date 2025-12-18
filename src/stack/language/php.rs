@@ -28,12 +28,12 @@ impl LanguageDefinition for PhpLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "composer".to_string(),
+                    build_system: crate::stack::BuildSystemId::Composer,
                     confidence,
                 })
             }
             "composer.lock" => Some(DetectionResult {
-                build_system: "composer".to_string(),
+                build_system: crate::stack::BuildSystemId::Composer,
                 confidence: 1.0,
             }),
             _ => None,
@@ -192,7 +192,7 @@ mod tests {
         let result = lang.detect("composer.json", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "composer");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Composer);
     }
 
     #[test]

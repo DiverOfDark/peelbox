@@ -26,45 +26,45 @@ impl LanguageDefinition for JavaScriptLanguage {
     ) -> Option<DetectionResult> {
         match manifest_name {
             "bun.lockb" => Some(DetectionResult {
-                build_system: "bun".to_string(),
+                build_system: crate::stack::BuildSystemId::Bun,
                 confidence: 1.0,
             }),
             "pnpm-lock.yaml" => Some(DetectionResult {
-                build_system: "pnpm".to_string(),
+                build_system: crate::stack::BuildSystemId::Pnpm,
                 confidence: 1.0,
             }),
             "yarn.lock" => Some(DetectionResult {
-                build_system: "yarn".to_string(),
+                build_system: crate::stack::BuildSystemId::Yarn,
                 confidence: 1.0,
             }),
             "package-lock.json" => Some(DetectionResult {
-                build_system: "npm".to_string(),
+                build_system: crate::stack::BuildSystemId::Npm,
                 confidence: 1.0,
             }),
             "tsconfig.json" => Some(DetectionResult {
-                build_system: "npm".to_string(),
+                build_system: crate::stack::BuildSystemId::Npm,
                 confidence: 0.9,
             }),
             ".nvmrc" | ".node-version" => Some(DetectionResult {
-                build_system: "npm".to_string(),
+                build_system: crate::stack::BuildSystemId::Npm,
                 confidence: 0.5,
             }),
             "package.json" => {
                 let mut confidence = 0.8;
-                let mut build_system = "npm".to_string();
+                let mut build_system = crate::stack::BuildSystemId::Npm;
 
                 if let Some(content) = manifest_content {
                     if content.contains("\"name\"") && content.contains("\"version\"") {
                         confidence = 0.9;
                     }
                     if content.contains("\"packageManager\": \"pnpm") {
-                        build_system = "pnpm".to_string();
+                        build_system = crate::stack::BuildSystemId::Pnpm;
                         confidence = 0.95;
                     } else if content.contains("\"packageManager\": \"yarn") {
-                        build_system = "yarn".to_string();
+                        build_system = crate::stack::BuildSystemId::Yarn;
                         confidence = 0.95;
                     } else if content.contains("\"packageManager\": \"bun") {
-                        build_system = "bun".to_string();
+                        build_system = crate::stack::BuildSystemId::Bun;
                         confidence = 0.95;
                     }
                 }
@@ -254,7 +254,7 @@ mod tests {
         let result = lang.detect("package.json", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "npm");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Npm);
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod tests {
         let result = lang.detect("yarn.lock", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "yarn");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Yarn);
         assert_eq!(r.confidence, 1.0);
     }
 
@@ -273,7 +273,7 @@ mod tests {
         let result = lang.detect("pnpm-lock.yaml", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "pnpm");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Pnpm);
     }
 
     #[test]
@@ -282,7 +282,7 @@ mod tests {
         let result = lang.detect("bun.lockb", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "bun");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Bun);
     }
 
     #[test]
@@ -291,7 +291,7 @@ mod tests {
         let result = lang.detect("tsconfig.json", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "npm");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Npm);
     }
 
     #[test]
@@ -301,7 +301,7 @@ mod tests {
         let result = lang.detect("package.json", Some(content));
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "pnpm");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Pnpm);
     }
 
     #[test]

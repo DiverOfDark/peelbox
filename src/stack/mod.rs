@@ -116,6 +116,8 @@ pub enum BuildSystemId {
     Bundler,
     #[serde(rename = "cmake")]
     CMake,
+    Make,
+    Meson,
     Mix,
 }
 
@@ -137,6 +139,8 @@ impl BuildSystemId {
             Self::Composer => "Composer",
             Self::Bundler => "Bundler",
             Self::CMake => "CMake",
+            Self::Make => "Make",
+            Self::Meson => "Meson",
             Self::Mix => "Mix",
         }
     }
@@ -158,6 +162,8 @@ impl BuildSystemId {
             "Composer" | "composer" => Some(Self::Composer),
             "Bundler" | "bundler" => Some(Self::Bundler),
             "CMake" | "cmake" => Some(Self::CMake),
+            "Make" | "make" => Some(Self::Make),
+            "Meson" | "meson" => Some(Self::Meson),
             "Mix" | "mix" => Some(Self::Mix),
             _ => None,
         }
@@ -304,6 +310,7 @@ mod tests {
     fn test_language_id_name() {
         assert_eq!(LanguageId::Rust.name(), "Rust");
         assert_eq!(LanguageId::CSharp.name(), "C#");
+        assert_eq!(LanguageId::FSharp.name(), "F#");
         assert_eq!(LanguageId::Cpp.name(), "C++");
     }
 

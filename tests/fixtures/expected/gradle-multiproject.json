@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "api-service",
       "language": "Java",
-      "build_system": "gradle",
+      "build_system": "Gradle",
       "confidence": 0.95,
       "reasoning": "Detected from build.gradle in api-service"
     },
@@ -57,7 +57,7 @@
     "metadata": {
       "project_name": "web-service",
       "language": "Java",
-      "build_system": "gradle",
+      "build_system": "Gradle",
       "confidence": 0.95,
       "reasoning": "Detected from build.gradle in web-service"
     },

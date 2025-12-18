@@ -173,7 +173,7 @@ fn test_rust_cargo_detection() {
     let results =
         run_detection(fixture, "e2e_test_rust_cargo_detection").expect("Detection failed");
 
-    assert_detection(&results, "cargo", "rust-cargo");
+    assert_detection(&results, "Cargo", "rust-cargo");
     assert!(
         results[0]
             .build
@@ -218,7 +218,7 @@ fn test_java_maven_detection() {
     let results =
         run_detection(fixture, "e2e_test_java_maven_detection").expect("Detection failed");
 
-    assert_detection(&results, "maven", "java-maven");
+    assert_detection(&results, "Maven", "java-maven");
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn test_python_poetry_detection() {
     let results =
         run_detection(fixture, "e2e_test_python_poetry_detection").expect("Detection failed");
 
-    assert_detection(&results, "poetry", "python-poetry");
+    assert_detection(&results, "Poetry", "python-poetry");
 }
 
 #[test]
@@ -256,7 +256,7 @@ fn test_java_gradle_detection() {
     let results =
         run_detection(fixture, "e2e_test_java_gradle_detection").expect("Detection failed");
 
-    assert_detection(&results, "gradle", "java-gradle");
+    assert_detection(&results, "Gradle", "java-gradle");
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn test_kotlin_gradle_detection() {
     let results =
         run_detection(fixture, "e2e_test_kotlin_gradle_detection").expect("Detection failed");
 
-    assert_detection(&results, "gradle", "kotlin-gradle");
+    assert_detection(&results, "Gradle", "kotlin-gradle");
 }
 
 #[test]
@@ -276,7 +276,7 @@ fn test_dotnet_csproj_detection() {
     let results =
         run_detection(fixture, "e2e_test_dotnet_csproj_detection").expect("Detection failed");
 
-    assert_detection(&results, "dotnet", "dotnet-csproj");
+    assert_detection(&results, ".NET", "dotnet-csproj");
 }
 
 #[test]
@@ -285,7 +285,7 @@ fn test_go_mod_detection() {
     let fixture = fixture_path("single-language", "go-mod");
     let results = run_detection(fixture, "e2e_test_go_mod_detection").expect("Detection failed");
 
-    assert_detection(&results, "go", "go-mod");
+    assert_detection(&results, "go mod", "go-mod");
 }
 
 #[test]
@@ -295,7 +295,7 @@ fn test_ruby_bundler_detection() {
     let results =
         run_detection(fixture, "e2e_test_ruby_bundler_detection").expect("Detection failed");
 
-    assert_detection(&results, "bundler", "ruby-bundler");
+    assert_detection(&results, "Bundler", "ruby-bundler");
 }
 
 #[test]
@@ -305,7 +305,7 @@ fn test_php_composer_detection() {
     let results =
         run_detection(fixture, "e2e_test_php_composer_detection").expect("Detection failed");
 
-    assert_detection(&results, "composer", "php-composer");
+    assert_detection(&results, "Composer", "php-composer");
 }
 
 #[test]
@@ -314,7 +314,7 @@ fn test_cpp_cmake_detection() {
     let fixture = fixture_path("single-language", "cpp-cmake");
     let results = run_detection(fixture, "e2e_test_cpp_cmake_detection").expect("Detection failed");
 
-    assert_detection(&results, "cmake", "cpp-cmake");
+    assert_detection(&results, "CMake", "cpp-cmake");
 }
 
 #[test]
@@ -324,7 +324,7 @@ fn test_elixir_mix_detection() {
     let results =
         run_detection(fixture, "e2e_test_elixir_mix_detection").expect("Detection failed");
 
-    assert_detection(&results, "mix", "elixir-mix");
+    assert_detection(&results, "Mix", "elixir-mix");
 }
 
 //
@@ -368,7 +368,7 @@ fn test_rust_workspace_detection() {
     let results =
         run_detection(fixture, "e2e_test_rust_workspace_detection").expect("Detection failed");
 
-    assert_detection(&results, "cargo", "cargo-workspace");
+    assert_detection(&results, "Cargo", "cargo-workspace");
 }
 
 #[test]
@@ -409,7 +409,7 @@ fn test_gradle_multiproject_detection() {
     let results =
         run_detection(fixture, "e2e_test_gradle_multiproject_detection").expect("Detection failed");
 
-    assert_detection(&results, "gradle", "gradle-multiproject");
+    assert_detection(&results, "Gradle", "gradle-multiproject");
 }
 
 #[test]
@@ -419,7 +419,7 @@ fn test_maven_multimodule_detection() {
     let results =
         run_detection(fixture, "e2e_test_maven_multimodule_detection").expect("Detection failed");
 
-    assert_detection(&results, "maven", "maven-multimodule");
+    assert_detection(&results, "Maven", "maven-multimodule");
 }
 
 #[test]

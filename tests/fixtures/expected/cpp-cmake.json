@@ -4,7 +4,7 @@
     "metadata": {
       "project_name": "app",
       "language": "C++",
-      "build_system": "cmake",
+      "build_system": "CMake",
       "confidence": 0.95,
       "reasoning": "Detected from CMakeLists.txt in ."
     },

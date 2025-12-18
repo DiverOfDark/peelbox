@@ -28,12 +28,12 @@ impl LanguageDefinition for ElixirLanguage {
                     }
                 }
                 Some(DetectionResult {
-                    build_system: "mix".to_string(),
+                    build_system: crate::stack::BuildSystemId::Mix,
                     confidence,
                 })
             }
             "mix.lock" => Some(DetectionResult {
-                build_system: "mix".to_string(),
+                build_system: crate::stack::BuildSystemId::Mix,
                 confidence: 1.0,
             }),
             _ => None,
@@ -203,7 +203,7 @@ mod tests {
         let result = lang.detect("mix.exs", None);
         assert!(result.is_some());
         let r = result.unwrap();
-        assert_eq!(r.build_system, "mix");
+        assert_eq!(r.build_system, crate::stack::BuildSystemId::Mix);
     }
 
     #[test]
