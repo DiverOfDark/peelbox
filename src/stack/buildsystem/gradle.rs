@@ -63,7 +63,6 @@ impl BuildSystem for GradleBuildSystem {
     fn cache_dirs(&self) -> Vec<String> {
         vec![".gradle".to_string(), "build".to_string()]
     }
-
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {
             content.contains("include(") || content.contains("include '")

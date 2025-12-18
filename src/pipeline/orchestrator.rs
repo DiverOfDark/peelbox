@@ -107,10 +107,7 @@ impl PipelineOrchestrator {
                 duration: phase_start.elapsed(),
             });
         }
-        debug!(
-            "Structure: {:?}, Tool: {:?}",
-            structure.project_type, structure.monorepo_tool
-        );
+        debug!("Structure: {:?}", structure.project_type);
 
         info!("Phase 4: Extracting dependencies");
         if let Some(handler) = &self.progress_handler {
@@ -312,7 +309,7 @@ impl PipelineOrchestrator {
             });
         }
         let phase_start = Instant::now();
-        let root_cache = root_cache::execute(&structure);
+        let root_cache = root_cache::execute(&scan, &structure);
         if let Some(handler) = &self.progress_handler {
             handler.on_progress(&ProgressEvent::PhaseComplete {
                 phase: "root_cache".to_string(),

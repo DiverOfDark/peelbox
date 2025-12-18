@@ -55,7 +55,6 @@ impl BuildSystem for YarnBuildSystem {
     fn cache_dirs(&self) -> Vec<String> {
         vec!["node_modules".to_string(), ".yarn".to_string()]
     }
-
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {
             content.contains("\"workspaces\"")

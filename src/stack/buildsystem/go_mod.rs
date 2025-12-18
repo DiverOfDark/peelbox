@@ -47,7 +47,6 @@ impl BuildSystem for GoModBuildSystem {
     fn cache_dirs(&self) -> Vec<String> {
         vec![".cache/go-build".to_string()]
     }
-
     fn workspace_configs(&self) -> &[&str] {
         &["go.work"]
     }

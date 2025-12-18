@@ -1,7 +1,8 @@
-use super::{BuildSystemId, DetectionStack, FrameworkId, LanguageId};
+use super::{BuildSystemId, DetectionStack, FrameworkId, LanguageId, OrchestratorId};
 use crate::stack::buildsystem::*;
 use crate::stack::framework::*;
 use crate::stack::language::*;
+use crate::stack::orchestrator::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -10,6 +11,7 @@ pub struct StackRegistry {
     build_systems: HashMap<BuildSystemId, Arc<dyn BuildSystem>>,
     languages: HashMap<LanguageId, Arc<dyn LanguageDefinition>>,
     frameworks: HashMap<FrameworkId, Box<dyn Framework>>,
+    orchestrators: HashMap<OrchestratorId, Arc<dyn MonorepoOrchestrator>>,
 }
 
 impl StackRegistry {
@@ -18,6 +20,7 @@ impl StackRegistry {
             build_systems: HashMap::new(),
             languages: HashMap::new(),
             frameworks: HashMap::new(),
+            orchestrators: HashMap::new(),
         }
     }
 
@@ -73,6 +76,10 @@ impl StackRegistry {
         registry.register_framework(Box::new(LaravelFramework));
         registry.register_framework(Box::new(PhoenixFramework));
 
+        registry.register_orchestrator(Arc::new(TurborepoOrchestrator));
+        registry.register_orchestrator(Arc::new(NxOrchestrator));
+        registry.register_orchestrator(Arc::new(LernaOrchestrator));
+
         registry
     }
 
@@ -101,6 +108,19 @@ impl StackRegistry {
 
     pub fn get_framework(&self, id: FrameworkId) -> Option<&dyn Framework> {
         self.frameworks.get(&id).map(|f| f.as_ref())
+    }
+
+    pub fn register_orchestrator(&mut self, orchestrator: Arc<dyn MonorepoOrchestrator>) {
+        self.orchestrators
+            .insert(orchestrator.id(), orchestrator);
+    }
+
+    pub fn get_orchestrator(&self, id: OrchestratorId) -> Option<&dyn MonorepoOrchestrator> {
+        self.orchestrators.get(&id).map(|o| o.as_ref())
+    }
+
+    pub fn all_orchestrators(&self) -> Vec<&dyn MonorepoOrchestrator> {
+        self.orchestrators.values().map(|o| o.as_ref()).collect()
     }
 
     pub fn detect_build_system_opt(

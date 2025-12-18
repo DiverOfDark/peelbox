@@ -44,7 +44,6 @@ impl BuildSystem for MavenBuildSystem {
     fn cache_dirs(&self) -> Vec<String> {
         vec![".m2/repository".to_string(), "target".to_string()]
     }
-
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {
             content.contains("<modules>")

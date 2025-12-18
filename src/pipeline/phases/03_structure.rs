@@ -3,6 +3,7 @@ use super::scan::ScanResult;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
+use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -10,9 +11,9 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StructureResult {
     pub project_type: ProjectType,
-    pub monorepo_tool: Option<MonorepoTool>,
     pub services: Vec<Service>,
     pub packages: Vec<Package>,
+    pub orchestrator: Option<String>,
     pub confidence: Confidence,
 }
 
@@ -21,22 +22,6 @@ pub struct StructureResult {
 pub enum ProjectType {
     Monorepo,
     SingleService,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum MonorepoTool {
-    PnpmWorkspaces,
-    YarnWorkspaces,
-    NpmWorkspaces,
-    Turborepo,
-    Nx,
-    Lerna,
-    CargoWorkspace,
-    GradleMultiproject,
-    MavenMultimodule,
-    GoWorkspace,
-    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +40,7 @@ pub struct Package {
     pub build_system: crate::stack::BuildSystemId,
 }
 
-fn build_prompt(_scan: &ScanResult, classify: &ClassifyResult) -> String {
+fn build_prompt(scan: &ScanResult, classify: &ClassifyResult) -> String {
     let services: Vec<String> = classify
         .services
         .iter()
@@ -68,27 +53,104 @@ fn build_prompt(_scan: &ScanResult, classify: &ClassifyResult) -> String {
         .map(|p| format!("{} ({})", p.path.display(), p.manifest))
         .collect();
 
+    let config_files = discover_relevant_config_files(scan);
+
     format!(
-        r#"Determine project structure and monorepo tool (if applicable).
+        r#"Determine project structure and orchestrator.
 
 Services: {}
 Packages: {}
+Config files: {}
 
 Respond with JSON:
 {{
   "project_type": "monorepo" | "singleservice",
-  "monorepo_tool": "pnpmworkspaces" | "yarnworkspaces" | "npmworkspaces" | "turborepo" | "nx" | "lerna" | "cargoworkspace" | "gradlemultiproject" | "mavenmultimodule" | "goworkspace" | "unknown" | null,
+  "orchestrator": "turborepo" | "nx" | "lerna" | "rush" | "bazel" | "pants" | "buck" | "none" | null,
   "confidence": "high" | "medium" | "low"
 }}
 
 Rules:
 - "monorepo" if multiple services/packages exist
 - "singleservice" if only one service at root
-- Detect monorepo tool from workspace config files
+- orchestrator: Tool that coordinates builds across multiple packages (turbo.json=turborepo, nx.json=nx, lerna.json=lerna, rush.json=rush, etc.)
+- Use "none" if no orchestrator detected
 "#,
         serde_json::to_string(&services).unwrap_or_else(|_| "[]".to_string()),
-        serde_json::to_string(&packages).unwrap_or_else(|_| "[]".to_string())
+        serde_json::to_string(&packages).unwrap_or_else(|_| "[]".to_string()),
+        serde_json::to_string(&config_files).unwrap_or_else(|_| "[]".to_string())
     )
+}
+
+fn discover_relevant_config_files(scan: &ScanResult) -> Vec<String> {
+    use std::collections::{HashMap, HashSet};
+    use std::path::Path;
+
+    let mut files_by_depth: HashMap<usize, Vec<&std::path::PathBuf>> = HashMap::new();
+
+    for file in &scan.file_tree {
+        let depth = file.components().count().saturating_sub(1);
+        files_by_depth.entry(depth).or_default().push(file);
+    }
+
+    let mut result = Vec::new();
+    let mut extension_counts: HashMap<String, Vec<String>> = HashMap::new();
+    let max_files = 15;
+
+    let mut depths: Vec<usize> = files_by_depth.keys().copied().collect();
+    depths.sort();
+
+    for depth in depths {
+        if result.len() >= max_files {
+            break;
+        }
+
+        if let Some(files) = files_by_depth.get(&depth) {
+            for file in files {
+                if result.len() >= max_files {
+                    break;
+                }
+
+                let ext = file.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let full_path = file.display().to_string();
+                extension_counts.entry(ext).or_default().push(full_path.clone());
+                result.push(full_path);
+            }
+        }
+    }
+
+    let mut condensed = Vec::new();
+    let mut shown_extensions: HashSet<String> = HashSet::new();
+
+    for file_path in &result {
+        let path = Path::new(file_path);
+        let ext = path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        if let Some(files_with_ext) = extension_counts.get(&ext) {
+            if files_with_ext.len() == 1 {
+                condensed.push(file_path.clone());
+            } else if !shown_extensions.contains(&ext) {
+                let ext_display = if ext.is_empty() {
+                    "files without extension".to_string()
+                } else {
+                    format!(".{} files", ext)
+                };
+                condensed.push(format!("{}+{} more {}",
+                    path.file_name().and_then(|n| n.to_str()).unwrap_or(""),
+                    files_with_ext.len() - 1,
+                    ext_display));
+                shown_extensions.insert(ext.clone());
+            }
+        }
+    }
+
+    condensed
 }
 
 pub async fn execute(
@@ -106,7 +168,7 @@ pub async fn execute(
     #[derive(Deserialize, Serialize)]
     struct LLMStructure {
         project_type: ProjectType,
-        monorepo_tool: Option<MonorepoTool>,
+        orchestrator: Option<String>,
         confidence: Confidence,
     }
 
@@ -117,11 +179,14 @@ pub async fn execute(
     let services = build_services(scan, &classify.services);
     let packages = build_packages(scan, &classify.packages);
 
+    let orchestrator = normalize_orchestrator(llm_result.orchestrator.as_deref())
+        .or_else(|| detect_orchestrator_deterministic(scan));
+
     Ok(StructureResult {
         project_type: llm_result.project_type,
-        monorepo_tool: llm_result.monorepo_tool,
         services,
         packages,
+        orchestrator,
         confidence: llm_result.confidence,
     })
 }
@@ -143,74 +208,59 @@ fn deterministic_structure(scan: &ScanResult, classify: &ClassifyResult) -> Stru
         let services = build_services(scan, &classify.services);
         return StructureResult {
             project_type: ProjectType::SingleService,
-            monorepo_tool: None,
             services,
             packages: vec![],
+            orchestrator: None,
             confidence: Confidence::High,
         };
     }
 
-    let monorepo_tool = detect_monorepo_tool(scan);
     let services = build_services(scan, &classify.services);
     let packages = build_packages(scan, &classify.packages);
+    let orchestrator = detect_orchestrator_deterministic(scan);
 
     StructureResult {
         project_type: ProjectType::Monorepo,
-        monorepo_tool: Some(monorepo_tool),
         services,
         packages,
+        orchestrator,
         confidence: Confidence::High,
     }
 }
 
-fn detect_monorepo_tool(scan: &ScanResult) -> MonorepoTool {
+fn normalize_orchestrator(llm_value: Option<&str>) -> Option<String> {
+    match llm_value {
+        Some("none") | None => None,
+        Some(value) => {
+            let normalized = value.to_lowercase();
+            if normalized.is_empty() {
+                None
+            } else {
+                Some(normalized)
+            }
+        }
+    }
+}
+
+fn detect_orchestrator_deterministic(scan: &ScanResult) -> Option<String> {
+    let registry = StackRegistry::with_defaults();
     let file_tree = &scan.file_tree;
 
-    if file_tree
-        .iter()
-        .any(|p| p.to_string_lossy().contains("pnpm-workspace.yaml"))
-    {
-        return MonorepoTool::PnpmWorkspaces;
-    }
-
-    if file_tree
-        .iter()
-        .any(|p| p.to_string_lossy().contains("turbo.json"))
-    {
-        return MonorepoTool::Turborepo;
-    }
-
-    if file_tree
-        .iter()
-        .any(|p| p.to_string_lossy().contains("nx.json"))
-    {
-        return MonorepoTool::Nx;
-    }
-
-    if file_tree
-        .iter()
-        .any(|p| p.to_string_lossy().contains("lerna.json"))
-    {
-        return MonorepoTool::Lerna;
-    }
-
-    for detection in &scan.detections {
-        if detection.is_workspace_root {
-            use crate::stack::BuildSystemId;
-            match detection.build_system {
-                BuildSystemId::Cargo => return MonorepoTool::CargoWorkspace,
-                BuildSystemId::Gradle => return MonorepoTool::GradleMultiproject,
-                BuildSystemId::Maven => return MonorepoTool::MavenMultimodule,
-                BuildSystemId::GoMod => return MonorepoTool::GoWorkspace,
-                BuildSystemId::Npm => return MonorepoTool::NpmWorkspaces,
-                BuildSystemId::Yarn => return MonorepoTool::YarnWorkspaces,
-                _ => {}
+    for orchestrator in registry.all_orchestrators() {
+        for config_file in orchestrator.config_files() {
+            if file_tree
+                .iter()
+                .any(|p| p.to_string_lossy().contains(config_file))
+            {
+                return Some(orchestrator.name().to_lowercase());
             }
         }
     }
 
-    MonorepoTool::Unknown
+    None
 }
+
+
 
 fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Service> {
     service_paths
@@ -275,20 +325,7 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_detect_pnpm_workspaces() {
-        let scan = create_scan_with_files(vec!["pnpm-workspace.yaml", "package.json"]);
-        let tool = detect_monorepo_tool(&scan);
-        assert_eq!(tool, MonorepoTool::PnpmWorkspaces);
-    }
 
-    #[test]
-    fn test_detect_cargo_workspace() {
-        let mut scan = create_scan_with_files(vec!["Cargo.toml"]);
-        scan.detections[0].is_workspace_root = true;
-        let tool = detect_monorepo_tool(&scan);
-        assert_eq!(tool, MonorepoTool::CargoWorkspace);
-    }
 
     fn create_scan_with_files(files: Vec<&str>) -> ScanResult {
         use crate::pipeline::phases::scan::{RepoSummary, WorkspaceInfo};
