@@ -1,7 +1,7 @@
 //! Common directory scanning utilities for extractors
 
 use crate::fs::FileSystem;
-use crate::languages::LanguageDefinition;
+use crate::stack::language::LanguageDefinition;
 use std::path::Path;
 
 /// Scans a directory for files matching language-specific criteria and applies a callback

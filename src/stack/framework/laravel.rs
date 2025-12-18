@@ -44,7 +44,7 @@ impl Framework for LaravelFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
     fn test_laravel_compatibility() {

@@ -68,7 +68,7 @@ impl Framework for SpringBootFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
     fn test_spring_boot_compatibility() {

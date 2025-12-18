@@ -1,9 +1,15 @@
 use serde::{Deserialize, Serialize};
 
+pub mod buildsystem;
 pub mod detection;
+pub mod framework;
+pub mod language;
 pub mod registry;
 
+pub use buildsystem::{BuildSystem, BuildTemplate, ManifestPattern};
 pub use detection::DetectionStack;
+pub use framework::{DependencyPattern, DependencyPatternType, Framework};
+pub use language::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
 pub use registry::StackRegistry;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

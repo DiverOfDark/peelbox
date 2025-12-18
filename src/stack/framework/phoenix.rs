@@ -1,42 +1,42 @@
-//! Actix Web framework for Rust
+//! Phoenix framework for Elixir
 
 use super::*;
 
-pub struct ActixFramework;
+pub struct PhoenixFramework;
 
-impl Framework for ActixFramework {
+impl Framework for PhoenixFramework {
     fn id(&self) -> crate::stack::FrameworkId {
-        crate::stack::FrameworkId::ActixWeb
+        crate::stack::FrameworkId::Phoenix
     }
 
     fn compatible_languages(&self) -> &[&str] {
-        &["Rust"]
+        &["Elixir"]
     }
 
     fn compatible_build_systems(&self) -> &[&str] {
-        &["cargo"]
+        &["mix"]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
         vec![DependencyPattern {
             pattern_type: DependencyPatternType::Regex,
-            pattern: r"actix-web".to_string(),
+            pattern: r"phoenix".to_string(),
             confidence: 0.95,
         }]
     }
 
     fn default_ports(&self) -> &[u16] {
-        &[8080]
+        &[4000]
     }
 
     fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+        &["/health", "/api/health"]
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![
-            (r"ACTIX_HOST\s*=\s*(\S+)", "Actix host"),
-            (r"ACTIX_PORT\s*=\s*(\d+)", "Actix port"),
+            (r"PHX_HOST\s*=\s*(\S+)", "Phoenix host"),
+            (r"PORT\s*=\s*(\d+)", "Phoenix port"),
         ]
     }
 }
@@ -44,23 +44,23 @@ impl Framework for ActixFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
-    fn test_actix_compatibility() {
-        let framework = ActixFramework;
-        assert!(framework.compatible_languages().contains(&"Rust"));
-        assert!(framework.compatible_build_systems().contains(&"cargo"));
+    fn test_phoenix_compatibility() {
+        let framework = PhoenixFramework;
+        assert!(framework.compatible_languages().contains(&"Elixir"));
+        assert!(framework.compatible_build_systems().contains(&"mix"));
     }
 
     #[test]
-    fn test_actix_dependency_detection() {
-        let framework = ActixFramework;
+    fn test_phoenix_dependency_detection() {
+        let framework = PhoenixFramework;
         let patterns = framework.dependency_patterns();
 
         let dep = Dependency {
-            name: "actix-web".to_string(),
-            version: Some("4.0.0".to_string()),
+            name: "phoenix".to_string(),
+            version: Some("1.7.0".to_string()),
             is_internal: false,
         };
 
@@ -70,8 +70,8 @@ mod tests {
     }
 
     #[test]
-    fn test_actix_default_ports() {
-        let framework = ActixFramework;
-        assert_eq!(framework.default_ports(), &[8080]);
+    fn test_phoenix_default_ports() {
+        let framework = PhoenixFramework;
+        assert_eq!(framework.default_ports(), &[4000]);
     }
 }

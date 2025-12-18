@@ -1,7 +1,7 @@
 use super::{BuildSystemId, DetectionStack, FrameworkId, LanguageId};
-use crate::build_systems::*;
-use crate::frameworks::*;
-use crate::languages::*;
+use crate::stack::buildsystem::*;
+use crate::stack::framework::*;
+use crate::stack::language::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -222,7 +222,7 @@ impl StackRegistry {
         manifest_name: &str,
         manifest_content: &str,
         all_internal_paths: &[std::path::PathBuf],
-    ) -> Option<crate::languages::DependencyInfo> {
+    ) -> Option<crate::stack::language::DependencyInfo> {
         for language in self.languages.values() {
             if language
                 .detect(manifest_name, Some(manifest_content))

@@ -57,7 +57,7 @@ impl Framework for MicronautFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
     fn test_micronaut_compatibility() {

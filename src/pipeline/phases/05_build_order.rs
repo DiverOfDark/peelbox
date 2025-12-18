@@ -100,7 +100,7 @@ fn topological_sort(graph: &HashMap<PathBuf, Vec<PathBuf>>) -> (Vec<PathBuf>, bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::{Dependency, DependencyInfo, DetectionMethod};
+    use crate::stack::language::{Dependency, DependencyInfo, DetectionMethod};
 
     #[test]
     fn test_simple_linear_dependencies() {

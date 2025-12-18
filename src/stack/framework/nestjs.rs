@@ -51,7 +51,7 @@ impl Framework for NestJsFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
     fn test_nestjs_compatibility() {

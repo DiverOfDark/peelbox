@@ -1,32 +1,32 @@
-//! Echo framework for Go
+//! Axum framework for Rust
 
 use super::*;
 
-pub struct EchoFramework;
+pub struct AxumFramework;
 
-impl Framework for EchoFramework {
+impl Framework for AxumFramework {
     fn id(&self) -> crate::stack::FrameworkId {
-        crate::stack::FrameworkId::Echo
+        crate::stack::FrameworkId::Axum
     }
 
     fn compatible_languages(&self) -> &[&str] {
-        &["Go"]
+        &["Rust"]
     }
 
     fn compatible_build_systems(&self) -> &[&str] {
-        &["go"]
+        &["cargo"]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
         vec![DependencyPattern {
             pattern_type: DependencyPatternType::Regex,
-            pattern: r"github\.com/labstack/echo".to_string(),
+            pattern: r"axum".to_string(),
             confidence: 0.95,
         }]
     }
 
     fn default_ports(&self) -> &[u16] {
-        &[1323]
+        &[3000]
     }
 
     fn health_endpoints(&self) -> &[&str] {
@@ -41,23 +41,23 @@ impl Framework for EchoFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
-    fn test_echo_compatibility() {
-        let framework = EchoFramework;
-        assert!(framework.compatible_languages().contains(&"Go"));
-        assert!(framework.compatible_build_systems().contains(&"go"));
+    fn test_axum_compatibility() {
+        let framework = AxumFramework;
+        assert!(framework.compatible_languages().contains(&"Rust"));
+        assert!(framework.compatible_build_systems().contains(&"cargo"));
     }
 
     #[test]
-    fn test_echo_dependency_detection() {
-        let framework = EchoFramework;
+    fn test_axum_dependency_detection() {
+        let framework = AxumFramework;
         let patterns = framework.dependency_patterns();
 
         let dep = Dependency {
-            name: "github.com/labstack/echo".to_string(),
-            version: Some("v4.11.0".to_string()),
+            name: "axum".to_string(),
+            version: Some("0.7.0".to_string()),
             is_internal: false,
         };
 
@@ -67,8 +67,8 @@ mod tests {
     }
 
     #[test]
-    fn test_echo_default_ports() {
-        let framework = EchoFramework;
-        assert_eq!(framework.default_ports(), &[1323]);
+    fn test_axum_default_ports() {
+        let framework = AxumFramework;
+        assert_eq!(framework.default_ports(), &[3000]);
     }
 }

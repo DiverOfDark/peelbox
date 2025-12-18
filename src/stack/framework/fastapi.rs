@@ -44,7 +44,7 @@ impl Framework for FastApiFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
     fn test_fastapi_compatibility() {

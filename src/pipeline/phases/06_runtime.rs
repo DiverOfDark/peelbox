@@ -148,7 +148,7 @@ fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Opti
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
     use std::collections::HashMap;
 
     #[test]
@@ -200,7 +200,7 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let mut deps_info = crate::languages::DependencyInfo::empty();
+        let mut deps_info = crate::stack::language::DependencyInfo::empty();
         deps_info.external_deps.push(Dependency {
             name: "express".to_string(),
             version: Some("4.18.0".to_string()),

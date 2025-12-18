@@ -41,7 +41,7 @@ impl Framework for SinatraFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
     fn test_sinatra_compatibility() {

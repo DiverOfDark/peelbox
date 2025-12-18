@@ -4,8 +4,8 @@
 //! Framework detection is deterministic via dependency pattern matching, avoiding LLM calls for
 //! major frameworks (Spring Boot, Express, Django, Next.js, Rails, ASP.NET Core).
 
-use crate::build_systems::BuildTemplate;
-use crate::languages::Dependency;
+use crate::stack::buildsystem::BuildTemplate;
+use crate::stack::language::Dependency;
 use regex::Regex;
 
 /// Dependency pattern for framework detection

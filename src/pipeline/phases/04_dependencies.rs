@@ -1,7 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::{Service, StructureResult};
 use crate::heuristics::HeuristicLogger;
-use crate::languages::{Dependency, DependencyInfo, DetectionMethod};
+use crate::stack::language::{Dependency, DependencyInfo, DetectionMethod};
 use crate::llm::LLMClient;
 use crate::stack::registry::StackRegistry;
 use anyhow::{Context, Result};

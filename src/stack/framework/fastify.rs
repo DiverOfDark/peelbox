@@ -1,12 +1,12 @@
-//! Next.js framework for JavaScript/TypeScript
+//! Fastify framework for JavaScript/TypeScript
 
 use super::*;
 
-pub struct NextJsFramework;
+pub struct FastifyFramework;
 
-impl Framework for NextJsFramework {
+impl Framework for FastifyFramework {
     fn id(&self) -> crate::stack::FrameworkId {
-        crate::stack::FrameworkId::NextJs
+        crate::stack::FrameworkId::Fastify
     }
 
     fn compatible_languages(&self) -> &[&str] {
@@ -14,13 +14,13 @@ impl Framework for NextJsFramework {
     }
 
     fn compatible_build_systems(&self) -> &[&str] {
-        &["npm", "yarn", "pnpm", "bun"]
+        &["npm", "yarn", "pnpm"]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
         vec![DependencyPattern {
             pattern_type: DependencyPatternType::NpmPackage,
-            pattern: "next".to_string(),
+            pattern: "fastify".to_string(),
             confidence: 0.95,
         }]
     }
@@ -30,49 +30,40 @@ impl Framework for NextJsFramework {
     }
 
     fn health_endpoints(&self) -> &[&str] {
-        &["/api/health", "/health"]
+        &["/health", "/healthz"]
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![
-            (r"PORT\s*=\s*(\d+)", "Next.js port"),
+            (r"PORT\s*=\s*(\d+)", "Fastify port"),
             (r"NODE_ENV\s*=\s*(\w+)", "Node environment"),
         ]
-    }
-
-    fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
-        if !template.artifacts.iter().any(|a| a.contains(".next")) {
-            template.artifacts.push(".next/".to_string());
-            template.artifacts.push("public/".to_string());
-        }
-        template
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
-    fn test_nextjs_compatibility() {
-        let framework = NextJsFramework;
+    fn test_fastify_compatibility() {
+        let framework = FastifyFramework;
 
         assert!(framework.compatible_languages().contains(&"JavaScript"));
         assert!(framework.compatible_languages().contains(&"TypeScript"));
         assert!(framework.compatible_build_systems().contains(&"npm"));
         assert!(framework.compatible_build_systems().contains(&"yarn"));
-        assert!(framework.compatible_build_systems().contains(&"pnpm"));
     }
 
     #[test]
-    fn test_nextjs_dependency_detection() {
-        let framework = NextJsFramework;
+    fn test_fastify_dependency_detection() {
+        let framework = FastifyFramework;
         let patterns = framework.dependency_patterns();
 
         let dep = Dependency {
-            name: "next".to_string(),
-            version: Some("14.0.0".to_string()),
+            name: "fastify".to_string(),
+            version: Some("4.20.0".to_string()),
             is_internal: false,
         };
 
@@ -82,17 +73,17 @@ mod tests {
     }
 
     #[test]
-    fn test_nextjs_health_endpoints() {
-        let framework = NextJsFramework;
+    fn test_fastify_health_endpoints() {
+        let framework = FastifyFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/api/health"));
         assert!(endpoints.contains(&"/health"));
+        assert!(endpoints.contains(&"/healthz"));
     }
 
     #[test]
-    fn test_nextjs_default_ports() {
-        let framework = NextJsFramework;
+    fn test_fastify_default_ports() {
+        let framework = FastifyFramework;
         assert_eq!(framework.default_ports(), &[3000]);
     }
 }

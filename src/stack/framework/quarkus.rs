@@ -1,32 +1,32 @@
-//! Ktor framework for Kotlin
+//! Quarkus framework for Java/Kotlin
 
 use super::*;
 
-pub struct KtorFramework;
+pub struct QuarkusFramework;
 
-impl Framework for KtorFramework {
+impl Framework for QuarkusFramework {
     fn id(&self) -> crate::stack::FrameworkId {
-        crate::stack::FrameworkId::Ktor
+        crate::stack::FrameworkId::Quarkus
     }
 
     fn compatible_languages(&self) -> &[&str] {
-        &["Kotlin"]
+        &["Java", "Kotlin"]
     }
 
     fn compatible_build_systems(&self) -> &[&str] {
-        &["gradle", "maven"]
+        &["maven", "gradle"]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
         vec![
             DependencyPattern {
                 pattern_type: DependencyPatternType::Regex,
-                pattern: r"io\.ktor:ktor-server-.*".to_string(),
+                pattern: r"io\.quarkus:quarkus-.*".to_string(),
                 confidence: 0.95,
             },
             DependencyPattern {
                 pattern_type: DependencyPatternType::MavenGroupArtifact,
-                pattern: "io.ktor:ktor-server-core".to_string(),
+                pattern: "io.quarkus:quarkus-resteasy".to_string(),
                 confidence: 0.9,
             },
         ]
@@ -37,13 +37,13 @@ impl Framework for KtorFramework {
     }
 
     fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+        &["/q/health", "/q/health/live", "/q/health/ready"]
     }
 
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![
-            (r"KTOR_PORT\s*=\s*(\d+)", "Ktor port"),
-            (r"KTOR_ENV\s*=\s*(\w+)", "Ktor environment"),
+            (r"QUARKUS_HTTP_PORT\s*=\s*(\d+)", "Quarkus HTTP port"),
+            (r"QUARKUS_PROFILE\s*=\s*(\w+)", "Quarkus profile"),
         ]
     }
 }
@@ -51,25 +51,26 @@ impl Framework for KtorFramework {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::languages::Dependency;
+    use crate::stack::language::Dependency;
 
     #[test]
-    fn test_ktor_compatibility() {
-        let framework = KtorFramework;
+    fn test_quarkus_compatibility() {
+        let framework = QuarkusFramework;
 
+        assert!(framework.compatible_languages().contains(&"Java"));
         assert!(framework.compatible_languages().contains(&"Kotlin"));
-        assert!(framework.compatible_build_systems().contains(&"gradle"));
         assert!(framework.compatible_build_systems().contains(&"maven"));
+        assert!(framework.compatible_build_systems().contains(&"gradle"));
     }
 
     #[test]
-    fn test_ktor_dependency_detection() {
-        let framework = KtorFramework;
+    fn test_quarkus_dependency_detection() {
+        let framework = QuarkusFramework;
         let patterns = framework.dependency_patterns();
 
         let dep = Dependency {
-            name: "io.ktor:ktor-server-core".to_string(),
-            version: Some("2.3.0".to_string()),
+            name: "io.quarkus:quarkus-resteasy".to_string(),
+            version: Some("3.0.0".to_string()),
             is_internal: false,
         };
 
@@ -79,17 +80,17 @@ mod tests {
     }
 
     #[test]
-    fn test_ktor_health_endpoints() {
-        let framework = KtorFramework;
+    fn test_quarkus_health_endpoints() {
+        let framework = QuarkusFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/healthz"));
+        assert!(endpoints.contains(&"/q/health"));
+        assert!(endpoints.contains(&"/q/health/live"));
     }
 
     #[test]
-    fn test_ktor_default_ports() {
-        let framework = KtorFramework;
+    fn test_quarkus_default_ports() {
+        let framework = QuarkusFramework;
         assert_eq!(framework.default_ports(), &[8080]);
     }
 }
