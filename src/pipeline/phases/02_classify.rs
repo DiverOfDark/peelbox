@@ -30,7 +30,6 @@ pub struct PackagePath {
 
 fn build_prompt(scan: &ScanResult) -> String {
     let manifest_list: Vec<String> = scan
-        .bootstrap_context
         .detections
         .iter()
         .map(|d| {
@@ -43,7 +42,7 @@ fn build_prompt(scan: &ScanResult) -> String {
         })
         .collect();
 
-    let is_monorepo = scan.bootstrap_context.summary.is_monorepo;
+    let is_monorepo = scan.summary.is_monorepo;
 
     format!(
         r#"Classify directories in this repository as either "service" (independently deployable application) or "package" (shared library/dependency).
@@ -97,7 +96,7 @@ pub async fn execute(
 }
 
 fn can_skip_llm(scan: &ScanResult) -> bool {
-    let detections = &scan.bootstrap_context.detections;
+    let detections = &scan.detections;
 
     if detections.len() == 1 && detections[0].depth == 0 {
         return true;
@@ -107,7 +106,7 @@ fn can_skip_llm(scan: &ScanResult) -> bool {
 }
 
 fn deterministic_classify(scan: &ScanResult) -> ClassifyResult {
-    let detections = &scan.bootstrap_context.detections;
+    let detections = &scan.detections;
 
     if detections.len() == 1 && detections[0].depth == 0 {
         return ClassifyResult {
@@ -145,7 +144,7 @@ mod tests {
     }
 
     fn create_single_service_scan() -> ScanResult {
-        use crate::bootstrap::{BootstrapContext, RepoSummary, WorkspaceInfo};
+        use crate::pipeline::phases::scan::{RepoSummary, WorkspaceInfo};
         use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
         use std::collections::HashMap;
 
@@ -160,24 +159,22 @@ mod tests {
 
         ScanResult {
             repo_path: PathBuf::from("."),
-            bootstrap_context: BootstrapContext {
-                summary: RepoSummary {
-                    manifest_count: 1,
-                    primary_language: Some("Rust".to_string()),
-                    primary_build_system: Some("cargo".to_string()),
-                    is_monorepo: false,
-                    root_manifests: vec!["Cargo.toml".to_string()],
-                },
-                detections,
-                workspace: WorkspaceInfo {
-                    root_manifests: vec!["Cargo.toml".to_string()],
-                    nested_by_depth: HashMap::new(),
-                    max_depth: 0,
-                    has_workspace_config: false,
-                },
-                scan_time_ms: 50,
+            summary: RepoSummary {
+                manifest_count: 1,
+                primary_language: Some("Rust".to_string()),
+                primary_build_system: Some("cargo".to_string()),
+                is_monorepo: false,
+                root_manifests: vec!["Cargo.toml".to_string()],
+            },
+            detections,
+            workspace: WorkspaceInfo {
+                root_manifests: vec!["Cargo.toml".to_string()],
+                nested_by_depth: HashMap::new(),
+                max_depth: 0,
+                has_workspace_config: false,
             },
             file_tree: vec![PathBuf::from("Cargo.toml"), PathBuf::from("src/main.rs")],
+            scan_time_ms: 50,
         }
     }
 }

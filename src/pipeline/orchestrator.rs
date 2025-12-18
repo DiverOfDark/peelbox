@@ -82,7 +82,7 @@ impl PipelineOrchestrator {
         }
         debug!(
             "Scan complete: {} detections",
-            scan.bootstrap_context.detections.len()
+            scan.detections.len()
         );
 
         info!("Phase 2: Classifying directories");

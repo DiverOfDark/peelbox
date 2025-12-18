@@ -130,7 +130,7 @@ fn can_use_deterministic(scan: &ScanResult, classify: &ClassifyResult) -> bool {
     let is_single =
         classify.services.len() == 1 && classify.packages.is_empty() && classify.root_is_service;
 
-    let has_workspace = scan.bootstrap_context.workspace.has_workspace_config;
+    let has_workspace = scan.workspace.has_workspace_config;
 
     is_single || has_workspace
 }
@@ -194,7 +194,7 @@ fn detect_monorepo_tool(scan: &ScanResult) -> MonorepoTool {
         return MonorepoTool::Lerna;
     }
 
-    for detection in &scan.bootstrap_context.detections {
+    for detection in &scan.detections {
         if detection.is_workspace_root {
             use crate::stack::BuildSystemId;
             match detection.build_system {
@@ -225,7 +225,7 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
             let full_path = sp.path.join(&sp.manifest);
             tracing::debug!("Full path: {}", full_path.display());
 
-            let matched = scan.bootstrap_context.detections.iter().find(|d| {
+            let matched = scan.detections.iter().find(|d| {
                 tracing::debug!("Checking detection: manifest_path={}", d.manifest_path.display());
                 d.manifest_path.to_string_lossy() == sp.manifest || d.manifest_path == full_path
             });
@@ -252,8 +252,7 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
     package_paths
         .iter()
         .filter_map(|pp| {
-            scan.bootstrap_context
-                .detections
+            scan.detections
                 .iter()
                 .find(|d| {
                     d.manifest_path.to_string_lossy() == pp.manifest
@@ -283,44 +282,42 @@ mod tests {
     #[test]
     fn test_detect_cargo_workspace() {
         let mut scan = create_scan_with_files(vec!["Cargo.toml"]);
-        scan.bootstrap_context.detections[0].is_workspace_root = true;
+        scan.detections[0].is_workspace_root = true;
         let tool = detect_monorepo_tool(&scan);
         assert_eq!(tool, MonorepoTool::CargoWorkspace);
     }
 
     fn create_scan_with_files(files: Vec<&str>) -> ScanResult {
-        use crate::bootstrap::{BootstrapContext, RepoSummary, WorkspaceInfo};
+        use crate::pipeline::phases::scan::{RepoSummary, WorkspaceInfo};
         use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
         use std::collections::HashMap;
         use std::path::PathBuf;
 
         ScanResult {
             repo_path: PathBuf::from("."),
-            bootstrap_context: BootstrapContext {
-                summary: RepoSummary {
-                    manifest_count: 1,
-                    primary_language: Some("Rust".to_string()),
-                    primary_build_system: Some("cargo".to_string()),
-                    is_monorepo: false,
-                    root_manifests: vec![],
-                },
-                detections: vec![DetectionStack::new(
-                    BuildSystemId::Cargo,
-                    LanguageId::Rust,
-                    PathBuf::from("Cargo.toml"),
-                )
-                .with_depth(0)
-                .with_confidence(1.0)
-                .with_workspace_root(false)],
-                workspace: WorkspaceInfo {
-                    root_manifests: vec![],
-                    nested_by_depth: HashMap::new(),
-                    max_depth: 0,
-                    has_workspace_config: false,
-                },
-                scan_time_ms: 50,
+            summary: RepoSummary {
+                manifest_count: 1,
+                primary_language: Some("Rust".to_string()),
+                primary_build_system: Some("cargo".to_string()),
+                is_monorepo: false,
+                root_manifests: vec![],
+            },
+            detections: vec![DetectionStack::new(
+                BuildSystemId::Cargo,
+                LanguageId::Rust,
+                PathBuf::from("Cargo.toml"),
+            )
+            .with_depth(0)
+            .with_confidence(1.0)
+            .with_workspace_root(false)],
+            workspace: WorkspaceInfo {
+                root_manifests: vec![],
+                nested_by_depth: HashMap::new(),
+                max_depth: 0,
+                has_workspace_config: false,
             },
             file_tree: files.iter().map(PathBuf::from).collect(),
+            scan_time_ms: 50,
         }
     }
 }

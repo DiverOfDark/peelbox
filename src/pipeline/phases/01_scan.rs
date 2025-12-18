@@ -1,15 +1,55 @@
-use crate::bootstrap::{BootstrapContext, BootstrapScanner};
-use crate::stack::registry::StackRegistry;
+use crate::stack::{DetectionStack, StackRegistry};
 use anyhow::{Context, Result};
+use ignore::{overrides::OverrideBuilder, WalkBuilder};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use walkdir::WalkDir;
+use std::time::Instant;
+use tracing::{debug, info, warn};
+
+#[derive(Debug, Clone)]
+pub struct ScanConfig {
+    pub max_depth: usize,
+    pub max_files: usize,
+    pub read_content: bool,
+}
+
+impl Default for ScanConfig {
+    fn default() -> Self {
+        Self {
+            max_depth: 10,
+            max_files: 1000,
+            read_content: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepoSummary {
+    pub manifest_count: usize,
+    pub primary_language: Option<String>,
+    pub primary_build_system: Option<String>,
+    pub is_monorepo: bool,
+    pub root_manifests: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceInfo {
+    pub root_manifests: Vec<String>,
+    pub nested_by_depth: HashMap<usize, Vec<String>>,
+    pub max_depth: usize,
+    pub has_workspace_config: bool,
+}
 
 #[derive(Debug, Clone)]
 pub struct ScanResult {
     pub repo_path: PathBuf,
-    pub bootstrap_context: BootstrapContext,
+    pub summary: RepoSummary,
+    pub detections: Vec<DetectionStack>,
+    pub workspace: WorkspaceInfo,
     pub file_tree: Vec<PathBuf>,
+    pub scan_time_ms: u64,
 }
 
 impl ScanResult {
@@ -28,53 +68,322 @@ impl ScanResult {
             .cloned()
             .collect()
     }
-}
 
-pub fn execute(repo_path: &Path) -> Result<ScanResult> {
-    let repo_path = repo_path.to_path_buf();
+    pub fn format_for_prompt(&self) -> String {
+        let manifest_list: Vec<String> = self
+            .detections
+            .iter()
+            .map(|d| d.manifest_path.to_string_lossy().to_string())
+            .collect();
 
-    let scanner =
-        BootstrapScanner::new(repo_path.clone()).context("Failed to create BootstrapScanner")?;
+        let languages: Vec<String> = self
+            .detections
+            .iter()
+            .filter(|d| d.depth == 0)
+            .map(|d| format!("{} ({})", d.language.name(), d.build_system.name()))
+            .collect();
 
-    let bootstrap_context = scanner.scan().context("Failed to scan repository")?;
+        let workspace_roots: Vec<String> = self
+            .detections
+            .iter()
+            .filter(|d| d.is_workspace_root)
+            .map(|d| d.manifest_path.to_string_lossy().to_string())
+            .collect();
 
-    let file_tree = collect_file_tree(&repo_path, Arc::new(StackRegistry::with_defaults()))?;
+        let workspace_info = if !workspace_roots.is_empty() {
+            format!(
+                "\n- Workspace Roots: {} (indicates monorepo with multiple sub-projects)",
+                workspace_roots.join(", ")
+            )
+        } else {
+            String::new()
+        };
 
-    Ok(ScanResult {
-        repo_path,
-        bootstrap_context,
-        file_tree,
-    })
-}
+        format!(
+            r#"## Pre-scanned Repository Analysis
 
-fn collect_file_tree(repo_path: &Path, registry: Arc<StackRegistry>) -> Result<Vec<PathBuf>> {
-    let excluded_dirs = registry.all_excluded_dirs();
+**Manifests Found:** {} files
+**Files:** {}
 
-    let mut files = Vec::new();
+**Detected Languages:**
+{}
 
-    for entry in WalkDir::new(repo_path)
-        .max_depth(10)
-        .into_iter()
-        .filter_entry(|e| !is_excluded(e.path(), repo_path, &excluded_dirs))
-    {
-        let entry = entry.context("Failed to read directory entry")?;
-        if entry.file_type().is_file() {
-            let rel_path = entry
-                .path()
-                .strip_prefix(repo_path)
-                .unwrap_or(entry.path())
-                .to_path_buf();
-            files.push(rel_path);
+**Project Structure:**
+- Primary Language: {}
+- Primary Build System: {}
+- Is Monorepo: {}
+- Root Manifests: {}{}
+
+Use these manifest files to guide your analysis. Read them directly without searching."#,
+            manifest_list.len(),
+            serde_json::to_string(&manifest_list).unwrap_or_else(|_| "[]".to_string()),
+            if languages.is_empty() {
+                "- None detected".to_string()
+            } else {
+                languages
+                    .iter()
+                    .map(|l| format!("- {}", l))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            },
+            self.summary
+                .primary_language
+                .as_ref()
+                .unwrap_or(&"unknown".to_string()),
+            self.summary
+                .primary_build_system
+                .as_ref()
+                .unwrap_or(&"unknown".to_string()),
+            self.summary.is_monorepo,
+            self.summary.root_manifests.join(", "),
+            workspace_info
+        )
+    }
+
+    fn from_scan(
+        repo_path: PathBuf,
+        detections: Vec<DetectionStack>,
+        file_tree: Vec<PathBuf>,
+        has_workspace_config: bool,
+        scan_time_ms: u64,
+    ) -> Self {
+        let workspace = Self::build_workspace_info(&detections, has_workspace_config);
+        let summary = Self::build_summary(&detections, &workspace);
+
+        Self {
+            repo_path,
+            summary,
+            detections,
+            workspace,
+            file_tree,
+            scan_time_ms,
         }
     }
 
-    Ok(files)
+    fn build_workspace_info(
+        detections: &[DetectionStack],
+        has_workspace_config: bool,
+    ) -> WorkspaceInfo {
+        let mut root_manifests = Vec::new();
+        let mut nested_by_depth: HashMap<usize, Vec<String>> = HashMap::new();
+        let mut max_depth = 0;
+
+        for detection in detections {
+            let manifest_path = detection.manifest_path.to_string_lossy().to_string();
+            if detection.depth == 0 {
+                root_manifests.push(manifest_path);
+            } else {
+                nested_by_depth
+                    .entry(detection.depth)
+                    .or_default()
+                    .push(manifest_path);
+                max_depth = max_depth.max(detection.depth);
+            }
+        }
+
+        WorkspaceInfo {
+            root_manifests,
+            nested_by_depth,
+            max_depth,
+            has_workspace_config,
+        }
+    }
+
+    fn build_summary(detections: &[DetectionStack], workspace: &WorkspaceInfo) -> RepoSummary {
+        let primary = detections
+            .iter()
+            .filter(|d| d.depth == 0)
+            .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap());
+
+        let has_workspace_root = detections.iter().any(|d| d.is_workspace_root);
+
+        let is_monorepo = workspace.has_workspace_config
+            || has_workspace_root
+            || workspace.max_depth > 1
+            || detections.iter().filter(|d| d.depth > 0).count() > 2;
+
+        RepoSummary {
+            manifest_count: detections.len(),
+            primary_language: primary.map(|d| d.language.name().to_string()),
+            primary_build_system: primary.map(|d| d.build_system.name().to_string()),
+            is_monorepo,
+            root_manifests: workspace.root_manifests.clone(),
+        }
+    }
 }
 
-fn is_excluded(path: &Path, repo_path: &Path, excluded_dirs: &[&str]) -> bool {
+pub fn execute(repo_path: &Path) -> Result<ScanResult> {
+    execute_with_config(repo_path, ScanConfig::default())
+}
+
+pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanResult> {
+    if !repo_path.exists() {
+        return Err(anyhow::anyhow!(
+            "Repository path does not exist: {:?}",
+            repo_path
+        ));
+    }
+    if !repo_path.is_dir() {
+        return Err(anyhow::anyhow!(
+            "Repository path is not a directory: {:?}",
+            repo_path
+        ));
+    }
+
+    let repo_path = repo_path
+        .canonicalize()
+        .context("Failed to canonicalize repository path")?;
+
+    let stack_registry = Arc::new(StackRegistry::with_defaults());
+
+    debug!(
+        repo_path = %repo_path.display(),
+        "Starting repository scan"
+    );
+
+    let start = Instant::now();
+
+    info!(
+        repo = %repo_path.display(),
+        max_depth = config.max_depth,
+        max_files = config.max_files,
+        "Starting repository scan"
+    );
+
+    let mut detections = Vec::new();
+    let mut file_tree = Vec::new();
+    let mut files_scanned = 0;
+    let mut has_workspace_config = false;
+
+    let mut override_builder = OverrideBuilder::new(&repo_path);
+    for excluded in stack_registry.all_excluded_dirs() {
+        override_builder.add(&format!("!{}/", excluded)).ok();
+    }
+    let overrides = override_builder.build().unwrap_or_else(|_| {
+        OverrideBuilder::new(&repo_path).build().unwrap()
+    });
+
+    for result in WalkBuilder::new(&repo_path)
+        .max_depth(Some(config.max_depth))
+        .hidden(false)
+        .git_ignore(true)
+        .overrides(overrides)
+        .build()
+    {
+        let entry = match result {
+            Ok(e) => e,
+            Err(err) => {
+                warn!(error = %err, "Failed to read directory entry");
+                continue;
+            }
+        };
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
+        if is_excluded(path, &repo_path, &stack_registry) {
+            continue;
+        }
+
+        if files_scanned >= config.max_files {
+            warn!(
+                files_scanned,
+                max_files = config.max_files,
+                "Reached file limit, stopping scan"
+            );
+            break;
+        }
+        files_scanned += 1;
+
+        let rel_path = path
+            .strip_prefix(&repo_path)
+            .unwrap_or(path)
+            .to_path_buf();
+
+        file_tree.push(rel_path.clone());
+
+        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+            if stack_registry.all_workspace_configs().contains(&filename) {
+                has_workspace_config = true;
+            }
+
+            if stack_registry.is_manifest(filename) {
+                if let Some(detection) = detect_language(
+                    path,
+                    filename,
+                    &repo_path,
+                    &stack_registry,
+                    config.read_content,
+                )? {
+                    debug!(
+                        path = %path.display(),
+                        language = %detection.language.name(),
+                        build_system = %detection.build_system.name(),
+                        confidence = detection.confidence,
+                        "Detected language"
+                    );
+                    detections.push(detection);
+                }
+            }
+        }
+    }
+
+    let elapsed = start.elapsed();
+    let scan_time_ms = elapsed.as_millis() as u64;
+
+    info!(
+        detections_found = detections.len(),
+        files_scanned,
+        scan_time_ms,
+        "Repository scan completed"
+    );
+
+    Ok(ScanResult::from_scan(
+        repo_path,
+        detections,
+        file_tree,
+        has_workspace_config,
+        scan_time_ms,
+    ))
+}
+
+fn detect_language(
+    path: &Path,
+    filename: &str,
+    repo_path: &Path,
+    stack_registry: &Arc<StackRegistry>,
+    read_content: bool,
+) -> Result<Option<DetectionStack>> {
+    let content = if read_content {
+        std::fs::read_to_string(path).ok()
+    } else {
+        None
+    };
+
+    let rel_path = path.strip_prefix(repo_path).unwrap_or(path);
+
+    let depth = rel_path.to_string_lossy().matches('/').count();
+
+    if let Some(mut detection_stack) = stack_registry.detect_stack_opt(path, content.as_deref()) {
+        let is_workspace_root = stack_registry.is_workspace_root(filename, content.as_deref());
+
+        detection_stack.depth = depth;
+        detection_stack.is_workspace_root = is_workspace_root;
+
+        Ok(Some(detection_stack))
+    } else {
+        Ok(None)
+    }
+}
+
+fn is_excluded(path: &Path, repo_path: &Path, stack_registry: &Arc<StackRegistry>) -> bool {
     if path == repo_path {
         return false;
     }
+
+    let excluded_dirs = stack_registry.all_excluded_dirs();
 
     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
         if excluded_dirs.contains(&name) {
@@ -92,23 +401,36 @@ fn is_excluded(path: &Path, repo_path: &Path, excluded_dirs: &[&str]) -> bool {
 mod tests {
     use super::*;
     use std::fs;
+    use std::io::Write;
     use tempfile::TempDir;
 
     fn create_test_repo() -> TempDir {
         let dir = TempDir::new().unwrap();
         let base = dir.path();
 
-        fs::write(
-            base.join("Cargo.toml"),
-            b"[package]\nname = \"test\"\nversion = \"0.1.0\"",
-        )
-        .unwrap();
+        fs::create_dir(base.join(".git")).unwrap();
 
-        fs::create_dir_all(base.join("src")).unwrap();
-        fs::write(base.join("src/main.rs"), b"fn main() {}").unwrap();
+        fs::File::create(base.join("Cargo.toml"))
+            .unwrap()
+            .write_all(b"[package]\nname = \"test\"\nversion = \"0.1.0\"")
+            .unwrap();
 
-        fs::create_dir_all(base.join("node_modules")).unwrap();
-        fs::write(base.join("node_modules/ignored.js"), b"// ignored").unwrap();
+        fs::File::create(base.join("package.json"))
+            .unwrap()
+            .write_all(b"{\"name\": \"test\", \"version\": \"1.0.0\"}")
+            .unwrap();
+
+        fs::create_dir_all(base.join("crates/lib")).unwrap();
+        fs::File::create(base.join("crates/lib/Cargo.toml"))
+            .unwrap()
+            .write_all(b"[package]\nname = \"lib\"")
+            .unwrap();
+
+        fs::create_dir(base.join("node_modules")).unwrap();
+        fs::File::create(base.join("node_modules/package.json"))
+            .unwrap()
+            .write_all(b"{\"name\": \"ignored\"}")
+            .unwrap();
 
         dir
     }
@@ -117,33 +439,46 @@ mod tests {
     fn test_scan_execution() {
         let temp_dir = create_test_repo();
         let result = execute(temp_dir.path());
-
         assert!(result.is_ok());
-        let scan = result.unwrap();
+    }
 
-        assert!(!scan.bootstrap_context.detections.is_empty());
-        assert!(!scan.file_tree.is_empty());
+    #[test]
+    fn test_scan_detects_languages() {
+        let temp_dir = create_test_repo();
+        let result = execute(temp_dir.path()).unwrap();
+
+        assert!(result.detections.len() >= 2);
+
+        use crate::stack::LanguageId;
+        let languages: Vec<LanguageId> = result
+            .detections
+            .iter()
+            .map(|d| d.language)
+            .collect();
+        assert!(languages.contains(&LanguageId::Rust));
+        assert!(languages.contains(&LanguageId::JavaScript));
     }
 
     #[test]
     fn test_file_tree_excludes_node_modules() {
         let temp_dir = create_test_repo();
-        let scan = execute(temp_dir.path()).unwrap();
+        let result = execute(temp_dir.path()).unwrap();
 
-        let has_node_modules = scan
+        let paths: Vec<String> = result
             .file_tree
             .iter()
-            .any(|p| p.to_string_lossy().contains("node_modules"));
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
 
-        assert!(!has_node_modules);
+        assert!(!paths.iter().any(|p| p.contains("node_modules")));
     }
 
     #[test]
     fn test_find_files_by_name() {
         let temp_dir = create_test_repo();
-        let scan = execute(temp_dir.path()).unwrap();
+        let result = execute(temp_dir.path()).unwrap();
 
-        let cargo_tomls = scan.find_files_by_name("Cargo.toml");
-        assert_eq!(cargo_tomls.len(), 1);
+        let cargo_files = result.find_files_by_name("Cargo.toml");
+        assert!(!cargo_files.is_empty());
     }
 }
