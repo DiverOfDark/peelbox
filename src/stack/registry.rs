@@ -103,7 +103,11 @@ impl StackRegistry {
         self.frameworks.get(&id).map(|f| f.as_ref())
     }
 
-    pub fn detect_build_system_opt(&self, manifest_path: &Path, content: Option<&str>) -> Option<BuildSystemId> {
+    pub fn detect_build_system_opt(
+        &self,
+        manifest_path: &Path,
+        content: Option<&str>,
+    ) -> Option<BuildSystemId> {
         let filename = manifest_path.file_name()?.to_str()?;
 
         for (id, build_system) in &self.build_systems {
@@ -114,11 +118,20 @@ impl StackRegistry {
         None
     }
 
-    pub fn detect_build_system(&self, manifest_path: &Path, content: &str) -> Option<BuildSystemId> {
+    pub fn detect_build_system(
+        &self,
+        manifest_path: &Path,
+        content: &str,
+    ) -> Option<BuildSystemId> {
         self.detect_build_system_opt(manifest_path, Some(content))
     }
 
-    pub fn detect_language_opt(&self, manifest_path: &Path, content: Option<&str>, build_system: BuildSystemId) -> Option<LanguageId> {
+    pub fn detect_language_opt(
+        &self,
+        manifest_path: &Path,
+        content: Option<&str>,
+        build_system: BuildSystemId,
+    ) -> Option<LanguageId> {
         let filename = manifest_path.file_name()?.to_str()?;
         let build_system_name_lower = build_system.name().to_lowercase();
 
@@ -132,11 +145,20 @@ impl StackRegistry {
         None
     }
 
-    pub fn detect_language(&self, manifest_path: &Path, content: &str, build_system: BuildSystemId) -> Option<LanguageId> {
+    pub fn detect_language(
+        &self,
+        manifest_path: &Path,
+        content: &str,
+        build_system: BuildSystemId,
+    ) -> Option<LanguageId> {
         self.detect_language_opt(manifest_path, Some(content), build_system)
     }
 
-    pub fn detect_stack_opt(&self, manifest_path: &Path, content: Option<&str>) -> Option<DetectionStack> {
+    pub fn detect_stack_opt(
+        &self,
+        manifest_path: &Path,
+        content: Option<&str>,
+    ) -> Option<DetectionStack> {
         let build_system = self.detect_build_system_opt(manifest_path, content)?;
         let language = self.detect_language_opt(manifest_path, content, build_system)?;
 
@@ -168,11 +190,6 @@ impl StackRegistry {
                 if seen.insert(*dir) {
                     result.push(*dir);
                 }
-            }
-        }
-        for dir in &[".git", ".idea", ".vscode", "vendor"] {
-            if seen.insert(*dir) {
-                result.push(*dir);
             }
         }
         result
@@ -207,7 +224,10 @@ impl StackRegistry {
         all_internal_paths: &[std::path::PathBuf],
     ) -> Option<crate::languages::DependencyInfo> {
         for language in self.languages.values() {
-            if language.detect(manifest_name, Some(manifest_content)).is_some() {
+            if language
+                .detect(manifest_name, Some(manifest_content))
+                .is_some()
+            {
                 return Some(language.parse_dependencies(manifest_content, all_internal_paths));
             }
         }

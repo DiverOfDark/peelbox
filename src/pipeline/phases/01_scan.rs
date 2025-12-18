@@ -259,14 +259,16 @@ pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanR
     for excluded in stack_registry.all_excluded_dirs() {
         override_builder.add(&format!("!{}/", excluded)).ok();
     }
-    let overrides = override_builder.build().unwrap_or_else(|_| {
-        OverrideBuilder::new(&repo_path).build().unwrap()
-    });
+    let overrides = override_builder
+        .build()
+        .unwrap_or_else(|_| OverrideBuilder::new(&repo_path).build().unwrap());
 
     for result in WalkBuilder::new(&repo_path)
         .max_depth(Some(config.max_depth))
         .hidden(false)
         .git_ignore(true)
+        .git_global(false)
+        .git_exclude(false)
         .overrides(overrides)
         .build()
     {
@@ -283,10 +285,6 @@ pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanR
             continue;
         }
 
-        if is_excluded(path, &repo_path, &stack_registry) {
-            continue;
-        }
-
         if files_scanned >= config.max_files {
             warn!(
                 files_scanned,
@@ -297,10 +295,7 @@ pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanR
         }
         files_scanned += 1;
 
-        let rel_path = path
-            .strip_prefix(&repo_path)
-            .unwrap_or(path)
-            .to_path_buf();
+        let rel_path = path.strip_prefix(&repo_path).unwrap_or(path).to_path_buf();
 
         file_tree.push(rel_path.clone());
 
@@ -335,9 +330,7 @@ pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanR
 
     info!(
         detections_found = detections.len(),
-        files_scanned,
-        scan_time_ms,
-        "Repository scan completed"
+        files_scanned, scan_time_ms, "Repository scan completed"
     );
 
     Ok(ScanResult::from_scan(
@@ -376,25 +369,6 @@ fn detect_language(
     } else {
         Ok(None)
     }
-}
-
-fn is_excluded(path: &Path, repo_path: &Path, stack_registry: &Arc<StackRegistry>) -> bool {
-    if path == repo_path {
-        return false;
-    }
-
-    let excluded_dirs = stack_registry.all_excluded_dirs();
-
-    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-        if excluded_dirs.contains(&name) {
-            return true;
-        }
-        if path.is_dir() && name.starts_with('.') && name.len() > 1 {
-            return true;
-        }
-    }
-
-    false
 }
 
 #[cfg(test)]
@@ -450,11 +424,7 @@ mod tests {
         assert!(result.detections.len() >= 2);
 
         use crate::stack::LanguageId;
-        let languages: Vec<LanguageId> = result
-            .detections
-            .iter()
-            .map(|d| d.language)
-            .collect();
+        let languages: Vec<LanguageId> = result.detections.iter().map(|d| d.language).collect();
         assert!(languages.contains(&LanguageId::Rust));
         assert!(languages.contains(&LanguageId::JavaScript));
     }

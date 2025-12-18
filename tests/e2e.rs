@@ -46,12 +46,8 @@ fn load_expected(fixture_name: &str) -> Option<Vec<UniversalBuild>> {
         return None;
     }
 
-    let content = std::fs::read_to_string(&expected_path).unwrap_or_else(|_| {
-        panic!(
-            "Failed to read expected JSON: {}",
-            expected_path.display()
-        )
-    });
+    let content = std::fs::read_to_string(&expected_path)
+        .unwrap_or_else(|_| panic!("Failed to read expected JSON: {}", expected_path.display()));
 
     // Try parsing as array of UniversalBuild first (for monorepos)
     if let Ok(multi) = serde_json::from_str::<Vec<UniversalBuild>>(&content) {
@@ -71,6 +67,12 @@ fn load_expected(fixture_name: &str) -> Option<Vec<UniversalBuild>> {
 
 /// Helper to run detection on a fixture and parse results
 fn run_detection(fixture: PathBuf, test_name: &str) -> Result<Vec<UniversalBuild>, String> {
+    // Create .git directory in fixture to prevent WalkBuilder from looking up the tree
+    let git_dir = fixture.join(".git");
+    if !git_dir.exists() {
+        std::fs::create_dir_all(&git_dir).ok();
+    }
+
     let output = Command::new(aipack_bin())
         .env("AIPACK_PROVIDER", "embedded")
         .env("AIPACK_MODEL_SIZE", "7B")
@@ -310,8 +312,7 @@ fn test_php_composer_detection() {
 #[serial]
 fn test_cpp_cmake_detection() {
     let fixture = fixture_path("single-language", "cpp-cmake");
-    let results =
-        run_detection(fixture, "e2e_test_cpp_cmake_detection").expect("Detection failed");
+    let results = run_detection(fixture, "e2e_test_cpp_cmake_detection").expect("Detection failed");
 
     assert_detection(&results, "cmake", "cpp-cmake");
 }
