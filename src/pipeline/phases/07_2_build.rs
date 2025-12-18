@@ -102,7 +102,7 @@ fn extract_scripts_excerpt(scan: &ScanResult, service: &Service) -> Result<Optio
     Ok(Some(excerpt))
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -110,9 +110,11 @@ pub struct BuildPhase;
 
 #[async_trait]
 impl ServicePhase for BuildPhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = BuildInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<BuildInfo> {
         if let Some(deterministic) = try_deterministic(context.service) {
-            return Ok(ServicePhaseResult::Build(deterministic));
+            return Ok(deterministic);
         }
 
         let scripts_excerpt = extract_scripts_excerpt(context.scan(), context.service)?;
@@ -126,7 +128,7 @@ impl ServicePhase for BuildPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(ServicePhaseResult::Build(result))
+        Ok(result)
     }
 }
 

@@ -8,5 +8,5 @@ pub mod service_context;
 pub use confidence::Confidence;
 pub use context::AnalysisContext;
 pub use orchestrator::PipelineOrchestrator;
-pub use phase_trait::{ServicePhase, ServicePhaseResult, WorkflowPhase};
+pub use phase_trait::{ServicePhase, WorkflowPhase};
 pub use service_context::ServiceContext;

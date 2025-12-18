@@ -1,4 +1,4 @@
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use crate::pipeline::Confidence;
 use anyhow::Result;
@@ -16,7 +16,9 @@ pub struct CachePhase;
 
 #[async_trait]
 impl ServicePhase for CachePhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = CacheInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<CacheInfo> {
         use crate::stack::BuildSystemId;
         let cache_dirs = match context.service.build_system {
         BuildSystemId::Npm | BuildSystemId::Yarn | BuildSystemId::Pnpm | BuildSystemId::Bun => {
@@ -50,7 +52,7 @@ impl ServicePhase for CachePhase {
             cache_dirs,
             confidence: Confidence::High,
         };
-        Ok(ServicePhaseResult::Cache(result))
+        Ok(result)
     }
 }
 
@@ -79,11 +81,7 @@ mod tests {
 
         let service_context = ServiceContext::new(service, &analysis_context);
         let phase = CachePhase;
-        let result = phase.execute(&service_context).await.unwrap();
-        match result {
-            ServicePhaseResult::Cache(info) => info,
-            _ => unreachable!(),
-        }
+        phase.execute(&service_context).await.unwrap()
     }
 
     #[tokio::test]

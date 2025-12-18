@@ -94,7 +94,7 @@ fn try_deterministic(
     })
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -102,7 +102,9 @@ pub struct PortPhase;
 
 #[async_trait]
 impl ServicePhase for PortPhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = PortInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<PortInfo> {
         let runtime = context
             .runtime
             .expect("Runtime info must be available before port phase");
@@ -145,7 +147,7 @@ impl ServicePhase for PortPhase {
             .await?
         };
 
-        Ok(ServicePhaseResult::Port(result))
+        Ok(result)
     }
 }
 

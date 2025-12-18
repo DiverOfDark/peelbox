@@ -364,6 +364,10 @@ pub struct ScanPhase;
 
 #[async_trait]
 impl WorkflowPhase for ScanPhase {
+    fn name(&self) -> &'static str {
+        "ScanPhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let config = ScanConfig::default();
         let repo_path = &context.repo_path;

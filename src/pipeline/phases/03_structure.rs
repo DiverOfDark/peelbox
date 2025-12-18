@@ -352,6 +352,10 @@ pub struct StructurePhase;
 
 #[async_trait]
 impl WorkflowPhase for StructurePhase {
+    fn name(&self) -> &'static str {
+        "StructurePhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan

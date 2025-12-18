@@ -43,18 +43,19 @@ impl PipelineOrchestrator {
             });
         }
 
-        let workflow_phases: Vec<(Box<dyn WorkflowPhase>, &str)> = vec![
-            (Box::new(ScanPhase), "ScanPhase"),
-            (Box::new(ClassifyPhase), "ClassifyPhase"),
-            (Box::new(StructurePhase), "StructurePhase"),
-            (Box::new(DependenciesPhase), "DependenciesPhase"),
-            (Box::new(BuildOrderPhase), "BuildOrderPhase"),
-            (Box::new(RootCachePhase), "RootCachePhase"),
-            (Box::new(ServiceAnalysisPhase), "ServiceAnalysisPhase"),
-            (Box::new(AssemblePhase), "AssemblePhase"),
+        let workflow_phases: Vec<Box<dyn WorkflowPhase>> = vec![
+            Box::new(ScanPhase),
+            Box::new(ClassifyPhase),
+            Box::new(StructurePhase),
+            Box::new(DependenciesPhase),
+            Box::new(BuildOrderPhase),
+            Box::new(RootCachePhase),
+            Box::new(ServiceAnalysisPhase),
+            Box::new(AssemblePhase),
         ];
 
-        for (phase, phase_name) in workflow_phases {
+        for phase in workflow_phases {
+            let phase_name = phase.name();
             info!("Phase: {}", phase_name);
 
             if let Some(handler) = &self.progress_handler {
@@ -90,7 +91,7 @@ impl PipelineOrchestrator {
             });
         }
 
-        Ok(context.builds.clone())
+        Ok(std::mem::take(&mut context.builds))
     }
 
 

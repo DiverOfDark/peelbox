@@ -193,6 +193,10 @@ pub struct ClassifyPhase;
 
 #[async_trait]
 impl WorkflowPhase for ClassifyPhase {
+    fn name(&self) -> &'static str {
+        "ClassifyPhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan

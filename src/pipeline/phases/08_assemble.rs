@@ -34,6 +34,10 @@ pub struct AssemblePhase;
 
 #[async_trait]
 impl WorkflowPhase for AssemblePhase {
+    fn name(&self) -> &'static str {
+        "AssemblePhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let structure = context
             .structure
@@ -79,7 +83,7 @@ fn assemble_single_service(
 
     let project_name = extract_project_name(&result.service);
 
-    let confidence = calculate_confidence(&result);
+    let confidence = calculate_confidence(result);
 
     let metadata = BuildMetadata {
         project_name: Some(project_name.clone()),

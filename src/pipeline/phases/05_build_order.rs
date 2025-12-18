@@ -302,6 +302,10 @@ pub struct BuildOrderPhase;
 
 #[async_trait]
 impl WorkflowPhase for BuildOrderPhase {
+    fn name(&self) -> &'static str {
+        "BuildOrderPhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let dependencies = context
             .dependencies

@@ -123,6 +123,10 @@ pub struct DependenciesPhase;
 
 #[async_trait]
 impl WorkflowPhase for DependenciesPhase {
+    fn name(&self) -> &'static str {
+        "DependenciesPhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan

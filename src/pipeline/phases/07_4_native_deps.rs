@@ -141,7 +141,7 @@ fn parse_dependencies(content: &str, manifest: &str) -> Result<Vec<String>> {
     Ok(deps)
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -149,7 +149,9 @@ pub struct NativeDepsPhase;
 
 #[async_trait]
 impl ServicePhase for NativeDepsPhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = NativeDepsInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<NativeDepsInfo> {
         let dependencies =
             extract_dependencies(context.scan(), context.service).with_context(|| {
                 format!(
@@ -172,7 +174,7 @@ impl ServicePhase for NativeDepsPhase {
             .await?
         };
 
-        Ok(ServicePhaseResult::NativeDeps(result))
+        Ok(result)
     }
 }
 

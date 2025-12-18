@@ -54,7 +54,7 @@ Rules:
     )
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -62,7 +62,9 @@ pub struct EnvVarsPhase;
 
 #[async_trait]
 impl ServicePhase for EnvVarsPhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = EnvVarsInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<EnvVarsInfo> {
         let service_context =
             super::extractor_helper::create_service_context(context.scan(), context.service);
         let extractor = EnvVarExtractor::new(RealFileSystem);
@@ -87,7 +89,7 @@ impl ServicePhase for EnvVarsPhase {
                 env_vars,
                 confidence: Confidence::High,
             };
-            return Ok(ServicePhaseResult::EnvVars(result));
+            return Ok(result);
         }
 
         let prompt = build_prompt(context.service, &extracted);
@@ -99,7 +101,7 @@ impl ServicePhase for EnvVarsPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(ServicePhaseResult::EnvVars(result))
+        Ok(result)
     }
 }
 

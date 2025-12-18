@@ -124,7 +124,7 @@ fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Opti
     Ok(Some(excerpt))
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -132,13 +132,15 @@ pub struct RuntimePhase;
 
 #[async_trait]
 impl ServicePhase for RuntimePhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = RuntimeInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<RuntimeInfo> {
         if let Some(deterministic) = try_deterministic(
             context.service,
             context.dependencies(),
             context.stack_registry(),
         ) {
-            return Ok(ServicePhaseResult::Runtime(deterministic));
+            return Ok(deterministic);
         }
 
         let files = extract_relevant_files(context.scan(), context.service);
@@ -153,7 +155,7 @@ impl ServicePhase for RuntimePhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(ServicePhaseResult::Runtime(result))
+        Ok(result)
     }
 }
 

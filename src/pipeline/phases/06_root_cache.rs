@@ -184,6 +184,10 @@ pub struct RootCachePhase;
 
 #[async_trait]
 impl WorkflowPhase for RootCachePhase {
+    fn name(&self) -> &'static str {
+        "RootCachePhase"
+    }
+
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan

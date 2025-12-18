@@ -95,7 +95,7 @@ fn try_framework_defaults(
     None
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -103,7 +103,9 @@ pub struct HealthPhase;
 
 #[async_trait]
 impl ServicePhase for HealthPhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = HealthInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<HealthInfo> {
         let runtime = context
             .runtime
             .expect("Runtime info must be available before health phase");
@@ -134,11 +136,11 @@ impl ServicePhase for HealthPhase {
                 recommended_readiness: recommended,
                 confidence: Confidence::High,
             };
-            return Ok(ServicePhaseResult::Health(result));
+            return Ok(result);
         }
 
         if let Some(framework_default) = try_framework_defaults(runtime, context.stack_registry()) {
-            return Ok(ServicePhaseResult::Health(framework_default));
+            return Ok(framework_default);
         }
 
         let prompt = build_prompt(context.service, runtime, &extracted);
@@ -150,7 +152,7 @@ impl ServicePhase for HealthPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(ServicePhaseResult::Health(result))
+        Ok(result)
     }
 }
 

@@ -38,7 +38,7 @@ Rules:
     )
 }
 
-use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::ServiceContext;
 use async_trait::async_trait;
 
@@ -46,9 +46,11 @@ pub struct EntrypointPhase;
 
 #[async_trait]
 impl ServicePhase for EntrypointPhase {
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+    type Output = EntrypointInfo;
+
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<EntrypointInfo> {
         if let Some(deterministic) = try_deterministic(context)? {
-            return Ok(ServicePhaseResult::Entrypoint(deterministic));
+            return Ok(deterministic);
         }
 
         let manifest_excerpt = extract_manifest_excerpt(context)?;
@@ -62,7 +64,7 @@ impl ServicePhase for EntrypointPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(ServicePhaseResult::Entrypoint(result))
+        Ok(result)
     }
 }
 
