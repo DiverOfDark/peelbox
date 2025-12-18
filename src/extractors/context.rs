@@ -1,6 +1,7 @@
 //! Service context for extractor operations
 
 use std::path::PathBuf;
+use crate::stack::{BuildSystemId, LanguageId};
 
 /// Context for service-level analysis
 ///
@@ -12,10 +13,10 @@ pub struct ServiceContext {
     pub path: PathBuf,
 
     /// Detected language for this service (from bootstrap phase)
-    pub language: Option<String>,
+    pub language: Option<LanguageId>,
 
-    /// Detected build system (e.g., "cargo", "npm", "maven")
-    pub build_system: Option<String>,
+    /// Detected build system
+    pub build_system: Option<BuildSystemId>,
 }
 
 impl ServiceContext {
@@ -31,8 +32,8 @@ impl ServiceContext {
     /// Create ServiceContext with language and build system
     pub fn with_detection(
         path: PathBuf,
-        language: Option<String>,
-        build_system: Option<String>,
+        language: Option<LanguageId>,
+        build_system: Option<BuildSystemId>,
     ) -> Self {
         Self {
             path,
@@ -58,11 +59,11 @@ mod tests {
     fn test_with_detection() {
         let ctx = ServiceContext::with_detection(
             PathBuf::from("/path/to/service"),
-            Some("Rust".to_string()),
-            Some("cargo".to_string()),
+            Some(LanguageId::Rust),
+            Some(BuildSystemId::Cargo),
         );
         assert_eq!(ctx.path, PathBuf::from("/path/to/service"));
-        assert_eq!(ctx.language.as_deref(), Some("Rust"));
-        assert_eq!(ctx.build_system.as_deref(), Some("cargo"));
+        assert_eq!(ctx.language, Some(LanguageId::Rust));
+        assert_eq!(ctx.build_system, Some(BuildSystemId::Cargo));
     }
 }

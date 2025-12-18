@@ -2,7 +2,7 @@
 
 use crate::extractors::ServiceContext;
 use crate::fs::FileSystem;
-use crate::languages::LanguageRegistry;
+use crate::stack::registry::StackRegistry;
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -23,18 +23,18 @@ pub enum HealthCheckSource {
 
 pub struct HealthCheckExtractor<F: FileSystem> {
     fs: F,
-    registry: LanguageRegistry,
+    registry: StackRegistry,
 }
 
 impl<F: FileSystem> HealthCheckExtractor<F> {
     pub fn new(fs: F) -> Self {
         Self {
             fs,
-            registry: LanguageRegistry::with_defaults(),
+            registry: StackRegistry::with_defaults(),
         }
     }
 
-    pub fn with_registry(fs: F, registry: LanguageRegistry) -> Self {
+    pub fn with_registry(fs: F, registry: StackRegistry) -> Self {
         Self { fs, registry }
     }
 
@@ -74,8 +74,7 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
     ) {
         let lang = match context
             .language
-            .as_ref()
-            .and_then(|name| self.registry.get_language(name))
+            .and_then(|id| self.registry.get_language(id))
         {
             Some(l) => l,
             None => return,
@@ -133,8 +132,7 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
     ) {
         let language = context
             .language
-            .as_ref()
-            .and_then(|name| self.registry.get_language(name));
+            .and_then(|id| self.registry.get_language(id));
 
         if let Some(lang) = language {
             for (endpoint, framework) in lang.default_health_endpoints() {
@@ -229,7 +227,7 @@ app.get('/health', (req, res) => {
         let extractor = HealthCheckExtractor::new(fs);
         let context = ServiceContext::with_detection(
             PathBuf::from("."),
-            Some("JavaScript".to_string()),
+            Some(crate::stack::LanguageId::JavaScript),
             None,
         );
         let health_checks = extractor.extract(&context);
@@ -260,7 +258,7 @@ public class HealthController {
 
         let extractor = HealthCheckExtractor::new(fs);
         let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some("Java".to_string()), None);
+            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Java), None);
         let health_checks = extractor.extract(&context);
 
         assert_eq!(health_checks.len(), 1);
@@ -272,7 +270,7 @@ public class HealthController {
         let fs = MockFileSystem::new();
         let extractor = HealthCheckExtractor::new(fs);
         let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some("Java".to_string()), None);
+            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Java), None);
         let health_checks = extractor.extract(&context);
 
         assert_eq!(health_checks.len(), 1);
@@ -289,7 +287,7 @@ public class HealthController {
         let extractor = HealthCheckExtractor::new(fs);
         let context = ServiceContext::with_detection(
             PathBuf::from("."),
-            Some("JavaScript".to_string()),
+            Some(crate::stack::LanguageId::JavaScript),
             None,
         );
         let health_checks = extractor.extract(&context);

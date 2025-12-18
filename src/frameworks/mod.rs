@@ -101,7 +101,6 @@ pub mod nextjs;
 pub mod phoenix;
 pub mod quarkus;
 pub mod rails;
-pub mod registry;
 pub mod sinatra;
 pub mod spring_boot;
 
@@ -123,6 +122,5 @@ pub use nextjs::NextJsFramework;
 pub use phoenix::PhoenixFramework;
 pub use quarkus::QuarkusFramework;
 pub use rails::RailsFramework;
-pub use registry::FrameworkRegistry;
 pub use sinatra::SinatraFramework;
 pub use spring_boot::SpringBootFramework;

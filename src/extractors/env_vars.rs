@@ -2,7 +2,7 @@
 
 use crate::extractors::ServiceContext;
 use crate::fs::FileSystem;
-use crate::languages::LanguageRegistry;
+use crate::stack::registry::StackRegistry;
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -24,18 +24,18 @@ pub enum EnvVarSource {
 
 pub struct EnvVarExtractor<F: FileSystem> {
     fs: F,
-    registry: LanguageRegistry,
+    registry: StackRegistry,
 }
 
 impl<F: FileSystem> EnvVarExtractor<F> {
     pub fn new(fs: F) -> Self {
         Self {
             fs,
-            registry: LanguageRegistry::with_defaults(),
+            registry: StackRegistry::with_defaults(),
         }
     }
 
-    pub fn with_registry(fs: F, registry: LanguageRegistry) -> Self {
+    pub fn with_registry(fs: F, registry: StackRegistry) -> Self {
         Self { fs, registry }
     }
 
@@ -111,8 +111,7 @@ impl<F: FileSystem> EnvVarExtractor<F> {
     ) {
         let lang = match context
             .language
-            .as_ref()
-            .and_then(|name| self.registry.get_language(name))
+            .and_then(|id| self.registry.get_language(id))
         {
             Some(l) => l,
             None => return,
@@ -242,7 +241,7 @@ const dbUrl = process.env.DATABASE_URL;
         let extractor = EnvVarExtractor::new(fs);
         let context = ServiceContext::with_detection(
             PathBuf::from("."),
-            Some("JavaScript".to_string()),
+            Some(crate::stack::LanguageId::JavaScript),
             None,
         );
         let env_vars = extractor.extract(&context);
@@ -268,7 +267,7 @@ api_key = os.getenv('API_KEY')
 
         let extractor = EnvVarExtractor::new(fs);
         let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some("Python".to_string()), None);
+            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Python), None);
         let env_vars = extractor.extract(&context);
 
         assert_eq!(env_vars.len(), 2);
@@ -293,7 +292,7 @@ fn main() {
 
         let extractor = EnvVarExtractor::new(fs);
         let context =
-            ServiceContext::with_detection(PathBuf::from("."), Some("Rust".to_string()), None);
+            ServiceContext::with_detection(PathBuf::from("."), Some(crate::stack::LanguageId::Rust), None);
         let env_vars = extractor.extract(&context);
 
         assert_eq!(env_vars.len(), 2);

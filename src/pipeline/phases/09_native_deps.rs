@@ -44,8 +44,8 @@ Rules:
 - native_deps: System packages needed (apt/apk package names)
 "#,
         service.path.display(),
-        service.build_system,
-        service.language,
+        service.build_system.name(),
+        service.language.name(),
         dependencies
             .iter()
             .take(30)
@@ -195,8 +195,8 @@ mod tests {
         let service = Service {
             path: std::path::PathBuf::from("apps/api"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let deps = vec!["express".to_string(), "bcrypt".to_string()];

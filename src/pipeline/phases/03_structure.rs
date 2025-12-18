@@ -43,16 +43,16 @@ pub enum MonorepoTool {
 pub struct Service {
     pub path: std::path::PathBuf,
     pub manifest: String,
-    pub language: String,
-    pub build_system: String,
+    pub language: crate::stack::LanguageId,
+    pub build_system: crate::stack::BuildSystemId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Package {
     pub path: std::path::PathBuf,
     pub manifest: String,
-    pub language: String,
-    pub build_system: String,
+    pub language: crate::stack::LanguageId,
+    pub build_system: crate::stack::BuildSystemId,
 }
 
 fn build_prompt(_scan: &ScanResult, classify: &ClassifyResult) -> String {
@@ -197,12 +197,12 @@ fn detect_monorepo_tool(scan: &ScanResult) -> MonorepoTool {
     for detection in &scan.bootstrap_context.detections {
         if detection.is_workspace_root {
             match detection.build_system.as_str() {
-                "cargo" => return MonorepoTool::CargoWorkspace,
-                "gradle" => return MonorepoTool::GradleMultiproject,
-                "maven" => return MonorepoTool::MavenMultimodule,
+                "cargo" | "Cargo" => return MonorepoTool::CargoWorkspace,
+                "gradle" | "Gradle" => return MonorepoTool::GradleMultiproject,
+                "maven" | "Maven" => return MonorepoTool::MavenMultimodule,
                 "go" => return MonorepoTool::GoWorkspace,
                 "npm" => return MonorepoTool::NpmWorkspaces,
-                "yarn" => return MonorepoTool::YarnWorkspaces,
+                "yarn" | "Yarn" => return MonorepoTool::YarnWorkspaces,
                 _ => {}
             }
         }
@@ -237,11 +237,15 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
                 );
             }
 
-            matched.map(|d| Service {
-                path: sp.path.clone(),
-                manifest: sp.manifest.clone(),
-                language: d.language.clone(),
-                build_system: d.build_system.clone(),
+            matched.and_then(|d| {
+                let language = crate::stack::LanguageId::from_name(&d.language)?;
+                let build_system = crate::stack::BuildSystemId::from_name(&d.build_system)?;
+                Some(Service {
+                    path: sp.path.clone(),
+                    manifest: sp.manifest.clone(),
+                    language,
+                    build_system,
+                })
             })
         })
         .collect()
@@ -258,11 +262,15 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
                     d.manifest_path == pp.manifest
                         || d.manifest_path == pp.path.join(&pp.manifest).to_string_lossy()
                 })
-                .map(|d| Package {
-                    path: pp.path.clone(),
-                    manifest: pp.manifest.clone(),
-                    language: d.language.clone(),
-                    build_system: d.build_system.clone(),
+                .and_then(|d| {
+                    let language = crate::stack::LanguageId::from_name(&d.language)?;
+                    let build_system = crate::stack::BuildSystemId::from_name(&d.build_system)?;
+                    Some(Package {
+                        path: pp.path.clone(),
+                        manifest: pp.manifest.clone(),
+                        language,
+                        build_system,
+                    })
                 })
         })
         .collect()
@@ -304,7 +312,7 @@ mod tests {
                 },
                 detections: vec![LanguageDetection {
                     language: "Rust".to_string(),
-                    build_system: "cargo".to_string(),
+                    build_system: "Cargo".to_string(),
                     manifest_path: "Cargo.toml".to_string(),
                     depth: 0,
                     confidence: 1.0,

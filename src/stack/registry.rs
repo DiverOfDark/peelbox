@@ -199,6 +199,20 @@ impl StackRegistry {
         }
         false
     }
+
+    pub fn parse_dependencies_by_manifest(
+        &self,
+        manifest_name: &str,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> Option<crate::languages::DependencyInfo> {
+        for language in self.languages.values() {
+            if language.detect(manifest_name, Some(manifest_content)).is_some() {
+                return Some(language.parse_dependencies(manifest_content, all_internal_paths));
+            }
+        }
+        None
+    }
 }
 
 impl Default for StackRegistry {

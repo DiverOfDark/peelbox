@@ -8,7 +8,7 @@ use super::port::PortInfo;
 use super::root_cache::RootCacheInfo;
 use super::runtime::RuntimeInfo;
 use super::structure::{Service, StructureResult};
-use crate::languages::LanguageRegistry;
+use crate::stack::registry::StackRegistry;
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
@@ -32,12 +32,11 @@ pub fn execute(
     _structure: &StructureResult,
     root_cache: &RootCacheInfo,
 ) -> Result<Vec<UniversalBuild>> {
-    let registry = LanguageRegistry::with_defaults();
-    let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
+    let registry = StackRegistry::with_defaults();
     let mut builds = Vec::new();
 
     for result in analysis_results {
-        let build = assemble_single_service(result, root_cache, &registry, &build_system_registry)?;
+        let build = assemble_single_service(result, root_cache, &registry)?;
         builds.push(build);
     }
 
@@ -47,13 +46,12 @@ pub fn execute(
 fn assemble_single_service(
     result: ServiceAnalysisResults,
     root_cache: &RootCacheInfo,
-    registry: &LanguageRegistry,
-    build_system_registry: &crate::build_systems::BuildSystemRegistry,
+    registry: &StackRegistry,
 ) -> Result<UniversalBuild> {
-    let _language_def = registry.get_language(&result.service.language);
+    let _language_def = registry.get_language(result.service.language);
 
-    let template = build_system_registry
-        .get(&result.service.build_system)
+    let template = registry
+        .get_build_system(result.service.build_system)
         .map(|bs| bs.build_template());
 
     let project_name = extract_project_name(&result.service);
@@ -62,8 +60,8 @@ fn assemble_single_service(
 
     let metadata = BuildMetadata {
         project_name: Some(project_name.clone()),
-        language: result.service.language.clone(),
-        build_system: result.service.build_system.clone(),
+        language: result.service.language.name().to_string(),
+        build_system: result.service.build_system.name().to_string(),
         framework: result.runtime.framework.clone(),
         confidence,
         reasoning: format!(
@@ -197,8 +195,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/web"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         assert_eq!(extract_project_name(&service), "web");
@@ -209,8 +207,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "Cargo.toml".to_string(),
-            language: "Rust".to_string(),
-            build_system: "cargo".to_string(),
+            language: crate::stack::LanguageId::Rust,
+            build_system: crate::stack::BuildSystemId::Cargo,
         };
 
         assert_eq!(extract_project_name(&service), "app");
@@ -221,8 +219,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/api"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let result = ServiceAnalysisResults {

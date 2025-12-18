@@ -188,8 +188,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/api"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let runtime = RuntimeInfo {

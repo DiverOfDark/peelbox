@@ -70,7 +70,6 @@ pub mod composer;
 pub mod bundler;
 pub mod cmake;
 pub mod mix;
-pub mod registry;
 
 pub use cargo::CargoBuildSystem;
 pub use maven::MavenBuildSystem;
@@ -88,4 +87,3 @@ pub use composer::ComposerBuildSystem;
 pub use bundler::BundlerBuildSystem;
 pub use cmake::CMakeBuildSystem;
 pub use mix::MixBuildSystem;
-pub use registry::BuildSystemRegistry;

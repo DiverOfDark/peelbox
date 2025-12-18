@@ -40,8 +40,8 @@ Rules:
 - For interpreted languages without compilation, both may be null
 "#,
         service.path.display(),
-        service.build_system,
-        service.language,
+        service.build_system.name(),
+        service.language.name(),
         scripts_excerpt.unwrap_or("None")
     )
 }
@@ -63,8 +63,8 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {
-    let build_system_registry = crate::build_systems::BuildSystemRegistry::with_defaults();
-    let build_system = build_system_registry.get(&service.build_system)?;
+    let build_system_registry = crate::stack::registry::StackRegistry::with_defaults();
+    let build_system = build_system_registry.get_build_system(service.build_system)?;
 
     let template = build_system.build_template();
 
@@ -131,8 +131,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "Cargo.toml".to_string(),
-            language: "Rust".to_string(),
-            build_system: "cargo".to_string(),
+            language: crate::stack::LanguageId::Rust,
+            build_system: crate::stack::BuildSystemId::Cargo,
         };
 
         let result = try_deterministic(&service).unwrap();
@@ -146,8 +146,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "pom.xml".to_string(),
-            language: "Java".to_string(),
-            build_system: "maven".to_string(),
+            language: crate::stack::LanguageId::Java,
+            build_system: crate::stack::BuildSystemId::Maven,
         };
 
         let result = try_deterministic(&service).unwrap();
@@ -163,8 +163,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/web"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let scripts = r#"{"build": "next build", "start": "next start"}"#;

@@ -50,8 +50,8 @@ Rules:
 - default_value: Value used if not provided
 "#,
         service.path.display(),
-        service.build_system,
-        service.language,
+        service.build_system.name(),
+        service.language.name(),
         if extracted_vars.is_empty() {
             "None found".to_string()
         } else {
@@ -106,8 +106,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/api"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let vars = vec!["DATABASE_URL".to_string(), "PORT".to_string()];

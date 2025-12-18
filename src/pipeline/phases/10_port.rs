@@ -45,8 +45,8 @@ Rules:
 - Default to 3000 for Node.js, 8080 for Java/Spring, 8000 for Python if unclear
 "#,
         service.path.display(),
-        service.build_system,
-        service.language,
+        service.build_system.name(),
+        service.language.name(),
         if extracted_ports.is_empty() {
             "None found".to_string()
         } else {
@@ -119,8 +119,7 @@ fn try_framework_defaults(
 }
 
 fn try_deterministic(service: &Service, stack_registry: &Arc<crate::stack::StackRegistry>) -> Option<PortInfo> {
-    let language_id = crate::stack::LanguageId::from_name(&service.language)?;
-    let language_def = stack_registry.get_language(language_id)?;
+    let language_def = stack_registry.get_language(service.language)?;
 
     let default_port = language_def.default_port()?;
 
@@ -173,8 +172,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
@@ -189,8 +188,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "pom.xml".to_string(),
-            language: "Java".to_string(),
-            build_system: "maven".to_string(),
+            language: crate::stack::LanguageId::Java,
+            build_system: crate::stack::BuildSystemId::Maven,
         };
 
         let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
@@ -203,8 +202,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/api"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let ports = vec![3000, 8080];

@@ -1,8 +1,9 @@
 use super::scan::ScanResult;
 use super::structure::{Service, StructureResult};
 use crate::heuristics::HeuristicLogger;
-use crate::languages::{Dependency, DependencyInfo, DetectionMethod, LanguageRegistry};
+use crate::languages::{Dependency, DependencyInfo, DetectionMethod};
 use crate::llm::LLMClient;
+use crate::stack::registry::StackRegistry;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -43,7 +44,7 @@ Rules:
 - Return empty arrays if none found
 "#,
         service.path.display(),
-        service.build_system,
+        service.build_system.name(),
         manifest_content,
         serde_json::to_string(&all_service_paths).unwrap_or_else(|_| "[]".to_string())
     )
@@ -55,7 +56,7 @@ pub async fn execute(
     structure: &StructureResult,
     logger: &Arc<HeuristicLogger>,
 ) -> Result<DependencyResult> {
-    let registry = Arc::new(LanguageRegistry::with_defaults());
+    let registry = Arc::new(StackRegistry::with_defaults());
     let mut dependencies = HashMap::new();
 
     let all_paths: Vec<PathBuf> = structure
@@ -182,8 +183,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/web"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let manifest = r#"{"name": "web", "dependencies": {"@repo/shared": "workspace:*"}}"#;

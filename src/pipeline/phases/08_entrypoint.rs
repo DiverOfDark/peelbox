@@ -1,7 +1,7 @@
 use super::scan::ScanResult;
 use super::structure::Service;
 use crate::heuristics::HeuristicLogger;
-use crate::languages::LanguageRegistry;
+use crate::stack::registry::StackRegistry;
 use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use anyhow::{Context, Result};
@@ -38,8 +38,8 @@ Rules:
 - Include interpreter if needed (python, node, java)
 "#,
         service.path.display(),
-        service.build_system,
-        service.language,
+        service.build_system.name(),
+        service.language.name(),
         manifest_excerpt.unwrap_or("None")
     )
 }
@@ -61,8 +61,8 @@ pub async fn execute(
 }
 
 fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<EntrypointInfo>> {
-    let registry = LanguageRegistry::with_defaults();
-    let language_def = match registry.get_language(&service.language) {
+    let registry = StackRegistry::with_defaults();
+    let language_def = match registry.get_language(service.language) {
         Some(def) => def,
         None => return Ok(None),
     };
@@ -81,7 +81,7 @@ fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<Entr
         }
     }
 
-    if let Some(entrypoint) = language_def.default_entrypoint(&service.build_system) {
+    if let Some(entrypoint) = language_def.default_entrypoint(service.build_system.name()) {
         return Ok(Some(EntrypointInfo {
             entrypoint,
             confidence: Confidence::Medium,
@@ -120,8 +120,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/web"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let manifest = r#"{"main": "server.js", "scripts": {"start": "node server.js"}}"#;

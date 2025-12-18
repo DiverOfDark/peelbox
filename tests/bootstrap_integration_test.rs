@@ -106,7 +106,7 @@ fn test_scan_rust_project() {
         .iter()
         .find(|d| d.language == "Rust")
         .unwrap();
-    assert_eq!(rust_detection.build_system, "cargo");
+    assert_eq!(rust_detection.build_system, "Cargo");
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn test_context_generation_rust() {
     assert_eq!(context.summary.primary_language, Some("Rust".to_string()));
     assert_eq!(
         context.summary.primary_build_system,
-        Some("cargo".to_string())
+        Some("Cargo".to_string())
     );
     assert!(!context.summary.is_monorepo);
 }
@@ -213,7 +213,7 @@ fn test_context_prompt_string() {
 
     assert!(prompt.contains("Pre-scanned Repository"));
     assert!(prompt.contains("Cargo.toml"));
-    assert!(prompt.contains("cargo"));
+    assert!(prompt.contains("Cargo"));
     assert!(prompt.contains("Rust"));
 }
 

@@ -15,12 +15,12 @@ pub mod progress;
 pub mod stack;
 pub mod validation;
 
-pub use build_systems::{BuildSystem, BuildSystemRegistry, BuildTemplate};
+pub use build_systems::{BuildSystem, BuildTemplate};
 pub use config::{AipackConfig, ConfigError};
-pub use frameworks::{Framework, FrameworkRegistry};
+pub use frameworks::Framework;
 pub use detection::service::{DetectionService, ServiceError};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
-pub use languages::{LanguageDefinition, LanguageRegistry};
+pub use languages::LanguageDefinition;
 pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;

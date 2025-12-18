@@ -54,8 +54,8 @@ Rules:
 - confidence: Based on clarity of indicators
 "#,
         service.path.display(),
-        service.build_system,
-        service.language,
+        service.build_system.name(),
+        service.language.name(),
         file_list.join("\n"),
         manifest_excerpt.unwrap_or("None")
     )
@@ -85,8 +85,7 @@ fn try_deterministic(
     dependencies: &DependencyResult,
     stack_registry: &Arc<StackRegistry>,
 ) -> Option<RuntimeInfo> {
-    let language_id = crate::stack::LanguageId::from_name(&service.language)?;
-    let language_def = stack_registry.get_language(language_id)?;
+    let language_def = stack_registry.get_language(service.language)?;
 
     let runtime = language_def.runtime_name()?;
 
@@ -157,8 +156,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "Cargo.toml".to_string(),
-            language: "Rust".to_string(),
-            build_system: "cargo".to_string(),
+            language: crate::stack::LanguageId::Rust,
+            build_system: crate::stack::BuildSystemId::Cargo,
         };
 
         let dependencies = DependencyResult {
@@ -177,8 +176,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let dependencies = DependencyResult {
@@ -197,8 +196,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let mut deps_info = crate::languages::DependencyInfo::empty();
@@ -227,8 +226,8 @@ mod tests {
         let service = Service {
             path: PathBuf::from("apps/web"),
             manifest: "package.json".to_string(),
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
+            language: crate::stack::LanguageId::JavaScript,
+            build_system: crate::stack::BuildSystemId::Npm,
         };
 
         let files = vec![

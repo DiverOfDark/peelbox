@@ -183,7 +183,7 @@ mod tests {
         vec![
             LanguageDetection {
                 language: "Rust".to_string(),
-                build_system: "cargo".to_string(),
+                build_system: "Cargo".to_string(),
                 manifest_path: "Cargo.toml".to_string(),
                 depth: 0,
                 confidence: 1.0,
@@ -199,7 +199,7 @@ mod tests {
             },
             LanguageDetection {
                 language: "Rust".to_string(),
-                build_system: "cargo".to_string(),
+                build_system: "Cargo".to_string(),
                 manifest_path: "crates/lib/Cargo.toml".to_string(),
                 depth: 2,
                 confidence: 1.0,
@@ -225,7 +225,7 @@ mod tests {
         assert_eq!(context.summary.primary_language, Some("Rust".to_string()));
         assert_eq!(
             context.summary.primary_build_system,
-            Some("cargo".to_string())
+            Some("Cargo".to_string())
         );
     }
 
@@ -276,7 +276,7 @@ mod tests {
         assert!(prompt.contains("Cargo.toml"));
         assert!(prompt.contains("package.json"));
         assert!(prompt.contains("Rust"));
-        assert!(prompt.contains("cargo"));
+        assert!(prompt.contains("Cargo"));
     }
 
     #[test]
@@ -292,7 +292,7 @@ mod tests {
     fn test_monorepo_detection_by_workspace_root() {
         let detections = vec![LanguageDetection {
             language: "Rust".to_string(),
-            build_system: "cargo".to_string(),
+            build_system: "Cargo".to_string(),
             manifest_path: "Cargo.toml".to_string(),
             depth: 0,
             confidence: 1.0,
@@ -308,7 +308,7 @@ mod tests {
         let detections = vec![
             LanguageDetection {
                 language: "Rust".to_string(),
-                build_system: "cargo".to_string(),
+                build_system: "Cargo".to_string(),
                 manifest_path: "Cargo.toml".to_string(),
                 depth: 0,
                 confidence: 1.0,
@@ -316,7 +316,7 @@ mod tests {
             },
             LanguageDetection {
                 language: "Rust".to_string(),
-                build_system: "cargo".to_string(),
+                build_system: "Cargo".to_string(),
                 manifest_path: "crates/lib/Cargo.toml".to_string(),
                 depth: 2,
                 confidence: 1.0,

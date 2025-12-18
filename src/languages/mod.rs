@@ -7,7 +7,6 @@ mod javascript;
 pub mod parsers;
 mod php;
 mod python;
-mod registry;
 mod ruby;
 mod rust;
 
@@ -19,17 +18,8 @@ pub use java::JavaLanguage;
 pub use javascript::JavaScriptLanguage;
 pub use php::PhpLanguage;
 pub use python::PythonLanguage;
-pub use registry::LanguageRegistry;
 pub use ruby::RubyLanguage;
 pub use rust::RustLanguage;
-
-#[derive(Debug, Clone)]
-pub struct LanguageDetection {
-    pub language: String,
-    pub build_system: String,
-    pub confidence: f64,
-    pub manifest_path: String,
-}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct BuildTemplate {

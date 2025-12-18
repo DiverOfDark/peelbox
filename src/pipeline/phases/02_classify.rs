@@ -151,7 +151,7 @@ mod tests {
 
         let detections = vec![LanguageDetection {
             language: "Rust".to_string(),
-            build_system: "cargo".to_string(),
+            build_system: "Cargo".to_string(),
             manifest_path: "Cargo.toml".to_string(),
             depth: 0,
             confidence: 1.0,

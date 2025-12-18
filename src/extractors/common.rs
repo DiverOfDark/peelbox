@@ -49,7 +49,7 @@ pub fn scan_directory_with_language_filter<F, C>(
 mod tests {
     use super::*;
     use crate::fs::MockFileSystem;
-    use crate::languages::LanguageRegistry;
+    use crate::stack::registry::StackRegistry;
     use std::path::PathBuf;
 
     #[test]
@@ -59,8 +59,8 @@ mod tests {
         fs.add_file("README.md", "docs");
         fs.add_file("package.json", "{}");
 
-        let registry = LanguageRegistry::with_defaults();
-        let lang = registry.get_language("JavaScript").unwrap();
+        let registry = StackRegistry::with_defaults();
+        let lang = registry.get_language(crate::stack::LanguageId::JavaScript).unwrap();
 
         let mut found_files = Vec::new();
         scan_directory_with_language_filter(&fs, Path::new("."), lang, |path| {
@@ -74,8 +74,8 @@ mod tests {
     #[test]
     fn test_scan_directory_handles_empty_dir() {
         let fs = MockFileSystem::new();
-        let registry = LanguageRegistry::with_defaults();
-        let lang = registry.get_language("JavaScript").unwrap();
+        let registry = StackRegistry::with_defaults();
+        let lang = registry.get_language(crate::stack::LanguageId::JavaScript).unwrap();
 
         let mut found_files: Vec<PathBuf> = Vec::new();
         scan_directory_with_language_filter(&fs, Path::new("."), lang, |path| {
@@ -88,8 +88,8 @@ mod tests {
     #[test]
     fn test_scan_directory_handles_nonexistent_dir() {
         let fs = MockFileSystem::new();
-        let registry = LanguageRegistry::with_defaults();
-        let lang = registry.get_language("JavaScript").unwrap();
+        let registry = StackRegistry::with_defaults();
+        let lang = registry.get_language(crate::stack::LanguageId::JavaScript).unwrap();
 
         let mut found_files: Vec<PathBuf> = Vec::new();
         scan_directory_with_language_filter(&fs, Path::new("nonexistent"), lang, |path| {

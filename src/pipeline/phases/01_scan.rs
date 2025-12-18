@@ -1,5 +1,5 @@
 use crate::bootstrap::{BootstrapContext, BootstrapScanner};
-use crate::languages::LanguageRegistry;
+use crate::stack::registry::StackRegistry;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -38,7 +38,7 @@ pub fn execute(repo_path: &Path) -> Result<ScanResult> {
 
     let bootstrap_context = scanner.scan().context("Failed to scan repository")?;
 
-    let file_tree = collect_file_tree(&repo_path, Arc::new(LanguageRegistry::with_defaults()))?;
+    let file_tree = collect_file_tree(&repo_path, Arc::new(StackRegistry::with_defaults()))?;
 
     Ok(ScanResult {
         repo_path,
@@ -47,7 +47,7 @@ pub fn execute(repo_path: &Path) -> Result<ScanResult> {
     })
 }
 
-fn collect_file_tree(repo_path: &Path, registry: Arc<LanguageRegistry>) -> Result<Vec<PathBuf>> {
+fn collect_file_tree(repo_path: &Path, registry: Arc<StackRegistry>) -> Result<Vec<PathBuf>> {
     let excluded_dirs = registry.all_excluded_dirs();
 
     let mut files = Vec::new();

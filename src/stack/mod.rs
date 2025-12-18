@@ -132,6 +132,28 @@ impl BuildSystemId {
             Self::Mix => "Mix",
         }
     }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "Cargo" | "cargo" => Some(Self::Cargo),
+            "Maven" | "maven" => Some(Self::Maven),
+            "Gradle" | "gradle" => Some(Self::Gradle),
+            "npm" => Some(Self::Npm),
+            "Yarn" | "yarn" => Some(Self::Yarn),
+            "pnpm" => Some(Self::Pnpm),
+            "Bun" | "bun" => Some(Self::Bun),
+            "pip" => Some(Self::Pip),
+            "Poetry" | "poetry" => Some(Self::Poetry),
+            "Pipenv" | "pipenv" => Some(Self::Pipenv),
+            "go mod" | "go-mod" => Some(Self::GoMod),
+            ".NET" | "dotnet" => Some(Self::DotNet),
+            "Composer" | "composer" => Some(Self::Composer),
+            "Bundler" | "bundler" => Some(Self::Bundler),
+            "CMake" | "cmake" => Some(Self::CMake),
+            "Mix" | "mix" => Some(Self::Mix),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

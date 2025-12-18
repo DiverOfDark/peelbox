@@ -2,7 +2,7 @@
 
 use crate::extractors::{parsers, ServiceContext};
 use crate::fs::FileSystem;
-use crate::languages::LanguageRegistry;
+use crate::stack::registry::StackRegistry;
 use regex::Regex;
 use std::collections::HashSet;
 
@@ -23,18 +23,18 @@ pub enum PortSource {
 
 pub struct PortExtractor<F: FileSystem> {
     fs: F,
-    registry: LanguageRegistry,
+    registry: StackRegistry,
 }
 
 impl<F: FileSystem> PortExtractor<F> {
     pub fn new(fs: F) -> Self {
         Self {
             fs,
-            registry: LanguageRegistry::with_defaults(),
+            registry: StackRegistry::with_defaults(),
         }
     }
 
-    pub fn with_registry(fs: F, registry: LanguageRegistry) -> Self {
+    pub fn with_registry(fs: F, registry: StackRegistry) -> Self {
         Self { fs, registry }
     }
 
@@ -78,8 +78,7 @@ impl<F: FileSystem> PortExtractor<F> {
     ) {
         let lang = match context
             .language
-            .as_ref()
-            .and_then(|name| self.registry.get_language(name))
+            .and_then(|id| self.registry.get_language(id))
         {
             Some(l) => l,
             None => return,
@@ -252,7 +251,7 @@ app.listen(3000, () => {
         let extractor = PortExtractor::new(fs);
         let context = ServiceContext::with_detection(
             PathBuf::from("."),
-            Some("JavaScript".to_string()),
+            Some(crate::stack::LanguageId::JavaScript),
             None,
         );
         let ports = extractor.extract(&context);
