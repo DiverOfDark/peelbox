@@ -33,14 +33,13 @@ fn build_prompt(scan: &ScanResult) -> String {
         .iter()
         .map(|d| {
             // Get relative path to manifest
-            let rel_path = d.manifest_path.strip_prefix(&scan.repo_path)
+            let rel_path = d
+                .manifest_path
+                .strip_prefix(&scan.repo_path)
                 .unwrap_or(&d.manifest_path);
 
             // Get directory part (relative)
-            let dir_raw = rel_path
-                .parent()
-                .and_then(|p| p.to_str())
-                .unwrap_or("");
+            let dir_raw = rel_path.parent().and_then(|p| p.to_str()).unwrap_or("");
             // Normalize empty to "."
             let dir = if dir_raw.is_empty() { "." } else { dir_raw };
 
@@ -125,7 +124,8 @@ fn deterministic_classify(scan: &ScanResult) -> ClassifyResult {
     let detections = &scan.detections;
 
     if detections.len() == 1 && detections[0].depth == 0 {
-        let manifest_filename = detections[0].manifest_path
+        let manifest_filename = detections[0]
+            .manifest_path
             .file_name()
             .and_then(|f| f.to_str())
             .unwrap_or("manifest")

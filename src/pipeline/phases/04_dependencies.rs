@@ -1,8 +1,8 @@
 use super::scan::ScanResult;
 use super::structure::{Service, StructureResult};
 use crate::heuristics::HeuristicLogger;
-use crate::stack::language::{Dependency, DependencyInfo, DetectionMethod};
 use crate::llm::LLMClient;
+use crate::stack::language::{Dependency, DependencyInfo, DetectionMethod};
 use crate::stack::registry::StackRegistry;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -112,8 +112,8 @@ pub async fn execute(
                 let pseudo_service = Service {
                     path: package.path.clone(),
                     manifest: package.manifest.clone(),
-                    language: package.language.clone(),
-                    build_system: package.build_system.clone(),
+                    language: package.language,
+                    build_system: package.build_system,
                 };
                 llm_fallback(
                     llm_client,

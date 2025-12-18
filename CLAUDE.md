@@ -131,8 +131,10 @@ aipack/
 │   │   ├── recording.rs     # Request/response recording system
 │   │   ├── selector.rs      # LLM client selection logic
 │   │   └── embedded/        # Embedded local inference
-│   ├── languages/           # Language registry (Rust, JS, Python, Java, Go, .NET, Ruby, PHP, C++, Kotlin, Elixir)
-│   ├── build_systems/       # Build system abstraction (Cargo, Maven, Gradle, npm, yarn, pnpm, pip, poetry, go mod, dotnet, composer)
+│   ├── stack/               # Unified stack registry (languages, build systems, frameworks, orchestrators)
+│   ├── languages/           # Language definitions (Rust, JS, Python, Java, Go, .NET, Ruby, PHP, C++, Kotlin, Elixir)
+│   ├── build_systems/       # Build system definitions (Cargo, Maven, Gradle, npm, yarn, pnpm, pip, poetry, go mod, dotnet, composer)
+│   ├── frameworks/          # Framework definitions (Spring Boot, Next.js, Django, Rails, etc.)
 │   ├── fs/                  # FileSystem abstraction (real + mock)
 │   ├── bootstrap/           # Pre-scan bootstrap
 │   ├── progress/            # Progress reporting
@@ -336,6 +338,34 @@ pub trait LLMClient: Send + Sync {
 ```
 
 All LLM integrations implement this trait, providing pluggable backends.
+
+### StackRegistry
+
+The `StackRegistry` is a unified registry for all technology stack components with strongly-typed identifiers:
+
+```rust
+use aipack::stack::{StackRegistry, LanguageId, BuildSystemId, FrameworkId};
+
+let registry = StackRegistry::with_defaults();
+
+let stack = registry.detect_stack(manifest_path, content)?;
+
+let build_system = registry.get_build_system(BuildSystemId::Cargo)?;
+let language = registry.get_language(LanguageId::Rust)?;
+let framework = registry.get_framework(FrameworkId::ActixWeb)?;
+```
+
+**Key Features:**
+- **Type-safe IDs**: All technology types use strongly-typed enums (LanguageId, BuildSystemId, FrameworkId, OrchestratorId)
+- **Auto-discovery**: Components automatically register their IDs via trait methods
+- **Unified detection**: Single `detect_stack()` call returns complete technology stack
+- **Relationship validation**: Built-in compatibility checking between languages, build systems, and frameworks
+
+**Supported Technologies:**
+- **Languages** (13): Rust, Java, Kotlin, JavaScript, TypeScript, Python, Go, C#, F#, Ruby, PHP, C++, Elixir
+- **Build Systems** (16): Cargo, Maven, Gradle, npm, yarn, pnpm, Bun, pip, poetry, pipenv, go mod, dotnet, composer, bundler, CMake, mix
+- **Frameworks** (20): Spring Boot, Quarkus, Micronaut, Ktor, Express, Next.js, Nest.js, Fastify, Django, Flask, FastAPI, Rails, Sinatra, Actix-web, Axum, Gin, Echo, ASP.NET Core, Laravel, Phoenix
+- **Orchestrators** (3): Turbo, Nx, Lerna
 
 ### UniversalBuild Output
 Multi-stage container build specification containing:

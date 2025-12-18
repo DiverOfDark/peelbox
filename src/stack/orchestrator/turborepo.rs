@@ -18,10 +18,7 @@ impl MonorepoOrchestrator for TurborepoOrchestrator {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![
-            "node_modules".to_string(),
-            ".turbo".to_string(),
-        ]
+        vec!["node_modules".to_string(), ".turbo".to_string()]
     }
 
     fn name(&self) -> &'static str {

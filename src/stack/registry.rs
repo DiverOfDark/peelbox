@@ -113,8 +113,7 @@ impl StackRegistry {
     }
 
     pub fn register_orchestrator(&mut self, orchestrator: Arc<dyn MonorepoOrchestrator>) {
-        self.orchestrators
-            .insert(orchestrator.id(), orchestrator);
+        self.orchestrators.insert(orchestrator.id(), orchestrator);
     }
 
     pub fn get_orchestrator(&self, id: OrchestratorId) -> Option<&dyn MonorepoOrchestrator> {

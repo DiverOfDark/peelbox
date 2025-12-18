@@ -18,10 +18,7 @@ impl MonorepoOrchestrator for NxOrchestrator {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![
-            "node_modules".to_string(),
-            ".nx".to_string(),
-        ]
+        vec!["node_modules".to_string(), ".nx".to_string()]
     }
 
     fn name(&self) -> &'static str {

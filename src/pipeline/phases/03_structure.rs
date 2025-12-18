@@ -110,13 +110,17 @@ fn discover_relevant_config_files(scan: &ScanResult) -> Vec<String> {
                     break;
                 }
 
-                let ext = file.extension()
+                let ext = file
+                    .extension()
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_string();
 
                 let full_path = file.display().to_string();
-                extension_counts.entry(ext).or_default().push(full_path.clone());
+                extension_counts
+                    .entry(ext)
+                    .or_default()
+                    .push(full_path.clone());
                 result.push(full_path);
             }
         }
@@ -127,7 +131,8 @@ fn discover_relevant_config_files(scan: &ScanResult) -> Vec<String> {
 
     for file_path in &result {
         let path = Path::new(file_path);
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_string();
@@ -141,10 +146,12 @@ fn discover_relevant_config_files(scan: &ScanResult) -> Vec<String> {
                 } else {
                     format!(".{} files", ext)
                 };
-                condensed.push(format!("{}+{} more {}",
+                condensed.push(format!(
+                    "{}+{} more {}",
                     path.file_name().and_then(|n| n.to_str()).unwrap_or(""),
                     files_with_ext.len() - 1,
-                    ext_display));
+                    ext_display
+                ));
                 shown_extensions.insert(ext.clone());
             }
         }
@@ -260,8 +267,6 @@ fn detect_orchestrator_deterministic(scan: &ScanResult) -> Option<String> {
     None
 }
 
-
-
 fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Service> {
     service_paths
         .iter()
@@ -276,14 +281,27 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
             tracing::debug!("Full path: {}", full_path.display());
 
             let matched = scan.detections.iter().find(|d| {
-                let detection_rel_path = d.manifest_path.strip_prefix(&scan.repo_path)
+                let detection_rel_path = d
+                    .manifest_path
+                    .strip_prefix(&scan.repo_path)
                     .unwrap_or(&d.manifest_path);
 
-                let detection_filename = d.manifest_path.file_name().and_then(|f| f.to_str()).unwrap_or("");
+                let detection_filename = d
+                    .manifest_path
+                    .file_name()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("");
                 let sp_path_str = sp.path.to_str().unwrap_or(".");
-                let detection_dir_raw = detection_rel_path.parent().and_then(|p| p.to_str()).unwrap_or("");
+                let detection_dir_raw = detection_rel_path
+                    .parent()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or("");
                 // Normalize empty string to "." for comparison
-                let detection_dir = if detection_dir_raw.is_empty() { "." } else { detection_dir_raw };
+                let detection_dir = if detection_dir_raw.is_empty() {
+                    "."
+                } else {
+                    detection_dir_raw
+                };
 
                 tracing::debug!(
                     "Checking detection: manifest_path={}, relative={}, filename={}, dir={}",
@@ -326,14 +344,27 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
             scan.detections
                 .iter()
                 .find(|d| {
-                    let detection_rel_path = d.manifest_path.strip_prefix(&scan.repo_path)
+                    let detection_rel_path = d
+                        .manifest_path
+                        .strip_prefix(&scan.repo_path)
                         .unwrap_or(&d.manifest_path);
 
-                    let detection_filename = d.manifest_path.file_name().and_then(|f| f.to_str()).unwrap_or("");
+                    let detection_filename = d
+                        .manifest_path
+                        .file_name()
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("");
                     let pp_path_str = pp.path.to_str().unwrap_or(".");
-                    let detection_dir_raw = detection_rel_path.parent().and_then(|p| p.to_str()).unwrap_or("");
+                    let detection_dir_raw = detection_rel_path
+                        .parent()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or("");
                     // Normalize empty string to "." for comparison
-                    let detection_dir = if detection_dir_raw.is_empty() { "." } else { detection_dir_raw };
+                    let detection_dir = if detection_dir_raw.is_empty() {
+                        "."
+                    } else {
+                        detection_dir_raw
+                    };
 
                     // Match if:
                     // 1. Relative detection path matches the full package path
