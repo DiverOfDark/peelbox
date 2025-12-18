@@ -9,6 +9,8 @@ pub struct DetectionStack {
     pub framework: Option<FrameworkId>,
     pub confidence: f64,
     pub manifest_path: PathBuf,
+    pub depth: usize,
+    pub is_workspace_root: bool,
 }
 
 impl DetectionStack {
@@ -23,7 +25,19 @@ impl DetectionStack {
             framework: None,
             confidence: 1.0,
             manifest_path,
+            depth: 0,
+            is_workspace_root: false,
         }
+    }
+
+    pub fn with_depth(mut self, depth: usize) -> Self {
+        self.depth = depth;
+        self
+    }
+
+    pub fn with_workspace_root(mut self, is_workspace_root: bool) -> Self {
+        self.is_workspace_root = is_workspace_root;
+        self
     }
 
     pub fn with_framework(mut self, framework: FrameworkId) -> Self {

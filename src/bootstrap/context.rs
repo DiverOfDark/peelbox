@@ -1,10 +1,11 @@
+use crate::stack::DetectionStack;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootstrapContext {
     pub summary: RepoSummary,
-    pub detections: Vec<LanguageDetection>,
+    pub detections: Vec<DetectionStack>,
     pub workspace: WorkspaceInfo,
     pub scan_time_ms: u64,
 }
@@ -19,16 +20,6 @@ pub struct RepoSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LanguageDetection {
-    pub language: String,
-    pub build_system: String,
-    pub manifest_path: String,
-    pub depth: usize,
-    pub confidence: f64,
-    pub is_workspace_root: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
     pub root_manifests: Vec<String>,
     pub nested_by_depth: HashMap<usize, Vec<String>>,
@@ -38,7 +29,7 @@ pub struct WorkspaceInfo {
 
 impl BootstrapContext {
     pub fn from_detections(
-        detections: Vec<LanguageDetection>,
+        detections: Vec<DetectionStack>,
         has_workspace_config: bool,
         scan_time_ms: u64,
     ) -> Self {
@@ -54,7 +45,7 @@ impl BootstrapContext {
     }
 
     fn build_workspace_info(
-        detections: &[LanguageDetection],
+        detections: &[DetectionStack],
         has_workspace_config: bool,
     ) -> WorkspaceInfo {
         let mut root_manifests = Vec::new();
@@ -62,13 +53,14 @@ impl BootstrapContext {
         let mut max_depth = 0;
 
         for detection in detections {
+            let manifest_path = detection.manifest_path.to_string_lossy().to_string();
             if detection.depth == 0 {
-                root_manifests.push(detection.manifest_path.clone());
+                root_manifests.push(manifest_path);
             } else {
                 nested_by_depth
                     .entry(detection.depth)
                     .or_default()
-                    .push(detection.manifest_path.clone());
+                    .push(manifest_path);
                 max_depth = max_depth.max(detection.depth);
             }
         }
@@ -81,7 +73,7 @@ impl BootstrapContext {
         }
     }
 
-    fn build_summary(detections: &[LanguageDetection], workspace: &WorkspaceInfo) -> RepoSummary {
+    fn build_summary(detections: &[DetectionStack], workspace: &WorkspaceInfo) -> RepoSummary {
         let primary = detections
             .iter()
             .filter(|d| d.depth == 0)
@@ -96,32 +88,32 @@ impl BootstrapContext {
 
         RepoSummary {
             manifest_count: detections.len(),
-            primary_language: primary.map(|d| d.language.clone()),
-            primary_build_system: primary.map(|d| d.build_system.clone()),
+            primary_language: primary.map(|d| d.language.name().to_string()),
+            primary_build_system: primary.map(|d| d.build_system.name().to_string()),
             is_monorepo,
             root_manifests: workspace.root_manifests.clone(),
         }
     }
 
     pub fn format_for_prompt(&self) -> String {
-        let manifest_list: Vec<&str> = self
+        let manifest_list: Vec<String> = self
             .detections
             .iter()
-            .map(|d| d.manifest_path.as_str())
+            .map(|d| d.manifest_path.to_string_lossy().to_string())
             .collect();
 
         let languages: Vec<String> = self
             .detections
             .iter()
             .filter(|d| d.depth == 0)
-            .map(|d| format!("{} ({})", d.language, d.build_system))
+            .map(|d| format!("{} ({})", d.language.name(), d.build_system.name()))
             .collect();
 
-        let workspace_roots: Vec<&str> = self
+        let workspace_roots: Vec<String> = self
             .detections
             .iter()
             .filter(|d| d.is_workspace_root)
-            .map(|d| d.manifest_path.as_str())
+            .map(|d| d.manifest_path.to_string_lossy().to_string())
             .collect();
 
         let workspace_info = if !workspace_roots.is_empty() {
@@ -179,32 +171,35 @@ Use these manifest files to guide your analysis. Read them directly without sear
 mod tests {
     use super::*;
 
-    fn create_test_detections() -> Vec<LanguageDetection> {
+    fn create_test_detections() -> Vec<DetectionStack> {
+        use crate::stack::{BuildSystemId, LanguageId};
+        use std::path::PathBuf;
+
         vec![
-            LanguageDetection {
-                language: "Rust".to_string(),
-                build_system: "Cargo".to_string(),
-                manifest_path: "Cargo.toml".to_string(),
-                depth: 0,
-                confidence: 1.0,
-                is_workspace_root: true,
-            },
-            LanguageDetection {
-                language: "JavaScript".to_string(),
-                build_system: "npm".to_string(),
-                manifest_path: "package.json".to_string(),
-                depth: 0,
-                confidence: 0.8,
-                is_workspace_root: false,
-            },
-            LanguageDetection {
-                language: "Rust".to_string(),
-                build_system: "Cargo".to_string(),
-                manifest_path: "crates/lib/Cargo.toml".to_string(),
-                depth: 2,
-                confidence: 1.0,
-                is_workspace_root: false,
-            },
+            DetectionStack::new(
+                BuildSystemId::Cargo,
+                LanguageId::Rust,
+                PathBuf::from("Cargo.toml"),
+            )
+            .with_depth(0)
+            .with_confidence(1.0)
+            .with_workspace_root(true),
+            DetectionStack::new(
+                BuildSystemId::Npm,
+                LanguageId::JavaScript,
+                PathBuf::from("package.json"),
+            )
+            .with_depth(0)
+            .with_confidence(0.8)
+            .with_workspace_root(false),
+            DetectionStack::new(
+                BuildSystemId::Cargo,
+                LanguageId::Rust,
+                PathBuf::from("crates/lib/Cargo.toml"),
+            )
+            .with_depth(2)
+            .with_confidence(1.0)
+            .with_workspace_root(false),
         ]
     }
 
@@ -239,14 +234,17 @@ mod tests {
 
     #[test]
     fn test_monorepo_detection_by_config() {
-        let detections = vec![LanguageDetection {
-            language: "JavaScript".to_string(),
-            build_system: "npm".to_string(),
-            manifest_path: "package.json".to_string(),
-            depth: 0,
-            confidence: 0.9,
-            is_workspace_root: false,
-        }];
+        use crate::stack::{BuildSystemId, LanguageId};
+        use std::path::PathBuf;
+
+        let detections = vec![DetectionStack::new(
+            BuildSystemId::Npm,
+            LanguageId::JavaScript,
+            PathBuf::from("package.json"),
+        )
+        .with_depth(0)
+        .with_confidence(0.9)
+        .with_workspace_root(false)];
         let context = BootstrapContext::from_detections(detections, true, 50);
 
         assert!(context.summary.is_monorepo);
@@ -290,14 +288,17 @@ mod tests {
 
     #[test]
     fn test_monorepo_detection_by_workspace_root() {
-        let detections = vec![LanguageDetection {
-            language: "Rust".to_string(),
-            build_system: "Cargo".to_string(),
-            manifest_path: "Cargo.toml".to_string(),
-            depth: 0,
-            confidence: 1.0,
-            is_workspace_root: true,
-        }];
+        use crate::stack::{BuildSystemId, LanguageId};
+        use std::path::PathBuf;
+
+        let detections = vec![DetectionStack::new(
+            BuildSystemId::Cargo,
+            LanguageId::Rust,
+            PathBuf::from("Cargo.toml"),
+        )
+        .with_depth(0)
+        .with_confidence(1.0)
+        .with_workspace_root(true)];
         let context = BootstrapContext::from_detections(detections, false, 50);
 
         assert!(context.summary.is_monorepo);
@@ -305,23 +306,26 @@ mod tests {
 
     #[test]
     fn test_format_for_prompt_includes_workspace_roots() {
+        use crate::stack::{BuildSystemId, LanguageId};
+        use std::path::PathBuf;
+
         let detections = vec![
-            LanguageDetection {
-                language: "Rust".to_string(),
-                build_system: "Cargo".to_string(),
-                manifest_path: "Cargo.toml".to_string(),
-                depth: 0,
-                confidence: 1.0,
-                is_workspace_root: true,
-            },
-            LanguageDetection {
-                language: "Rust".to_string(),
-                build_system: "Cargo".to_string(),
-                manifest_path: "crates/lib/Cargo.toml".to_string(),
-                depth: 2,
-                confidence: 1.0,
-                is_workspace_root: false,
-            },
+            DetectionStack::new(
+                BuildSystemId::Cargo,
+                LanguageId::Rust,
+                PathBuf::from("Cargo.toml"),
+            )
+            .with_depth(0)
+            .with_confidence(1.0)
+            .with_workspace_root(true),
+            DetectionStack::new(
+                BuildSystemId::Cargo,
+                LanguageId::Rust,
+                PathBuf::from("crates/lib/Cargo.toml"),
+            )
+            .with_depth(2)
+            .with_confidence(1.0)
+            .with_workspace_root(false),
         ];
         let context = BootstrapContext::from_detections(detections, false, 50);
 

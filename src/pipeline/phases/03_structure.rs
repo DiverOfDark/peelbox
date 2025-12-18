@@ -196,13 +196,14 @@ fn detect_monorepo_tool(scan: &ScanResult) -> MonorepoTool {
 
     for detection in &scan.bootstrap_context.detections {
         if detection.is_workspace_root {
-            match detection.build_system.as_str() {
-                "cargo" | "Cargo" => return MonorepoTool::CargoWorkspace,
-                "gradle" | "Gradle" => return MonorepoTool::GradleMultiproject,
-                "maven" | "Maven" => return MonorepoTool::MavenMultimodule,
-                "go" => return MonorepoTool::GoWorkspace,
-                "npm" => return MonorepoTool::NpmWorkspaces,
-                "yarn" | "Yarn" => return MonorepoTool::YarnWorkspaces,
+            use crate::stack::BuildSystemId;
+            match detection.build_system {
+                BuildSystemId::Cargo => return MonorepoTool::CargoWorkspace,
+                BuildSystemId::Gradle => return MonorepoTool::GradleMultiproject,
+                BuildSystemId::Maven => return MonorepoTool::MavenMultimodule,
+                BuildSystemId::GoMod => return MonorepoTool::GoWorkspace,
+                BuildSystemId::Npm => return MonorepoTool::NpmWorkspaces,
+                BuildSystemId::Yarn => return MonorepoTool::YarnWorkspaces,
                 _ => {}
             }
         }
@@ -225,8 +226,8 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
             tracing::debug!("Full path: {}", full_path.display());
 
             let matched = scan.bootstrap_context.detections.iter().find(|d| {
-                tracing::debug!("Checking detection: manifest_path={}", d.manifest_path);
-                d.manifest_path == sp.manifest || d.manifest_path == full_path.to_string_lossy()
+                tracing::debug!("Checking detection: manifest_path={}", d.manifest_path.display());
+                d.manifest_path.to_string_lossy() == sp.manifest || d.manifest_path == full_path
             });
 
             if matched.is_none() {
@@ -237,15 +238,11 @@ fn build_services(scan: &ScanResult, service_paths: &[ServicePath]) -> Vec<Servi
                 );
             }
 
-            matched.and_then(|d| {
-                let language = crate::stack::LanguageId::from_name(&d.language)?;
-                let build_system = crate::stack::BuildSystemId::from_name(&d.build_system)?;
-                Some(Service {
-                    path: sp.path.clone(),
-                    manifest: sp.manifest.clone(),
-                    language,
-                    build_system,
-                })
+            matched.map(|d| Service {
+                path: sp.path.clone(),
+                manifest: sp.manifest.clone(),
+                language: d.language,
+                build_system: d.build_system,
             })
         })
         .collect()
@@ -259,18 +256,14 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
                 .detections
                 .iter()
                 .find(|d| {
-                    d.manifest_path == pp.manifest
-                        || d.manifest_path == pp.path.join(&pp.manifest).to_string_lossy()
+                    d.manifest_path.to_string_lossy() == pp.manifest
+                        || d.manifest_path == pp.path.join(&pp.manifest)
                 })
-                .and_then(|d| {
-                    let language = crate::stack::LanguageId::from_name(&d.language)?;
-                    let build_system = crate::stack::BuildSystemId::from_name(&d.build_system)?;
-                    Some(Package {
-                        path: pp.path.clone(),
-                        manifest: pp.manifest.clone(),
-                        language,
-                        build_system,
-                    })
+                .map(|d| Package {
+                    path: pp.path.clone(),
+                    manifest: pp.manifest.clone(),
+                    language: d.language,
+                    build_system: d.build_system,
                 })
         })
         .collect()
@@ -296,7 +289,8 @@ mod tests {
     }
 
     fn create_scan_with_files(files: Vec<&str>) -> ScanResult {
-        use crate::bootstrap::{BootstrapContext, LanguageDetection, RepoSummary, WorkspaceInfo};
+        use crate::bootstrap::{BootstrapContext, RepoSummary, WorkspaceInfo};
+        use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
         use std::collections::HashMap;
         use std::path::PathBuf;
 
@@ -310,14 +304,14 @@ mod tests {
                     is_monorepo: false,
                     root_manifests: vec![],
                 },
-                detections: vec![LanguageDetection {
-                    language: "Rust".to_string(),
-                    build_system: "Cargo".to_string(),
-                    manifest_path: "Cargo.toml".to_string(),
-                    depth: 0,
-                    confidence: 1.0,
-                    is_workspace_root: false,
-                }],
+                detections: vec![DetectionStack::new(
+                    BuildSystemId::Cargo,
+                    LanguageId::Rust,
+                    PathBuf::from("Cargo.toml"),
+                )
+                .with_depth(0)
+                .with_confidence(1.0)
+                .with_workspace_root(false)],
                 workspace: WorkspaceInfo {
                     root_manifests: vec![],
                     nested_by_depth: HashMap::new(),

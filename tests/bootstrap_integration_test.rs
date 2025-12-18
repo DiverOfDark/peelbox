@@ -1,6 +1,7 @@
 //! Integration tests for bootstrap analysis
 
 use aipack::bootstrap::BootstrapScanner;
+use aipack::stack::{BuildSystemId, LanguageId};
 use std::fs;
 use tempfile::TempDir;
 
@@ -98,15 +99,15 @@ fn test_scan_rust_project() {
 
     assert!(!context.detections.is_empty());
 
-    let has_rust = context.detections.iter().any(|d| d.language == "Rust");
+    let has_rust = context.detections.iter().any(|d| d.language == LanguageId::Rust);
     assert!(has_rust, "Should detect Rust");
 
     let rust_detection = context
         .detections
         .iter()
-        .find(|d| d.language == "Rust")
+        .find(|d| d.language == LanguageId::Rust)
         .unwrap();
-    assert_eq!(rust_detection.build_system, "Cargo");
+    assert_eq!(rust_detection.build_system, BuildSystemId::Cargo);
 }
 
 #[test]
@@ -121,7 +122,7 @@ fn test_scan_node_project() {
     let has_js = context
         .detections
         .iter()
-        .any(|d| d.language == "JavaScript");
+        .any(|d| d.language == LanguageId::JavaScript);
     assert!(has_js, "Should detect JavaScript");
 }
 
@@ -150,7 +151,7 @@ fn test_scan_excludes_ignored_directories() {
         1,
         "Should only find root package.json, not ignored ones"
     );
-    assert_eq!(context.detections[0].language, "JavaScript");
+    assert_eq!(context.detections[0].language, LanguageId::JavaScript);
 }
 
 #[test]

@@ -1,5 +1,5 @@
-use super::{BootstrapContext, LanguageDetection};
-use crate::stack::StackRegistry;
+use super::BootstrapContext;
+use crate::stack::{DetectionStack, StackRegistry};
 use anyhow::{Context, Result};
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use std::path::{Path, PathBuf};
@@ -141,8 +141,8 @@ impl BootstrapScanner {
                     if let Some(detection) = self.detect_language(path, filename)? {
                         debug!(
                             path = %path.display(),
-                            language = %detection.language,
-                            build_system = %detection.build_system,
+                            language = %detection.language.name(),
+                            build_system = %detection.build_system.name(),
                             confidence = detection.confidence,
                             "Detected language"
                         );
@@ -167,7 +167,7 @@ impl BootstrapScanner {
         ))
     }
 
-    fn detect_language(&self, path: &Path, filename: &str) -> Result<Option<LanguageDetection>> {
+    fn detect_language(&self, path: &Path, filename: &str) -> Result<Option<DetectionStack>> {
         let content = if self.config.read_content {
             std::fs::read_to_string(path).ok()
         } else {
@@ -176,27 +176,19 @@ impl BootstrapScanner {
 
         let rel_path = path
             .strip_prefix(&self.repo_path)
-            .unwrap_or(path)
-            .to_string_lossy()
-            .to_string();
+            .unwrap_or(path);
 
-        let depth = rel_path.matches('/').count();
+        let depth = rel_path.to_string_lossy().matches('/').count();
 
-        if let Some(detection_stack) = self.stack_registry.detect_stack_opt(path, content.as_deref()) {
+        if let Some(mut detection_stack) = self.stack_registry.detect_stack_opt(path, content.as_deref()) {
             let is_workspace_root = self
                 .stack_registry
                 .is_workspace_root(filename, content.as_deref());
 
-            let (build_system, language, _) = detection_stack.to_string_parts();
+            detection_stack.depth = depth;
+            detection_stack.is_workspace_root = is_workspace_root;
 
-            Ok(Some(LanguageDetection {
-                language,
-                build_system,
-                manifest_path: rel_path,
-                depth,
-                confidence: detection_stack.confidence,
-                is_workspace_root,
-            }))
+            Ok(Some(detection_stack))
         } else {
             Ok(None)
         }
@@ -294,7 +286,7 @@ mod tests {
         let languages: Vec<&str> = context
             .detections
             .iter()
-            .map(|d| d.language.as_str())
+            .map(|d| d.language.name())
             .collect();
         assert!(languages.contains(&"Rust"));
         assert!(languages.contains(&"JavaScript"));
@@ -307,10 +299,10 @@ mod tests {
 
         let context = scanner.scan().unwrap();
 
-        let paths: Vec<&str> = context
+        let paths: Vec<String> = context
             .detections
             .iter()
-            .map(|d| d.manifest_path.as_str())
+            .map(|d| d.manifest_path.to_string_lossy().to_string())
             .collect();
 
         assert!(!paths.iter().any(|p| p.contains("node_modules")));
@@ -426,6 +418,6 @@ mod tests {
 
         // Should only find root package.json
         assert_eq!(context.detections.len(), 1);
-        assert_eq!(context.detections[0].manifest_path, "package.json");
+        assert_eq!(context.detections[0].manifest_path.file_name().unwrap(), "package.json");
     }
 }

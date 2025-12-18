@@ -34,13 +34,12 @@ fn build_prompt(scan: &ScanResult) -> String {
         .detections
         .iter()
         .map(|d| {
-            let path = std::path::Path::new(&d.manifest_path);
-            let dir = path.parent().and_then(|p| p.to_str()).unwrap_or(".");
-            let file = path
+            let dir = d.manifest_path.parent().and_then(|p| p.to_str()).unwrap_or(".");
+            let file = d.manifest_path
                 .file_name()
                 .and_then(|f| f.to_str())
-                .unwrap_or(&d.manifest_path);
-            format!("- {} in directory '{}' ({})", file, dir, d.build_system)
+                .unwrap_or("");
+            format!("- {} in directory '{}' ({})", file, dir, d.build_system.name())
         })
         .collect();
 
@@ -114,7 +113,7 @@ fn deterministic_classify(scan: &ScanResult) -> ClassifyResult {
         return ClassifyResult {
             services: vec![ServicePath {
                 path: PathBuf::from("."),
-                manifest: detections[0].manifest_path.clone(),
+                manifest: detections[0].manifest_path.to_string_lossy().to_string(),
             }],
             packages: vec![],
             root_is_service: true,
@@ -146,17 +145,18 @@ mod tests {
     }
 
     fn create_single_service_scan() -> ScanResult {
-        use crate::bootstrap::{BootstrapContext, LanguageDetection, RepoSummary, WorkspaceInfo};
+        use crate::bootstrap::{BootstrapContext, RepoSummary, WorkspaceInfo};
+        use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
         use std::collections::HashMap;
 
-        let detections = vec![LanguageDetection {
-            language: "Rust".to_string(),
-            build_system: "Cargo".to_string(),
-            manifest_path: "Cargo.toml".to_string(),
-            depth: 0,
-            confidence: 1.0,
-            is_workspace_root: false,
-        }];
+        let detections = vec![DetectionStack::new(
+            BuildSystemId::Cargo,
+            LanguageId::Rust,
+            PathBuf::from("Cargo.toml"),
+        )
+        .with_depth(0)
+        .with_confidence(1.0)
+        .with_workspace_root(false)];
 
         ScanResult {
             repo_path: PathBuf::from("."),
