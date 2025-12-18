@@ -11,8 +11,11 @@ use super::structure::{Service, StructureResult};
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
 use crate::stack::registry::StackRegistry;
 use anyhow::Result;
+use async_trait::async_trait;
 use std::collections::HashMap;
 
 pub struct ServiceAnalysisResults {
@@ -27,8 +30,28 @@ pub struct ServiceAnalysisResults {
     pub cache: CacheInfo,
 }
 
-pub fn execute(
-    analysis_results: Vec<ServiceAnalysisResults>,
+pub struct AssemblePhase;
+
+#[async_trait]
+impl WorkflowPhase for AssemblePhase {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+        let structure = context
+            .structure
+            .as_ref()
+            .expect("Structure must be available before assemble");
+        let root_cache = context
+            .root_cache
+            .as_ref()
+            .expect("Root cache must be available before assemble");
+
+        let builds = execute_assemble(&context.service_analyses, structure, root_cache)?;
+        context.builds = builds;
+        Ok(())
+    }
+}
+
+fn execute_assemble(
+    analysis_results: &[ServiceAnalysisResults],
     _structure: &StructureResult,
     root_cache: &RootCacheInfo,
 ) -> Result<Vec<UniversalBuild>> {
@@ -44,7 +67,7 @@ pub fn execute(
 }
 
 fn assemble_single_service(
-    result: ServiceAnalysisResults,
+    result: &ServiceAnalysisResults,
     root_cache: &RootCacheInfo,
     registry: &StackRegistry,
 ) -> Result<UniversalBuild> {
@@ -95,7 +118,7 @@ fn assemble_single_service(
             .map(|t| t.build_packages.clone())
             .unwrap_or_default(),
         env: HashMap::new(),
-        commands: result.build.build_cmd.into_iter().collect::<Vec<_>>(),
+        commands: result.build.build_cmd.clone().into_iter().collect::<Vec<_>>(),
         context: vec![ContextSpec {
             from: result.service.path.display().to_string(),
             to: "/app".to_string(),

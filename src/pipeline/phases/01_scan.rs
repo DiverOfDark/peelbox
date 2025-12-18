@@ -1,5 +1,8 @@
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
 use crate::stack::{DetectionStack, StackRegistry};
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -212,151 +215,6 @@ Use these manifest files to guide your analysis. Read them directly without sear
     }
 }
 
-pub fn execute(repo_path: &Path) -> Result<ScanResult> {
-    execute_with_config(repo_path, ScanConfig::default())
-}
-
-pub fn execute_with_config(repo_path: &Path, config: ScanConfig) -> Result<ScanResult> {
-    if !repo_path.exists() {
-        return Err(anyhow::anyhow!(
-            "Repository path does not exist: {:?}",
-            repo_path
-        ));
-    }
-    if !repo_path.is_dir() {
-        return Err(anyhow::anyhow!(
-            "Repository path is not a directory: {:?}",
-            repo_path
-        ));
-    }
-
-    let repo_path = repo_path
-        .canonicalize()
-        .context("Failed to canonicalize repository path")?;
-
-    let stack_registry = Arc::new(StackRegistry::with_defaults());
-
-    debug!(
-        repo_path = %repo_path.display(),
-        "Starting repository scan"
-    );
-
-    let start = Instant::now();
-
-    info!(
-        repo = %repo_path.display(),
-        max_depth = config.max_depth,
-        max_files = config.max_files,
-        "Starting repository scan"
-    );
-
-    let mut detections = Vec::new();
-    let mut file_tree = Vec::new();
-    let mut files_scanned = 0;
-    let mut has_workspace_config = false;
-
-    let mut override_builder = OverrideBuilder::new(&repo_path);
-    for excluded in stack_registry.all_excluded_dirs() {
-        override_builder.add(&format!("!{}/", excluded)).ok();
-    }
-    let overrides = override_builder
-        .build()
-        .unwrap_or_else(|_| OverrideBuilder::new(&repo_path).build().unwrap());
-
-    let has_git_dir = repo_path.join(".git").exists();
-
-    for result in WalkBuilder::new(&repo_path)
-        .max_depth(Some(config.max_depth))
-        .hidden(false)
-        .git_ignore(has_git_dir)
-        .git_global(false)
-        .git_exclude(false)
-        .overrides(overrides)
-        .build()
-    {
-        let entry = match result {
-            Ok(e) => e,
-            Err(err) => {
-                warn!(error = %err, "Failed to read directory entry");
-                continue;
-            }
-        };
-        let path = entry.path();
-
-        if !path.is_file() {
-            continue;
-        }
-
-        if files_scanned >= config.max_files {
-            warn!(
-                files_scanned,
-                max_files = config.max_files,
-                "Reached file limit, stopping scan"
-            );
-            break;
-        }
-        files_scanned += 1;
-
-        let rel_path = path.strip_prefix(&repo_path).unwrap_or(path).to_path_buf();
-
-        file_tree.push(rel_path.clone());
-
-        if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-            trace!(
-                file = filename,
-                path = %path.display(),
-                "Checking file"
-            );
-
-            if stack_registry.all_workspace_configs().contains(&filename) {
-                has_workspace_config = true;
-            }
-
-            let is_manifest = stack_registry.is_manifest(filename);
-            trace!(
-                file = filename,
-                is_manifest = is_manifest,
-                "Manifest check result"
-            );
-
-            if is_manifest {
-                if let Some(detection) = detect_language(
-                    path,
-                    filename,
-                    &repo_path,
-                    &stack_registry,
-                    config.read_content,
-                )? {
-                    debug!(
-                        path = %path.display(),
-                        language = %detection.language.name(),
-                        build_system = %detection.build_system.name(),
-                        confidence = detection.confidence,
-                        "Detected language"
-                    );
-                    detections.push(detection);
-                }
-            }
-        }
-    }
-
-    let elapsed = start.elapsed();
-    let scan_time_ms = elapsed.as_millis() as u64;
-
-    info!(
-        detections_found = detections.len(),
-        files_scanned, scan_time_ms, "Repository scan completed"
-    );
-
-    Ok(ScanResult::from_scan(
-        repo_path,
-        detections,
-        file_tree,
-        has_workspace_config,
-        scan_time_ms,
-    ))
-}
-
 fn detect_language(
     path: &Path,
     filename: &str,
@@ -402,6 +260,8 @@ fn detect_language(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::heuristics::HeuristicLogger;
+    use crate::llm::MockLLMClient;
     use std::fs;
     use std::io::Write;
     use tempfile::TempDir;
@@ -437,32 +297,48 @@ mod tests {
         dir
     }
 
-    #[test]
-    fn test_scan_execution() {
-        let temp_dir = create_test_repo();
-        let result = execute(temp_dir.path());
-        assert!(result.is_ok());
+    fn create_test_context(repo_path: &Path) -> AnalysisContext {
+        let llm_client = Arc::new(MockLLMClient::new());
+        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let heuristic_logger = Arc::new(HeuristicLogger::disabled());
+        AnalysisContext::new(repo_path, llm_client, stack_registry, None, heuristic_logger)
     }
 
-    #[test]
-    fn test_scan_detects_languages() {
+    #[tokio::test]
+    async fn test_scan_execution() {
         let temp_dir = create_test_repo();
-        let result = execute(temp_dir.path()).unwrap();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        let result = phase.execute(&mut context).await;
+        assert!(result.is_ok());
+        assert!(context.scan.is_some());
+    }
 
-        assert!(result.detections.len() >= 2);
+    #[tokio::test]
+    async fn test_scan_detects_languages() {
+        let temp_dir = create_test_repo();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        phase.execute(&mut context).await.unwrap();
+
+        let scan = context.scan.as_ref().unwrap();
+        assert!(scan.detections.len() >= 2);
 
         use crate::stack::LanguageId;
-        let languages: Vec<LanguageId> = result.detections.iter().map(|d| d.language).collect();
+        let languages: Vec<LanguageId> = scan.detections.iter().map(|d| d.language).collect();
         assert!(languages.contains(&LanguageId::Rust));
         assert!(languages.contains(&LanguageId::JavaScript));
     }
 
-    #[test]
-    fn test_file_tree_excludes_node_modules() {
+    #[tokio::test]
+    async fn test_file_tree_excludes_node_modules() {
         let temp_dir = create_test_repo();
-        let result = execute(temp_dir.path()).unwrap();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        phase.execute(&mut context).await.unwrap();
 
-        let paths: Vec<String> = result
+        let scan = context.scan.as_ref().unwrap();
+        let paths: Vec<String> = scan
             .file_tree
             .iter()
             .map(|p| p.to_string_lossy().to_string())
@@ -471,12 +347,167 @@ mod tests {
         assert!(!paths.iter().any(|p| p.contains("node_modules")));
     }
 
-    #[test]
-    fn test_find_files_by_name() {
+    #[tokio::test]
+    async fn test_find_files_by_name() {
         let temp_dir = create_test_repo();
-        let result = execute(temp_dir.path()).unwrap();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        phase.execute(&mut context).await.unwrap();
 
-        let cargo_files = result.find_files_by_name("Cargo.toml");
+        let scan = context.scan.as_ref().unwrap();
+        let cargo_files = scan.find_files_by_name("Cargo.toml");
         assert!(!cargo_files.is_empty());
+    }
+}
+
+pub struct ScanPhase;
+
+#[async_trait]
+impl WorkflowPhase for ScanPhase {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+        let config = ScanConfig::default();
+        let repo_path = &context.repo_path;
+
+        if !repo_path.exists() {
+            return Err(anyhow::anyhow!(
+                "Repository path does not exist: {:?}",
+                repo_path
+            ));
+        }
+        if !repo_path.is_dir() {
+            return Err(anyhow::anyhow!(
+                "Repository path is not a directory: {:?}",
+                repo_path
+            ));
+        }
+
+        let repo_path = repo_path
+            .canonicalize()
+            .context("Failed to canonicalize repository path")?;
+
+        let stack_registry = Arc::new(StackRegistry::with_defaults());
+
+        debug!(
+            repo_path = %repo_path.display(),
+            "Starting repository scan"
+        );
+
+        let start = Instant::now();
+
+        info!(
+            repo = %repo_path.display(),
+            max_depth = config.max_depth,
+            max_files = config.max_files,
+            "Starting repository scan"
+        );
+
+        let mut detections = Vec::new();
+        let mut file_tree = Vec::new();
+        let mut files_scanned = 0;
+        let mut has_workspace_config = false;
+
+        let mut override_builder = OverrideBuilder::new(&repo_path);
+        for excluded in stack_registry.all_excluded_dirs() {
+            override_builder.add(&format!("!{}/", excluded)).ok();
+        }
+        let overrides = override_builder
+            .build()
+            .unwrap_or_else(|_| OverrideBuilder::new(&repo_path).build().unwrap());
+
+        let has_git_dir = repo_path.join(".git").exists();
+
+        for result in WalkBuilder::new(&repo_path)
+            .max_depth(Some(config.max_depth))
+            .hidden(false)
+            .git_ignore(has_git_dir)
+            .git_global(false)
+            .git_exclude(false)
+            .overrides(overrides)
+            .build()
+        {
+            let entry = match result {
+                Ok(e) => e,
+                Err(err) => {
+                    warn!(error = %err, "Failed to read directory entry");
+                    continue;
+                }
+            };
+            let path = entry.path();
+
+            if !path.is_file() {
+                continue;
+            }
+
+            if files_scanned >= config.max_files {
+                warn!(
+                    files_scanned,
+                    max_files = config.max_files,
+                    "Reached file limit, stopping scan"
+                );
+                break;
+            }
+            files_scanned += 1;
+
+            let rel_path = path.strip_prefix(&repo_path).unwrap_or(path).to_path_buf();
+
+            file_tree.push(rel_path.clone());
+
+            if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                trace!(
+                    file = filename,
+                    path = %path.display(),
+                    "Checking file"
+                );
+
+                if stack_registry.all_workspace_configs().contains(&filename) {
+                    has_workspace_config = true;
+                }
+
+                let is_manifest = stack_registry.is_manifest(filename);
+                trace!(
+                    file = filename,
+                    is_manifest = is_manifest,
+                    "Manifest check result"
+                );
+
+                if is_manifest {
+                    if let Some(detection) = detect_language(
+                        path,
+                        filename,
+                        &repo_path,
+                        &stack_registry,
+                        config.read_content,
+                    )? {
+                        debug!(
+                            path = %path.display(),
+                            language = %detection.language.name(),
+                            build_system = %detection.build_system.name(),
+                            confidence = detection.confidence,
+                            "Detected language"
+                        );
+                        detections.push(detection);
+                    }
+                }
+            }
+        }
+
+        let elapsed = start.elapsed();
+        let scan_time_ms = elapsed.as_millis() as u64;
+
+        info!(
+            detections_found = detections.len(),
+            files_scanned, scan_time_ms, "Repository scan completed"
+        );
+
+        let result = ScanResult::from_scan(
+            repo_path,
+            detections,
+            file_tree,
+            has_workspace_config,
+            scan_time_ms,
+        );
+
+        context.scan = Some(result);
+        Ok(())
     }
 }

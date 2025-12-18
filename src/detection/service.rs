@@ -226,7 +226,8 @@ impl DetectionService {
         info!("Starting detection for repository: {}", repo_path.display());
 
         use crate::heuristics::HeuristicLogger;
-        use crate::pipeline::PipelineOrchestrator;
+        use crate::pipeline::{AnalysisContext, PipelineOrchestrator};
+        use crate::stack::StackRegistry;
 
         let progress_handler = if enable_progress {
             Some(LoggingHandler)
@@ -234,18 +235,25 @@ impl DetectionService {
             None
         };
 
-        let orchestrator = PipelineOrchestrator::new(
+        let mut context = AnalysisContext::new(
+            &repo_path,
             self.client.clone(),
-            progress_handler,
+            Arc::new(StackRegistry::with_defaults()),
+            None,
             Arc::new(HeuristicLogger::disabled()),
         );
 
-        let results = orchestrator.execute(&repo_path).await.map_err(|e| {
-            use crate::llm::BackendError;
-            ServiceError::BackendError(BackendError::Other {
-                message: e.to_string(),
-            })
-        })?;
+        let orchestrator = PipelineOrchestrator::new(progress_handler);
+
+        let results = orchestrator
+            .execute(&repo_path, &mut context)
+            .await
+            .map_err(|e| {
+                use crate::llm::BackendError;
+                ServiceError::BackendError(BackendError::Other {
+                    message: e.to_string(),
+                })
+            })?;
 
         let elapsed = start.elapsed();
 

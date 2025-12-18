@@ -1,5 +1,3 @@
-use super::scan::ScanResult;
-use super::structure::StructureResult;
 use crate::pipeline::Confidence;
 use crate::stack::registry::StackRegistry;
 use serde::{Deserialize, Serialize};
@@ -12,54 +10,19 @@ pub struct RootCacheInfo {
     pub confidence: Confidence,
 }
 
-pub fn execute(scan: &ScanResult, structure: &StructureResult) -> RootCacheInfo {
-    let mut root_cache_dirs = HashSet::new();
-
-    let registry = StackRegistry::with_defaults();
-
-    // Add cache dirs from workspace root build systems
-    for detection in &scan.detections {
-        if detection.is_workspace_root {
-            if let Some(build_system) = registry.get_build_system(detection.build_system) {
-                for cache_dir in build_system.cache_dirs() {
-                    root_cache_dirs.insert(PathBuf::from(cache_dir));
-                }
-            }
-        }
-    }
-
-    // Add cache dirs from orchestrator (if detected)
-    if let Some(orchestrator_name) = &structure.orchestrator {
-        for orchestrator in registry.all_orchestrators() {
-            if orchestrator.name().to_lowercase() == orchestrator_name.to_lowercase() {
-                for cache_dir in orchestrator.cache_dirs() {
-                    root_cache_dirs.insert(PathBuf::from(cache_dir));
-                }
-                break;
-            }
-        }
-    }
-
-    let mut dirs: Vec<PathBuf> = root_cache_dirs.into_iter().collect();
-    dirs.sort();
-
-    RootCacheInfo {
-        root_cache_dirs: dirs,
-        confidence: Confidence::High,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::phases::scan::{RepoSummary, WorkspaceInfo};
-    use crate::pipeline::phases::structure::ProjectType;
+    use crate::pipeline::context::AnalysisContext;
+    use crate::pipeline::phase_trait::WorkflowPhase;
+    use crate::pipeline::phases::scan::{RepoSummary, ScanResult, WorkspaceInfo};
+    use crate::pipeline::phases::structure::{ProjectType, StructureResult};
     use crate::pipeline::Confidence;
     use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
     use std::collections::HashMap;
 
-    #[test]
-    fn test_root_cache_pnpm() {
+    #[tokio::test]
+    async fn test_root_cache_pnpm() {
         let mut scan = create_scan_with_files(vec!["pnpm-workspace.yaml"]);
         scan.detections[0].build_system = BuildSystemId::Pnpm;
         scan.detections[0].is_workspace_root = true;
@@ -72,7 +35,7 @@ mod tests {
             confidence: Confidence::High,
         };
 
-        let result = execute(&scan, &structure);
+        let result = execute_phase(&scan, &structure).await;
         assert!(result
             .root_cache_dirs
             .contains(&PathBuf::from("node_modules")));
@@ -82,8 +45,8 @@ mod tests {
         assert_eq!(result.confidence, Confidence::High);
     }
 
-    #[test]
-    fn test_root_cache_cargo_workspace() {
+    #[tokio::test]
+    async fn test_root_cache_cargo_workspace() {
         let mut scan = create_scan_with_files(vec!["Cargo.toml"]);
         scan.detections[0].is_workspace_root = true;
 
@@ -95,14 +58,14 @@ mod tests {
             confidence: Confidence::High,
         };
 
-        let result = execute(&scan, &structure);
+        let result = execute_phase(&scan, &structure).await;
         assert!(result.root_cache_dirs.contains(&PathBuf::from("target")));
         assert!(result.root_cache_dirs.contains(&PathBuf::from(".cargo")));
         assert_eq!(result.confidence, Confidence::High);
     }
 
-    #[test]
-    fn test_root_cache_turborepo() {
+    #[tokio::test]
+    async fn test_root_cache_turborepo() {
         let scan = create_scan_with_files(vec!["turbo.json", "package.json"]);
 
         let structure = StructureResult {
@@ -113,15 +76,15 @@ mod tests {
             confidence: Confidence::High,
         };
 
-        let result = execute(&scan, &structure);
+        let result = execute_phase(&scan, &structure).await;
         assert!(result
             .root_cache_dirs
             .contains(&PathBuf::from("node_modules")));
         assert!(result.root_cache_dirs.contains(&PathBuf::from(".turbo")));
     }
 
-    #[test]
-    fn test_root_cache_none() {
+    #[tokio::test]
+    async fn test_root_cache_none() {
         let scan = create_scan_with_files(vec!["package.json"]);
 
         let structure = StructureResult {
@@ -132,13 +95,13 @@ mod tests {
             confidence: Confidence::High,
         };
 
-        let result = execute(&scan, &structure);
+        let result = execute_phase(&scan, &structure).await;
         assert!(result.root_cache_dirs.is_empty());
         assert_eq!(result.confidence, Confidence::High);
     }
 
-    #[test]
-    fn test_root_cache_nx() {
+    #[tokio::test]
+    async fn test_root_cache_nx() {
         let scan = create_scan_with_files(vec!["nx.json", "package.json"]);
 
         let structure = StructureResult {
@@ -149,11 +112,37 @@ mod tests {
             confidence: Confidence::High,
         };
 
-        let result = execute(&scan, &structure);
+        let result = execute_phase(&scan, &structure).await;
         assert!(result
             .root_cache_dirs
             .contains(&PathBuf::from("node_modules")));
         assert!(result.root_cache_dirs.contains(&PathBuf::from(".nx")));
+    }
+
+    async fn execute_phase(scan: &ScanResult, structure: &StructureResult) -> RootCacheInfo {
+        use crate::heuristics::HeuristicLogger;
+        use crate::llm::MockLLMClient;
+        use crate::stack::StackRegistry;
+        use std::sync::Arc;
+
+        let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(MockLLMClient::default());
+        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let heuristic_logger = Arc::new(HeuristicLogger::new(None));
+
+        let mut context = AnalysisContext::new(
+            &PathBuf::from("."),
+            llm_client,
+            stack_registry,
+            None,
+            heuristic_logger,
+        );
+        context.scan = Some(scan.clone());
+        context.structure = Some(structure.clone());
+
+        let phase = RootCachePhase;
+        phase.execute(&mut context).await.unwrap();
+
+        context.root_cache.unwrap()
     }
 
     fn create_scan_with_files(files: Vec<&str>) -> ScanResult {
@@ -183,5 +172,64 @@ mod tests {
             file_tree: files.iter().map(PathBuf::from).collect(),
             scan_time_ms: 50,
         }
+    }
+}
+
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
+use anyhow::Result;
+use async_trait::async_trait;
+
+pub struct RootCachePhase;
+
+#[async_trait]
+impl WorkflowPhase for RootCachePhase {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before root_cache");
+        let structure = context
+            .structure
+            .as_ref()
+            .expect("Structure must be available before root_cache");
+
+        let mut root_cache_dirs = HashSet::new();
+
+        let registry = StackRegistry::with_defaults();
+
+        // Add cache dirs from workspace root build systems
+        for detection in &scan.detections {
+            if detection.is_workspace_root {
+                if let Some(build_system) = registry.get_build_system(detection.build_system) {
+                    for cache_dir in build_system.cache_dirs() {
+                        root_cache_dirs.insert(PathBuf::from(cache_dir));
+                    }
+                }
+            }
+        }
+
+        // Add cache dirs from orchestrator (if detected)
+        if let Some(orchestrator_name) = &structure.orchestrator {
+            for orchestrator in registry.all_orchestrators() {
+                if orchestrator.name().to_lowercase() == orchestrator_name.to_lowercase() {
+                    for cache_dir in orchestrator.cache_dirs() {
+                        root_cache_dirs.insert(PathBuf::from(cache_dir));
+                    }
+                    break;
+                }
+            }
+        }
+
+        let mut dirs: Vec<PathBuf> = root_cache_dirs.into_iter().collect();
+        dirs.sort();
+
+        let result = RootCacheInfo {
+            root_cache_dirs: dirs,
+            confidence: Confidence::High,
+        };
+
+        context.root_cache = Some(result);
+        Ok(())
     }
 }

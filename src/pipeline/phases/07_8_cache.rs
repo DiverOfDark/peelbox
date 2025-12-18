@@ -1,5 +1,8 @@
-use super::structure::Service;
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
 use crate::pipeline::Confidence;
+use anyhow::Result;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -9,9 +12,13 @@ pub struct CacheInfo {
     pub confidence: Confidence,
 }
 
-pub fn execute(service: &Service) -> CacheInfo {
-    use crate::stack::BuildSystemId;
-    let cache_dirs = match service.build_system {
+pub struct CachePhase;
+
+#[async_trait]
+impl ServicePhase for CachePhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        use crate::stack::BuildSystemId;
+        let cache_dirs = match context.service.build_system {
         BuildSystemId::Npm | BuildSystemId::Yarn | BuildSystemId::Pnpm | BuildSystemId::Bun => {
             vec![
                 PathBuf::from("node_modules"),
@@ -39,18 +46,48 @@ pub fn execute(service: &Service) -> CacheInfo {
         BuildSystemId::Pipenv => vec![],
     };
 
-    CacheInfo {
-        cache_dirs,
-        confidence: Confidence::High,
+        let result = CacheInfo {
+            cache_dirs,
+            confidence: Confidence::High,
+        };
+        Ok(ServicePhaseResult::Cache(result))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::heuristics::HeuristicLogger;
+    use crate::llm::MockLLMClient;
+    use crate::pipeline::context::AnalysisContext;
+    use crate::pipeline::phases::structure::Service;
+    use crate::stack::StackRegistry;
+    use std::sync::Arc;
 
-    #[test]
-    fn test_cache_npm() {
+    async fn execute_phase(service: &Service) -> CacheInfo {
+        let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(MockLLMClient::default());
+        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let heuristic_logger = Arc::new(HeuristicLogger::new(None));
+
+        let analysis_context = AnalysisContext::new(
+            &PathBuf::from("."),
+            llm_client,
+            stack_registry,
+            None,
+            heuristic_logger,
+        );
+
+        let service_context = ServiceContext::new(service, &analysis_context);
+        let phase = CachePhase;
+        let result = phase.execute(&service_context).await.unwrap();
+        match result {
+            ServicePhaseResult::Cache(info) => info,
+            _ => unreachable!(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_cache_npm() {
         let service = Service {
             path: PathBuf::from("apps/web"),
             manifest: "package.json".to_string(),
@@ -58,13 +95,13 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let result = execute(&service);
+        let result = execute_phase(&service).await;
         assert!(result.cache_dirs.contains(&PathBuf::from("node_modules")));
         assert_eq!(result.confidence, Confidence::High);
     }
 
-    #[test]
-    fn test_cache_cargo() {
+    #[tokio::test]
+    async fn test_cache_cargo() {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "Cargo.toml".to_string(),
@@ -72,13 +109,13 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Cargo,
         };
 
-        let result = execute(&service);
+        let result = execute_phase(&service).await;
         assert_eq!(result.cache_dirs, vec![PathBuf::from("target")]);
         assert_eq!(result.confidence, Confidence::High);
     }
 
-    #[test]
-    fn test_cache_maven() {
+    #[tokio::test]
+    async fn test_cache_maven() {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "pom.xml".to_string(),
@@ -86,13 +123,13 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Maven,
         };
 
-        let result = execute(&service);
+        let result = execute_phase(&service).await;
         assert!(result.cache_dirs.contains(&PathBuf::from(".m2/repository")));
         assert!(result.cache_dirs.contains(&PathBuf::from("target")));
     }
 
-    #[test]
-    fn test_cache_gradle() {
+    #[tokio::test]
+    async fn test_cache_gradle() {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "build.gradle".to_string(),
@@ -100,13 +137,13 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Gradle,
         };
 
-        let result = execute(&service);
+        let result = execute_phase(&service).await;
         assert!(result.cache_dirs.contains(&PathBuf::from(".gradle")));
         assert!(result.cache_dirs.contains(&PathBuf::from("build")));
     }
 
-    #[test]
-    fn test_cache_go() {
+    #[tokio::test]
+    async fn test_cache_go() {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "go.mod".to_string(),
@@ -114,12 +151,12 @@ mod tests {
             build_system: crate::stack::BuildSystemId::GoMod,
         };
 
-        let result = execute(&service);
+        let result = execute_phase(&service).await;
         assert_eq!(result.cache_dirs, vec![PathBuf::from("go/pkg/mod")]);
     }
 
-    #[test]
-    fn test_cache_unknown() {
+    #[tokio::test]
+    async fn test_cache_unknown() {
         let service = Service {
             path: PathBuf::from("."),
             manifest: "unknown.txt".to_string(),
@@ -127,7 +164,7 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Pipenv,
         };
 
-        let result = execute(&service);
+        let result = execute_phase(&service).await;
         assert!(result.cache_dirs.is_empty());
         assert_eq!(result.confidence, Confidence::High);
     }

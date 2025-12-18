@@ -1,12 +1,7 @@
-use super::scan::ScanResult;
 use super::structure::Service;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
-use crate::stack::registry::StackRegistry;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntrypointInfo {
@@ -43,30 +38,48 @@ Rules:
     )
 }
 
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    scan: &ScanResult,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<EntrypointInfo> {
-    if let Some(deterministic) = try_deterministic(service, scan)? {
-        return Ok(deterministic);
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
+
+pub struct EntrypointPhase;
+
+#[async_trait]
+impl ServicePhase for EntrypointPhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        if let Some(deterministic) = try_deterministic(context)? {
+            return Ok(ServicePhaseResult::Entrypoint(deterministic));
+        }
+
+        let manifest_excerpt = extract_manifest_excerpt(context)?;
+
+        let prompt = build_prompt(context.service, manifest_excerpt.as_deref());
+        let result = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            300,
+            "entrypoint",
+            context.heuristic_logger(),
+        )
+        .await?;
+        Ok(ServicePhaseResult::Entrypoint(result))
     }
-
-    let manifest_excerpt = extract_manifest_excerpt(scan, service)?;
-
-    let prompt = build_prompt(service, manifest_excerpt.as_deref());
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 300, "entrypoint", logger).await
 }
 
-fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<EntrypointInfo>> {
-    let registry = StackRegistry::with_defaults();
-    let language_def = match registry.get_language(service.language) {
+fn try_deterministic(context: &ServiceContext<'_>) -> Result<Option<EntrypointInfo>> {
+    let language_def = match context
+        .stack_registry()
+        .get_language(context.service.language)
+    {
         Some(def) => def,
         None => return Ok(None),
     };
 
-    let manifest_path = scan.repo_path.join(&service.path).join(&service.manifest);
+    let manifest_path = context
+        .scan()
+        .repo_path
+        .join(&context.service.path)
+        .join(&context.service.manifest);
 
     if manifest_path.exists() {
         let content = std::fs::read_to_string(&manifest_path)
@@ -80,7 +93,7 @@ fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<Entr
         }
     }
 
-    if let Some(entrypoint) = language_def.default_entrypoint(service.build_system.name()) {
+    if let Some(entrypoint) = language_def.default_entrypoint(context.service.build_system.name()) {
         return Ok(Some(EntrypointInfo {
             entrypoint,
             confidence: Confidence::Medium,
@@ -90,8 +103,12 @@ fn try_deterministic(service: &Service, scan: &ScanResult) -> Result<Option<Entr
     Ok(None)
 }
 
-fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Option<String>> {
-    let manifest_path = scan.repo_path.join(&service.path).join(&service.manifest);
+fn extract_manifest_excerpt(context: &ServiceContext<'_>) -> Result<Option<String>> {
+    let manifest_path = context
+        .scan()
+        .repo_path
+        .join(&context.service.path)
+        .join(&context.service.manifest);
 
     if !manifest_path.exists() {
         return Ok(None);

@@ -10,17 +10,6 @@ pub struct BuildOrderResult {
     pub has_cycle: bool,
 }
 
-pub fn execute(dependencies: &DependencyResult) -> Result<BuildOrderResult> {
-    let graph = build_dependency_graph(dependencies);
-
-    let (order, has_cycle) = topological_sort(&graph);
-
-    Ok(BuildOrderResult {
-        build_order: order,
-        has_cycle,
-    })
-}
-
 fn build_dependency_graph(dependencies: &DependencyResult) -> HashMap<PathBuf, Vec<PathBuf>> {
     let mut graph: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
 
@@ -128,18 +117,18 @@ mod tests {
             },
         );
 
-        let result = execute(&DependencyResult { dependencies: deps }).unwrap();
+        let dep_result = DependencyResult { dependencies: deps };
+        let graph = build_dependency_graph(&dep_result);
+        let (order, has_cycle) = topological_sort(&graph);
 
-        assert!(!result.has_cycle);
-        assert_eq!(result.build_order.len(), 2);
+        assert!(!has_cycle);
+        assert_eq!(order.len(), 2);
 
-        let lib_idx = result
-            .build_order
+        let lib_idx = order
             .iter()
             .position(|p| p == &PathBuf::from("lib"))
             .unwrap();
-        let app_idx = result
-            .build_order
+        let app_idx = order
             .iter()
             .position(|p| p == &PathBuf::from("app"))
             .unwrap();
@@ -206,28 +195,26 @@ mod tests {
             },
         );
 
-        let result = execute(&DependencyResult { dependencies: deps }).unwrap();
+        let dep_result = DependencyResult { dependencies: deps };
+        let graph = build_dependency_graph(&dep_result);
+        let (order, has_cycle) = topological_sort(&graph);
 
-        assert!(!result.has_cycle);
-        assert_eq!(result.build_order.len(), 4);
+        assert!(!has_cycle);
+        assert_eq!(order.len(), 4);
 
-        let base_idx = result
-            .build_order
+        let base_idx = order
             .iter()
             .position(|p| p == &PathBuf::from("base"))
             .unwrap();
-        let lib1_idx = result
-            .build_order
+        let lib1_idx = order
             .iter()
             .position(|p| p == &PathBuf::from("lib1"))
             .unwrap();
-        let lib2_idx = result
-            .build_order
+        let lib2_idx = order
             .iter()
             .position(|p| p == &PathBuf::from("lib2"))
             .unwrap();
-        let app_idx = result
-            .build_order
+        let app_idx = order
             .iter()
             .position(|p| p == &PathBuf::from("app"))
             .unwrap();
@@ -268,10 +255,12 @@ mod tests {
             },
         );
 
-        let result = execute(&DependencyResult { dependencies: deps }).unwrap();
+        let dep_result = DependencyResult { dependencies: deps };
+        let graph = build_dependency_graph(&dep_result);
+        let (order, has_cycle) = topological_sort(&graph);
 
-        assert!(result.has_cycle);
-        assert_eq!(result.build_order.len(), 2);
+        assert!(has_cycle);
+        assert_eq!(order.len(), 2);
     }
 
     #[test]
@@ -296,9 +285,37 @@ mod tests {
             },
         );
 
-        let result = execute(&DependencyResult { dependencies: deps }).unwrap();
+        let dep_result = DependencyResult { dependencies: deps };
+        let graph = build_dependency_graph(&dep_result);
+        let (order, has_cycle) = topological_sort(&graph);
 
-        assert!(!result.has_cycle);
-        assert_eq!(result.build_order.len(), 2);
+        assert!(!has_cycle);
+        assert_eq!(order.len(), 2);
+    }
+}
+
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
+use async_trait::async_trait;
+
+pub struct BuildOrderPhase;
+
+#[async_trait]
+impl WorkflowPhase for BuildOrderPhase {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+        let dependencies = context
+            .dependencies
+            .as_ref()
+            .expect("Dependencies must be available before build_order");
+
+        let graph = build_dependency_graph(dependencies);
+        let (order, has_cycle) = topological_sort(&graph);
+
+        context.build_order = Some(BuildOrderResult {
+            build_order: order,
+            has_cycle,
+        });
+
+        Ok(())
     }
 }

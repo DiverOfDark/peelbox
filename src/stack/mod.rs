@@ -14,10 +14,10 @@
 //!
 //! let manifest_path = Path::new("Cargo.toml");
 //! let content = std::fs::read_to_string(manifest_path)?;
-//! let stack = registry.detect_stack(manifest_path, &content)?;
+//! let stack = registry.detect_stack(manifest_path, &content).unwrap();
 //!
-//! let build_system = registry.get_build_system(BuildSystemId::Cargo)?;
-//! let language = registry.get_language(LanguageId::Rust)?;
+//! let build_system = registry.get_build_system(BuildSystemId::Cargo).unwrap();
+//! let language = registry.get_language(LanguageId::Rust).unwrap();
 //! # Ok(())
 //! # }
 //! ```

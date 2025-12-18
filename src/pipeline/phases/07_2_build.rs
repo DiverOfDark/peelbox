@@ -1,12 +1,9 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildInfo {
@@ -43,22 +40,6 @@ Rules:
         service.language.name(),
         scripts_excerpt.unwrap_or("None")
     )
-}
-
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    scan: &ScanResult,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<BuildInfo> {
-    if let Some(deterministic) = try_deterministic(service) {
-        return Ok(deterministic);
-    }
-
-    let scripts_excerpt = extract_scripts_excerpt(scan, service)?;
-
-    let prompt = build_prompt(service, scripts_excerpt.as_deref());
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 400, "build", logger).await
 }
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {
@@ -119,6 +100,34 @@ fn extract_scripts_excerpt(scan: &ScanResult, service: &Service) -> Result<Optio
     };
 
     Ok(Some(excerpt))
+}
+
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
+
+pub struct BuildPhase;
+
+#[async_trait]
+impl ServicePhase for BuildPhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        if let Some(deterministic) = try_deterministic(context.service) {
+            return Ok(ServicePhaseResult::Build(deterministic));
+        }
+
+        let scripts_excerpt = extract_scripts_excerpt(context.scan(), context.service)?;
+
+        let prompt = build_prompt(context.service, scripts_excerpt.as_deref());
+        let result = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            400,
+            "build",
+            context.heuristic_logger(),
+        )
+        .await?;
+        Ok(ServicePhaseResult::Build(result))
+    }
 }
 
 #[cfg(test)]

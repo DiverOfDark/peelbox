@@ -1,12 +1,9 @@
 use super::classify::{ClassifyResult, PackagePath, ServicePath};
 use super::scan::ScanResult;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StructureResult {
@@ -158,44 +155,6 @@ fn discover_relevant_config_files(scan: &ScanResult) -> Vec<String> {
     }
 
     condensed
-}
-
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    scan: &ScanResult,
-    classify: &ClassifyResult,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<StructureResult> {
-    if can_use_deterministic(scan, classify) {
-        return Ok(deterministic_structure(scan, classify));
-    }
-
-    let prompt = build_prompt(scan, classify);
-
-    #[derive(Deserialize, Serialize)]
-    struct LLMStructure {
-        project_type: ProjectType,
-        orchestrator: Option<String>,
-        confidence: Confidence,
-    }
-
-    let llm_result: LLMStructure =
-        super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "structure", logger)
-            .await?;
-
-    let services = build_services(scan, &classify.services);
-    let packages = build_packages(scan, &classify.packages);
-
-    let orchestrator = normalize_orchestrator(llm_result.orchestrator.as_deref())
-        .or_else(|| detect_orchestrator_deterministic(scan));
-
-    Ok(StructureResult {
-        project_type: llm_result.project_type,
-        services,
-        packages,
-        orchestrator,
-        confidence: llm_result.confidence,
-    })
 }
 
 fn can_use_deterministic(scan: &ScanResult, classify: &ClassifyResult) -> bool {
@@ -384,3 +343,62 @@ fn build_packages(scan: &ScanResult, package_paths: &[PackagePath]) -> Vec<Packa
 
 #[cfg(test)]
 mod tests {}
+
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
+use async_trait::async_trait;
+
+pub struct StructurePhase;
+
+#[async_trait]
+impl WorkflowPhase for StructurePhase {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before structure");
+        let classify = context
+            .classify
+            .as_ref()
+            .expect("Classify must be available before structure");
+
+        if can_use_deterministic(scan, classify) {
+            context.structure = Some(deterministic_structure(scan, classify));
+            return Ok(());
+        }
+
+        let prompt = build_prompt(scan, classify);
+
+        #[derive(Deserialize, Serialize)]
+        struct LLMStructure {
+            project_type: ProjectType,
+            orchestrator: Option<String>,
+            confidence: Confidence,
+        }
+
+        let llm_result: LLMStructure = super::llm_helper::query_llm_with_logging(
+            context.llm_client.as_ref(),
+            prompt,
+            500,
+            "structure",
+            &context.heuristic_logger,
+        )
+        .await?;
+
+        let services = build_services(scan, &classify.services);
+        let packages = build_packages(scan, &classify.packages);
+
+        let orchestrator = normalize_orchestrator(llm_result.orchestrator.as_deref())
+            .or_else(|| detect_orchestrator_deterministic(scan));
+
+        context.structure = Some(StructureResult {
+            project_type: llm_result.project_type,
+            services,
+            packages,
+            orchestrator,
+            confidence: llm_result.confidence,
+        });
+
+        Ok(())
+    }
+}

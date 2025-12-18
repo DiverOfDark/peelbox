@@ -1,11 +1,8 @@
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NativeDepsInfo {
@@ -52,27 +49,6 @@ Rules:
             .collect::<Vec<_>>()
             .join(", ")
     )
-}
-
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    scan: &ScanResult,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<NativeDepsInfo> {
-    let dependencies = extract_dependencies(scan, service).with_context(|| {
-        format!(
-            "Failed to extract dependencies for service at {}",
-            service.path.display()
-        )
-    })?;
-
-    if let Some(deterministic) = try_deterministic(&dependencies) {
-        return Ok(deterministic);
-    }
-
-    let prompt = build_prompt(service, &dependencies);
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 400, "native_deps", logger).await
 }
 
 fn try_deterministic(dependencies: &[String]) -> Option<NativeDepsInfo> {
@@ -163,6 +139,41 @@ fn parse_dependencies(content: &str, manifest: &str) -> Result<Vec<String>> {
     }
 
     Ok(deps)
+}
+
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
+
+pub struct NativeDepsPhase;
+
+#[async_trait]
+impl ServicePhase for NativeDepsPhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        let dependencies =
+            extract_dependencies(context.scan(), context.service).with_context(|| {
+                format!(
+                    "Failed to extract dependencies for service at {}",
+                    context.service.path.display()
+                )
+            })?;
+
+        let result = if let Some(deterministic) = try_deterministic(&dependencies) {
+            deterministic
+        } else {
+            let prompt = build_prompt(context.service, &dependencies);
+            super::llm_helper::query_llm_with_logging(
+                context.llm_client(),
+                prompt,
+                400,
+                "native_deps",
+                context.heuristic_logger(),
+            )
+            .await?
+        };
+
+        Ok(ServicePhaseResult::NativeDeps(result))
+    }
 }
 
 #[cfg(test)]

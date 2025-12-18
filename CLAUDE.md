@@ -367,6 +367,80 @@ let framework = registry.get_framework(FrameworkId::ActixWeb)?;
 - **Frameworks** (20): Spring Boot, Quarkus, Micronaut, Ktor, Express, Next.js, Nest.js, Fastify, Django, Flask, FastAPI, Rails, Sinatra, Actix-web, Axum, Gin, Echo, ASP.NET Core, Laravel, Phoenix
 - **Orchestrators** (3): Turbo, Nx, Lerna
 
+### AnalysisContext and Phase Traits
+
+The pipeline uses a context-based architecture where `AnalysisContext` accumulates state as phases execute:
+
+```rust
+use aipack::pipeline::{AnalysisContext, WorkflowPhase, ServicePhase, ServiceContext};
+
+// AnalysisContext holds all pipeline state
+pub struct AnalysisContext {
+    pub repo_path: PathBuf,
+    pub llm_client: Arc<dyn LLMClient>,
+    pub stack_registry: Arc<StackRegistry>,
+    pub progress_handler: Option<LoggingHandler>,
+    pub heuristic_logger: Arc<HeuristicLogger>,
+
+    // Phase results (populated as phases execute)
+    pub scan: Option<ScanResult>,
+    pub classify: Option<ClassifyResult>,
+    pub structure: Option<StructureResult>,
+    pub dependencies: Option<DependencyResult>,
+    pub build_order: Option<BuildOrderResult>,
+    pub root_cache: Option<RootCacheInfo>,
+}
+```
+
+**WorkflowPhase Trait** - Repository-level phases:
+```rust
+#[async_trait]
+pub trait WorkflowPhase: Send + Sync {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()>;
+    fn name(&self) -> &'static str;
+}
+```
+
+Repository phases (scan, classify, structure, dependencies, build_order, root_cache) implement `WorkflowPhase` and write their results to the context.
+
+**ServicePhase Trait** - Service-level phases:
+```rust
+#[async_trait]
+pub trait ServicePhase: Send + Sync {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult>;
+    fn name(&self) -> &'static str;
+}
+```
+
+Service phases (runtime, build, entrypoint, native_deps, port, env_vars, health) implement `ServicePhase` and return `ServicePhaseResult` variants. They operate on `ServiceContext` which provides access to the full `AnalysisContext`:
+
+```rust
+pub struct ServiceContext<'a> {
+    pub service: &'a Service,
+    pub analysis_context: &'a AnalysisContext,
+    pub runtime: Option<&'a RuntimeInfo>,
+}
+
+// Helper methods for clean access to common fields
+impl<'a> ServiceContext<'a> {
+    pub fn repo_path(&self) -> &Path { ... }
+    pub fn scan(&self) -> &ScanResult { ... }
+    pub fn dependencies(&self) -> &DependencyResult { ... }
+    pub fn llm_client(&self) -> &dyn LLMClient { ... }
+    pub fn stack_registry(&self) -> &Arc<StackRegistry> { ... }
+    pub fn heuristic_logger(&self) -> &Arc<HeuristicLogger> { ... }
+}
+```
+
+**Key Benefits:**
+- Single source of truth for pipeline state
+- Type-safe phase dependencies (panic if prerequisite missing)
+- Clear separation between repository and service analysis
+- Service phases have access to full context for future extensibility
+- Helper methods keep the API clean and explicit
+- Easier testing with mock contexts
+- Future-proof: when service results are flattened into global context, phases can access them
+
 ### UniversalBuild Output
 Multi-stage container build specification containing:
 - **Metadata**: project name, language, build system, confidence, reasoning

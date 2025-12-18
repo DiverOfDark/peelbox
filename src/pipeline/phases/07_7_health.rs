@@ -1,12 +1,8 @@
 use super::runtime::RuntimeInfo;
-use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::health::HealthCheckExtractor;
 use crate::fs::RealFileSystem;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
-use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -63,49 +59,6 @@ Rules:
     )
 }
 
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    runtime: &RuntimeInfo,
-    scan: &ScanResult,
-    stack_registry: &Arc<StackRegistry>,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<HealthInfo> {
-    let context = super::extractor_helper::create_service_context(scan, service);
-    let extractor = HealthCheckExtractor::new(RealFileSystem);
-    let extracted_info = extractor.extract(&context);
-    let extracted: Vec<String> = extracted_info
-        .iter()
-        .map(|info| info.endpoint.clone())
-        .collect();
-
-    if !extracted.is_empty() {
-        let health_endpoints: Vec<HealthEndpoint> = extracted
-            .into_iter()
-            .map(|path| HealthEndpoint {
-                path,
-                method: "GET".to_string(),
-            })
-            .collect();
-
-        let recommended = health_endpoints.first().map(|e| e.path.clone());
-
-        return Ok(HealthInfo {
-            health_endpoints,
-            recommended_liveness: recommended.clone(),
-            recommended_readiness: recommended,
-            confidence: Confidence::High,
-        });
-    }
-
-    if let Some(framework_default) = try_framework_defaults(runtime, stack_registry) {
-        return Ok(framework_default);
-    }
-
-    let prompt = build_prompt(service, runtime, &extracted);
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "health", logger).await
-}
-
 fn try_framework_defaults(
     runtime: &RuntimeInfo,
     stack_registry: &Arc<crate::stack::StackRegistry>,
@@ -140,6 +93,65 @@ fn try_framework_defaults(
         }
     }
     None
+}
+
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
+
+pub struct HealthPhase;
+
+#[async_trait]
+impl ServicePhase for HealthPhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        let runtime = context
+            .runtime
+            .expect("Runtime info must be available before health phase");
+
+        let extractor_context =
+            super::extractor_helper::create_service_context(context.scan(), context.service);
+        let extractor = HealthCheckExtractor::new(RealFileSystem);
+        let extracted_info = extractor.extract(&extractor_context);
+        let extracted: Vec<String> = extracted_info
+            .iter()
+            .map(|info| info.endpoint.clone())
+            .collect();
+
+        if !extracted.is_empty() {
+            let health_endpoints: Vec<HealthEndpoint> = extracted
+                .into_iter()
+                .map(|path| HealthEndpoint {
+                    path,
+                    method: "GET".to_string(),
+                })
+                .collect();
+
+            let recommended = health_endpoints.first().map(|e| e.path.clone());
+
+            let result = HealthInfo {
+                health_endpoints,
+                recommended_liveness: recommended.clone(),
+                recommended_readiness: recommended,
+                confidence: Confidence::High,
+            };
+            return Ok(ServicePhaseResult::Health(result));
+        }
+
+        if let Some(framework_default) = try_framework_defaults(runtime, context.stack_registry()) {
+            return Ok(ServicePhaseResult::Health(framework_default));
+        }
+
+        let prompt = build_prompt(context.service, runtime, &extracted);
+        let result: HealthInfo = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            500,
+            "health",
+            context.heuristic_logger(),
+        )
+        .await?;
+        Ok(ServicePhaseResult::Health(result))
+    }
 }
 
 #[cfg(test)]

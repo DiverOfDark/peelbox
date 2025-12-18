@@ -1,12 +1,8 @@
 use super::runtime::RuntimeInfo;
-use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::port::PortExtractor;
 use crate::fs::RealFileSystem;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
-use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -58,41 +54,6 @@ Rules:
     )
 }
 
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    runtime: &RuntimeInfo,
-    scan: &ScanResult,
-    stack_registry: &Arc<StackRegistry>,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<PortInfo> {
-    let context = super::extractor_helper::create_service_context(scan, service);
-    let extractor = PortExtractor::new(RealFileSystem);
-    let extracted_info = extractor.extract(&context);
-    let extracted: Vec<u16> = extracted_info.iter().map(|info| info.port).collect();
-
-    if !extracted.is_empty() {
-        let port = extracted[0];
-        return Ok(PortInfo {
-            port: Some(port),
-            from_env: false,
-            env_var: None,
-            confidence: Confidence::High,
-        });
-    }
-
-    if let Some(framework_default) = try_framework_defaults(runtime, stack_registry) {
-        return Ok(framework_default);
-    }
-
-    if let Some(deterministic) = try_deterministic(service, stack_registry) {
-        return Ok(deterministic);
-    }
-
-    let prompt = build_prompt(service, &extracted);
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 300, "port", logger).await
-}
-
 fn try_framework_defaults(
     runtime: &RuntimeInfo,
     stack_registry: &Arc<crate::stack::StackRegistry>,
@@ -131,6 +92,61 @@ fn try_deterministic(
         env_var: Some("PORT".to_string()),
         confidence: Confidence::Medium,
     })
+}
+
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
+
+pub struct PortPhase;
+
+#[async_trait]
+impl ServicePhase for PortPhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        let runtime = context
+            .runtime
+            .expect("Runtime info must be available before port phase");
+
+        let scan = context.scan();
+        let extractor_context = crate::extractors::context::ServiceContext {
+            path: scan.repo_path.join(&context.service.path),
+            language: Some(context.service.language),
+            build_system: Some(context.service.build_system),
+        };
+        let extractor = PortExtractor::new(RealFileSystem);
+        let extracted_info = extractor.extract(&extractor_context);
+        let extracted: Vec<u16> = extracted_info.iter().map(|info| info.port).collect();
+
+        let result = if !extracted.is_empty() {
+            let port = extracted[0];
+            PortInfo {
+                port: Some(port),
+                from_env: false,
+                env_var: None,
+                confidence: Confidence::High,
+            }
+        } else if let Some(framework_default) =
+            try_framework_defaults(runtime, context.stack_registry())
+        {
+            framework_default
+        } else if let Some(deterministic) =
+            try_deterministic(context.service, context.stack_registry())
+        {
+            deterministic
+        } else {
+            let prompt = build_prompt(context.service, &extracted);
+            super::llm_helper::query_llm_with_logging(
+                context.llm_client(),
+                prompt,
+                300,
+                "port",
+                context.heuristic_logger(),
+            )
+            .await?
+        };
+
+        Ok(ServicePhaseResult::Port(result))
+    }
 }
 
 #[cfg(test)]

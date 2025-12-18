@@ -1,8 +1,6 @@
 use super::dependencies::DependencyResult;
 use super::scan::ScanResult;
 use super::structure::Service;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use crate::stack::StackRegistry;
 use anyhow::{Context, Result};
@@ -58,25 +56,6 @@ Rules:
         file_list.join("\n"),
         manifest_excerpt.unwrap_or("None")
     )
-}
-
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    scan: &ScanResult,
-    dependencies: &DependencyResult,
-    stack_registry: &Arc<StackRegistry>,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<RuntimeInfo> {
-    if let Some(deterministic) = try_deterministic(service, dependencies, stack_registry) {
-        return Ok(deterministic);
-    }
-
-    let files = extract_relevant_files(scan, service);
-    let manifest_excerpt = extract_manifest_excerpt(scan, service)?;
-
-    let prompt = build_prompt(service, &files, manifest_excerpt.as_deref());
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 500, "runtime", logger).await
 }
 
 fn try_deterministic(
@@ -143,6 +122,39 @@ fn extract_manifest_excerpt(scan: &ScanResult, service: &Service) -> Result<Opti
     };
 
     Ok(Some(excerpt))
+}
+
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
+
+pub struct RuntimePhase;
+
+#[async_trait]
+impl ServicePhase for RuntimePhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        if let Some(deterministic) = try_deterministic(
+            context.service,
+            context.dependencies(),
+            context.stack_registry(),
+        ) {
+            return Ok(ServicePhaseResult::Runtime(deterministic));
+        }
+
+        let files = extract_relevant_files(context.scan(), context.service);
+        let manifest_excerpt = extract_manifest_excerpt(context.scan(), context.service)?;
+
+        let prompt = build_prompt(context.service, &files, manifest_excerpt.as_deref());
+        let result = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            500,
+            "runtime",
+            context.heuristic_logger(),
+        )
+        .await?;
+        Ok(ServicePhaseResult::Runtime(result))
+    }
 }
 
 #[cfg(test)]

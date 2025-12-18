@@ -1,11 +1,8 @@
 use super::scan::ScanResult;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClassifyResult {
@@ -97,19 +94,6 @@ IMPORTANT:
     )
 }
 
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    scan: &ScanResult,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<ClassifyResult> {
-    if can_skip_llm(scan) {
-        return Ok(deterministic_classify(scan));
-    }
-
-    let prompt = build_prompt(scan);
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 1000, "classify", logger).await
-}
-
 fn can_skip_llm(scan: &ScanResult) -> bool {
     let detections = &scan.detections;
 
@@ -198,5 +182,38 @@ mod tests {
             file_tree: vec![PathBuf::from("Cargo.toml"), PathBuf::from("src/main.rs")],
             scan_time_ms: 50,
         }
+    }
+}
+
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
+use async_trait::async_trait;
+
+pub struct ClassifyPhase;
+
+#[async_trait]
+impl WorkflowPhase for ClassifyPhase {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before classify");
+
+        let result = if can_skip_llm(scan) {
+            deterministic_classify(scan)
+        } else {
+            let prompt = build_prompt(scan);
+            super::llm_helper::query_llm_with_logging(
+                context.llm_client.as_ref(),
+                prompt,
+                1000,
+                "classify",
+                &context.heuristic_logger,
+            )
+            .await?
+        };
+
+        context.classify = Some(result);
+        Ok(())
     }
 }

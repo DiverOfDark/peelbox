@@ -1,14 +1,9 @@
-use super::scan::ScanResult;
 use super::structure::Service;
 use crate::extractors::env_vars::EnvVarExtractor;
 use crate::fs::RealFileSystem;
-use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::pipeline::Confidence;
-use crate::stack::StackRegistry;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvVarsInfo {
@@ -59,40 +54,53 @@ Rules:
     )
 }
 
-pub async fn execute(
-    llm_client: &dyn LLMClient,
-    service: &Service,
-    scan: &ScanResult,
-    _stack_registry: &Arc<StackRegistry>,
-    logger: &Arc<HeuristicLogger>,
-) -> Result<EnvVarsInfo> {
-    let context = super::extractor_helper::create_service_context(scan, service);
-    let extractor = EnvVarExtractor::new(RealFileSystem);
-    let extracted_info = extractor.extract(&context);
-    let extracted: Vec<String> = extracted_info
-        .iter()
-        .map(|info| info.name.clone())
-        .collect();
+use crate::pipeline::phase_trait::{ServicePhase, ServicePhaseResult};
+use crate::pipeline::service_context::ServiceContext;
+use async_trait::async_trait;
 
-    if !extracted.is_empty() {
-        let env_vars: Vec<EnvVar> = extracted
-            .into_iter()
-            .map(|name| EnvVar {
-                name,
-                required: true,
-                default_value: None,
-                description: None,
-            })
+pub struct EnvVarsPhase;
+
+#[async_trait]
+impl ServicePhase for EnvVarsPhase {
+    async fn execute(&self, context: &ServiceContext<'_>) -> Result<ServicePhaseResult> {
+        let service_context =
+            super::extractor_helper::create_service_context(context.scan(), context.service);
+        let extractor = EnvVarExtractor::new(RealFileSystem);
+        let extracted_info = extractor.extract(&service_context);
+        let extracted: Vec<String> = extracted_info
+            .iter()
+            .map(|info| info.name.clone())
             .collect();
 
-        return Ok(EnvVarsInfo {
-            env_vars,
-            confidence: Confidence::High,
-        });
-    }
+        if !extracted.is_empty() {
+            let env_vars: Vec<EnvVar> = extracted
+                .into_iter()
+                .map(|name| EnvVar {
+                    name,
+                    required: true,
+                    default_value: None,
+                    description: None,
+                })
+                .collect();
 
-    let prompt = build_prompt(service, &extracted);
-    super::llm_helper::query_llm_with_logging(llm_client, prompt, 800, "env_vars", logger).await
+            let result = EnvVarsInfo {
+                env_vars,
+                confidence: Confidence::High,
+            };
+            return Ok(ServicePhaseResult::EnvVars(result));
+        }
+
+        let prompt = build_prompt(context.service, &extracted);
+        let result: EnvVarsInfo = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            800,
+            "env_vars",
+            context.heuristic_logger(),
+        )
+        .await?;
+        Ok(ServicePhaseResult::EnvVars(result))
+    }
 }
 
 #[cfg(test)]
