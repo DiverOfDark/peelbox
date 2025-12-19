@@ -121,13 +121,80 @@ use async_trait::async_trait;
 
 pub struct DependenciesPhase;
 
+impl DependenciesPhase {
+    fn process_item(
+        scan: &super::scan::ScanResult,
+        registry: &Arc<StackRegistry>,
+        path: &PathBuf,
+        manifest: &str,
+        all_paths: &[PathBuf],
+    ) -> Result<Option<DependencyInfo>> {
+        let manifest_path = scan.repo_path.join(path).join(manifest);
+
+        if !manifest_path.exists() {
+            return Ok(None);
+        }
+
+        let manifest_content = std::fs::read_to_string(&manifest_path)
+            .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
+
+        let dep_info = registry.parse_dependencies_by_manifest(manifest, &manifest_content, all_paths);
+
+        Ok(dep_info)
+    }
+}
+
 #[async_trait]
 impl WorkflowPhase for DependenciesPhase {
     fn name(&self) -> &'static str {
         "DependenciesPhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before dependencies");
+        let structure = context
+            .structure
+            .as_ref()
+            .expect("Structure must be available before dependencies");
+
+        let registry = Arc::new(StackRegistry::with_defaults());
+        let mut dependencies = HashMap::new();
+
+        let all_paths: Vec<PathBuf> = structure
+            .services
+            .iter()
+            .map(|s| s.path.clone())
+            .chain(structure.packages.iter().map(|p| p.path.clone()))
+            .collect();
+
+        let all_items: Vec<_> = structure
+            .services
+            .iter()
+            .map(|s| (s.path.clone(), s.manifest.clone()))
+            .chain(structure.packages.iter().map(|p| (p.path.clone(), p.manifest.clone())))
+            .collect();
+
+        for (path, manifest) in all_items {
+            if let Some(dep_info) = Self::process_item(scan, &registry, &path, &manifest, &all_paths)? {
+                match dep_info {
+                    info if info.detected_by == DetectionMethod::Deterministic => {
+                        dependencies.insert(path, info);
+                    }
+                    _ => {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+
+        context.dependencies = Some(DependencyResult { dependencies });
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan
             .as_ref()
@@ -148,75 +215,55 @@ impl WorkflowPhase for DependenciesPhase {
             .collect();
 
         for service in &structure.services {
-            let manifest_path = scan.repo_path.join(&service.path).join(&service.manifest);
-
-            if !manifest_path.exists() {
-                continue;
+            if let Some(dep_info) =
+                Self::process_item(scan, &registry, &service.path, &service.manifest, &all_paths)?
+            {
+                let final_dep_info = match dep_info {
+                    info if info.detected_by == DetectionMethod::Deterministic => info,
+                    _ => {
+                        let manifest_path = scan.repo_path.join(&service.path).join(&service.manifest);
+                        let manifest_content = std::fs::read_to_string(&manifest_path)?;
+                        llm_fallback(
+                            context.llm_client.as_ref(),
+                            service,
+                            &manifest_content,
+                            &all_paths,
+                            &context.heuristic_logger,
+                        )
+                        .await?
+                    }
+                };
+                dependencies.insert(service.path.clone(), final_dep_info);
             }
-
-            let manifest_content = std::fs::read_to_string(&manifest_path)
-                .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
-
-            let dep_info = registry.parse_dependencies_by_manifest(
-                &service.manifest,
-                &manifest_content,
-                &all_paths,
-            );
-
-            let final_dep_info = match dep_info {
-                Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
-                _ => {
-                    llm_fallback(
-                        context.llm_client.as_ref(),
-                        service,
-                        &manifest_content,
-                        &all_paths,
-                        &context.heuristic_logger,
-                    )
-                    .await?
-                }
-            };
-
-            dependencies.insert(service.path.clone(), final_dep_info);
         }
 
         for package in &structure.packages {
-            let manifest_path = scan.repo_path.join(&package.path).join(&package.manifest);
-
-            if !manifest_path.exists() {
-                continue;
+            if let Some(dep_info) =
+                Self::process_item(scan, &registry, &package.path, &package.manifest, &all_paths)?
+            {
+                let final_dep_info = match dep_info {
+                    info if info.detected_by == DetectionMethod::Deterministic => info,
+                    _ => {
+                        let manifest_path = scan.repo_path.join(&package.path).join(&package.manifest);
+                        let manifest_content = std::fs::read_to_string(&manifest_path)?;
+                        let pseudo_service = Service {
+                            path: package.path.clone(),
+                            manifest: package.manifest.clone(),
+                            language: package.language,
+                            build_system: package.build_system,
+                        };
+                        llm_fallback(
+                            context.llm_client.as_ref(),
+                            &pseudo_service,
+                            &manifest_content,
+                            &all_paths,
+                            &context.heuristic_logger,
+                        )
+                        .await?
+                    }
+                };
+                dependencies.insert(package.path.clone(), final_dep_info);
             }
-
-            let manifest_content = std::fs::read_to_string(&manifest_path)
-                .with_context(|| format!("Failed to read manifest: {}", manifest_path.display()))?;
-
-            let dep_info = registry.parse_dependencies_by_manifest(
-                &package.manifest,
-                &manifest_content,
-                &all_paths,
-            );
-
-            let final_dep_info = match dep_info {
-                Some(info) if info.detected_by == DetectionMethod::Deterministic => info,
-                _ => {
-                    let pseudo_service = Service {
-                        path: package.path.clone(),
-                        manifest: package.manifest.clone(),
-                        language: package.language,
-                        build_system: package.build_system,
-                    };
-                    llm_fallback(
-                        context.llm_client.as_ref(),
-                        &pseudo_service,
-                        &manifest_content,
-                        &all_paths,
-                        &context.heuristic_logger,
-                    )
-                    .await?
-                }
-            };
-
-            dependencies.insert(package.path.clone(), final_dep_info);
         }
 
         context.dependencies = Some(DependencyResult { dependencies });

@@ -15,6 +15,27 @@ const DEFAULT_TOOL_TIMEOUT_SECS: u64 = 30;
 const DEFAULT_MAX_FILE_SIZE_BYTES: usize = 1_048_576; // 1MB
 const DEFAULT_MAX_TOKENS: usize = 8192;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DetectionMode {
+    Full,
+    StaticOnly,
+    LLMOnly,
+}
+
+impl DetectionMode {
+    pub fn from_env() -> Self {
+        match env::var("AIPACK_DETECTION_MODE")
+            .unwrap_or_else(|_| "full".to_string())
+            .to_lowercase()
+            .as_str()
+        {
+            "static" => DetectionMode::StaticOnly,
+            "llm" => DetectionMode::LLMOnly,
+            "full" | _ => DetectionMode::Full,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("Provider not specified. Set AIPACK_PROVIDER environment variable (ollama|openai|claude|gemini|grok|groq)")]
@@ -468,5 +489,53 @@ mod tests {
         let display = format!("{}", config);
         assert!(display.contains("Aipack Configuration:"));
         assert!(display.contains("Provider:"));
+    }
+
+    #[test]
+    fn test_detection_mode_from_env_default() {
+        env::remove_var("AIPACK_DETECTION_MODE");
+
+        let mode = DetectionMode::from_env();
+        assert_eq!(mode, DetectionMode::Full);
+    }
+
+    #[test]
+    fn test_detection_mode_from_env_static() {
+        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "static");
+
+        let mode = DetectionMode::from_env();
+        assert_eq!(mode, DetectionMode::StaticOnly);
+    }
+
+    #[test]
+    fn test_detection_mode_from_env_llm() {
+        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "llm");
+
+        let mode = DetectionMode::from_env();
+        assert_eq!(mode, DetectionMode::LLMOnly);
+    }
+
+    #[test]
+    fn test_detection_mode_from_env_full() {
+        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "full");
+
+        let mode = DetectionMode::from_env();
+        assert_eq!(mode, DetectionMode::Full);
+    }
+
+    #[test]
+    fn test_detection_mode_from_env_case_insensitive() {
+        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "STATIC");
+
+        let mode = DetectionMode::from_env();
+        assert_eq!(mode, DetectionMode::StaticOnly);
+    }
+
+    #[test]
+    fn test_detection_mode_from_env_invalid_defaults_to_full() {
+        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "invalid");
+
+        let mode = DetectionMode::from_env();
+        assert_eq!(mode, DetectionMode::Full);
     }
 }

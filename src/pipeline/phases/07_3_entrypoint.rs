@@ -50,13 +50,16 @@ impl ServicePhase for EntrypointPhase {
         "EntrypointPhase"
     }
 
-    type Output = EntrypointInfo;
-
-    async fn execute(&self, context: &ServiceContext) -> Result<EntrypointInfo> {
-        if let Some(deterministic) = try_deterministic(context)? {
-            return Ok(deterministic);
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
+        if let Some(deterministic) = try_deterministic_helper(context)? {
+            context.entrypoint = Some(deterministic);
+            Ok(Some(()))
+        } else {
+            Ok(None)
         }
+    }
 
+    async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
         let manifest_excerpt = extract_manifest_excerpt(context)?;
 
         let prompt = build_prompt(context.service, manifest_excerpt.as_deref());
@@ -68,11 +71,13 @@ impl ServicePhase for EntrypointPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(result)
+
+        context.entrypoint = Some(result);
+        Ok(())
     }
 }
 
-fn try_deterministic(context: &ServiceContext) -> Result<Option<EntrypointInfo>> {
+fn try_deterministic_helper(context: &ServiceContext) -> Result<Option<EntrypointInfo>> {
     let language_def = match context
         .stack_registry()
         .get_language(context.service.language)

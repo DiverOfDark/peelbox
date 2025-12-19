@@ -306,7 +306,7 @@ impl WorkflowPhase for BuildOrderPhase {
         "BuildOrderPhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
         let dependencies = context
             .dependencies
             .as_ref()
@@ -320,6 +320,10 @@ impl WorkflowPhase for BuildOrderPhase {
             has_cycle,
         });
 
-        Ok(())
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, _context: &mut AnalysisContext) -> Result<()> {
+        unreachable!("BuildOrderPhase is always deterministic")
     }
 }

@@ -125,6 +125,7 @@ mod tests {
         use crate::stack::StackRegistry;
         use std::sync::Arc;
 
+        use crate::config::DetectionMode;
         let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(MockLLMClient::default());
         let stack_registry = Arc::new(StackRegistry::with_defaults());
         let heuristic_logger = Arc::new(HeuristicLogger::new(None));
@@ -135,12 +136,13 @@ mod tests {
             stack_registry,
             None,
             heuristic_logger,
+            DetectionMode::Full,
         );
         context.scan = Some(scan.clone());
         context.structure = Some(structure.clone());
 
         let phase = RootCachePhase;
-        phase.execute(&mut context).await.unwrap();
+        phase.try_deterministic(&mut context).unwrap().unwrap();
 
         context.root_cache.unwrap()
     }
@@ -188,7 +190,18 @@ impl WorkflowPhase for RootCachePhase {
         "RootCachePhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
+        self.execute_root_cache(context)?;
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+        self.execute_root_cache(context)
+    }
+}
+
+impl RootCachePhase {
+    fn execute_root_cache(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan
             .as_ref()

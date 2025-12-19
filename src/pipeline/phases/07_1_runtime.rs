@@ -136,17 +136,20 @@ impl ServicePhase for RuntimePhase {
         "RuntimePhase"
     }
 
-    type Output = RuntimeInfo;
-
-    async fn execute(&self, context: &ServiceContext) -> Result<RuntimeInfo> {
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         if let Some(deterministic) = try_deterministic(
             context.service,
             context.dependencies()?,
             context.stack_registry(),
         ) {
-            return Ok(deterministic);
+            context.runtime = Some(deterministic);
+            Ok(Some(()))
+        } else {
+            Ok(None)
         }
+    }
 
+    async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
         let files = extract_relevant_files(context.scan()?, context.service);
         let manifest_excerpt = extract_manifest_excerpt(context.scan()?, context.service)?;
 
@@ -159,7 +162,9 @@ impl ServicePhase for RuntimePhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(result)
+
+        context.runtime = Some(result);
+        Ok(())
     }
 }
 

@@ -153,9 +153,7 @@ impl ServicePhase for NativeDepsPhase {
         "NativeDepsPhase"
     }
 
-    type Output = NativeDepsInfo;
-
-    async fn execute(&self, context: &ServiceContext) -> Result<NativeDepsInfo> {
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         let dependencies =
             extract_dependencies(context.scan()?, context.service).with_context(|| {
                 format!(
@@ -164,21 +162,35 @@ impl ServicePhase for NativeDepsPhase {
                 )
             })?;
 
-        let result = if let Some(deterministic) = try_deterministic(&dependencies) {
-            deterministic
+        if let Some(deterministic) = try_deterministic(&dependencies) {
+            context.native_deps = Some(deterministic);
+            Ok(Some(()))
         } else {
-            let prompt = build_prompt(context.service, &dependencies);
-            super::llm_helper::query_llm_with_logging(
-                context.llm_client(),
-                prompt,
-                400,
-                "native_deps",
-                context.heuristic_logger(),
-            )
-            .await?
-        };
+            Ok(None)
+        }
+    }
 
-        Ok(result)
+    async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
+        let dependencies =
+            extract_dependencies(context.scan()?, context.service).with_context(|| {
+                format!(
+                    "Failed to extract dependencies for service at {}",
+                    context.service.path.display()
+                )
+            })?;
+
+        let prompt = build_prompt(context.service, &dependencies);
+        let result = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            400,
+            "native_deps",
+            context.heuristic_logger(),
+        )
+        .await?;
+
+        context.native_deps = Some(result);
+        Ok(())
     }
 }
 

@@ -1,8 +1,9 @@
 use super::phases::{
-    assemble::ServiceAnalysisResults, build_order::BuildOrderResult, classify::ClassifyResult,
-    dependencies::DependencyResult, root_cache::RootCacheInfo, scan::ScanResult,
-    structure::StructureResult,
+    build_order::BuildOrderResult, classify::ClassifyResult, dependencies::DependencyResult,
+    root_cache::RootCacheInfo, scan::ScanResult, structure::StructureResult,
 };
+use super::service_context::OwnedServiceContext;
+use crate::config::DetectionMode;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
@@ -17,13 +18,14 @@ pub struct AnalysisContext {
     pub stack_registry: Arc<StackRegistry>,
     pub progress_handler: Option<LoggingHandler>,
     pub heuristic_logger: Arc<HeuristicLogger>,
+    pub detection_mode: DetectionMode,
     pub scan: Option<ScanResult>,
     pub classify: Option<ClassifyResult>,
     pub structure: Option<StructureResult>,
     pub dependencies: Option<DependencyResult>,
     pub build_order: Option<BuildOrderResult>,
     pub root_cache: Option<RootCacheInfo>,
-    pub service_analyses: Vec<ServiceAnalysisResults>,
+    pub service_analyses: Vec<OwnedServiceContext>,
     pub builds: Vec<UniversalBuild>,
 }
 
@@ -34,6 +36,7 @@ impl AnalysisContext {
         stack_registry: Arc<StackRegistry>,
         progress_handler: Option<LoggingHandler>,
         heuristic_logger: Arc<HeuristicLogger>,
+        detection_mode: DetectionMode,
     ) -> Self {
         Self {
             repo_path: repo_path.to_path_buf(),
@@ -41,6 +44,7 @@ impl AnalysisContext {
             stack_registry,
             progress_handler,
             heuristic_logger,
+            detection_mode,
             scan: None,
             classify: None,
             structure: None,

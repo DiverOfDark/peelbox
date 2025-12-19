@@ -106,10 +106,11 @@ impl ServicePhase for PortPhase {
         "PortPhase"
     }
 
-    type Output = PortInfo;
-
-    async fn execute(&self, context: &ServiceContext) -> Result<PortInfo> {
-        let runtime = context.runtime()?;
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
+        let runtime = context
+            .runtime
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Runtime must be available before port detection"))?;
 
         let scan = context.scan()?;
         let extractor_context = crate::extractors::context::ServiceContext {
@@ -121,35 +122,53 @@ impl ServicePhase for PortPhase {
         let extracted_info = extractor.extract(&extractor_context);
         let extracted: Vec<u16> = extracted_info.iter().map(|info| info.port).collect();
 
-        let result = if !extracted.is_empty() {
+        if !extracted.is_empty() {
             let port = extracted[0];
-            PortInfo {
+            context.port = Some(PortInfo {
                 port: Some(port),
                 from_env: false,
                 env_var: None,
                 confidence: Confidence::High,
-            }
+            });
+            Ok(Some(()))
         } else if let Some(framework_default) =
             try_framework_defaults(runtime, context.stack_registry())
         {
-            framework_default
+            context.port = Some(framework_default);
+            Ok(Some(()))
         } else if let Some(deterministic) =
             try_deterministic(context.service, context.stack_registry())
         {
-            deterministic
+            context.port = Some(deterministic);
+            Ok(Some(()))
         } else {
-            let prompt = build_prompt(context.service, &extracted);
-            super::llm_helper::query_llm_with_logging(
-                context.llm_client(),
-                prompt,
-                300,
-                "port",
-                context.heuristic_logger(),
-            )
-            .await?
-        };
+            Ok(None)
+        }
+    }
 
-        Ok(result)
+    async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
+        let scan = context.scan()?;
+        let extractor_context = crate::extractors::context::ServiceContext {
+            path: scan.repo_path.join(&context.service.path),
+            language: Some(context.service.language),
+            build_system: Some(context.service.build_system),
+        };
+        let extractor = PortExtractor::new(RealFileSystem);
+        let extracted_info = extractor.extract(&extractor_context);
+        let extracted: Vec<u16> = extracted_info.iter().map(|info| info.port).collect();
+
+        let prompt = build_prompt(context.service, &extracted);
+        let result = super::llm_helper::query_llm_with_logging(
+            context.llm_client(),
+            prompt,
+            300,
+            "port",
+            context.heuristic_logger(),
+        )
+        .await?;
+
+        context.port = Some(result);
+        Ok(())
     }
 }
 

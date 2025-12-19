@@ -1,13 +1,5 @@
-use super::build::BuildInfo;
-use super::cache::CacheInfo;
-use super::entrypoint::EntrypointInfo;
-use super::env_vars::EnvVarsInfo;
-use super::health::HealthInfo;
-use super::native_deps::NativeDepsInfo;
-use super::port::PortInfo;
 use super::root_cache::RootCacheInfo;
-use super::runtime::RuntimeInfo;
-use super::structure::Service;
+use crate::pipeline::service_context::OwnedServiceContext;
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
@@ -18,18 +10,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
-pub struct ServiceAnalysisResults {
-    pub service: Service,
-    pub runtime: RuntimeInfo,
-    pub build: BuildInfo,
-    pub entrypoint: EntrypointInfo,
-    pub native_deps: NativeDepsInfo,
-    pub port: PortInfo,
-    pub env_vars: EnvVarsInfo,
-    pub health: HealthInfo,
-    pub cache: CacheInfo,
-}
-
 pub struct AssemblePhase;
 
 #[async_trait]
@@ -38,7 +18,23 @@ impl WorkflowPhase for AssemblePhase {
         "AssemblePhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
+        let root_cache = context
+            .root_cache
+            .as_ref()
+            .expect("Root cache must be available before assemble");
+
+        let builds = execute_assemble(
+            &context.service_analyses,
+            root_cache,
+            &context.stack_registry,
+        )?;
+
+        context.builds = builds;
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
         let root_cache = context
             .root_cache
             .as_ref()
@@ -55,7 +51,7 @@ impl WorkflowPhase for AssemblePhase {
 }
 
 fn execute_assemble(
-    analysis_results: &[ServiceAnalysisResults],
+    analysis_results: &[OwnedServiceContext],
     root_cache: &RootCacheInfo,
     registry: &std::sync::Arc<StackRegistry>,
 ) -> Result<Vec<UniversalBuild>> {
@@ -70,7 +66,7 @@ fn execute_assemble(
 }
 
 fn assemble_single_service(
-    result: &ServiceAnalysisResults,
+    result: &OwnedServiceContext,
     root_cache: &RootCacheInfo,
     registry: &StackRegistry,
 ) -> Result<UniversalBuild> {
@@ -184,7 +180,7 @@ fn assemble_single_service(
     })
 }
 
-fn extract_project_name(service: &Service) -> String {
+fn extract_project_name(service: &super::structure::Service) -> String {
     service
         .path
         .file_name()
@@ -193,7 +189,7 @@ fn extract_project_name(service: &Service) -> String {
         .to_string()
 }
 
-fn calculate_confidence(result: &ServiceAnalysisResults) -> f32 {
+fn calculate_confidence(result: &OwnedServiceContext) -> f32 {
     let mut scores = [
         result.runtime.confidence.to_f32(),
         result.build.confidence.to_f32(),
@@ -213,6 +209,15 @@ fn calculate_confidence(result: &ServiceAnalysisResults) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipeline::phases::build::BuildInfo;
+    use crate::pipeline::phases::cache::CacheInfo;
+    use crate::pipeline::phases::entrypoint::EntrypointInfo;
+    use crate::pipeline::phases::env_vars::EnvVarsInfo;
+    use crate::pipeline::phases::health::HealthInfo;
+    use crate::pipeline::phases::native_deps::NativeDepsInfo;
+    use crate::pipeline::phases::port::PortInfo;
+    use crate::pipeline::phases::runtime::RuntimeInfo;
+    use crate::pipeline::phases::structure::Service;
     use crate::pipeline::Confidence;
     use std::path::PathBuf;
 
@@ -249,7 +254,7 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let result = ServiceAnalysisResults {
+        let result = OwnedServiceContext {
             service,
             runtime: RuntimeInfo {
                 runtime: "node".to_string(),

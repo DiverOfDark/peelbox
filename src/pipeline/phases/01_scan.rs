@@ -298,10 +298,18 @@ mod tests {
     }
 
     fn create_test_context(repo_path: &Path) -> AnalysisContext {
+        use crate::config::DetectionMode;
         let llm_client = Arc::new(MockLLMClient::new());
         let stack_registry = Arc::new(StackRegistry::with_defaults());
         let heuristic_logger = Arc::new(HeuristicLogger::disabled());
-        AnalysisContext::new(repo_path, llm_client, stack_registry, None, heuristic_logger)
+        AnalysisContext::new(
+            repo_path,
+            llm_client,
+            stack_registry,
+            None,
+            heuristic_logger,
+            DetectionMode::Full,
+        )
     }
 
     #[tokio::test]
@@ -309,8 +317,8 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        let result = phase.execute(&mut context).await;
-        assert!(result.is_ok());
+        let result = phase.try_deterministic(&mut context).unwrap();
+        assert!(result.is_some());
         assert!(context.scan.is_some());
     }
 
@@ -319,7 +327,7 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        phase.execute(&mut context).await.unwrap();
+        phase.try_deterministic(&mut context).unwrap().unwrap();
 
         let scan = context.scan.as_ref().unwrap();
         assert!(scan.detections.len() >= 2);
@@ -335,7 +343,7 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        phase.execute(&mut context).await.unwrap();
+        phase.try_deterministic(&mut context).unwrap().unwrap();
 
         let scan = context.scan.as_ref().unwrap();
         let paths: Vec<String> = scan
@@ -352,7 +360,7 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        phase.execute(&mut context).await.unwrap();
+        phase.try_deterministic(&mut context).unwrap().unwrap();
 
         let scan = context.scan.as_ref().unwrap();
         let cargo_files = scan.find_files_by_name("Cargo.toml");
@@ -368,7 +376,18 @@ impl WorkflowPhase for ScanPhase {
         "ScanPhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
+        self.scan_repository(context)?;
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+        self.scan_repository(context)
+    }
+}
+
+impl ScanPhase {
+    fn scan_repository(&self, context: &mut AnalysisContext) -> Result<()> {
         let config = ScanConfig::default();
         let repo_path = &context.repo_path;
 

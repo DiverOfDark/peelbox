@@ -107,10 +107,11 @@ impl ServicePhase for HealthPhase {
         "HealthPhase"
     }
 
-    type Output = HealthInfo;
-
-    async fn execute(&self, context: &ServiceContext) -> Result<HealthInfo> {
-        let runtime = context.runtime()?;
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
+        let runtime = context
+            .runtime
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Runtime must be available before health check detection"))?;
 
         let extractor_context =
             super::extractor_helper::create_service_context(context.scan()?, context.service);
@@ -132,18 +133,35 @@ impl ServicePhase for HealthPhase {
 
             let recommended = health_endpoints.first().map(|e| e.path.clone());
 
-            let result = HealthInfo {
+            context.health = Some(HealthInfo {
                 health_endpoints,
                 recommended_liveness: recommended.clone(),
                 recommended_readiness: recommended,
                 confidence: Confidence::High,
-            };
-            return Ok(result);
+            });
+            Ok(Some(()))
+        } else if let Some(framework_default) = try_framework_defaults(runtime, context.stack_registry()) {
+            context.health = Some(framework_default);
+            Ok(Some(()))
+        } else {
+            Ok(None)
         }
+    }
 
-        if let Some(framework_default) = try_framework_defaults(runtime, context.stack_registry()) {
-            return Ok(framework_default);
-        }
+    async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
+        let runtime = context
+            .runtime
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Runtime must be available before health check detection"))?;
+
+        let extractor_context =
+            super::extractor_helper::create_service_context(context.scan()?, context.service);
+        let extractor = HealthCheckExtractor::new(RealFileSystem);
+        let extracted_info = extractor.extract(&extractor_context);
+        let extracted: Vec<String> = extracted_info
+            .iter()
+            .map(|info| info.endpoint.clone())
+            .collect();
 
         let prompt = build_prompt(context.service, runtime, &extracted);
         let result: HealthInfo = super::llm_helper::query_llm_with_logging(
@@ -154,7 +172,9 @@ impl ServicePhase for HealthPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(result)
+
+        context.health = Some(result);
+        Ok(())
     }
 }
 

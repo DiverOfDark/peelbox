@@ -219,11 +219,26 @@ impl DetectionService {
         repo_path: PathBuf,
         enable_progress: bool,
     ) -> Result<Vec<UniversalBuild>, ServiceError> {
+        use crate::config::DetectionMode;
+        let mode = DetectionMode::from_env();
+        self.detect_with_mode(repo_path, enable_progress, mode).await
+    }
+
+    pub async fn detect_with_mode(
+        &self,
+        repo_path: PathBuf,
+        enable_progress: bool,
+        mode: crate::config::DetectionMode,
+    ) -> Result<Vec<UniversalBuild>, ServiceError> {
         let start = Instant::now();
 
         self.validate_repo_path(&repo_path)?;
 
-        info!("Starting detection for repository: {}", repo_path.display());
+        info!(
+            "Starting detection for repository: {} (mode: {:?})",
+            repo_path.display(),
+            mode
+        );
 
         use crate::heuristics::HeuristicLogger;
         use crate::pipeline::{AnalysisContext, PipelineOrchestrator};
@@ -241,6 +256,7 @@ impl DetectionService {
             Arc::new(StackRegistry::with_defaults()),
             None,
             Arc::new(HeuristicLogger::disabled()),
+            mode,
         );
 
         let orchestrator = PipelineOrchestrator::new(progress_handler);

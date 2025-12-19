@@ -197,25 +197,36 @@ impl WorkflowPhase for ClassifyPhase {
         "ClassifyPhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
         let scan = context
             .scan
             .as_ref()
             .expect("Scan must be available before classify");
 
-        let result = if can_skip_llm(scan) {
-            deterministic_classify(scan)
+        if can_skip_llm(scan) {
+            let result = deterministic_classify(scan);
+            context.classify = Some(result);
+            Ok(Some(()))
         } else {
-            let prompt = build_prompt(scan);
-            super::llm_helper::query_llm_with_logging(
-                context.llm_client.as_ref(),
-                prompt,
-                1000,
-                "classify",
-                &context.heuristic_logger,
-            )
-            .await?
-        };
+            Ok(None)
+        }
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before classify");
+
+        let prompt = build_prompt(scan);
+        let result = super::llm_helper::query_llm_with_logging(
+            context.llm_client.as_ref(),
+            prompt,
+            1000,
+            "classify",
+            &context.heuristic_logger,
+        )
+        .await?;
 
         context.classify = Some(result);
         Ok(())

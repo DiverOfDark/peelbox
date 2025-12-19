@@ -26,6 +26,14 @@ impl PipelineOrchestrator {
         Self { progress_handler }
     }
 
+    async fn execute_phase(
+        &self,
+        phase: Box<dyn WorkflowPhase>,
+        context: &mut AnalysisContext,
+    ) -> Result<()> {
+        phase.execute(context).await
+    }
+
     pub async fn execute(
         &self,
         repo_path: &Path,
@@ -65,8 +73,7 @@ impl PipelineOrchestrator {
             }
 
             let phase_start = Instant::now();
-            phase
-                .execute(context)
+            self.execute_phase(phase, context)
                 .await
                 .with_context(|| format!("Phase {} failed", phase_name))?;
 

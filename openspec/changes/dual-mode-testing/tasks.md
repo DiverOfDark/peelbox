@@ -1,31 +1,31 @@
 # Tasks - Dual-Mode Testing
 
 ## Phase 1: CLI Mode Control
-- [ ] Add `DetectionMode` enum: `Full` (LLM + static), `StaticOnly`, `LLMOnly`
-- [ ] Add `AIPACK_DETECTION_MODE` environment variable parsing in `src/config.rs`
-- [ ] Pass `DetectionMode` from CLI to `PipelineOrchestrator`
-- [ ] Add unit tests for env var parsing (test that "static", "llm", "full" map correctly)
+- [x] Add `DetectionMode` enum: `Full` (LLM + static), `StaticOnly`, `LLMOnly`
+- [x] Add `AIPACK_DETECTION_MODE` environment variable parsing in `src/config.rs`
+- [x] Pass `DetectionMode` from CLI to `PipelineOrchestrator`
+- [x] Add unit tests for env var parsing (test that "static", "llm", "full" map correctly)
 
 ## Phase 2: Pipeline Mode Support
-- [ ] Add `mode: DetectionMode` parameter to `PipelineOrchestrator::new()` or `::execute()`
-- [ ] Update each phase's `execute()` to check mode before LLM calls:
-  - [ ] Phase 2 (classify): Skip LLM if StaticOnly, use deterministic path
-  - [ ] Phase 3 (structure): Skip LLM if StaticOnly
-  - [ ] Phase 4 (dependencies): Skip LLM if StaticOnly
-  - [ ] Phase 6 (runtime): Skip LLM if StaticOnly
-  - [ ] Phase 7 (build): Skip LLM if StaticOnly
-  - [ ] Phase 8 (entrypoint): Skip LLM if StaticOnly
-  - [ ] Phase 9 (native_deps): Skip LLM if StaticOnly
-  - [ ] Phase 10 (port): Already has extractors, ensure static path works
-  - [ ] Phase 11 (env_vars): Already has extractors, ensure static path works
-  - [ ] Phase 12 (health): Already has extractors, ensure static path works
-- [ ] Verify pipeline completes in static mode without calling LLM
+- [x] Add `mode: DetectionMode` parameter to `PipelineOrchestrator::new()` or `::execute()`
+- [x] Update each phase's `execute()` to check mode before LLM calls:
+  - [x] Phase 2 (classify): Skip LLM if StaticOnly, use deterministic path
+  - [x] Phase 3 (structure): Skip LLM if StaticOnly
+  - [x] Phase 4 (dependencies): Skip LLM if StaticOnly
+  - [x] Phase 6 (runtime): Skip LLM if StaticOnly
+  - [x] Phase 7 (build): Skip LLM if StaticOnly
+  - [x] Phase 8 (entrypoint): Skip LLM if StaticOnly
+  - [x] Phase 9 (native_deps): Skip LLM if StaticOnly
+  - [x] Phase 10 (port): Already has extractors, ensure static path works
+  - [x] Phase 11 (env_vars): Already has extractors, ensure static path works
+  - [x] Phase 12 (health): Already has extractors, ensure static path works
+- [x] Verify pipeline completes in static mode without calling LLM
 
 ## Phase 3: E2e Test Helpers
-- [ ] Update `run_detection()` helper in `tests/e2e.rs` to accept mode parameter
-- [ ] Add `run_detection_llm(fixture)` helper that sets `AIPACK_DETECTION_MODE=llm`
-- [ ] Add `run_detection_static(fixture)` helper that sets `AIPACK_DETECTION_MODE=static`
-- [ ] Update `assert_detection()` to accept mode parameter for mode-specific validation
+- [x] Update `run_detection()` helper in `tests/e2e.rs` to accept mode parameter
+- [x] Add `run_detection_llm(fixture)` helper that sets `AIPACK_DETECTION_MODE=llm`
+- [x] Add `run_detection_static(fixture)` helper that sets `AIPACK_DETECTION_MODE=static`
+- [x] Update `assert_detection()` to accept mode parameter for mode-specific validation
 
 ## Phase 4: Add Dual-Mode E2e Tests
 - [ ] Single-language fixtures (17 × 2 = 34 tests):

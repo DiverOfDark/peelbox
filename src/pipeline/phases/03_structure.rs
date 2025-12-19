@@ -356,7 +356,7 @@ impl WorkflowPhase for StructurePhase {
         "StructurePhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
         let scan = context
             .scan
             .as_ref()
@@ -368,8 +368,21 @@ impl WorkflowPhase for StructurePhase {
 
         if can_use_deterministic(scan, classify) {
             context.structure = Some(deterministic_structure(scan, classify));
-            return Ok(());
+            Ok(Some(()))
+        } else {
+            Ok(None)
         }
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before structure");
+        let classify = context
+            .classify
+            .as_ref()
+            .expect("Classify must be available before structure");
 
         let prompt = build_prompt(scan, classify);
 

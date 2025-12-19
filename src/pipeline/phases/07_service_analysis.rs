@@ -1,4 +1,4 @@
-use super::assemble::ServiceAnalysisResults;
+use crate::pipeline::service_context::OwnedServiceContext;
 use super::build::BuildPhase;
 use super::cache::CachePhase;
 use super::entrypoint::EntrypointPhase;
@@ -21,7 +21,7 @@ impl WorkflowPhase for ServiceAnalysisPhase {
         "ServiceAnalysisPhase"
     }
 
-    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
         let structure = context
             .structure
             .as_ref()
@@ -53,69 +53,34 @@ impl ServiceAnalysisPhase {
         &self,
         service: &super::structure::Service,
         context: &AnalysisContext,
-    ) -> Result<ServiceAnalysisResults> {
+    ) -> Result<OwnedServiceContext> {
         let mut service_context = ServiceContext::new(service, context);
 
-        let runtime_phase = RuntimePhase;
-        let runtime = runtime_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Runtime detection failed for service at {}", service.path.display()))?;
+        // Execute all service phases in order
+        let phases: Vec<&dyn ServicePhase> = vec![
+            &RuntimePhase,
+            &BuildPhase,
+            &EntrypointPhase,
+            &NativeDepsPhase,
+            &PortPhase,
+            &EnvVarsPhase,
+            &HealthPhase,
+            &CachePhase,
+        ];
 
-        service_context.set_runtime(&runtime);
+        for phase in phases {
+            phase
+                .execute(&mut service_context)
+                .await
+                .with_context(|| {
+                    format!(
+                        "{} failed for service at {}",
+                        phase.name(),
+                        service.path.display()
+                    )
+                })?;
+        }
 
-        let build_phase = BuildPhase;
-        let build = build_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Build detection failed for service at {}", service.path.display()))?;
-
-        let entrypoint_phase = EntrypointPhase;
-        let entrypoint = entrypoint_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Entrypoint detection failed for service at {}", service.path.display()))?;
-
-        let native_deps_phase = NativeDepsPhase;
-        let native_deps = native_deps_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Native deps detection failed for service at {}", service.path.display()))?;
-
-        let port_phase = PortPhase;
-        let port = port_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Port discovery failed for service at {}", service.path.display()))?;
-
-        let env_vars_phase = EnvVarsPhase;
-        let env_vars = env_vars_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Env vars discovery failed for service at {}", service.path.display()))?;
-
-        let health_phase = HealthPhase;
-        let health = health_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Health check discovery failed for service at {}", service.path.display()))?;
-
-        let cache_phase = CachePhase;
-        let cache = cache_phase
-            .execute(&service_context)
-            .await
-            .with_context(|| format!("Cache detection failed for service at {}", service.path.display()))?;
-
-        Ok(ServiceAnalysisResults {
-            service: service.clone(),
-            runtime,
-            build,
-            entrypoint,
-            native_deps,
-            port,
-            env_vars,
-            health,
-            cache,
-        })
+        Ok(service_context.into_owned())
     }
 }

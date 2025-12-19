@@ -67,18 +67,43 @@ fn load_expected(fixture_name: &str) -> Option<Vec<UniversalBuild>> {
 
 /// Helper to run detection on a fixture and parse results
 fn run_detection(fixture: PathBuf, test_name: &str) -> Result<Vec<UniversalBuild>, String> {
+    run_detection_with_mode(fixture, test_name, None)
+}
+
+/// Helper to run detection in LLM mode
+fn run_detection_llm(fixture: PathBuf, test_name: &str) -> Result<Vec<UniversalBuild>, String> {
+    run_detection_with_mode(fixture, test_name, Some("llm"))
+}
+
+/// Helper to run detection in static-only mode
+fn run_detection_static(fixture: PathBuf, test_name: &str) -> Result<Vec<UniversalBuild>, String> {
+    run_detection_with_mode(fixture, test_name, Some("static"))
+}
+
+/// Helper to run detection with specified mode
+fn run_detection_with_mode(
+    fixture: PathBuf,
+    test_name: &str,
+    mode: Option<&str>,
+) -> Result<Vec<UniversalBuild>, String> {
     // Create .git directory in fixture to prevent WalkBuilder from looking up the tree
     let git_dir = fixture.join(".git");
     if !git_dir.exists() {
         std::fs::create_dir_all(&git_dir).ok();
     }
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_PROVIDER", "embedded")
+    let mut cmd = Command::new(aipack_bin());
+    cmd.env("AIPACK_PROVIDER", "embedded")
         .env("AIPACK_MODEL_SIZE", "7B")
         .env("AIPACK_ENABLE_RECORDING", "1")
         .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", test_name)
+        .env("AIPACK_TEST_NAME", test_name);
+
+    if let Some(detection_mode) = mode {
+        cmd.env("AIPACK_DETECTION_MODE", detection_mode);
+    }
+
+    let output = cmd
         .arg("detect")
         .arg(fixture)
         .arg("--format")

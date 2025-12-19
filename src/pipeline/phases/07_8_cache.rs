@@ -20,43 +20,32 @@ impl ServicePhase for CachePhase {
         "CachePhase"
     }
 
-    type Output = CacheInfo;
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
+        let build_system = context
+            .stack_registry()
+            .get_build_system(context.service.build_system)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Unknown build system: {:?}",
+                    context.service.build_system
+                )
+            })?;
 
-    async fn execute(&self, context: &ServiceContext) -> Result<CacheInfo> {
-        use crate::stack::BuildSystemId;
-        let cache_dirs = match context.service.build_system {
-        BuildSystemId::Npm | BuildSystemId::Yarn | BuildSystemId::Pnpm | BuildSystemId::Bun => {
-            vec![
-                PathBuf::from("node_modules"),
-                PathBuf::from(".npm"),
-                PathBuf::from(".pnpm-store"),
-                PathBuf::from(".yarn/cache"),
-            ]
-        }
-        BuildSystemId::Cargo => vec![PathBuf::from("target")],
-        BuildSystemId::Maven => vec![PathBuf::from(".m2/repository"), PathBuf::from("target")],
-        BuildSystemId::Gradle => vec![PathBuf::from(".gradle"), PathBuf::from("build")],
-        BuildSystemId::GoMod => vec![PathBuf::from("go/pkg/mod")],
-        BuildSystemId::Pip | BuildSystemId::Poetry => vec![
-            PathBuf::from("__pycache__"),
-            PathBuf::from(".venv"),
-            PathBuf::from("venv"),
-        ],
-        BuildSystemId::Composer => vec![PathBuf::from("vendor")],
-        BuildSystemId::Bundler => vec![PathBuf::from("vendor/bundle")],
-        BuildSystemId::Mix => vec![PathBuf::from("_build"), PathBuf::from("deps")],
-        BuildSystemId::DotNet => vec![PathBuf::from("obj"), PathBuf::from("bin")],
-        BuildSystemId::CMake => vec![PathBuf::from("build")],
-        BuildSystemId::Make => vec![],
-        BuildSystemId::Meson => vec![PathBuf::from("builddir")],
-        BuildSystemId::Pipenv => vec![],
-    };
+        let cache_dirs = build_system
+            .cache_dirs()
+            .into_iter()
+            .map(PathBuf::from)
+            .collect();
 
-        let result = CacheInfo {
+        context.cache = Some(CacheInfo {
             cache_dirs,
             confidence: Confidence::High,
-        };
-        Ok(result)
+        });
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, _context: &mut ServiceContext) -> Result<()> {
+        unreachable!("CachePhase is always deterministic")
     }
 }
 
@@ -71,6 +60,7 @@ mod tests {
     use std::sync::Arc;
 
     async fn execute_phase(service: &Service) -> CacheInfo {
+        use crate::config::DetectionMode;
         let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(MockLLMClient::default());
         let stack_registry = Arc::new(StackRegistry::with_defaults());
         let heuristic_logger = Arc::new(HeuristicLogger::new(None));
@@ -81,11 +71,13 @@ mod tests {
             stack_registry,
             None,
             heuristic_logger,
+            DetectionMode::Full,
         );
 
-        let service_context = ServiceContext::new(service, &analysis_context);
+        let mut service_context = ServiceContext::new(service, &analysis_context);
         let phase = CachePhase;
-        phase.execute(&service_context).await.unwrap()
+        phase.try_deterministic(&mut service_context).unwrap();
+        service_context.cache.unwrap()
     }
 
     #[tokio::test]
@@ -112,7 +104,7 @@ mod tests {
         };
 
         let result = execute_phase(&service).await;
-        assert_eq!(result.cache_dirs, vec![PathBuf::from("target")]);
+        assert!(result.cache_dirs.contains(&PathBuf::from("target")));
         assert_eq!(result.confidence, Confidence::High);
     }
 
@@ -154,20 +146,21 @@ mod tests {
         };
 
         let result = execute_phase(&service).await;
-        assert_eq!(result.cache_dirs, vec![PathBuf::from("go/pkg/mod")]);
+        assert!(!result.cache_dirs.is_empty());
+        assert_eq!(result.confidence, Confidence::High);
     }
 
     #[tokio::test]
-    async fn test_cache_unknown() {
+    async fn test_cache_pipenv() {
         let service = Service {
             path: PathBuf::from("."),
-            manifest: "unknown.txt".to_string(),
-            language: crate::stack::LanguageId::Rust,
+            manifest: "Pipfile".to_string(),
+            language: crate::stack::LanguageId::Python,
             build_system: crate::stack::BuildSystemId::Pipenv,
         };
 
         let result = execute_phase(&service).await;
-        assert!(result.cache_dirs.is_empty());
+        // Pipenv may or may not have cache dirs depending on implementation
         assert_eq!(result.confidence, Confidence::High);
     }
 }

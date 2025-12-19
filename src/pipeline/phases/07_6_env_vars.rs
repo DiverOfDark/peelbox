@@ -66,9 +66,7 @@ impl ServicePhase for EnvVarsPhase {
         "EnvVarsPhase"
     }
 
-    type Output = EnvVarsInfo;
-
-    async fn execute(&self, context: &ServiceContext) -> Result<EnvVarsInfo> {
+    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         let service_context =
             super::extractor_helper::create_service_context(context.scan()?, context.service);
         let extractor = EnvVarExtractor::new(RealFileSystem);
@@ -89,12 +87,25 @@ impl ServicePhase for EnvVarsPhase {
                 })
                 .collect();
 
-            let result = EnvVarsInfo {
+            context.env_vars = Some(EnvVarsInfo {
                 env_vars,
                 confidence: Confidence::High,
-            };
-            return Ok(result);
+            });
+            Ok(Some(()))
+        } else {
+            Ok(None)
         }
+    }
+
+    async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
+        let service_context =
+            super::extractor_helper::create_service_context(context.scan()?, context.service);
+        let extractor = EnvVarExtractor::new(RealFileSystem);
+        let extracted_info = extractor.extract(&service_context);
+        let extracted: Vec<String> = extracted_info
+            .iter()
+            .map(|info| info.name.clone())
+            .collect();
 
         let prompt = build_prompt(context.service, &extracted);
         let result: EnvVarsInfo = super::llm_helper::query_llm_with_logging(
@@ -105,7 +116,9 @@ impl ServicePhase for EnvVarsPhase {
             context.heuristic_logger(),
         )
         .await?;
-        Ok(result)
+
+        context.env_vars = Some(result);
+        Ok(())
     }
 }
 
