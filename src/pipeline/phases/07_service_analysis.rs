@@ -1,4 +1,3 @@
-use crate::pipeline::service_context::OwnedServiceContext;
 use super::build::BuildPhase;
 use super::cache::CachePhase;
 use super::entrypoint::EntrypointPhase;
@@ -12,6 +11,7 @@ use crate::pipeline::phase_trait::{ServicePhase, WorkflowPhase};
 use crate::pipeline::service_context::ServiceContext;
 use anyhow::{Context as AnyhowContext, Result};
 use async_trait::async_trait;
+use std::sync::Arc;
 
 pub struct ServiceAnalysisPhase;
 
@@ -53,8 +53,10 @@ impl ServiceAnalysisPhase {
         &self,
         service: &super::structure::Service,
         context: &AnalysisContext,
-    ) -> Result<OwnedServiceContext> {
-        let mut service_context = ServiceContext::new(service, context);
+    ) -> Result<ServiceContext> {
+        let service_arc = Arc::new(service.clone());
+        let context_arc = Arc::new((*context).clone());
+        let mut service_context = ServiceContext::new(service_arc, context_arc);
 
         // Execute all service phases in order
         let phases: Vec<&dyn ServicePhase> = vec![
@@ -81,6 +83,6 @@ impl ServiceAnalysisPhase {
                 })?;
         }
 
-        Ok(service_context.into_owned())
+        Ok(service_context)
     }
 }

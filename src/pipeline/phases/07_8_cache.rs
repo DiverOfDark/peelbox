@@ -77,7 +77,9 @@ mod tests {
             DetectionMode::Full,
         );
 
-        let mut service_context = ServiceContext::new(service, &analysis_context);
+        let service_arc = Arc::new(service.clone());
+        let context_arc = Arc::new(analysis_context);
+        let mut service_context = ServiceContext::new(service_arc, context_arc);
         let phase = CachePhase;
         phase.try_deterministic(&mut service_context).unwrap();
         service_context.cache.unwrap()

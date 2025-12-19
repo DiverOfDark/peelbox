@@ -115,7 +115,7 @@ impl ServicePhase for BuildPhase {
     }
 
     fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
-        if let Some(deterministic) = try_deterministic(context.service) {
+        if let Some(deterministic) = try_deterministic(&context.service) {
             context.build = Some(deterministic);
             Ok(Some(()))
         } else {
@@ -124,9 +124,9 @@ impl ServicePhase for BuildPhase {
     }
 
     async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
-        let scripts_excerpt = extract_scripts_excerpt(context.scan()?, context.service)?;
+        let scripts_excerpt = extract_scripts_excerpt(context.scan()?, &context.service)?;
 
-        let prompt = build_prompt(context.service, scripts_excerpt.as_deref());
+        let prompt = build_prompt(&context.service, scripts_excerpt.as_deref());
         let result = super::llm_helper::query_llm_with_logging(
             context.llm_client(),
             prompt,

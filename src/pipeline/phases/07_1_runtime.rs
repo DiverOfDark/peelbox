@@ -138,7 +138,7 @@ impl ServicePhase for RuntimePhase {
 
     fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         if let Some(deterministic) = try_deterministic(
-            context.service,
+            &context.service,
             context.dependencies()?,
             context.stack_registry(),
         ) {
@@ -150,10 +150,10 @@ impl ServicePhase for RuntimePhase {
     }
 
     async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
-        let files = extract_relevant_files(context.scan()?, context.service);
-        let manifest_excerpt = extract_manifest_excerpt(context.scan()?, context.service)?;
+        let files = extract_relevant_files(context.scan()?, &context.service);
+        let manifest_excerpt = extract_manifest_excerpt(context.scan()?, &context.service)?;
 
-        let prompt = build_prompt(context.service, &files, manifest_excerpt.as_deref());
+        let prompt = build_prompt(&context.service, &files, manifest_excerpt.as_deref());
         let result = super::llm_helper::query_llm_with_logging(
             context.llm_client(),
             prompt,

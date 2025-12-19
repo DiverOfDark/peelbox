@@ -62,7 +62,7 @@ impl ServicePhase for EntrypointPhase {
     async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
         let manifest_excerpt = extract_manifest_excerpt(context)?;
 
-        let prompt = build_prompt(context.service, manifest_excerpt.as_deref());
+        let prompt = build_prompt(&context.service, manifest_excerpt.as_deref());
         let result = super::llm_helper::query_llm_with_logging(
             context.llm_client(),
             prompt,

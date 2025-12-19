@@ -137,7 +137,7 @@ impl ServicePhase for PortPhase {
             context.port = Some(framework_default);
             Ok(Some(()))
         } else if let Some(deterministic) =
-            try_deterministic(context.service, context.stack_registry())
+            try_deterministic(&context.service, context.stack_registry())
         {
             context.port = Some(deterministic);
             Ok(Some(()))
@@ -157,7 +157,7 @@ impl ServicePhase for PortPhase {
         let extracted_info = extractor.extract(&extractor_context);
         let extracted: Vec<u16> = extracted_info.iter().map(|info| info.port).collect();
 
-        let prompt = build_prompt(context.service, &extracted);
+        let prompt = build_prompt(&context.service, &extracted);
         let result = super::llm_helper::query_llm_with_logging(
             context.llm_client(),
             prompt,

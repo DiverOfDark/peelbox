@@ -11,9 +11,10 @@ use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
 
-pub struct ServiceContext<'a> {
-    pub service: &'a Service,
-    pub analysis_context: &'a AnalysisContext,
+#[derive(Clone)]
+pub struct ServiceContext {
+    pub service: Arc<Service>,
+    pub analysis_context: Arc<AnalysisContext>,
 
     // Phase results
     pub runtime: Option<RuntimeInfo>,
@@ -26,21 +27,9 @@ pub struct ServiceContext<'a> {
     pub cache: Option<CacheInfo>,
 }
 
-/// Completed service analysis with all phase results
-pub struct OwnedServiceContext {
-    pub service: Service,
-    pub runtime: RuntimeInfo,
-    pub build: BuildInfo,
-    pub entrypoint: EntrypointInfo,
-    pub native_deps: NativeDepsInfo,
-    pub port: PortInfo,
-    pub env_vars: EnvVarsInfo,
-    pub health: HealthInfo,
-    pub cache: CacheInfo,
-}
 
-impl<'a> ServiceContext<'a> {
-    pub fn new(service: &'a Service, analysis_context: &'a AnalysisContext) -> Self {
+impl ServiceContext {
+    pub fn new(service: Arc<Service>, analysis_context: Arc<AnalysisContext>) -> Self {
         Self {
             service,
             analysis_context,
@@ -83,29 +72,5 @@ impl<'a> ServiceContext<'a> {
 
     pub fn heuristic_logger(&self) -> &Arc<HeuristicLogger> {
         &self.analysis_context.heuristic_logger
-    }
-
-    /// Converts the borrowed ServiceContext into an owned version.
-    ///
-    /// Consumes self and moves all phase results into OwnedServiceContext.
-    /// Note: The service field is cloned since it's borrowed from the Service reference.
-    pub fn into_owned(self) -> OwnedServiceContext {
-        OwnedServiceContext {
-            service: self.service.clone(),
-            runtime: self.runtime.expect("Runtime must be set after RuntimePhase"),
-            build: self.build.expect("Build must be set after BuildPhase"),
-            entrypoint: self
-                .entrypoint
-                .expect("Entrypoint must be set after EntrypointPhase"),
-            native_deps: self
-                .native_deps
-                .expect("NativeDeps must be set after NativeDepsPhase"),
-            port: self.port.expect("Port must be set after PortPhase"),
-            env_vars: self
-                .env_vars
-                .expect("EnvVars must be set after EnvVarsPhase"),
-            health: self.health.expect("Health must be set after HealthPhase"),
-            cache: self.cache.expect("Cache must be set after CachePhase"),
-        }
     }
 }

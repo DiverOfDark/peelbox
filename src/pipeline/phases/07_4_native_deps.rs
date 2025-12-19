@@ -155,7 +155,7 @@ impl ServicePhase for NativeDepsPhase {
 
     fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         let dependencies =
-            extract_dependencies(context.scan()?, context.service).with_context(|| {
+            extract_dependencies(context.scan()?, &context.service).with_context(|| {
                 format!(
                     "Failed to extract dependencies for service at {}",
                     context.service.path.display()
@@ -172,14 +172,14 @@ impl ServicePhase for NativeDepsPhase {
 
     async fn execute_llm(&self, context: &mut ServiceContext) -> Result<()> {
         let dependencies =
-            extract_dependencies(context.scan()?, context.service).with_context(|| {
+            extract_dependencies(context.scan()?, &context.service).with_context(|| {
                 format!(
                     "Failed to extract dependencies for service at {}",
                     context.service.path.display()
                 )
             })?;
 
-        let prompt = build_prompt(context.service, &dependencies);
+        let prompt = build_prompt(&context.service, &dependencies);
         let result = super::llm_helper::query_llm_with_logging(
             context.llm_client(),
             prompt,

@@ -114,7 +114,7 @@ impl ServicePhase for HealthPhase {
             .ok_or_else(|| anyhow::anyhow!("Runtime must be available before health check detection"))?;
 
         let extractor_context =
-            super::extractor_helper::create_service_context(context.scan()?, context.service);
+            super::extractor_helper::create_service_context(context.scan()?, &context.service);
         let extractor = HealthCheckExtractor::new(RealFileSystem);
         let extracted_info = extractor.extract(&extractor_context);
         let extracted: Vec<String> = extracted_info
@@ -155,7 +155,7 @@ impl ServicePhase for HealthPhase {
             .ok_or_else(|| anyhow::anyhow!("Runtime must be available before health check detection"))?;
 
         let extractor_context =
-            super::extractor_helper::create_service_context(context.scan()?, context.service);
+            super::extractor_helper::create_service_context(context.scan()?, &context.service);
         let extractor = HealthCheckExtractor::new(RealFileSystem);
         let extracted_info = extractor.extract(&extractor_context);
         let extracted: Vec<String> = extracted_info
@@ -163,7 +163,7 @@ impl ServicePhase for HealthPhase {
             .map(|info| info.endpoint.clone())
             .collect();
 
-        let prompt = build_prompt(context.service, runtime, &extracted);
+        let prompt = build_prompt(&context.service, runtime, &extracted);
         let result: HealthInfo = super::llm_helper::query_llm_with_logging(
             context.llm_client(),
             prompt,

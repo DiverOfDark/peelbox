@@ -2,7 +2,7 @@ use super::phases::{
     build_order::BuildOrderResult, classify::ClassifyResult, dependencies::DependencyResult,
     root_cache::RootCacheInfo, scan::ScanResult, structure::StructureResult,
 };
-use super::service_context::OwnedServiceContext;
+use super::service_context::ServiceContext;
 use crate::config::DetectionMode;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
@@ -12,6 +12,7 @@ use crate::stack::StackRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct AnalysisContext {
     pub repo_path: PathBuf,
     pub llm_client: Arc<dyn LLMClient>,
@@ -25,7 +26,7 @@ pub struct AnalysisContext {
     pub dependencies: Option<DependencyResult>,
     pub build_order: Option<BuildOrderResult>,
     pub root_cache: Option<RootCacheInfo>,
-    pub service_analyses: Vec<OwnedServiceContext>,
+    pub service_analyses: Vec<ServiceContext>,
     pub builds: Vec<UniversalBuild>,
 }
 

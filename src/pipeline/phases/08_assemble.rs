@@ -1,5 +1,5 @@
 use super::root_cache::RootCacheInfo;
-use crate::pipeline::service_context::OwnedServiceContext;
+use crate::pipeline::service_context::ServiceContext;
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
@@ -51,7 +51,7 @@ impl WorkflowPhase for AssemblePhase {
 }
 
 fn execute_assemble(
-    analysis_results: &[OwnedServiceContext],
+    analysis_results: &[ServiceContext],
     root_cache: &RootCacheInfo,
     registry: &std::sync::Arc<StackRegistry>,
 ) -> Result<Vec<UniversalBuild>> {
@@ -66,7 +66,7 @@ fn execute_assemble(
 }
 
 fn assemble_single_service(
-    result: &OwnedServiceContext,
+    result: &ServiceContext,
     root_cache: &RootCacheInfo,
     registry: &StackRegistry,
 ) -> Result<UniversalBuild> {
@@ -80,11 +80,18 @@ fn assemble_single_service(
 
     let confidence = calculate_confidence(result);
 
+    let runtime = result.runtime.as_ref().expect("Runtime must be set");
+    let build_info = result.build.as_ref().expect("Build must be set");
+    let cache_info = result.cache.as_ref().expect("Cache must be set");
+    let env_vars_info = result.env_vars.as_ref().expect("EnvVars must be set");
+    let entrypoint_info = result.entrypoint.as_ref().expect("Entrypoint must be set");
+    let port_info = result.port.as_ref().expect("Port must be set");
+
     let metadata = BuildMetadata {
         project_name: Some(project_name.clone()),
         language: result.service.language.name().to_string(),
         build_system: result.service.build_system.name().to_string(),
-        framework: result.runtime.framework.clone(),
+        framework: runtime.framework.clone(),
         confidence,
         reasoning: format!(
             "Detected from {} in {}",
@@ -93,8 +100,7 @@ fn assemble_single_service(
         ),
     };
 
-    let mut cache_paths: Vec<String> = result
-        .cache
+    let mut cache_paths: Vec<String> = cache_info
         .cache_dirs
         .iter()
         .map(|p| p.display().to_string())
@@ -111,13 +117,13 @@ fn assemble_single_service(
         base: template
             .as_ref()
             .map(|t| t.build_image.clone())
-            .unwrap_or_else(|| format!("{}:latest", result.runtime.runtime)),
+            .unwrap_or_else(|| format!("{}:latest", runtime.runtime)),
         packages: template
             .as_ref()
             .map(|t| t.build_packages.clone())
             .unwrap_or_default(),
         env: HashMap::new(),
-        commands: result.build.build_cmd.clone().into_iter().collect::<Vec<_>>(),
+        commands: build_info.build_cmd.clone().into_iter().collect::<Vec<_>>(),
         context: vec![ContextSpec {
             from: result.service.path.display().to_string(),
             to: "/app".to_string(),
@@ -135,14 +141,13 @@ fn assemble_single_service(
     };
 
     let mut env_map = HashMap::new();
-    for env_var in &result.env_vars.env_vars {
+    for env_var in &env_vars_info.env_vars {
         if let Some(default) = &env_var.default_value {
             env_map.insert(env_var.name.clone(), default.clone());
         }
     }
 
-    let entrypoint_cmd = result
-        .entrypoint
+    let entrypoint_cmd = entrypoint_info
         .entrypoint
         .replace("{project_name}", &project_name);
     let command_parts: Vec<String> = entrypoint_cmd
@@ -169,7 +174,7 @@ fn assemble_single_service(
             to: "/usr/local/bin/app".to_string(),
         }],
         command: command_parts,
-        ports: result.port.port.into_iter().collect(),
+        ports: port_info.port.into_iter().collect(),
     };
 
     Ok(UniversalBuild {
@@ -189,16 +194,16 @@ fn extract_project_name(service: &super::structure::Service) -> String {
         .to_string()
 }
 
-fn calculate_confidence(result: &OwnedServiceContext) -> f32 {
+fn calculate_confidence(result: &ServiceContext) -> f32 {
     let mut scores = [
-        result.runtime.confidence.to_f32(),
-        result.build.confidence.to_f32(),
-        result.entrypoint.confidence.to_f32(),
-        result.native_deps.confidence.to_f32(),
-        result.port.confidence.to_f32(),
-        result.env_vars.confidence.to_f32(),
-        result.health.confidence.to_f32(),
-        result.cache.confidence.to_f32(),
+        result.runtime.as_ref().expect("Runtime must be set").confidence.to_f32(),
+        result.build.as_ref().expect("Build must be set").confidence.to_f32(),
+        result.entrypoint.as_ref().expect("Entrypoint must be set").confidence.to_f32(),
+        result.native_deps.as_ref().expect("NativeDeps must be set").confidence.to_f32(),
+        result.port.as_ref().expect("Port must be set").confidence.to_f32(),
+        result.env_vars.as_ref().expect("EnvVars must be set").confidence.to_f32(),
+        result.health.as_ref().expect("Health must be set").confidence.to_f32(),
+        result.cache.as_ref().expect("Cache must be set").confidence.to_f32(),
     ];
 
     scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
@@ -220,6 +225,7 @@ mod tests {
     use crate::pipeline::phases::structure::Service;
     use crate::pipeline::Confidence;
     use std::path::PathBuf;
+    use std::sync::Arc;
 
     #[test]
     fn test_extract_project_name() {
@@ -254,50 +260,64 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let result = OwnedServiceContext {
-            service,
-            runtime: RuntimeInfo {
+        let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(crate::llm::MockLLMClient::default());
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let heuristic_logger = Arc::new(crate::heuristics::HeuristicLogger::new(None));
+
+        let analysis_context = crate::pipeline::context::AnalysisContext::new(
+            &PathBuf::from("."),
+            llm_client,
+            stack_registry,
+            None,
+            heuristic_logger,
+            crate::config::DetectionMode::Full,
+        );
+
+        let result = ServiceContext {
+            service: Arc::new(service),
+            analysis_context: Arc::new(analysis_context),
+            runtime: Some(RuntimeInfo {
                 runtime: "node".to_string(),
                 runtime_version: None,
                 framework: None,
                 confidence: Confidence::High,
-            },
-            build: BuildInfo {
+            }),
+            build: Some(BuildInfo {
                 build_cmd: Some("npm run build".to_string()),
                 output_dir: Some(PathBuf::from("dist")),
                 confidence: Confidence::High,
-            },
-            entrypoint: EntrypointInfo {
+            }),
+            entrypoint: Some(EntrypointInfo {
                 entrypoint: "node dist/main.js".to_string(),
                 confidence: Confidence::High,
-            },
-            native_deps: NativeDepsInfo {
+            }),
+            native_deps: Some(NativeDepsInfo {
                 needs_build_deps: false,
                 has_native_modules: false,
                 has_prisma: false,
                 native_deps: vec![],
                 confidence: Confidence::High,
-            },
-            port: PortInfo {
+            }),
+            port: Some(PortInfo {
                 port: Some(3000),
                 from_env: false,
                 env_var: None,
                 confidence: Confidence::High,
-            },
-            env_vars: EnvVarsInfo {
+            }),
+            env_vars: Some(EnvVarsInfo {
                 env_vars: vec![],
                 confidence: Confidence::High,
-            },
-            health: HealthInfo {
+            }),
+            health: Some(HealthInfo {
                 health_endpoints: vec![],
                 recommended_liveness: None,
                 recommended_readiness: None,
                 confidence: Confidence::High,
-            },
-            cache: CacheInfo {
+            }),
+            cache: Some(CacheInfo {
                 cache_dirs: vec![],
                 confidence: Confidence::High,
-            },
+            }),
         };
 
         let confidence = calculate_confidence(&result);
