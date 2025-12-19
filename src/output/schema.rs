@@ -1,3 +1,4 @@
+use crate::stack::runtime::HealthCheck;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
@@ -84,6 +85,8 @@ pub struct RuntimeStage {
     pub command: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub ports: Vec<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub health: Option<HealthCheck>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -154,6 +157,7 @@ mod tests {
                 }],
                 command: vec!["/usr/local/bin/app".to_string()],
                 ports: vec![],
+                health: None,
             },
         }
     }
@@ -383,6 +387,7 @@ mod tests {
                 copy: vec![],
                 command: vec![],
                 ports: vec![],
+                health: None,
             },
         };
 

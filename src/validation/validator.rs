@@ -73,6 +73,7 @@ mod tests {
                 }],
                 command: vec!["app".to_string()],
                 ports: vec![],
+                health: None,
             },
         }
     }

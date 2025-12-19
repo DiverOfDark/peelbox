@@ -163,6 +163,7 @@ mod tests {
                 }],
                 command: vec!["/usr/local/bin/app".to_string()],
                 ports: vec![],
+                health: None,
             },
         }
     }

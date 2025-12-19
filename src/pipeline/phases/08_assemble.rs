@@ -175,6 +175,7 @@ fn assemble_single_service(
         }],
         command: command_parts,
         ports: port_info.port.into_iter().collect(),
+        health: None,
     };
 
     Ok(UniversalBuild {

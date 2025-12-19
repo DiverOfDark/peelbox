@@ -53,12 +53,12 @@
 
 **Independent** (can run in parallel with PR1-2)
 
-- [ ] Add `HealthCheck` struct to `src/output/schema.rs`
-- [ ] Add `health: Option<HealthCheck>` field to `RuntimeStage`
-- [ ] Update schema validation for health field
-- [ ] Update all test fixtures in `tests/fixtures/expected/` to include `"health": null`
-- [ ] Run schema validation tests
-- [ ] Verify all e2e tests still pass
+- [x] Add `HealthCheck` struct to `src/output/schema.rs`
+- [x] Add `health: Option<HealthCheck>` field to `RuntimeStage`
+- [x] Update schema validation for health field
+- [x] Update all test fixtures in `tests/fixtures/expected/` to include `"health": null`
+- [x] Run schema validation tests
+- [x] Verify all e2e tests still pass
 
 ### PR4: RuntimeConfigPhase Integration (~200 LOC)
 
