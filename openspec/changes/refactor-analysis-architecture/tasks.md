@@ -4,49 +4,50 @@
 
 ### PR1: Runtime Trait Infrastructure (~200 LOC)
 
-- [ ] Create `src/runtime/mod.rs` module
-- [ ] Define `Runtime` trait with methods:
-  - [ ] `try_deterministic_config(files, framework) -> Option<RuntimeConfig>`
-  - [ ] `extract_config_llm(files, framework) -> Result<RuntimeConfig>`
-  - [ ] `runtime_base_image(version) -> String`
-  - [ ] `required_packages() -> Vec<&str>`
-  - [ ] `start_command(entrypoint) -> String`
-- [ ] Define `RuntimeConfig` struct with fields: `entrypoint`, `port`, `env_vars`, `health`, `native_deps`
-- [ ] Define `HealthCheck` struct with field: `endpoint`
-- [ ] Create `src/runtime/jvm.rs`
-- [ ] Implement `JvmRuntime` with all trait methods
-- [ ] Add unit tests for `JvmRuntime`
-- [ ] Verify trait compiles and tests pass
+- [x] Create `src/runtime/mod.rs` module
+- [x] Define `Runtime` trait with methods:
+  - [x] `try_deterministic_config(files, framework) -> Option<RuntimeConfig>`
+  - [x] `extract_config_llm(files, framework) -> Result<RuntimeConfig>`
+  - [x] `runtime_base_image(version) -> String`
+  - [x] `required_packages() -> Vec<&str>`
+  - [x] `start_command(entrypoint) -> String`
+- [x] Define `RuntimeConfig` struct with fields: `entrypoint`, `port`, `env_vars`, `health`, `native_deps`
+- [x] Define `HealthCheck` struct with field: `endpoint`
+- [x] Create `src/runtime/jvm.rs`
+- [x] Implement `JvmRuntime` with all trait methods
+- [x] Add unit tests for `JvmRuntime`
+- [x] Verify trait compiles and tests pass
 
 ### PR2: Complete Runtime Implementations (~300 LOC)
 
 **Depends on**: PR1
 
-- [ ] Create `src/runtime/node.rs`
-- [ ] Implement `NodeRuntime` with all trait methods
-- [ ] Add unit tests for `NodeRuntime`
-- [ ] Create `src/runtime/python.rs`
-- [ ] Implement `PythonRuntime` with all trait methods
-- [ ] Add unit tests for `PythonRuntime`
-- [ ] Create `src/runtime/ruby.rs`
-- [ ] Implement `RubyRuntime` with all trait methods
-- [ ] Add unit tests for `RubyRuntime`
-- [ ] Create `src/runtime/php.rs`
-- [ ] Implement `PhpRuntime` with all trait methods
-- [ ] Add unit tests for `PhpRuntime`
-- [ ] Create `src/runtime/dotnet.rs`
-- [ ] Implement `DotNetRuntime` with all trait methods
-- [ ] Add unit tests for `DotNetRuntime`
-- [ ] Create `src/runtime/beam.rs`
-- [ ] Implement `BeamRuntime` with all trait methods
-- [ ] Add unit tests for `BeamRuntime`
-- [ ] Create `src/runtime/native.rs`
-- [ ] Implement `NativeRuntime` with all trait methods
-- [ ] Add unit tests for `NativeRuntime`
-- [ ] Create `src/runtime/llm.rs`
-- [ ] Implement `LLMRuntime` (fallback) with all trait methods
-- [ ] Add unit tests for `LLMRuntime`
-- [ ] Verify all runtime implementations compile and tests pass
+- [x] Move runtime module from src/runtime to src/stack/runtime
+- [x] Create `src/stack/runtime/node.rs`
+- [x] Implement `NodeRuntime` with all trait methods
+- [x] Add unit tests for `NodeRuntime`
+- [x] Create `src/stack/runtime/python.rs`
+- [x] Implement `PythonRuntime` with all trait methods
+- [x] Add unit tests for `PythonRuntime`
+- [x] Create `src/stack/runtime/ruby.rs`
+- [x] Implement `RubyRuntime` with all trait methods
+- [x] Add unit tests for `RubyRuntime`
+- [x] Create `src/stack/runtime/php.rs`
+- [x] Implement `PhpRuntime` with all trait methods
+- [x] Add unit tests for `PhpRuntime`
+- [x] Create `src/stack/runtime/dotnet.rs`
+- [x] Implement `DotNetRuntime` with all trait methods
+- [x] Add unit tests for `DotNetRuntime`
+- [x] Create `src/stack/runtime/beam.rs`
+- [x] Implement `BeamRuntime` with all trait methods
+- [x] Add unit tests for `BeamRuntime`
+- [x] Create `src/stack/runtime/native.rs`
+- [x] Implement `NativeRuntime` with all trait methods
+- [x] Add unit tests for `NativeRuntime`
+- [x] Create `src/stack/runtime/llm.rs`
+- [x] Implement `LLMRuntime` (fallback) with all trait methods
+- [x] Add unit tests for `LLMRuntime`
+- [x] Verify all runtime implementations compile and tests pass
 
 ### PR3: Add Health Endpoint to Schema (~100 LOC)
 
@@ -299,20 +300,65 @@
 ## Technical Debt
 
 ### Runtime Configuration Extraction
-- [ ] Implement deterministic config parsing in JvmRuntime.try_deterministic_config()
-  - [ ] Parse application.properties for port and configuration
-  - [ ] Parse application.yml for port and configuration
-  - [ ] Extract env vars from @Value annotations or Environment usage
-  - [ ] Detect native dependencies from pom.xml/build.gradle
-- [ ] Implement LLM-based config extraction in JvmRuntime.extract_config_llm()
-  - [ ] Design minimal LLM prompt for config extraction
-  - [ ] Call LLM client with file context
+
+#### Runtime-Level Deterministic Parsing
+Runtime.try_extract() should parse generic runtime patterns, not framework-specific configs:
+
+- [ ] Implement JvmRuntime.try_extract()
+  - [ ] Detect native dependencies from pom.xml/build.gradle system dependencies
+  - [ ] Scan for generic Java server port bindings (ServerSocket, Jetty, etc.)
+  - [ ] Extract env vars from System.getenv() calls
+- [ ] Implement NodeRuntime.try_extract()
+  - [ ] Parse package.json scripts for port hints (start command analysis)
+  - [ ] Scan .js/.ts files for generic server.listen(port) calls
+  - [ ] Extract env vars from process.env.VARIABLE patterns
+- [ ] Implement PythonRuntime.try_extract()
+  - [ ] Scan for generic app.run(port=X) calls (framework-agnostic)
+  - [ ] Extract env vars from os.environ/os.getenv patterns
+  - [ ] Detect native dependencies from requirements.txt C extensions
+- [ ] Implement RubyRuntime.try_extract()
+  - [ ] Scan for generic Rack::Server or WEBrick port bindings
+  - [ ] Extract env vars from ENV[] patterns
+  - [ ] Detect native dependencies from Gemfile native extensions
+- [ ] Implement PhpRuntime.try_extract()
+  - [ ] Parse php.ini for generic runtime config
+  - [ ] Extract env vars from $_ENV patterns
+  - [ ] Detect native dependencies from composer.json extensions
+- [ ] Implement DotNetRuntime.try_extract()
+  - [ ] Parse launchSettings.json for generic runtime config (not framework-specific)
+  - [ ] Extract env vars from Environment.GetEnvironmentVariable() calls
+  - [ ] Detect native dependencies from .csproj NativeLibrary references
+- [ ] Implement BeamRuntime.try_extract()
+  - [ ] Scan for generic Cowboy/Ranch port bindings
+  - [ ] Extract env vars from System.get_env() calls
+  - [ ] Detect native dependencies from mix.exs NIF references
+- [ ] Implement NativeRuntime.try_extract()
+  - [ ] Use build system hints (Cargo.toml metadata, go.mod comments)
+  - [ ] Detect port bindings from source scanning (bind(), listen())
+
+#### Framework-Level Config Parsing
+Framework-specific config parsing belongs in Framework implementations, not Runtime:
+
+- [ ] Extend Framework trait with config_file_parser() method
+  - [ ] Parse framework-specific config files (application.yml, settings.py, appsettings.json, etc.)
+  - [ ] Extract port, env vars, health endpoints from framework configs
+  - [ ] Framework.env_var_patterns() already provides regex patterns - use them!
+- [ ] Implement config parsing per framework:
+  - [ ] SpringBootFramework: Parse application.properties, application.yml
+  - [ ] DjangoFramework: Parse settings.py, config files
+  - [ ] FlaskFramework: Parse app config, instance config
+  - [ ] LaravelFramework: Parse config/*.php files
+  - [ ] RailsFramework: Parse config/puma.rb, config/application.rb
+  - [ ] AspNetFramework: Parse appsettings.json, appsettings.{env}.json
+  - [ ] PhoenixFramework: Parse config/runtime.exs, config/prod.exs
+  - [ ] NextJsFramework: Parse next.config.js for port/env
+  - [ ] ExpressFramework: Scan for app.listen() with Express patterns
+
+#### LLM Fallback (centralized in RuntimeConfigPhase)
+- [ ] Design LLMRuntimeFallback for when all deterministic methods return None
+  - [ ] Create minimal LLM prompt for runtime config extraction
+  - [ ] Accept Runtime + Framework + files as context
+  - [ ] Call LLM client with focused prompt (<500 tokens)
   - [ ] Parse and validate LLM response
-- [ ] Implement deterministic/LLM config extraction for all other runtimes
-  - [ ] NodeRuntime: Parse package.json scripts, scan for app.listen() calls
-  - [ ] PythonRuntime: Parse Flask/Django config files, scan for app.run()
-  - [ ] RubyRuntime: Parse config/puma.rb, Rack config
-  - [ ] PhpRuntime: Parse php.ini, framework config files
-  - [ ] DotNetRuntime: Parse appsettings.json, launchSettings.json
-  - [ ] BeamRuntime: Parse config/runtime.exs, config/prod.exs
-  - [ ] NativeRuntime: Determine strategy (binary inspection vs manifest hints)
+  - [ ] Use framework defaults as hints in prompt
+  - [ ] Return RuntimeConfig or error

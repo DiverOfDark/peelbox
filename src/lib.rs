@@ -8,7 +8,6 @@ pub mod llm;
 pub mod output;
 pub mod pipeline;
 pub mod progress;
-pub mod runtime;
 pub mod stack;
 pub mod validation;
 
@@ -19,12 +18,12 @@ pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
 pub use output::schema::UniversalBuild;
 pub use progress::{LoggingHandler, ProgressEvent};
-pub use runtime::{HealthCheck, Runtime, RuntimeConfig};
 pub use stack::buildsystem::{BuildSystem, BuildTemplate};
 pub use stack::detection::DetectionStack;
 pub use stack::framework::Framework;
 pub use stack::language::LanguageDefinition;
 pub use stack::registry::StackRegistry;
+pub use stack::runtime::{HealthCheck, Runtime, RuntimeConfig};
 pub use stack::{BuildSystemId, FrameworkId, LanguageId};
 pub use validation::Validator;
 

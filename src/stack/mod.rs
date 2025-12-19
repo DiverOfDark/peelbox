@@ -30,6 +30,7 @@ pub mod framework;
 pub mod language;
 pub mod orchestrator;
 pub mod registry;
+pub mod runtime;
 
 pub use buildsystem::{BuildSystem, BuildTemplate, ManifestPattern};
 pub use detection::DetectionStack;

@@ -1,24 +1,19 @@
 use super::{HealthCheck, Runtime, RuntimeConfig};
 use crate::stack::framework::Framework;
-use anyhow::Result;
-use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 
 pub struct JvmRuntime;
 
-#[async_trait]
 impl Runtime for JvmRuntime {
     fn name(&self) -> &str {
         "JVM"
     }
 
-    fn try_deterministic_config(
+    fn try_extract(
         &self,
         _files: &[PathBuf],
         framework: Option<&dyn Framework>,
     ) -> Option<RuntimeConfig> {
-        // For now, return None - deterministic parsing will be implemented later
-        // This allows framework defaults to be used
         let port = framework.and_then(|f| f.default_ports().first().copied());
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
@@ -31,27 +26,6 @@ impl Runtime for JvmRuntime {
             port,
             env_vars: vec![],
             health,
-            native_deps: vec![],
-        })
-    }
-
-    async fn extract_config_llm(
-        &self,
-        _files: &[PathBuf],
-        framework: Option<&dyn Framework>,
-    ) -> Result<RuntimeConfig> {
-        // LLM extraction not implemented yet - use framework defaults
-        Ok(RuntimeConfig {
-            entrypoint: Some("app.jar".to_string()),
-            port: framework
-                .and_then(|f| f.default_ports().first().copied())
-                .or(Some(8080)),
-            env_vars: vec![],
-            health: framework.and_then(|f| {
-                f.health_endpoints().first().map(|endpoint| HealthCheck {
-                    endpoint: endpoint.to_string(),
-                })
-            }),
             native_deps: vec![],
         })
     }
