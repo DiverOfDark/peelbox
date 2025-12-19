@@ -1,0 +1,159 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Express",
+      "confidence": 0.95,
+      "reasoning": "Detected from package.json in frontend"
+    },
+    "build": {
+      "base": "node:20",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "frontend",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
+    },
+    "runtime": {
+      "base": "node:20-slim",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "node",
+        "dist/index.js"
+      ],
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "backend",
+      "language": "Java",
+      "build_system": "Maven",
+      "framework": "Spring Boot",
+      "confidence": 0.95,
+      "reasoning": "Detected from pom.xml in backend"
+    },
+    "build": {
+      "base": "maven:3.9-eclipse-temurin-21",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
+        {
+          "from": "backend",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        ".m2/repository",
+        "target"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "cli",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "framework": "Actix Web",
+      "confidence": 0.95,
+      "reasoning": "Detected from Cargo.toml in cli"
+    },
+    "build": {
+      "base": "rust:1.75",
+      "packages": [
+        "pkg-config",
+        "libssl-dev"
+      ],
+      "env": {},
+      "commands": [
+        "cargo build --release"
+      ],
+      "context": [
+        {
+          "from": "cli",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "target",
+        ".cargo"
+      ],
+      "artifacts": [
+        "target/release/cli"
+      ]
+    },
+    "runtime": {
+      "base": "debian:bookworm-slim",
+      "packages": [
+        "ca-certificates",
+        "libssl3"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/release/cli",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "./target/release/admin-service"
+      ],
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

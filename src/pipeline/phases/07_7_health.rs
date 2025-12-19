@@ -144,7 +144,14 @@ impl ServicePhase for HealthPhase {
             context.health = Some(framework_default);
             Ok(Some(()))
         } else {
-            Ok(None)
+            // No health check detected - this is a valid result (many services don't have health checks)
+            context.health = Some(HealthInfo {
+                health_endpoints: vec![],
+                recommended_liveness: None,
+                recommended_readiness: None,
+                confidence: Confidence::High,
+            });
+            Ok(Some(()))
         }
     }
 

@@ -170,7 +170,7 @@ impl LanguageDefinition for ElixirLanguage {
     }
 
     fn runtime_name(&self) -> Option<&'static str> {
-        None
+        Some("elixir")
     }
 
     fn default_port(&self) -> Option<u16> {

@@ -94,21 +94,40 @@ IMPORTANT:
     )
 }
 
-fn can_skip_llm(scan: &ScanResult) -> bool {
-    let detections = &scan.detections;
-
-    if detections.len() == 1 && detections[0].depth == 0 {
-        return true;
-    }
-
-    false
-}
-
 fn deterministic_classify(scan: &ScanResult) -> ClassifyResult {
     let detections = &scan.detections;
 
-    if detections.len() == 1 && detections[0].depth == 0 {
-        let manifest_filename = detections[0]
+    // Filter to primary manifests only (exclude lockfiles and workspace configs that aren't roots)
+    let primary_detections: Vec<_> = detections
+        .iter()
+        .filter(|d| {
+            let filename = d
+                .manifest_path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .unwrap_or("");
+
+            // Exclude lockfiles
+            if filename.contains("lock") || filename.contains("frozen") {
+                return false;
+            }
+
+            // Exclude workspace config files like settings.gradle unless they're workspace roots
+            // (workspace roots are already filtered by has_workspace_config in scan phase)
+            if filename == "settings.gradle" || filename == "settings.gradle.kts" {
+                return d.is_workspace_root;
+            }
+
+            true
+        })
+        .collect();
+
+    // Check if this is a workspace/monorepo
+    let has_workspace = scan.workspace.has_workspace_config;
+
+    // Single service at root - high confidence (only if NOT a workspace root)
+    if primary_detections.len() == 1 && primary_detections[0].depth == 0 && !has_workspace {
+        let manifest_filename = primary_detections[0]
             .manifest_path
             .file_name()
             .and_then(|f| f.to_str())
@@ -126,6 +145,52 @@ fn deterministic_classify(scan: &ScanResult) -> ClassifyResult {
         };
     }
 
+    // For monorepos/multi-module projects, only classify nested manifests as services
+    // Exclude root manifest if it's a workspace root
+    let mut services = vec![];
+    let mut root_is_service = false;
+
+    for det in &primary_detections {
+        let rel_path = det
+            .manifest_path
+            .strip_prefix(&scan.repo_path)
+            .unwrap_or(&det.manifest_path);
+
+        let dir = rel_path.parent().and_then(|p| p.to_str()).unwrap_or(".");
+        let path = if dir.is_empty() { "." } else { dir };
+
+        // Skip root manifest if this is a workspace
+        if det.depth == 0 && has_workspace {
+            continue;
+        }
+
+        let manifest_filename = det
+            .manifest_path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("manifest")
+            .to_string();
+
+        services.push(ServicePath {
+            path: PathBuf::from(path),
+            manifest: manifest_filename,
+        });
+
+        if det.depth == 0 {
+            root_is_service = true;
+        }
+    }
+
+    if !services.is_empty() {
+        return ClassifyResult {
+            services,
+            packages: vec![],
+            root_is_service,
+            confidence: Confidence::Medium,
+        };
+    }
+
+    // Fallback: no primary manifests found
     ClassifyResult {
         services: vec![],
         packages: vec![],
@@ -203,13 +268,9 @@ impl WorkflowPhase for ClassifyPhase {
             .as_ref()
             .expect("Scan must be available before classify");
 
-        if can_skip_llm(scan) {
-            let result = deterministic_classify(scan);
-            context.classify = Some(result);
-            Ok(Some(()))
-        } else {
-            Ok(None)
-        }
+        let result = deterministic_classify(scan);
+        context.classify = Some(result);
+        Ok(Some(()))
     }
 
     async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {

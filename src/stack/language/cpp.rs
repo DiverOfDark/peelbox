@@ -167,7 +167,7 @@ impl LanguageDefinition for CppLanguage {
     }
 
     fn runtime_name(&self) -> Option<&'static str> {
-        None
+        Some("c++")
     }
 
     fn default_port(&self) -> Option<u16> {

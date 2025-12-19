@@ -271,6 +271,12 @@ RUST_LOG=aipack=debug,info         # Structured logging
 
 # Embedded model configuration
 AIPACK_MODEL_SIZE=7B               # Explicit model size: "0.5B", "1.5B", "3B", or "7B" (overrides auto-selection)
+
+# Detection mode control
+AIPACK_DETECTION_MODE=full         # "full" (default), "static", or "llm"
+                                   # full: LLM + static analysis (deterministic first, LLM fallback)
+                                   # static: Static analysis only, no LLM calls (fast, deterministic)
+                                   # llm: LLM-only detection (for testing LLM path specifically)
 ```
 
 ### Provider-Specific Environment Variables
@@ -512,3 +518,63 @@ AIPACK_RECORDING_MODE=replay cargo test
 git add tests/recordings/
 git commit -m "chore: Update LLM recordings after prompt changes"
 ```
+
+## Dual-Mode Testing
+
+The e2e test suite supports three detection modes to validate both LLM and static analysis code paths:
+
+### Detection Modes
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `full` | LLM + static analysis (default) | Normal operation - deterministic first, LLM fallback |
+| `static` | Static analysis only, no LLM | Fast CI tests, validate deterministic detection |
+| `llm` | LLM-only detection | Test LLM code paths specifically |
+
+### Test Organization
+
+Each fixture has three test variants:
+- `test_*_detection()` - Full mode (original tests, default behavior)
+- `test_*_llm()` - LLM mode test
+- `test_*_static()` - Static-only mode test
+
+Example:
+```rust
+#[test]
+fn test_rust_cargo_detection() { ... }  // Full mode (default)
+
+#[test]
+fn test_rust_cargo_llm() { ... }        // LLM mode
+
+#[test]
+fn test_rust_cargo_static() { ... }     // Static mode (fast, no LLM)
+```
+
+### Running Tests by Mode
+
+```bash
+# Run all tests (default mode)
+cargo test --test e2e
+
+# Run only static mode tests (fast, deterministic, no LLM backend needed)
+cargo test --test e2e static
+
+# Run only LLM mode tests
+cargo test --test e2e llm
+
+# Run specific static test
+cargo test --test e2e test_rust_cargo_static
+```
+
+### Benefits
+
+1. **Fast CI**: Static mode tests run without LLM backend (< 10 seconds for all fixtures)
+2. **Complete Coverage**: Both LLM and static paths validated via CLI
+3. **Deterministic**: Static mode is fully deterministic, no LLM variance
+4. **True E2e**: All tests spawn the full binary, validating CLI integration
+
+### When to Use Each Mode
+
+- **Full mode** (`AIPACK_DETECTION_MODE=full`): Default for normal detection
+- **Static mode** (`AIPACK_DETECTION_MODE=static`): Fast CI tests, validate parsers work correctly
+- **LLM mode** (`AIPACK_DETECTION_MODE=llm`): Test LLM prompts and response handling specifically

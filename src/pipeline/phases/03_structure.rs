@@ -157,15 +157,6 @@ fn discover_relevant_config_files(scan: &ScanResult) -> Vec<String> {
     condensed
 }
 
-fn can_use_deterministic(scan: &ScanResult, classify: &ClassifyResult) -> bool {
-    let is_single =
-        classify.services.len() == 1 && classify.packages.is_empty() && classify.root_is_service;
-
-    let has_workspace = scan.workspace.has_workspace_config;
-
-    is_single || has_workspace
-}
-
 fn deterministic_structure(scan: &ScanResult, classify: &ClassifyResult) -> StructureResult {
     let is_single =
         classify.services.len() == 1 && classify.packages.is_empty() && classify.root_is_service;
@@ -366,12 +357,8 @@ impl WorkflowPhase for StructurePhase {
             .as_ref()
             .expect("Classify must be available before structure");
 
-        if can_use_deterministic(scan, classify) {
-            context.structure = Some(deterministic_structure(scan, classify));
-            Ok(Some(()))
-        } else {
-            Ok(None)
-        }
+        context.structure = Some(deterministic_structure(scan, classify));
+        Ok(Some(()))
     }
 
     async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {

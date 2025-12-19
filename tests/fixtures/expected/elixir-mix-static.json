@@ -1,0 +1,49 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Elixir",
+      "build_system": "Mix",
+      "confidence": 0.95,
+      "reasoning": "Detected from mix.exs in ."
+    },
+    "build": {
+      "base": "elixir:1.15",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "mix local.hex --force"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "_build",
+        "deps"
+      ],
+      "artifacts": []
+    },
+    "runtime": {
+      "base": "elixir:1.15-slim",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "/app",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "mix",
+        "phx.server"
+      ],
+      "ports": [
+        4000
+      ]
+    }
+  }
+]

@@ -166,7 +166,15 @@ impl ServicePhase for NativeDepsPhase {
             context.native_deps = Some(deterministic);
             Ok(Some(()))
         } else {
-            Ok(None)
+            // No native deps detected - this is actually a successful deterministic result
+            context.native_deps = Some(NativeDepsInfo {
+                needs_build_deps: false,
+                has_native_modules: false,
+                has_prisma: false,
+                native_deps: vec![],
+                confidence: Confidence::High,
+            });
+            Ok(Some(()))
         }
     }
 

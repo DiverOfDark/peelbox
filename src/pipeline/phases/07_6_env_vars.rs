@@ -71,16 +71,12 @@ impl ServicePhase for EnvVarsPhase {
             super::extractor_helper::create_service_context(context.scan()?, &context.service);
         let extractor = EnvVarExtractor::new(RealFileSystem);
         let extracted_info = extractor.extract(&service_context);
-        let extracted: Vec<String> = extracted_info
-            .iter()
-            .map(|info| info.name.clone())
-            .collect();
 
-        if !extracted.is_empty() {
-            let env_vars: Vec<EnvVar> = extracted
+        if !extracted_info.is_empty() {
+            let env_vars: Vec<EnvVar> = extracted_info
                 .into_iter()
-                .map(|name| EnvVar {
-                    name,
+                .map(|info| EnvVar {
+                    name: info.name,
                     required: true,
                     default_value: None,
                     description: None,
@@ -93,7 +89,12 @@ impl ServicePhase for EnvVarsPhase {
             });
             Ok(Some(()))
         } else {
-            Ok(None)
+            // No env vars extracted - successfully determined "no env vars needed"
+            context.env_vars = Some(EnvVarsInfo {
+                env_vars: vec![],
+                confidence: Confidence::High,
+            });
+            Ok(Some(()))
         }
     }
 

@@ -21,7 +21,7 @@ impl WorkflowPhase for ServiceAnalysisPhase {
         "ServiceAnalysisPhase"
     }
 
-    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let structure = context
             .structure
             .as_ref()
@@ -45,6 +45,10 @@ impl WorkflowPhase for ServiceAnalysisPhase {
         }
 
         Ok(())
+    }
+
+    async fn execute_llm(&self, _context: &mut AnalysisContext) -> Result<()> {
+        unreachable!("ServiceAnalysisPhase uses custom execute() implementation")
     }
 }
 
@@ -71,16 +75,27 @@ impl ServiceAnalysisPhase {
         ];
 
         for phase in phases {
-            phase
-                .execute(&mut service_context)
-                .await
-                .with_context(|| {
-                    format!(
-                        "{} failed for service at {}",
+            tracing::debug!("Executing service phase: {}", phase.name());
+            match phase.execute(&mut service_context).await {
+                Ok(_) => {
+                    tracing::debug!("Service phase {} completed successfully", phase.name());
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "Service phase {} failed for service at {}: {:?}",
                         phase.name(),
-                        service.path.display()
-                    )
-                })?;
+                        service.path.display(),
+                        e
+                    );
+                    return Err(e).with_context(|| {
+                        format!(
+                            "{} failed for service at {}",
+                            phase.name(),
+                            service.path.display()
+                        )
+                    });
+                }
+            }
         }
 
         Ok(service_context)
