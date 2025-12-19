@@ -52,9 +52,6 @@ pub struct RuntimeConfig {
 
 pub struct HealthCheck {
     pub endpoint: String,
-    pub interval: Option<String>,
-    pub timeout: Option<String>,
-    pub retries: Option<u32>,
 }
 ```
 
@@ -542,9 +539,6 @@ pub struct RuntimeStage {
 
 pub struct HealthCheck {
     pub endpoint: String,
-    pub interval: Option<String>,
-    pub timeout: Option<String>,
-    pub retries: Option<u32>,
 }
 ```
 

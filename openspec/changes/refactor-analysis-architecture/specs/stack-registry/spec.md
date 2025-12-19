@@ -132,6 +132,3 @@ The system SHALL provide a `RuntimeConfig` struct that aggregates all runtime co
 #### Scenario: HealthCheck struct
 - **WHEN** RuntimeConfig includes health check
 - **THEN** HealthCheck contains `endpoint: String` (e.g., `/actuator/health`)
-- **AND** contains `interval: Option<String>` (e.g., `Some("30s")`)
-- **AND** contains `timeout: Option<String>` (e.g., `Some("5s")`)
-- **AND** contains `retries: Option<u32>` (e.g., `Some(3)`)

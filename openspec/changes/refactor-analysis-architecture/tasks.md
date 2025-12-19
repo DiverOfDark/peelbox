@@ -12,7 +12,7 @@
   - [ ] `required_packages() -> Vec<&str>`
   - [ ] `start_command(entrypoint) -> String`
 - [ ] Define `RuntimeConfig` struct with fields: `entrypoint`, `port`, `env_vars`, `health`, `native_deps`
-- [ ] Define `HealthCheck` struct with fields: `endpoint`, `interval`, `timeout`, `retries`
+- [ ] Define `HealthCheck` struct with field: `endpoint`
 - [ ] Create `src/runtime/jvm.rs`
 - [ ] Implement `JvmRuntime` with all trait methods
 - [ ] Add unit tests for `JvmRuntime`
@@ -293,3 +293,26 @@
 - ✅ Multi-stage Docker builds supported
 - ✅ Health endpoint detection working
 - ✅ Version handling implemented for runtime packages
+
+---
+
+## Technical Debt
+
+### Runtime Configuration Extraction
+- [ ] Implement deterministic config parsing in JvmRuntime.try_deterministic_config()
+  - [ ] Parse application.properties for port and configuration
+  - [ ] Parse application.yml for port and configuration
+  - [ ] Extract env vars from @Value annotations or Environment usage
+  - [ ] Detect native dependencies from pom.xml/build.gradle
+- [ ] Implement LLM-based config extraction in JvmRuntime.extract_config_llm()
+  - [ ] Design minimal LLM prompt for config extraction
+  - [ ] Call LLM client with file context
+  - [ ] Parse and validate LLM response
+- [ ] Implement deterministic/LLM config extraction for all other runtimes
+  - [ ] NodeRuntime: Parse package.json scripts, scan for app.listen() calls
+  - [ ] PythonRuntime: Parse Flask/Django config files, scan for app.run()
+  - [ ] RubyRuntime: Parse config/puma.rb, Rack config
+  - [ ] PhpRuntime: Parse php.ini, framework config files
+  - [ ] DotNetRuntime: Parse appsettings.json, launchSettings.json
+  - [ ] BeamRuntime: Parse config/runtime.exs, config/prod.exs
+  - [ ] NativeRuntime: Determine strategy (binary inspection vs manifest hints)
