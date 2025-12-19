@@ -354,6 +354,15 @@ Framework-specific config parsing belongs in Framework implementations, not Runt
   - [ ] NextJsFramework: Parse next.config.js for port/env
   - [ ] ExpressFramework: Scan for app.listen() with Express patterns
 
+#### Missing Framework Implementations
+- [ ] Add Symfony framework (PHP)
+  - [ ] Create src/stack/framework/symfony.rs
+  - [ ] Add FrameworkId::Symfony to src/stack/mod.rs
+  - [ ] Implement dependency detection (symfony/framework-bundle, symfony/http-kernel)
+  - [ ] Set default port: 8000
+  - [ ] Set health endpoint: /health (or /_health for Symfony 6+)
+  - [ ] Add config parsing: config/packages/*.yaml, .env files
+
 #### LLM Fallback (centralized in RuntimeConfigPhase)
 - [ ] Design LLMRuntimeFallback for when all deterministic methods return None
   - [ ] Create minimal LLM prompt for runtime config extraction
