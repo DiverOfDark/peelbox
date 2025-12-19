@@ -24,14 +24,12 @@ pub enum DetectionMode {
 
 impl DetectionMode {
     pub fn from_env() -> Self {
-        match env::var("AIPACK_DETECTION_MODE")
-            .unwrap_or_else(|_| "full".to_string())
-            .to_lowercase()
-            .as_str()
-        {
-            "static" => DetectionMode::StaticOnly,
-            "llm" => DetectionMode::LLMOnly,
-            "full" | _ => DetectionMode::Full,
+        let mode = env::var("AIPACK_DETECTION_MODE").ok();
+
+        match mode.as_deref() {
+            Some(m) if m.eq_ignore_ascii_case("static") => DetectionMode::StaticOnly,
+            Some(m) if m.eq_ignore_ascii_case("llm") => DetectionMode::LLMOnly,
+            _ => DetectionMode::Full,
         }
     }
 }

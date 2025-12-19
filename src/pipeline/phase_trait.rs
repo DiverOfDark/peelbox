@@ -22,9 +22,8 @@ pub trait WorkflowPhase: Send + Sync {
     /// Execute phase with mode-aware logic (deterministic first, then LLM if needed)
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         // Try deterministic first (always, regardless of mode)
-        match self.try_deterministic(context)? {
-            Some(()) => return Ok(()),
-            None => {}
+        if self.try_deterministic(context)?.is_some() {
+            return Ok(());
         }
 
         // If no deterministic detection, check mode
@@ -58,9 +57,8 @@ pub trait ServicePhase: Send + Sync {
     /// Execute phase with mode-aware logic (deterministic first, then LLM if needed)
     async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
         // Try deterministic first (always, regardless of mode)
-        match self.try_deterministic(context)? {
-            Some(()) => return Ok(()),
-            None => {}
+        if self.try_deterministic(context)?.is_some() {
+            return Ok(());
         }
 
         // If no deterministic detection, check mode

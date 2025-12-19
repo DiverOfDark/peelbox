@@ -160,7 +160,7 @@ impl WorkflowPhase for DependenciesPhase {
             .as_ref()
             .expect("Structure must be available before dependencies");
 
-        let registry = Arc::new(StackRegistry::with_defaults());
+        let registry = &context.stack_registry;
         let mut dependencies = HashMap::new();
 
         let all_paths: Vec<PathBuf> = structure
@@ -204,7 +204,7 @@ impl WorkflowPhase for DependenciesPhase {
             .as_ref()
             .expect("Structure must be available before dependencies");
 
-        let registry = Arc::new(StackRegistry::with_defaults());
+        let registry = &context.stack_registry;
         let mut dependencies = HashMap::new();
 
         let all_paths: Vec<PathBuf> = structure

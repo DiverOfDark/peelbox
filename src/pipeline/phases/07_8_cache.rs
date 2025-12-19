@@ -45,7 +45,10 @@ impl ServicePhase for CachePhase {
     }
 
     async fn execute_llm(&self, _context: &mut ServiceContext) -> Result<()> {
-        unreachable!("CachePhase is always deterministic")
+        anyhow::bail!(
+            "CachePhase is always deterministic and should never call execute_llm. \
+             This indicates a bug in the pipeline orchestration."
+        )
     }
 }
 

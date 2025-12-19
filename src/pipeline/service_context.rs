@@ -85,7 +85,10 @@ impl<'a> ServiceContext<'a> {
         &self.analysis_context.heuristic_logger
     }
 
-    /// Convert to completed service analysis (consumes self and clones service)
+    /// Converts the borrowed ServiceContext into an owned version.
+    ///
+    /// Consumes self and moves all phase results into OwnedServiceContext.
+    /// Note: The service field is cloned since it's borrowed from the Service reference.
     pub fn into_owned(self) -> OwnedServiceContext {
         OwnedServiceContext {
             service: self.service.clone(),
