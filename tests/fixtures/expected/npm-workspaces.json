@@ -2,6 +2,58 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "ui",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "confidence": 0.95,
+      "reasoning": "Detected from package.json in packages/ui"
+    },
+    "build": {
+      "base": "node:20",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "packages/ui",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".npm",
+        "node_modules"
+      ],
+      "artifacts": [
+        "dist/",
+        "build/"
+      ]
+    },
+    "runtime": {
+      "base": "node:20-slim",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "node",
+        "src/index.ts"
+      ],
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "api",
       "language": "JavaScript",
       "build_system": "npm",
@@ -24,8 +76,8 @@
       "cache": [
         "node_modules",
         ".npm",
-        ".pnpm-store",
-        ".yarn/cache"
+        ".npm",
+        "node_modules"
       ],
       "artifacts": [
         "dist/",
@@ -35,9 +87,7 @@
     "runtime": {
       "base": "node:20-slim",
       "packages": [],
-      "env": {
-        "PORT": "3000"
-      },
+      "env": {},
       "copy": [
         {
           "from": "dist/",
@@ -46,7 +96,7 @@
       ],
       "command": [
         "node",
-        "dist/index.js"
+        "src/index.ts"
       ],
       "ports": [
         3000
@@ -59,6 +109,7 @@
       "project_name": "web",
       "language": "JavaScript",
       "build_system": "npm",
+      "framework": "Express",
       "confidence": 0.95,
       "reasoning": "Detected from package.json in apps/web"
     },
@@ -78,8 +129,8 @@
       "cache": [
         "node_modules",
         ".npm",
-        ".pnpm-store",
-        ".yarn/cache"
+        ".npm",
+        "node_modules"
       ],
       "artifacts": [
         "dist/",
@@ -89,9 +140,7 @@
     "runtime": {
       "base": "node:20-slim",
       "packages": [],
-      "env": {
-        "PORT": "3000"
-      },
+      "env": {},
       "copy": [
         {
           "from": "dist/",

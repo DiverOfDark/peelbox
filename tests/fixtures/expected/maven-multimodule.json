@@ -2,9 +2,114 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "lib",
+      "language": "Java",
+      "build_system": "Maven",
+      "confidence": 0.95,
+      "reasoning": "Detected from pom.xml in lib"
+    },
+    "build": {
+      "base": "maven:3.9-eclipse-temurin-21",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
+        {
+          "from": "lib",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        ".m2/repository",
+        "target",
+        ".m2/repository",
+        "target"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "Maven",
+      "confidence": 0.95,
+      "reasoning": "Detected from pom.xml in app"
+    },
+    "build": {
+      "base": "maven:3.9-eclipse-temurin-21",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "mvn clean package -DskipTests"
+      ],
+      "context": [
+        {
+          "from": "app",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        ".m2/repository",
+        "target",
+        ".m2/repository",
+        "target"
+      ],
+      "artifacts": [
+        "target/*.jar"
+      ]
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "ports": [
+        8080
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "api-service",
       "language": "Java",
       "build_system": "Maven",
+      "framework": "Spring Boot",
       "confidence": 0.95,
       "reasoning": "Detected from pom.xml in api-service"
     },
@@ -24,7 +129,8 @@
       "cache": [
         ".m2/repository",
         "target",
-        ".m2/repository"
+        ".m2/repository",
+        "target"
       ],
       "artifacts": [
         "target/*.jar"
@@ -33,9 +139,7 @@
     "runtime": {
       "base": "eclipse-temurin:21-jre",
       "packages": [],
-      "env": {
-        "PORT": "3000"
-      },
+      "env": {},
       "copy": [
         {
           "from": "target/*.jar",
@@ -58,6 +162,7 @@
       "project_name": "web-service",
       "language": "Java",
       "build_system": "Maven",
+      "framework": "Spring Boot",
       "confidence": 0.95,
       "reasoning": "Detected from pom.xml in web-service"
     },
@@ -77,7 +182,8 @@
       "cache": [
         ".m2/repository",
         "target",
-        ".m2/repository"
+        ".m2/repository",
+        "target"
       ],
       "artifacts": [
         "target/*.jar"
@@ -86,9 +192,7 @@
     "runtime": {
       "base": "eclipse-temurin:21-jre",
       "packages": [],
-      "env": {
-        "PORT": "3000"
-      },
+      "env": {},
       "copy": [
         {
           "from": "target/*.jar",

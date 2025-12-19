@@ -482,18 +482,6 @@ impl ScanPhase {
                     "Checking file"
                 );
 
-                // Check if this is actually a workspace root, not just a workspace config file
-                if stack_registry.all_workspace_configs().contains(&filename) {
-                    let content = if config.read_content {
-                        std::fs::read_to_string(path).ok()
-                    } else {
-                        None
-                    };
-                    if stack_registry.is_workspace_root(filename, content.as_deref()) {
-                        has_workspace_config = true;
-                    }
-                }
-
                 let is_manifest = stack_registry.is_manifest(filename);
                 trace!(
                     file = filename,
@@ -502,6 +490,17 @@ impl ScanPhase {
                 );
 
                 if is_manifest {
+                    // Check if this manifest is a workspace root
+                    let content = if config.read_content {
+                        std::fs::read_to_string(path).ok()
+                    } else {
+                        None
+                    };
+
+                    if stack_registry.is_workspace_root(filename, content.as_deref()) {
+                        has_workspace_config = true;
+                    }
+
                     if let Some(detection) = detect_language(
                         path,
                         filename,
