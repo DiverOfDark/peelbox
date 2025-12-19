@@ -1,20 +1,14 @@
 # Refactor Analysis Architecture
 
-## Problem Statement
+## Why
 
-The current analysis pipeline has architectural misalignments between the problem domain (detecting how to build and run applications) and the implementation (16 phases with unclear boundaries and mixed concerns).
+The current analysis pipeline has architectural misalignments between the problem domain (detecting how to build and run applications) and the implementation (16 phases with unclear boundaries and mixed concerns). Knowledge is scattered across phases instead of being organized by domain (Language, BuildSystem, Framework, Runtime, Orchestrator), LLM fallback logic is duplicated, and there's no abstraction for platform runtimes (JVM, Node, Python, etc.).
 
-**Key Issues:**
-
-1. **Knowledge is scattered**: Language, build system, framework, and runtime detection are spread across multiple phases instead of being cohesive knowledge domains
-2. **Phase granularity mismatch**: Port, env vars, health checks, and native deps are separate phases when they're actually properties of runtime configuration
-3. **No fallback abstraction**: LLM fallback logic is duplicated in every phase instead of being a first-class concern in the knowledge domain
-4. **Missing runtime abstraction**: No trait/interface representing platform runtime (JVM, Node, Python, Native) and their conventions (base images, system packages, start commands)
-5. **Orchestrator capabilities underutilized**: Monorepo orchestrators (Turbo, Nx) can provide build commands and order, but this knowledge is hardcoded in phases
-
-## Proposed Solution
+## What Changes
 
 Restructure the analysis pipeline around **knowledge domains** with trait-based abstractions and deterministic-first, LLM-fallback strategy.
+
+**Delivered incrementally via 14 PRs** (not a big-bang rewrite).
 
 ### Knowledge Domain Traits
 
@@ -83,15 +77,24 @@ Registry tries deterministic implementations first, falls back to LLM when neede
 
 ## Migration Strategy
 
-1. Implement new traits alongside existing code
-2. Implement new pipeline phases
-3. Update DetectionService to use new pipeline
-4. Migrate tests
-5. Remove old phases
+**14 incremental PRs** divided into two tracks:
+
+**Track 1: Service Phases (PRs 1-8)** - Runtime trait + config extraction
+- 8 service phases → 4 service phases
+
+**Track 2: Workflow Phases (PRs 9-14)** - Orchestrator + workspace structure
+- 8 workflow phases → 5 workflow phases
+
+Each PR delivers independent value and passes all tests.
 
 ## Success Criteria
 
-- All existing e2e tests pass with new pipeline
+- All existing e2e tests pass at each PR
 - No regression in detection accuracy
-- Reduced average LLM token usage (measured in tests)
-- Cleaner codebase (fewer LOC, better separation)
+- Reduced average LLM token usage (5 phases → 1 phase for runtime config)
+- Cleaner codebase (16 phases → 9 phases, better separation)
+- Framework defaults improve accuracy (Spring Boot → 8080, Next.js → 3000)
+
+## Dependencies on Other OpenSpec Changes
+
+This change is **independent** and can be completed in any order relative to other pending changes.
