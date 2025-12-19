@@ -60,51 +60,51 @@ impl ServiceAnalysisPhase {
         let runtime = runtime_phase
             .execute(&service_context)
             .await
-            .context("Runtime detection failed")?;
+            .with_context(|| format!("Runtime detection failed for service at {}", service.path.display()))?;
 
-        service_context.with_runtime(&runtime);
+        service_context.set_runtime(&runtime);
 
         let build_phase = BuildPhase;
         let build = build_phase
             .execute(&service_context)
             .await
-            .context("Build detection failed")?;
+            .with_context(|| format!("Build detection failed for service at {}", service.path.display()))?;
 
         let entrypoint_phase = EntrypointPhase;
         let entrypoint = entrypoint_phase
             .execute(&service_context)
             .await
-            .context("Entrypoint detection failed")?;
+            .with_context(|| format!("Entrypoint detection failed for service at {}", service.path.display()))?;
 
         let native_deps_phase = NativeDepsPhase;
         let native_deps = native_deps_phase
             .execute(&service_context)
             .await
-            .context("Native deps detection failed")?;
+            .with_context(|| format!("Native deps detection failed for service at {}", service.path.display()))?;
 
         let port_phase = PortPhase;
         let port = port_phase
             .execute(&service_context)
             .await
-            .context("Port discovery failed")?;
+            .with_context(|| format!("Port discovery failed for service at {}", service.path.display()))?;
 
         let env_vars_phase = EnvVarsPhase;
         let env_vars = env_vars_phase
             .execute(&service_context)
             .await
-            .context("Env vars discovery failed")?;
+            .with_context(|| format!("Env vars discovery failed for service at {}", service.path.display()))?;
 
         let health_phase = HealthPhase;
         let health = health_phase
             .execute(&service_context)
             .await
-            .context("Health check discovery failed")?;
+            .with_context(|| format!("Health check discovery failed for service at {}", service.path.display()))?;
 
         let cache_phase = CachePhase;
         let cache = cache_phase
             .execute(&service_context)
             .await
-            .context("Cache detection failed")?;
+            .with_context(|| format!("Cache detection failed for service at {}", service.path.display()))?;
 
         Ok(ServiceAnalysisResults {
             service: service.clone(),

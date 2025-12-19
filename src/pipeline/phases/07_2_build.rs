@@ -110,14 +110,18 @@ pub struct BuildPhase;
 
 #[async_trait]
 impl ServicePhase for BuildPhase {
+    fn name(&self) -> &'static str {
+        "BuildPhase"
+    }
+
     type Output = BuildInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<BuildInfo> {
+    async fn execute(&self, context: &ServiceContext) -> Result<BuildInfo> {
         if let Some(deterministic) = try_deterministic(context.service) {
             return Ok(deterministic);
         }
 
-        let scripts_excerpt = extract_scripts_excerpt(context.scan(), context.service)?;
+        let scripts_excerpt = extract_scripts_excerpt(context.scan()?, context.service)?;
 
         let prompt = build_prompt(context.service, scripts_excerpt.as_deref());
         let result = super::llm_helper::query_llm_with_logging(

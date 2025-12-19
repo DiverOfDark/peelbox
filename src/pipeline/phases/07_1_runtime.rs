@@ -132,19 +132,23 @@ pub struct RuntimePhase;
 
 #[async_trait]
 impl ServicePhase for RuntimePhase {
+    fn name(&self) -> &'static str {
+        "RuntimePhase"
+    }
+
     type Output = RuntimeInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<RuntimeInfo> {
+    async fn execute(&self, context: &ServiceContext) -> Result<RuntimeInfo> {
         if let Some(deterministic) = try_deterministic(
             context.service,
-            context.dependencies(),
+            context.dependencies()?,
             context.stack_registry(),
         ) {
             return Ok(deterministic);
         }
 
-        let files = extract_relevant_files(context.scan(), context.service);
-        let manifest_excerpt = extract_manifest_excerpt(context.scan(), context.service)?;
+        let files = extract_relevant_files(context.scan()?, context.service);
+        let manifest_excerpt = extract_manifest_excerpt(context.scan()?, context.service)?;
 
         let prompt = build_prompt(context.service, &files, manifest_excerpt.as_deref());
         let result = super::llm_helper::query_llm_with_logging(

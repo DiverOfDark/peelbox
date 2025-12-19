@@ -103,15 +103,17 @@ pub struct HealthPhase;
 
 #[async_trait]
 impl ServicePhase for HealthPhase {
+    fn name(&self) -> &'static str {
+        "HealthPhase"
+    }
+
     type Output = HealthInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<HealthInfo> {
-        let runtime = context
-            .runtime
-            .expect("Runtime info must be available before health phase");
+    async fn execute(&self, context: &ServiceContext) -> Result<HealthInfo> {
+        let runtime = context.runtime()?;
 
         let extractor_context =
-            super::extractor_helper::create_service_context(context.scan(), context.service);
+            super::extractor_helper::create_service_context(context.scan()?, context.service);
         let extractor = HealthCheckExtractor::new(RealFileSystem);
         let extracted_info = extractor.extract(&extractor_context);
         let extracted: Vec<String> = extracted_info

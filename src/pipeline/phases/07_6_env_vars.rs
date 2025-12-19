@@ -62,11 +62,15 @@ pub struct EnvVarsPhase;
 
 #[async_trait]
 impl ServicePhase for EnvVarsPhase {
+    fn name(&self) -> &'static str {
+        "EnvVarsPhase"
+    }
+
     type Output = EnvVarsInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<EnvVarsInfo> {
+    async fn execute(&self, context: &ServiceContext) -> Result<EnvVarsInfo> {
         let service_context =
-            super::extractor_helper::create_service_context(context.scan(), context.service);
+            super::extractor_helper::create_service_context(context.scan()?, context.service);
         let extractor = EnvVarExtractor::new(RealFileSystem);
         let extracted_info = extractor.extract(&service_context);
         let extracted: Vec<String> = extracted_info

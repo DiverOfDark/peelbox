@@ -7,7 +7,7 @@ use super::native_deps::NativeDepsInfo;
 use super::port::PortInfo;
 use super::root_cache::RootCacheInfo;
 use super::runtime::RuntimeInfo;
-use super::structure::{Service, StructureResult};
+use super::structure::Service;
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
@@ -39,16 +39,16 @@ impl WorkflowPhase for AssemblePhase {
     }
 
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
-        let structure = context
-            .structure
-            .as_ref()
-            .expect("Structure must be available before assemble");
         let root_cache = context
             .root_cache
             .as_ref()
             .expect("Root cache must be available before assemble");
 
-        let builds = execute_assemble(&context.service_analyses, structure, root_cache)?;
+        let builds = execute_assemble(
+            &context.service_analyses,
+            root_cache,
+            &context.stack_registry,
+        )?;
         context.builds = builds;
         Ok(())
     }
@@ -56,10 +56,9 @@ impl WorkflowPhase for AssemblePhase {
 
 fn execute_assemble(
     analysis_results: &[ServiceAnalysisResults],
-    _structure: &StructureResult,
     root_cache: &RootCacheInfo,
+    registry: &std::sync::Arc<StackRegistry>,
 ) -> Result<Vec<UniversalBuild>> {
-    let registry = StackRegistry::with_defaults();
     let mut builds = Vec::new();
 
     for result in analysis_results {

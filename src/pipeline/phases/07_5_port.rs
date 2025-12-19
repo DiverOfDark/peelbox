@@ -102,14 +102,16 @@ pub struct PortPhase;
 
 #[async_trait]
 impl ServicePhase for PortPhase {
+    fn name(&self) -> &'static str {
+        "PortPhase"
+    }
+
     type Output = PortInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<PortInfo> {
-        let runtime = context
-            .runtime
-            .expect("Runtime info must be available before port phase");
+    async fn execute(&self, context: &ServiceContext) -> Result<PortInfo> {
+        let runtime = context.runtime()?;
 
-        let scan = context.scan();
+        let scan = context.scan()?;
         let extractor_context = crate::extractors::context::ServiceContext {
             path: scan.repo_path.join(&context.service.path),
             language: Some(context.service.language),

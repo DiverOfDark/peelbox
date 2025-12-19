@@ -46,9 +46,13 @@ pub struct EntrypointPhase;
 
 #[async_trait]
 impl ServicePhase for EntrypointPhase {
+    fn name(&self) -> &'static str {
+        "EntrypointPhase"
+    }
+
     type Output = EntrypointInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<EntrypointInfo> {
+    async fn execute(&self, context: &ServiceContext) -> Result<EntrypointInfo> {
         if let Some(deterministic) = try_deterministic(context)? {
             return Ok(deterministic);
         }
@@ -68,7 +72,7 @@ impl ServicePhase for EntrypointPhase {
     }
 }
 
-fn try_deterministic(context: &ServiceContext<'_>) -> Result<Option<EntrypointInfo>> {
+fn try_deterministic(context: &ServiceContext) -> Result<Option<EntrypointInfo>> {
     let language_def = match context
         .stack_registry()
         .get_language(context.service.language)
@@ -78,7 +82,7 @@ fn try_deterministic(context: &ServiceContext<'_>) -> Result<Option<EntrypointIn
     };
 
     let manifest_path = context
-        .scan()
+        .scan()?
         .repo_path
         .join(&context.service.path)
         .join(&context.service.manifest);
@@ -105,9 +109,9 @@ fn try_deterministic(context: &ServiceContext<'_>) -> Result<Option<EntrypointIn
     Ok(None)
 }
 
-fn extract_manifest_excerpt(context: &ServiceContext<'_>) -> Result<Option<String>> {
+fn extract_manifest_excerpt(context: &ServiceContext) -> Result<Option<String>> {
     let manifest_path = context
-        .scan()
+        .scan()?
         .repo_path
         .join(&context.service.path)
         .join(&context.service.manifest);

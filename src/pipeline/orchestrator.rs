@@ -93,8 +93,6 @@ impl PipelineOrchestrator {
 
         Ok(std::mem::take(&mut context.builds))
     }
-
-
 }
 
 #[cfg(test)]

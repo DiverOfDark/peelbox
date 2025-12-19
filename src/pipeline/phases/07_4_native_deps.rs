@@ -149,11 +149,15 @@ pub struct NativeDepsPhase;
 
 #[async_trait]
 impl ServicePhase for NativeDepsPhase {
+    fn name(&self) -> &'static str {
+        "NativeDepsPhase"
+    }
+
     type Output = NativeDepsInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<NativeDepsInfo> {
+    async fn execute(&self, context: &ServiceContext) -> Result<NativeDepsInfo> {
         let dependencies =
-            extract_dependencies(context.scan(), context.service).with_context(|| {
+            extract_dependencies(context.scan()?, context.service).with_context(|| {
                 format!(
                     "Failed to extract dependencies for service at {}",
                     context.service.path.display()

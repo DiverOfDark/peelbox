@@ -16,9 +16,13 @@ pub struct CachePhase;
 
 #[async_trait]
 impl ServicePhase for CachePhase {
+    fn name(&self) -> &'static str {
+        "CachePhase"
+    }
+
     type Output = CacheInfo;
 
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<CacheInfo> {
+    async fn execute(&self, context: &ServiceContext) -> Result<CacheInfo> {
         use crate::stack::BuildSystemId;
         let cache_dirs = match context.service.build_system {
         BuildSystemId::Npm | BuildSystemId::Yarn | BuildSystemId::Pnpm | BuildSystemId::Bun => {

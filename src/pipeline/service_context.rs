@@ -5,6 +5,7 @@ use super::phases::{
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use crate::stack::StackRegistry;
+use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -23,26 +24,31 @@ impl<'a> ServiceContext<'a> {
         }
     }
 
-    pub fn with_runtime(&mut self, runtime: &'a RuntimeInfo) {
+    pub fn set_runtime(&mut self, runtime: &'a RuntimeInfo) {
         self.runtime = Some(runtime);
+    }
+
+    pub fn runtime(&self) -> Result<&RuntimeInfo> {
+        self.runtime
+            .ok_or_else(|| anyhow::anyhow!("Runtime info must be available before this phase"))
     }
 
     pub fn repo_path(&self) -> &Path {
         &self.analysis_context.repo_path
     }
 
-    pub fn scan(&self) -> &ScanResult {
+    pub fn scan(&self) -> Result<&ScanResult> {
         self.analysis_context
             .scan
             .as_ref()
-            .expect("Scan result must be available before service analysis")
+            .ok_or_else(|| anyhow::anyhow!("Scan result must be available before service analysis"))
     }
 
-    pub fn dependencies(&self) -> &DependencyResult {
+    pub fn dependencies(&self) -> Result<&DependencyResult> {
         self.analysis_context
             .dependencies
             .as_ref()
-            .expect("Dependencies must be available before service analysis")
+            .ok_or_else(|| anyhow::anyhow!("Dependencies must be available before service analysis"))
     }
 
     pub fn llm_client(&self) -> &dyn LLMClient {

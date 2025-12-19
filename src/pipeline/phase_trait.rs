@@ -11,6 +11,7 @@ pub trait WorkflowPhase: Send + Sync {
 
 #[async_trait]
 pub trait ServicePhase: Send + Sync {
+    fn name(&self) -> &'static str;
     type Output;
-    async fn execute(&self, context: &ServiceContext<'_>) -> Result<Self::Output>;
+    async fn execute(&self, context: &ServiceContext) -> Result<Self::Output>;
 }
