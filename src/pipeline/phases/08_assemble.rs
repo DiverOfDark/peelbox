@@ -80,7 +80,7 @@ fn assemble_single_service(
 
     let confidence = calculate_confidence(result);
 
-    let runtime = result.runtime.as_ref().expect("Runtime must be set");
+    let stack = result.stack.as_ref().expect("Stack must be set");
     let build_info = result.build.as_ref().expect("Build must be set");
     let cache_info = result.cache.as_ref().expect("Cache must be set");
 
@@ -104,9 +104,9 @@ fn assemble_single_service(
 
     let metadata = BuildMetadata {
         project_name: Some(project_name.clone()),
-        language: result.service.language.name().to_string(),
-        build_system: result.service.build_system.name().to_string(),
-        framework: runtime.framework.clone(),
+        language: stack.language.name().to_string(),
+        build_system: stack.build_system.name().to_string(),
+        framework: stack.framework.map(|fw| fw.name().to_string()),
         confidence,
         reasoning: format!(
             "Detected from {} in {}",
@@ -132,7 +132,7 @@ fn assemble_single_service(
         base: template
             .as_ref()
             .map(|t| t.build_image.clone())
-            .unwrap_or_else(|| format!("{}:latest", runtime.runtime)),
+            .unwrap_or_else(|| format!("{}:latest", stack.runtime)),
         packages: template
             .as_ref()
             .map(|t| t.build_packages.clone())
@@ -205,9 +205,11 @@ fn extract_project_name(service: &super::structure::Service) -> String {
 }
 
 fn calculate_confidence(result: &ServiceContext) -> f32 {
-    // Simplified confidence calculation based on available phases
+    // Stack detection is always High confidence (deterministic)
+    let stack_confidence = crate::pipeline::Confidence::High.to_f32();
+
     let mut scores = vec![
-        result.runtime.as_ref().expect("Runtime must be set").confidence.to_f32(),
+        stack_confidence,
         result.build.as_ref().expect("Build must be set").confidence.to_f32(),
         result.cache.as_ref().expect("Cache must be set").confidence.to_f32(),
     ];
@@ -222,7 +224,6 @@ mod tests {
     use super::*;
     use crate::pipeline::phases::build::BuildInfo;
     use crate::pipeline::phases::cache::CacheInfo;
-    use crate::pipeline::phases::runtime::RuntimeInfo;
     use crate::pipeline::phases::structure::Service;
     use crate::pipeline::Confidence;
     use std::path::PathBuf;
@@ -277,11 +278,12 @@ mod tests {
         let result = ServiceContext {
             service: Arc::new(service),
             analysis_context: Arc::new(analysis_context),
-            runtime: Some(RuntimeInfo {
-                runtime: crate::stack::RuntimeId::Node,
-                runtime_version: None,
+            stack: Some(crate::pipeline::service_context::Stack {
+                language: crate::stack::LanguageId::JavaScript,
+                build_system: crate::stack::BuildSystemId::Npm,
                 framework: None,
-                confidence: Confidence::High,
+                runtime: crate::stack::RuntimeId::Node,
+                version: None,
             }),
             runtime_config: None,
             build: Some(BuildInfo {

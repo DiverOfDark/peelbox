@@ -1,7 +1,7 @@
 use super::build::BuildPhase;
 use super::cache::CachePhase;
-use super::runtime::RuntimePhase;
 use super::runtime_config::RuntimeConfigPhase;
+use super::stack::StackIdentificationPhase;
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::{ServicePhase, WorkflowPhase};
 use crate::pipeline::service_context::ServiceContext;
@@ -60,7 +60,7 @@ impl ServiceAnalysisPhase {
 
         // Execute all service phases in order
         let phases: Vec<&dyn ServicePhase> = vec![
-            &RuntimePhase,
+            &StackIdentificationPhase,
             &RuntimeConfigPhase,
             &BuildPhase,
             &CachePhase,

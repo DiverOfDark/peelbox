@@ -12,26 +12,19 @@ impl ServicePhase for RuntimeConfigPhase {
     }
 
     fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
-        let runtime_info = context
-            .runtime
+        let stack = context
+            .stack
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Runtime must be detected before RuntimeConfigPhase"))?;
+            .ok_or_else(|| anyhow::anyhow!("Stack must be detected before RuntimeConfigPhase"))?;
 
         let stack_registry = context.stack_registry();
-        let runtime = stack_registry.get_runtime(runtime_info.runtime);
+        let runtime = stack_registry.get_runtime(stack.runtime);
 
         let scan = context.scan()?;
         let files = &scan.file_tree;
 
-        let framework = runtime_info.framework.as_ref().and_then(|fw_name| {
-            for fw_id in crate::stack::FrameworkId::all_variants() {
-                if let Some(fw) = stack_registry.get_framework(*fw_id) {
-                    if fw.id().name() == fw_name {
-                        return Some(fw as &dyn crate::stack::framework::Framework);
-                    }
-                }
-            }
-            None
+        let framework = stack.framework.and_then(|fw_id| {
+            stack_registry.get_framework(fw_id)
         });
 
         if let Some(config) = runtime.try_extract(files, framework) {

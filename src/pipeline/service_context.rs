@@ -1,15 +1,25 @@
 use super::context::AnalysisContext;
 use super::phases::{
     build::BuildInfo, cache::CacheInfo, dependencies::DependencyResult,
-    runtime::RuntimeInfo, scan::ScanResult, structure::Service,
+    scan::ScanResult, structure::Service,
 };
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use crate::stack::runtime::RuntimeConfig;
-use crate::stack::StackRegistry;
+use crate::stack::{BuildSystemId, FrameworkId, LanguageId, RuntimeId, StackRegistry};
 use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
+
+/// Complete technology stack for a service
+#[derive(Clone, Debug)]
+pub struct Stack {
+    pub language: LanguageId,
+    pub build_system: BuildSystemId,
+    pub framework: Option<FrameworkId>,
+    pub runtime: RuntimeId,
+    pub version: Option<String>,
+}
 
 #[derive(Clone)]
 pub struct ServiceContext {
@@ -17,7 +27,7 @@ pub struct ServiceContext {
     pub analysis_context: Arc<AnalysisContext>,
 
     // Phase results
-    pub runtime: Option<RuntimeInfo>,
+    pub stack: Option<Stack>,
     pub runtime_config: Option<RuntimeConfig>,
     pub build: Option<BuildInfo>,
     pub cache: Option<CacheInfo>,
@@ -29,7 +39,7 @@ impl ServiceContext {
         Self {
             service,
             analysis_context,
-            runtime: None,
+            stack: None,
             runtime_config: None,
             build: None,
             cache: None,

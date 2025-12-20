@@ -136,23 +136,23 @@
 
 **Depends on**: PR6
 
-- [ ] Rename `src/pipeline/phases/07_1_runtime.rs` to `src/pipeline/phases/07_0_stack.rs`
-- [ ] Create `StackIdentificationPhase`:
-  - [ ] Detect language via `LanguageDefinition.detect()`
-  - [ ] Detect version via `language.detect_version(manifest_content)`
-  - [ ] Detect build system via `BuildSystem.detect()`
-  - [ ] Detect framework from dependencies via `StackRegistry.detect_framework()`
-  - [ ] Map language to runtime via `get_runtime_for_language()`
-  - [ ] Store complete `Stack { language, build_system, framework, runtime, version }`
-- [ ] Update `src/pipeline/service_context.rs`:
-  - [ ] Add `stack: Stack` field
-- [ ] Update `RuntimeConfigPhase`:
-  - [ ] Use pre-detected stack instead of detecting runtime
-  - [ ] Remove detection logic
-- [ ] Update `src/pipeline/phases/07_service_analysis.rs`:
-  - [ ] Update phase order to put `StackIdentificationPhase` first
-- [ ] Run all e2e tests and verify they pass
-- [ ] Verify all service phases now use pre-detected stack
+- [x] Rename `src/pipeline/phases/07_1_runtime.rs` to `src/pipeline/phases/07_0_stack.rs`
+- [x] Create `StackIdentificationPhase`:
+  - [x] Detect language via `LanguageDefinition.detect()`
+  - [x] Detect version via `language.detect_version(manifest_content)`
+  - [x] Detect build system via `BuildSystem.detect()`
+  - [x] Detect framework from dependencies via `StackRegistry.detect_framework()`
+  - [x] Map language to runtime via `get_runtime_for_language()`
+  - [x] Store complete `Stack { language, build_system, framework, runtime, version }`
+- [x] Update `src/pipeline/service_context.rs`:
+  - [x] Add `stack: Stack` field
+- [x] Update `RuntimeConfigPhase`:
+  - [x] Use pre-detected stack instead of detecting runtime
+  - [x] Remove detection logic
+- [x] Update `src/pipeline/phases/07_service_analysis.rs`:
+  - [x] Update phase order to put `StackIdentificationPhase` first
+- [x] Run all e2e tests and verify they pass
+- [x] Verify all service phases now use pre-detected stack
 
 ---
 

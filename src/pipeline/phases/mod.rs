@@ -25,8 +25,8 @@ pub mod service_analysis;
 pub mod assemble;
 
 // Service phases (executed within ServiceAnalysisPhase)
-#[path = "07_1_runtime.rs"]
-pub mod runtime;
+#[path = "07_0_stack.rs"]
+pub mod stack;
 #[path = "07_2_runtime_config.rs"]
 pub mod runtime_config;
 #[path = "07_2_build.rs"]
