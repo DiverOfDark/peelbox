@@ -54,6 +54,21 @@ pub trait BuildSystem: Send + Sync {
     }
 }
 
+/// Workspace-aware build system trait
+///
+/// Build systems that support monorepo/workspace structures (npm, yarn, pnpm, Cargo, Gradle, Maven)
+/// can implement this trait to provide workspace parsing capabilities.
+pub trait WorkspaceBuildSystem: BuildSystem {
+    /// Parse workspace patterns from manifest (e.g., npm/yarn/pnpm workspaces field, Cargo [workspace])
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error>;
+
+    /// Parse package metadata from manifest (name, is_application)
+    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error>;
+
+    /// Glob workspace pattern (e.g., "packages/*") to find package directories
+    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error>;
+}
+
 pub mod bun;
 pub mod bundler;
 pub mod cargo;

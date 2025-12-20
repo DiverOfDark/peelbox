@@ -1,9 +1,9 @@
 //! Turborepo orchestrator (Vercel)
 
 use super::{MonorepoOrchestrator, OrchestratorId, Package, WorkspaceStructure};
+use crate::stack::buildsystem::{NpmBuildSystem, WorkspaceBuildSystem};
 use anyhow::{Context, Result};
-use serde_json::Value;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub struct TurborepoOrchestrator;
 
@@ -42,25 +42,25 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
     let content = std::fs::read_to_string(&package_json_path)
         .with_context(|| format!("Failed to read {}", package_json_path.display()))?;
 
-    let root_package: Value = serde_json::from_str(&content)
-        .with_context(|| "Failed to parse root package.json")?;
-
-    let workspaces = root_package["workspaces"]
-        .as_array()
-        .context("Missing or invalid workspaces field")?;
+    let npm = NpmBuildSystem;
+    let workspace_patterns = npm.parse_workspace_patterns(&content)
+        .context("Failed to parse workspace patterns")?;
 
     let mut packages = Vec::new();
 
-    for workspace_pattern in workspaces {
-        let pattern = workspace_pattern
-            .as_str()
-            .context("Workspace pattern must be string")?;
-
-        let workspace_paths = glob_workspace(repo_path, pattern)?;
+    for pattern in workspace_patterns {
+        let workspace_paths = npm.glob_workspace_pattern(repo_path, &pattern)?;
 
         for workspace_path in workspace_paths {
-            if let Ok(pkg) = parse_package(&workspace_path) {
-                packages.push(pkg);
+            let pkg_json = workspace_path.join("package.json");
+            if let Ok(pkg_content) = std::fs::read_to_string(&pkg_json) {
+                if let Ok((name, is_application)) = npm.parse_package_metadata(&pkg_content) {
+                    packages.push(Package {
+                        path: workspace_path,
+                        name,
+                        is_application,
+                    });
+                }
             }
         }
     }
@@ -71,39 +71,3 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
     })
 }
 
-fn parse_package(workspace_path: &Path) -> Result<Package> {
-    let package_json_path = workspace_path.join("package.json");
-    let content = std::fs::read_to_string(&package_json_path)?;
-    let package: Value = serde_json::from_str(&content)?;
-
-    let name = package["name"]
-        .as_str()
-        .unwrap_or("unknown")
-        .to_string();
-
-    // Package is an application if it has a "start" script
-    let is_application = package["scripts"]["start"].is_string();
-
-    Ok(Package {
-        path: workspace_path.to_path_buf(),
-        name,
-        is_application,
-    })
-}
-
-fn glob_workspace(repo_path: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
-    let mut results = Vec::new();
-
-    if pattern.ends_with("/*") {
-        let base_dir = repo_path.join(pattern.trim_end_matches("/*"));
-        if let Ok(entries) = std::fs::read_dir(&base_dir) {
-            for entry in entries.flatten() {
-                if entry.path().is_dir() {
-                    results.push(entry.path());
-                }
-            }
-        }
-    }
-
-    Ok(results)
-}

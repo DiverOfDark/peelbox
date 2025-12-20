@@ -1,6 +1,6 @@
 //! npm build system (JavaScript/TypeScript)
 
-use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use super::{BuildSystem, BuildTemplate, ManifestPattern, WorkspaceBuildSystem};
 
 pub struct NpmBuildSystem;
 
@@ -64,5 +64,50 @@ impl BuildSystem for NpmBuildSystem {
 
     fn workspace_configs(&self) -> &[&str] {
         &["lerna.json", "nx.json", "turbo.json", "rush.json"]
+    }
+}
+
+impl WorkspaceBuildSystem for NpmBuildSystem {
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error> {
+        let package: serde_json::Value = serde_json::from_str(manifest_content)?;
+
+        if let Some(workspaces) = package["workspaces"].as_array() {
+            Ok(workspaces
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect())
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+        let package: serde_json::Value = serde_json::from_str(manifest_content)?;
+
+        let name = package["name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+
+        let is_application = package["scripts"]["start"].is_string();
+
+        Ok((name, is_application))
+    }
+
+    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+        let mut results = Vec::new();
+
+        if pattern.ends_with("/*") {
+            let base_dir = repo_path.join(pattern.trim_end_matches("/*"));
+            if let Ok(entries) = std::fs::read_dir(&base_dir) {
+                for entry in entries.flatten() {
+                    if entry.path().is_dir() {
+                        results.push(entry.path());
+                    }
+                }
+            }
+        }
+
+        Ok(results)
     }
 }

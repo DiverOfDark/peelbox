@@ -187,26 +187,26 @@
 - [x] Simplified implementation (no topological sort, no dep graph)
 - [x] Verify all tests pass (459 library tests)
 
-### PR11: Implement Nx + Lerna Orchestrators (~400 LOC)
+### PR11: Implement Nx + Lerna Orchestrators (~220 LOC)
 
 **Depends on**: PR9
 
-- [ ] Update `src/stack/orchestrator/nx.rs`:
-  - [ ] Implement `workspace_structure()` method
-  - [ ] Parse `nx.json` and `project.json` files
-  - [ ] Identify applications vs libraries
-  - [ ] Implement `build_order()` method with topological sort
-  - [ ] Implement `build_command()` method returning `nx build {app}`
-- [ ] Add integration tests for NxOrchestrator
-- [ ] Update `src/stack/orchestrator/lerna.rs`:
-  - [ ] Implement `workspace_structure()` method
-  - [ ] Parse `lerna.json` for workspace configuration
-  - [ ] Identify applications vs libraries
-  - [ ] Implement `build_order()` method with topological sort
-  - [ ] Implement `build_command()` method returning `lerna run build --scope={app}`
-- [ ] Add integration tests for LernaOrchestrator
-- [ ] Run Nx and Lerna fixture tests
-- [ ] Verify all tests pass
+- [x] Update `src/stack/orchestrator/nx.rs`:
+  - [x] Implement `workspace_structure()` method
+  - [x] Parse `nx.json` and fallback to `workspace.json` / `package.json`
+  - [x] Parse `project.json` for Nx >= 13 project configurations
+  - [x] Identify applications by "serve" or "start" target in project.json
+  - [x] Fallback to "start" script in package.json
+  - [x] Implement `build_command()` returning `nx build {name}`
+- [x] Update `src/stack/orchestrator/lerna.rs`:
+  - [x] Implement `workspace_structure()` method
+  - [x] Parse `lerna.json` packages field
+  - [x] Fallback to default "packages/*" for Lerna < 3.0
+  - [x] Identify applications by "start" script presence (same as Turbo)
+  - [x] Implement `build_command()` returning `lerna run build --scope={name}`
+- [x] Simplified implementations following Turbo pattern
+- [x] Removed unused HashMap import from mod.rs
+- [x] Verify all tests pass (459 library tests)
 
 ### PR12: WorkspaceStructurePhase Integration (~300 LOC)
 
@@ -365,3 +365,60 @@ Framework-specific config parsing belongs in Framework implementations, not Runt
   - [ ] Parse and validate LLM response
   - [ ] Use framework defaults as hints in prompt
   - [ ] Return RuntimeConfig or error
+
+### Build Systems That Are Also Orchestrators
+
+Several build systems have built-in workspace/monorepo capabilities. A new `WorkspaceBuildSystem` trait was created to separate workspace parsing from core build system functionality.
+
+**Current State (PR11)**:
+- Created `WorkspaceBuildSystem` trait with methods:
+  - `parse_workspace_patterns()` - extract workspace glob patterns from manifest
+  - `parse_package_metadata()` - extract name and is_application flag
+  - `glob_workspace_pattern()` - expand glob patterns to directories
+- Implemented `WorkspaceBuildSystem` for `NpmBuildSystem`
+- Orchestrators (Turborepo, Nx, Lerna) now delegate to `WorkspaceBuildSystem` methods
+
+**Future Work - Implement WorkspaceBuildSystem for Other Build Systems**:
+
+- **Gradle** (JVM):
+  - Already has `is_workspace_root()` checking for `include()` statements
+  - Already has `workspace_configs()` returning `["settings.gradle", "settings.gradle.kts"]`
+  - TODO: Implement `WorkspaceBuildSystem` trait:
+    - `parse_workspace_patterns()` - parse `settings.gradle[.kts]` include() directives
+    - `parse_package_metadata()` - parse `build.gradle[.kts]` project name, detect application (has application plugin)
+    - `glob_workspace_pattern()` - expand project paths from settings
+
+- **Maven** (JVM):
+  - Already has `is_workspace_root()` checking for `<modules>` tag
+  - TODO: Implement `WorkspaceBuildSystem` trait:
+    - `parse_workspace_patterns()` - parse `pom.xml` <modules> section
+    - `parse_package_metadata()` - parse module `pom.xml` <artifactId>, detect packaging type (jar vs war)
+    - `glob_workspace_pattern()` - expand module paths
+
+- **Cargo** (Rust):
+  - Already has `is_workspace_root()` checking for `[workspace]` section
+  - TODO: Implement `WorkspaceBuildSystem` trait:
+    - `parse_workspace_patterns()` - parse `Cargo.toml` [workspace.members] array
+    - `parse_package_metadata()` - parse member `Cargo.toml` name, detect [[bin]] sections
+    - `glob_workspace_pattern()` - expand workspace member paths
+
+- **.NET**:
+  - Already has `is_workspace_root()` checking for `Project()` statements
+  - Already has `workspace_configs()` returning `["*.sln"]`
+  - TODO: Implement `WorkspaceBuildSystem` trait:
+    - `parse_workspace_patterns()` - parse `*.sln` Project() references
+    - `parse_package_metadata()` - parse `.csproj`/`.fsproj` for name, OutputType (Exe vs Library)
+    - `glob_workspace_pattern()` - expand project file paths
+
+**Architecture Decision (PR11)**:
+- Orchestrators (Nx/Turborepo/Lerna) delegate to `WorkspaceBuildSystem` for package.json parsing
+- Build systems own manifest parsing logic, orchestrators own task coordination
+- WorkspaceStructurePhase (PR12) should:
+  1. Check for orchestrator presence (Nx/Turborepo/Lerna via config files)
+  2. Fall back to `WorkspaceBuildSystem` if available (Gradle/Maven/Cargo/.NET)
+  3. Prefer orchestrator if both exist (explicit task coordination wins)
+
+**Benefits**:
+- Clean separation: BuildSystem (building) vs WorkspaceBuildSystem (workspace parsing)
+- Enables workspace detection without orchestrators (Gradle/Maven/Cargo/.NET native workspaces)
+- Reusable across different orchestrator implementations
