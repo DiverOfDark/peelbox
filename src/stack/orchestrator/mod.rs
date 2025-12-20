@@ -4,7 +4,28 @@
 //! builds across multiple packages. They sit on top of build systems
 //! (e.g., Turborepo works with npm/yarn/pnpm).
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+/// Package within a workspace
+#[derive(Debug, Clone)]
+pub struct Package {
+    pub path: PathBuf,
+    pub name: String,
+    pub is_application: bool,
+}
+
+/// Complete workspace structure
+#[derive(Debug, Clone)]
+pub struct WorkspaceStructure {
+    pub orchestrator: OrchestratorId,
+    pub applications: Vec<Package>,
+    pub libraries: Vec<Package>,
+    pub build_order: Vec<PathBuf>,
+    pub dependency_graph: HashMap<PathBuf, Vec<PathBuf>>,
+}
 
 /// Monorepo orchestrator trait
 pub trait MonorepoOrchestrator: Send + Sync {
@@ -21,6 +42,21 @@ pub trait MonorepoOrchestrator: Send + Sync {
 
     /// Human-readable name
     fn name(&self) -> &'static str;
+
+    /// Parse workspace structure (PR9+)
+    fn workspace_structure(&self, _repo_path: &std::path::Path) -> Result<WorkspaceStructure> {
+        unimplemented!("workspace_structure not yet implemented for {}", self.name())
+    }
+
+    /// Calculate build order from workspace structure (PR9+)
+    fn build_order(&self, _workspace: &WorkspaceStructure) -> Vec<PathBuf> {
+        unimplemented!("build_order not yet implemented for {}", self.name())
+    }
+
+    /// Generate build command for a package (PR9+)
+    fn build_command(&self, _package: &Package, _workspace: &WorkspaceStructure) -> String {
+        unimplemented!("build_command not yet implemented for {}", self.name())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
