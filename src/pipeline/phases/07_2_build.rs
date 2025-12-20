@@ -1,5 +1,5 @@
 use super::scan::ScanResult;
-use super::structure::Service;
+use super::service_analysis::Service;
 use crate::pipeline::Confidence;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};

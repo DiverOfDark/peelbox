@@ -1,4 +1,4 @@
-use super::structure::Service;
+use super::service_analysis::Service;
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use crate::stack::language::{Dependency, DependencyInfo, DetectionMethod};
@@ -155,26 +155,42 @@ impl WorkflowPhase for DependenciesPhase {
             .scan
             .as_ref()
             .expect("Scan must be available before dependencies");
-        let structure = context
-            .structure
+        let workspace = context
+            .workspace
             .as_ref()
-            .expect("Structure must be available before dependencies");
+            .expect("Workspace must be available before dependencies");
 
         let registry = &context.stack_registry;
         let mut dependencies = HashMap::new();
 
-        let all_paths: Vec<PathBuf> = structure
-            .services
-            .iter()
-            .map(|s| s.path.clone())
-            .chain(structure.packages.iter().map(|p| p.path.clone()))
-            .collect();
+        let all_paths: Vec<PathBuf> = workspace.packages.iter().map(|p| p.path.clone()).collect();
 
-        let all_items: Vec<_> = structure
-            .services
+        // Match workspace packages with scan detections to get manifest info
+        let all_items: Vec<_> = workspace
+            .packages
             .iter()
-            .map(|s| (s.path.clone(), s.manifest.clone()))
-            .chain(structure.packages.iter().map(|p| (p.path.clone(), p.manifest.clone())))
+            .filter_map(|package| {
+                scan.detections
+                    .iter()
+                    .find(|detection| {
+                        detection
+                            .manifest_path
+                            .parent()
+                            .unwrap_or_else(|| std::path::Path::new(""))
+                            == package.path
+                    })
+                    .map(|detection| {
+                        (
+                            package.path.clone(),
+                            detection
+                                .manifest_path
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("unknown")
+                                .to_string(),
+                        )
+                    })
+            })
             .collect();
 
         for (path, manifest) in all_items {
@@ -199,22 +215,49 @@ impl WorkflowPhase for DependenciesPhase {
             .scan
             .as_ref()
             .expect("Scan must be available before dependencies");
-        let structure = context
-            .structure
+        let workspace = context
+            .workspace
             .as_ref()
-            .expect("Structure must be available before dependencies");
+            .expect("Workspace must be available before dependencies");
 
         let registry = &context.stack_registry;
         let mut dependencies = HashMap::new();
 
-        let all_paths: Vec<PathBuf> = structure
-            .services
+        let all_paths: Vec<PathBuf> = workspace
+            .packages
             .iter()
-            .map(|s| s.path.clone())
-            .chain(structure.packages.iter().map(|p| p.path.clone()))
+            .map(|p| p.path.clone())
             .collect();
 
-        for service in &structure.services {
+        // Match workspace packages with scan detections to create Service structs
+        let services: Vec<_> = workspace
+            .packages
+            .iter()
+            .filter_map(|package| {
+                scan.detections
+                    .iter()
+                    .find(|detection| {
+                        detection
+                            .manifest_path
+                            .parent()
+                            .unwrap_or_else(|| std::path::Path::new(""))
+                            == package.path
+                    })
+                    .map(|detection| Service {
+                        path: package.path.clone(),
+                        manifest: detection
+                            .manifest_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        language: detection.language,
+                        build_system: detection.build_system,
+                    })
+            })
+            .collect();
+
+        for service in &services {
             if let Some(dep_info) =
                 Self::process_item(scan, &registry, &service.path, &service.manifest, &all_paths)?
             {
@@ -237,36 +280,8 @@ impl WorkflowPhase for DependenciesPhase {
             }
         }
 
-        for package in &structure.packages {
-            if let Some(dep_info) =
-                Self::process_item(scan, &registry, &package.path, &package.manifest, &all_paths)?
-            {
-                let final_dep_info = match dep_info {
-                    info if info.detected_by == DetectionMethod::Deterministic => info,
-                    _ => {
-                        let manifest_path = scan.repo_path.join(&package.path).join(&package.manifest);
-                        let manifest_content = std::fs::read_to_string(&manifest_path)?;
-                        let pseudo_service = Service {
-                            path: package.path.clone(),
-                            manifest: package.manifest.clone(),
-                            language: package.language,
-                            build_system: package.build_system,
-                        };
-                        llm_fallback(
-                            context.llm_client.as_ref(),
-                            &pseudo_service,
-                            &manifest_content,
-                            &all_paths,
-                            &context.heuristic_logger,
-                        )
-                        .await?
-                    }
-                };
-                dependencies.insert(package.path.clone(), final_dep_info);
-            }
-        }
-
         context.dependencies = Some(DependencyResult { dependencies });
         Ok(())
     }
 }
+

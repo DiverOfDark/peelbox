@@ -1,7 +1,7 @@
 use super::context::AnalysisContext;
 use super::phases::{
-    build::BuildInfo, cache::CacheInfo, dependencies::DependencyResult,
-    scan::ScanResult, structure::Service,
+    build::BuildInfo, cache::CacheInfo, dependencies::DependencyResult, scan::ScanResult,
+    service_analysis::Service,
 };
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;

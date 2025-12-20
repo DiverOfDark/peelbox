@@ -65,6 +65,19 @@ impl BuildSystem for NpmBuildSystem {
     fn workspace_configs(&self) -> &[&str] {
         &["lerna.json", "nx.json", "turbo.json", "rush.json"]
     }
+
+    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+        let package: serde_json::Value = serde_json::from_str(manifest_content)?;
+
+        let name = package["name"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+
+        let is_application = package["scripts"]["start"].is_string();
+
+        Ok((name, is_application))
+    }
 }
 
 impl WorkspaceBuildSystem for NpmBuildSystem {
@@ -79,19 +92,6 @@ impl WorkspaceBuildSystem for NpmBuildSystem {
         } else {
             Ok(vec![])
         }
-    }
-
-    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
-        let package: serde_json::Value = serde_json::from_str(manifest_content)?;
-
-        let name = package["name"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
-
-        let is_application = package["scripts"]["start"].is_string();
-
-        Ok((name, is_application))
     }
 
     fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {

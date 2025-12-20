@@ -52,6 +52,13 @@ pub trait BuildSystem: Send + Sync {
     fn workspace_configs(&self) -> &[&str] {
         &[]
     }
+
+    /// Parse package metadata from manifest (name, is_application)
+    /// Returns (package_name, is_application). Default fallback returns ("app", true).
+    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+        let _ = manifest_content;
+        Ok(("app".to_string(), true))
+    }
 }
 
 /// Workspace-aware build system trait
@@ -61,9 +68,6 @@ pub trait BuildSystem: Send + Sync {
 pub trait WorkspaceBuildSystem: BuildSystem {
     /// Parse workspace patterns from manifest (e.g., npm/yarn/pnpm workspaces field, Cargo [workspace])
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error>;
-
-    /// Parse package metadata from manifest (name, is_application)
-    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error>;
 
     /// Glob workspace pattern (e.g., "packages/*") to find package directories
     fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error>;

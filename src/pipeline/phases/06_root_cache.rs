@@ -16,8 +16,8 @@ mod tests {
     use crate::pipeline::context::AnalysisContext;
     use crate::pipeline::phase_trait::WorkflowPhase;
     use crate::pipeline::phases::scan::{RepoSummary, ScanResult, WorkspaceInfo};
-    use crate::pipeline::phases::structure::{ProjectType, StructureResult};
     use crate::pipeline::Confidence;
+    use crate::stack::orchestrator::{OrchestratorId, WorkspaceStructure};
     use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
     use std::collections::HashMap;
 
@@ -27,15 +27,12 @@ mod tests {
         scan.detections[0].build_system = BuildSystemId::Pnpm;
         scan.detections[0].is_workspace_root = true;
 
-        let structure = StructureResult {
-            project_type: ProjectType::Monorepo,
-            services: vec![],
+        let workspace = WorkspaceStructure {
+            orchestrator: OrchestratorId::Turborepo,
             packages: vec![],
-            orchestrator: None,
-            confidence: Confidence::High,
         };
 
-        let result = execute_phase(&scan, &structure).await;
+        let result = execute_phase(&scan, &workspace).await;
         assert!(result
             .root_cache_dirs
             .contains(&PathBuf::from("node_modules")));
@@ -50,15 +47,12 @@ mod tests {
         let mut scan = create_scan_with_files(vec!["Cargo.toml"]);
         scan.detections[0].is_workspace_root = true;
 
-        let structure = StructureResult {
-            project_type: ProjectType::Monorepo,
-            services: vec![],
+        let workspace = WorkspaceStructure {
+            orchestrator: OrchestratorId::Turborepo,
             packages: vec![],
-            orchestrator: None,
-            confidence: Confidence::High,
         };
 
-        let result = execute_phase(&scan, &structure).await;
+        let result = execute_phase(&scan, &workspace).await;
         assert!(result.root_cache_dirs.contains(&PathBuf::from("target")));
         assert!(result.root_cache_dirs.contains(&PathBuf::from(".cargo")));
         assert_eq!(result.confidence, Confidence::High);
@@ -68,15 +62,24 @@ mod tests {
     async fn test_root_cache_turborepo() {
         let scan = create_scan_with_files(vec!["turbo.json", "package.json"]);
 
-        let structure = StructureResult {
-            project_type: ProjectType::Monorepo,
-            services: vec![],
-            packages: vec![],
-            orchestrator: Some("turborepo".to_string()),
-            confidence: Confidence::High,
+        // Create a monorepo with 2+ packages to trigger orchestrator cache detection
+        let workspace = WorkspaceStructure {
+            orchestrator: OrchestratorId::Turborepo,
+            packages: vec![
+                crate::stack::orchestrator::Package {
+                    path: PathBuf::from("apps/web"),
+                    name: "web".to_string(),
+                    is_application: true,
+                },
+                crate::stack::orchestrator::Package {
+                    path: PathBuf::from("apps/api"),
+                    name: "api".to_string(),
+                    is_application: true,
+                },
+            ],
         };
 
-        let result = execute_phase(&scan, &structure).await;
+        let result = execute_phase(&scan, &workspace).await;
         assert!(result
             .root_cache_dirs
             .contains(&PathBuf::from("node_modules")));
@@ -87,15 +90,12 @@ mod tests {
     async fn test_root_cache_none() {
         let scan = create_scan_with_files(vec!["package.json"]);
 
-        let structure = StructureResult {
-            project_type: ProjectType::SingleService,
-            services: vec![],
+        let workspace = WorkspaceStructure {
+            orchestrator: OrchestratorId::Turborepo, // Single service has a placeholder orchestrator
             packages: vec![],
-            orchestrator: None,
-            confidence: Confidence::High,
         };
 
-        let result = execute_phase(&scan, &structure).await;
+        let result = execute_phase(&scan, &workspace).await;
         assert!(result.root_cache_dirs.is_empty());
         assert_eq!(result.confidence, Confidence::High);
     }
@@ -104,22 +104,31 @@ mod tests {
     async fn test_root_cache_nx() {
         let scan = create_scan_with_files(vec!["nx.json", "package.json"]);
 
-        let structure = StructureResult {
-            project_type: ProjectType::Monorepo,
-            services: vec![],
-            packages: vec![],
-            orchestrator: Some("nx".to_string()),
-            confidence: Confidence::High,
+        // Create a monorepo with 2+ packages to trigger orchestrator cache detection
+        let workspace = WorkspaceStructure {
+            orchestrator: OrchestratorId::Nx,
+            packages: vec![
+                crate::stack::orchestrator::Package {
+                    path: PathBuf::from("apps/web"),
+                    name: "web".to_string(),
+                    is_application: true,
+                },
+                crate::stack::orchestrator::Package {
+                    path: PathBuf::from("libs/shared"),
+                    name: "shared".to_string(),
+                    is_application: false,
+                },
+            ],
         };
 
-        let result = execute_phase(&scan, &structure).await;
+        let result = execute_phase(&scan, &workspace).await;
         assert!(result
             .root_cache_dirs
             .contains(&PathBuf::from("node_modules")));
         assert!(result.root_cache_dirs.contains(&PathBuf::from(".nx")));
     }
 
-    async fn execute_phase(scan: &ScanResult, structure: &StructureResult) -> RootCacheInfo {
+    async fn execute_phase(scan: &ScanResult, workspace: &WorkspaceStructure) -> RootCacheInfo {
         use crate::heuristics::HeuristicLogger;
         use crate::llm::MockLLMClient;
         use crate::stack::StackRegistry;
@@ -139,7 +148,7 @@ mod tests {
             DetectionMode::Full,
         );
         context.scan = Some(scan.clone());
-        context.structure = Some(structure.clone());
+        context.workspace = Some(workspace.clone());
 
         let phase = RootCachePhase;
         phase.try_deterministic(&mut context).unwrap().unwrap();
@@ -206,10 +215,10 @@ impl RootCachePhase {
             .scan
             .as_ref()
             .expect("Scan must be available before root_cache");
-        let structure = context
-            .structure
+        let workspace = context
+            .workspace
             .as_ref()
-            .expect("Structure must be available before root_cache");
+            .expect("Workspace must be available before root_cache");
 
         let mut root_cache_dirs = HashSet::new();
 
@@ -226,10 +235,11 @@ impl RootCachePhase {
             }
         }
 
-        // Add cache dirs from orchestrator (if detected)
-        if let Some(orchestrator_name) = &structure.orchestrator {
+        // Add cache dirs from orchestrator (only for actual monorepos with > 1 package)
+        if workspace.packages.len() > 1 {
+            let orchestrator_id = workspace.orchestrator;
             for orchestrator in registry.all_orchestrators() {
-                if orchestrator.name().to_lowercase() == orchestrator_name.to_lowercase() {
+                if orchestrator.id() == orchestrator_id {
                     for cache_dir in orchestrator.cache_dirs() {
                         root_cache_dirs.insert(PathBuf::from(cache_dir));
                     }

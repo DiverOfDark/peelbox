@@ -1,6 +1,6 @@
 use super::phases::{
-    build_order::BuildOrderResult, classify::ClassifyResult, dependencies::DependencyResult,
-    root_cache::RootCacheInfo, scan::ScanResult, structure::StructureResult,
+    build_order::BuildOrderResult, dependencies::DependencyResult, root_cache::RootCacheInfo,
+    scan::ScanResult,
 };
 use super::service_context::ServiceContext;
 use crate::config::DetectionMode;
@@ -8,6 +8,7 @@ use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
 use crate::progress::LoggingHandler;
+use crate::stack::orchestrator::WorkspaceStructure;
 use crate::stack::StackRegistry;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,8 +22,7 @@ pub struct AnalysisContext {
     pub heuristic_logger: Arc<HeuristicLogger>,
     pub detection_mode: DetectionMode,
     pub scan: Option<ScanResult>,
-    pub classify: Option<ClassifyResult>,
-    pub structure: Option<StructureResult>,
+    pub workspace: Option<WorkspaceStructure>,
     pub dependencies: Option<DependencyResult>,
     pub build_order: Option<BuildOrderResult>,
     pub root_cache: Option<RootCacheInfo>,
@@ -47,8 +47,7 @@ impl AnalysisContext {
             heuristic_logger,
             detection_mode,
             scan: None,
-            classify: None,
-            structure: None,
+            workspace: None,
             dependencies: None,
             build_order: None,
             root_cache: None,

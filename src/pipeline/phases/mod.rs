@@ -9,10 +9,8 @@ pub mod llm_helper;
 
 #[path = "01_scan.rs"]
 pub mod scan;
-#[path = "02_classify.rs"]
-pub mod classify;
-#[path = "03_structure.rs"]
-pub mod structure;
+#[path = "02_workspace.rs"]
+pub mod workspace;
 #[path = "04_dependencies.rs"]
 pub mod dependencies;
 #[path = "05_build_order.rs"]

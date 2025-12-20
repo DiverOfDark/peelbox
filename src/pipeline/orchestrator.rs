@@ -3,12 +3,11 @@ use super::phase_trait::WorkflowPhase;
 use super::phases::{
     assemble::AssemblePhase,
     build_order::BuildOrderPhase,
-    classify::ClassifyPhase,
     dependencies::DependenciesPhase,
     root_cache::RootCachePhase,
     scan::ScanPhase,
     service_analysis::ServiceAnalysisPhase,
-    structure::StructurePhase,
+    workspace::WorkspaceStructurePhase,
 };
 use crate::output::schema::UniversalBuild;
 use crate::progress::{LoggingHandler, ProgressEvent};
@@ -45,8 +44,7 @@ impl PipelineOrchestrator {
 
         let workflow_phases: Vec<Box<dyn WorkflowPhase>> = vec![
             Box::new(ScanPhase),
-            Box::new(ClassifyPhase),
-            Box::new(StructurePhase),
+            Box::new(WorkspaceStructurePhase),
             Box::new(DependenciesPhase),
             Box::new(BuildOrderPhase),
             Box::new(RootCachePhase),

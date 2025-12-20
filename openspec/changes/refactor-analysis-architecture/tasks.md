@@ -212,35 +212,35 @@
 
 **Depends on**: PR10, PR11
 
-- [ ] Create `src/pipeline/phases/02_workspace.rs`
-- [ ] Implement `WorkspaceStructurePhase`:
-  - [ ] Detect orchestrator from scan results
-  - [ ] If orchestrator found, call `orchestrator.workspace_structure(repo_path)`
-  - [ ] If no orchestrator, create single-project structure from scan results
-  - [ ] Store workspace structure in context
-- [ ] Update `src/pipeline/orchestrator.rs`:
-  - [ ] Add `WorkspaceStructurePhase` to workflow phases
-  - [ ] Comment out `ClassifyPhase` and `StructurePhase`
-  - [ ] Keep phase list order: Scan → WorkspaceStructure → Dependencies → BuildOrder → RootCache → ServiceAnalysis → Assemble
-- [ ] Update `src/pipeline/context.rs`:
-  - [ ] Add `workspace: Option<WorkspaceStructure>` field
-- [ ] Run all e2e tests and verify they pass
-- [ ] Verify monorepo tests correctly populate workspace structure
+- [x] Create `src/pipeline/phases/02_workspace.rs`
+- [x] Implement `WorkspaceStructurePhase`:
+  - [x] Detect orchestrator from scan results
+  - [x] If orchestrator found, call `orchestrator.workspace_structure(repo_path)`
+  - [x] If no orchestrator, create single-project structure from scan results
+  - [x] Store workspace structure in context
+- [x] Update `src/pipeline/orchestrator.rs`:
+  - [x] Add `WorkspaceStructurePhase` to workflow phases
+  - [x] Comment out `ClassifyPhase` and `StructurePhase`
+  - [x] Keep phase list order: Scan → WorkspaceStructure → Dependencies → BuildOrder → RootCache → ServiceAnalysis → Assemble
+- [x] Update `src/pipeline/context.rs`:
+  - [x] Add `workspace: Option<WorkspaceStructure>` field
+- [x] Run all e2e tests and verify they pass
+- [x] Verify monorepo tests correctly populate workspace structure
 
 ### PR13: Remove Classify + Structure Phases (~100 LOC)
 
 **Depends on**: PR12
 
-- [ ] Delete `src/pipeline/phases/02_classify.rs`
-- [ ] Delete `src/pipeline/phases/03_structure.rs`
-- [ ] Update `src/pipeline/orchestrator.rs`:
-  - [ ] Remove commented phase references
-  - [ ] Clean up phase list
-- [ ] Update `src/pipeline/context.rs`:
-  - [ ] Remove `classify: Option<ClassifyResult>` field
-  - [ ] Remove `structure: Option<StructureResult>` field
-- [ ] Run all e2e tests and verify they still pass
-- [ ] Verify workflow phase count reduced from 8 to 6
+- [x] Delete `src/pipeline/phases/02_classify.rs`
+- [x] Delete `src/pipeline/phases/03_structure.rs`
+- [x] Update `src/pipeline/orchestrator.rs`:
+  - [x] Remove commented phase references
+  - [x] Clean up phase list
+- [x] Update `src/pipeline/context.rs`:
+  - [x] Remove `classify: Option<ClassifyResult>` field
+  - [x] Remove `structure: Option<StructureResult>` field
+- [x] Run all e2e tests and verify they still pass
+- [x] Verify workflow phase count reduced from 8 to 7 (Scan → WorkspaceStructure → Dependencies → BuildOrder → RootCache → ServiceAnalysis → Assemble)
 
 ### PR14: Merge Dependencies into WorkspaceStructure (~200 LOC)
 

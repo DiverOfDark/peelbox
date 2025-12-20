@@ -1,7 +1,7 @@
 //! Lerna orchestrator
 
 use super::{MonorepoOrchestrator, OrchestratorId, Package, WorkspaceStructure};
-use crate::stack::buildsystem::{NpmBuildSystem, WorkspaceBuildSystem};
+use crate::stack::buildsystem::{BuildSystem, NpmBuildSystem, WorkspaceBuildSystem};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::path::Path;

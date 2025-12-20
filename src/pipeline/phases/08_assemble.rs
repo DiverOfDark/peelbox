@@ -195,7 +195,7 @@ fn assemble_single_service(
     })
 }
 
-fn extract_project_name(service: &super::structure::Service) -> String {
+fn extract_project_name(service: &super::service_analysis::Service) -> String {
     service
         .path
         .file_name()
@@ -224,7 +224,7 @@ mod tests {
     use super::*;
     use crate::pipeline::phases::build::BuildInfo;
     use crate::pipeline::phases::cache::CacheInfo;
-    use crate::pipeline::phases::structure::Service;
+    use crate::pipeline::phases::service_analysis::Service;
     use crate::pipeline::Confidence;
     use std::path::PathBuf;
     use std::sync::Arc;

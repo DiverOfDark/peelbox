@@ -1,5 +1,5 @@
 use super::scan::ScanResult;
-use super::structure::Service;
+use super::service_analysis::Service;
 use crate::extractors::context::ServiceContext;
 
 pub fn create_service_context(scan: &ScanResult, service: &Service) -> ServiceContext {

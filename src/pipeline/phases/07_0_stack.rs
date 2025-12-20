@@ -84,7 +84,7 @@ fn detect_framework(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pipeline::phases::structure::Service;
+    use crate::pipeline::phases::service_analysis::Service;
     use crate::stack::language::Dependency;
     use std::collections::HashMap;
 

@@ -58,7 +58,7 @@ mod tests {
     use crate::heuristics::HeuristicLogger;
     use crate::llm::MockLLMClient;
     use crate::pipeline::context::AnalysisContext;
-    use crate::pipeline::phases::structure::Service;
+    use crate::pipeline::phases::service_analysis::Service;
     use crate::stack::StackRegistry;
     use std::sync::Arc;
 

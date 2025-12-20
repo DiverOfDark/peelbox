@@ -1,13 +1,26 @@
 use super::build::BuildPhase;
 use super::cache::CachePhase;
 use super::runtime_config::RuntimeConfigPhase;
+use super::scan::ScanResult;
 use super::stack::StackIdentificationPhase;
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::{ServicePhase, WorkflowPhase};
 use crate::pipeline::service_context::ServiceContext;
+use crate::stack::orchestrator::WorkspaceStructure;
+use crate::stack::{BuildSystemId, LanguageId};
 use anyhow::{Context as AnyhowContext, Result};
 use async_trait::async_trait;
+use std::path::PathBuf;
 use std::sync::Arc;
+
+/// Service definition for analysis
+#[derive(Debug, Clone)]
+pub struct Service {
+    pub path: PathBuf,
+    pub manifest: String,
+    pub language: LanguageId,
+    pub build_system: BuildSystemId,
+}
 
 pub struct ServiceAnalysisPhase;
 
@@ -18,12 +31,20 @@ impl WorkflowPhase for ServiceAnalysisPhase {
     }
 
     async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
-        let structure = context
-            .structure
+        let workspace = context
+            .workspace
             .as_ref()
-            .expect("Structure must be available before service analysis");
+            .expect("Workspace must be available before service analysis");
 
-        for service in &structure.services {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before service analysis");
+
+        // Convert workspace packages into Service structs by matching with scan detections
+        let services = Self::build_services_from_workspace(workspace, scan);
+
+        for service in &services {
             let analysis_result = self.analyze_service(service, context).await;
 
             match analysis_result {
@@ -49,9 +70,43 @@ impl WorkflowPhase for ServiceAnalysisPhase {
 }
 
 impl ServiceAnalysisPhase {
+    /// Convert workspace packages into Service structs by matching with scan detections
+    fn build_services_from_workspace(
+        workspace: &WorkspaceStructure,
+        scan: &ScanResult,
+    ) -> Vec<Service> {
+        workspace
+            .packages
+            .iter()
+            .filter_map(|package| {
+                // Find detection for this package path
+                scan.detections
+                    .iter()
+                    .find(|detection| {
+                        detection
+                            .manifest_path
+                            .parent()
+                            .unwrap_or_else(|| std::path::Path::new(""))
+                            == package.path
+                    })
+                    .map(|detection| Service {
+                        path: package.path.clone(),
+                        manifest: detection
+                            .manifest_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        language: detection.language,
+                        build_system: detection.build_system,
+                    })
+            })
+            .collect()
+    }
+
     async fn analyze_service(
         &self,
-        service: &super::structure::Service,
+        service: &Service,
         context: &AnalysisContext,
     ) -> Result<ServiceContext> {
         let service_arc = Arc::new(service.clone());
