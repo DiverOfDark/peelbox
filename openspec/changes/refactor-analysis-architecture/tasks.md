@@ -82,40 +82,40 @@
 
 **Depends on**: PR4
 
-- [ ] Delete `src/pipeline/phases/07_3_entrypoint.rs`
-- [ ] Delete `src/pipeline/phases/07_5_port.rs`
-- [ ] Delete `src/pipeline/phases/07_6_env_vars.rs`
-- [ ] Delete `src/pipeline/phases/07_7_health.rs`
-- [ ] Delete `src/pipeline/phases/07_4_native_deps.rs`
-- [ ] Clean up `src/pipeline/phases/07_service_analysis.rs`:
-  - [ ] Remove commented phase references
-  - [ ] Clean up phase list to only include active phases
-- [ ] Update `src/pipeline/service_context.rs`:
-  - [ ] Remove old fields (individual port, env_vars, health, native_deps)
-  - [ ] Keep only `runtime_config: RuntimeConfig`
-- [ ] Run all e2e tests and verify they still pass
-- [ ] Verify service phase count reduced from 8 to 4
+- [x] Delete `src/pipeline/phases/07_3_entrypoint.rs`
+- [x] Delete `src/pipeline/phases/07_5_port.rs`
+- [x] Delete `src/pipeline/phases/07_6_env_vars.rs`
+- [x] Delete `src/pipeline/phases/07_7_health.rs`
+- [x] Delete `src/pipeline/phases/07_4_native_deps.rs`
+- [x] Clean up `src/pipeline/phases/07_service_analysis.rs`:
+  - [x] Remove commented phase references
+  - [x] Clean up phase list to only include active phases
+- [x] Update `src/pipeline/service_context.rs`:
+  - [x] Remove old fields (individual port, env_vars, health, native_deps)
+  - [x] Keep only `runtime_config: RuntimeConfig`
+- [x] Run all e2e tests and verify they still pass
+- [x] Verify service phase count reduced from 8 to 4
 
 ### PR6: Use Framework Defaults in Runtime (~150 LOC)
 
 **Depends on**: PR4
 
-- [ ] Update `src/runtime/jvm.rs` to use framework defaults:
-  - [ ] Use `framework.default_ports()` as fallback for port
-  - [ ] Use `framework.health_endpoints()` for health check
-- [ ] Update `src/runtime/node.rs` with framework defaults
-- [ ] Update `src/runtime/python.rs` with framework defaults
-- [ ] Update `src/runtime/ruby.rs` with framework defaults
-- [ ] Update `src/runtime/php.rs` with framework defaults
-- [ ] Update `src/runtime/dotnet.rs` with framework defaults
-- [ ] Update `src/runtime/beam.rs` with framework defaults
-- [ ] Update `src/runtime/native.rs` with framework defaults
-- [ ] Update `src/pipeline/phases/07_runtime_config.rs`:
-  - [ ] Pass detected framework to `runtime.extract_config()`
-- [ ] Add integration tests for framework-specific defaults
-- [ ] Run all e2e tests and verify they pass
-- [ ] Verify Spring Boot apps detect port 8080 and `/actuator/health`
-- [ ] Verify Next.js apps detect port 3000
+- [x] Update `src/runtime/jvm.rs` to use framework defaults:
+  - [x] Use `framework.default_ports()` as fallback for port
+  - [x] Use `framework.health_endpoints()` for health check
+- [x] Update `src/runtime/node.rs` with framework defaults
+- [x] Update `src/runtime/python.rs` with framework defaults
+- [x] Update `src/runtime/ruby.rs` with framework defaults
+- [x] Update `src/runtime/php.rs` with framework defaults
+- [x] Update `src/runtime/dotnet.rs` with framework defaults
+- [x] Update `src/runtime/beam.rs` with framework defaults
+- [x] Update `src/runtime/native.rs` with framework defaults
+- [x] Update `src/pipeline/phases/07_runtime_config.rs`:
+  - [x] Pass detected framework to `runtime.extract_config()`
+- [x] Add integration tests for framework-specific defaults
+- [x] Run all e2e tests and verify they pass
+- [x] Verify Spring Boot apps detect port 8080 and `/actuator/health`
+- [x] Verify Next.js apps detect port 3000
 
 ### PR7: Multi-Stage Docker Images (~100 LOC)
 
