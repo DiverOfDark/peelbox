@@ -1,7 +1,6 @@
 use super::context::AnalysisContext;
 use super::phases::{
-    build::BuildInfo, cache::CacheInfo, dependencies::DependencyResult, entrypoint::EntrypointInfo,
-    env_vars::EnvVarsInfo, health::HealthInfo, native_deps::NativeDepsInfo, port::PortInfo,
+    build::BuildInfo, cache::CacheInfo, dependencies::DependencyResult,
     runtime::RuntimeInfo, scan::ScanResult, structure::Service,
 };
 use crate::heuristics::HeuristicLogger;
@@ -21,11 +20,6 @@ pub struct ServiceContext {
     pub runtime: Option<RuntimeInfo>,
     pub runtime_config: Option<RuntimeConfig>,
     pub build: Option<BuildInfo>,
-    pub entrypoint: Option<EntrypointInfo>,
-    pub native_deps: Option<NativeDepsInfo>,
-    pub port: Option<PortInfo>,
-    pub env_vars: Option<EnvVarsInfo>,
-    pub health: Option<HealthInfo>,
     pub cache: Option<CacheInfo>,
 }
 
@@ -38,11 +32,6 @@ impl ServiceContext {
             runtime: None,
             runtime_config: None,
             build: None,
-            entrypoint: None,
-            native_deps: None,
-            port: None,
-            env_vars: None,
-            health: None,
             cache: None,
         }
     }

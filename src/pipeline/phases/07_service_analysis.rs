@@ -1,10 +1,5 @@
 use super::build::BuildPhase;
 use super::cache::CachePhase;
-use super::entrypoint::EntrypointPhase;
-use super::env_vars::EnvVarsPhase;
-use super::health::HealthPhase;
-use super::native_deps::NativeDepsPhase;
-use super::port::PortPhase;
 use super::runtime::RuntimePhase;
 use super::runtime_config::RuntimeConfigPhase;
 use crate::pipeline::context::AnalysisContext;
@@ -68,11 +63,6 @@ impl ServiceAnalysisPhase {
             &RuntimePhase,
             &RuntimeConfigPhase,
             &BuildPhase,
-            &EntrypointPhase,
-            &NativeDepsPhase,
-            &PortPhase,
-            &EnvVarsPhase,
-            &HealthPhase,
             &CachePhase,
         ];
 

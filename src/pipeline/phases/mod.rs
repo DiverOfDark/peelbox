@@ -31,15 +31,5 @@ pub mod runtime;
 pub mod runtime_config;
 #[path = "07_2_build.rs"]
 pub mod build;
-#[path = "07_3_entrypoint.rs"]
-pub mod entrypoint;
-#[path = "07_4_native_deps.rs"]
-pub mod native_deps;
-#[path = "07_5_port.rs"]
-pub mod port;
-#[path = "07_6_env_vars.rs"]
-pub mod env_vars;
-#[path = "07_7_health.rs"]
-pub mod health;
 #[path = "07_8_cache.rs"]
 pub mod cache;
