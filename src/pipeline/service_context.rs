@@ -6,6 +6,7 @@ use super::phases::{
 };
 use crate::heuristics::HeuristicLogger;
 use crate::llm::LLMClient;
+use crate::stack::runtime::RuntimeConfig;
 use crate::stack::StackRegistry;
 use anyhow::Result;
 use std::path::Path;
@@ -18,6 +19,7 @@ pub struct ServiceContext {
 
     // Phase results
     pub runtime: Option<RuntimeInfo>,
+    pub runtime_config: Option<RuntimeConfig>,
     pub build: Option<BuildInfo>,
     pub entrypoint: Option<EntrypointInfo>,
     pub native_deps: Option<NativeDepsInfo>,
@@ -34,6 +36,7 @@ impl ServiceContext {
             service,
             analysis_context,
             runtime: None,
+            runtime_config: None,
             build: None,
             entrypoint: None,
             native_deps: None,

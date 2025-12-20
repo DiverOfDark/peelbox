@@ -6,6 +6,7 @@ use super::health::HealthPhase;
 use super::native_deps::NativeDepsPhase;
 use super::port::PortPhase;
 use super::runtime::RuntimePhase;
+use super::runtime_config::RuntimeConfigPhase;
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::{ServicePhase, WorkflowPhase};
 use crate::pipeline::service_context::ServiceContext;
@@ -65,6 +66,7 @@ impl ServiceAnalysisPhase {
         // Execute all service phases in order
         let phases: Vec<&dyn ServicePhase> = vec![
             &RuntimePhase,
+            &RuntimeConfigPhase,
             &BuildPhase,
             &EntrypointPhase,
             &NativeDepsPhase,

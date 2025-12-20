@@ -64,19 +64,19 @@
 
 **Depends on**: PR1, PR2
 
-- [ ] Create `src/pipeline/phases/07_runtime_config.rs`
-- [ ] Implement `RuntimeConfigPhase` using `Runtime.extract_config()`
-- [ ] Add deterministic-first pattern:
-  - [ ] Try `runtime.try_deterministic_config(files, framework)`
-  - [ ] Fallback to `runtime.extract_config_llm(files, framework)`
-- [ ] Update `src/pipeline/phases/07_service_analysis.rs`:
-  - [ ] Add `RuntimeConfigPhase` to phase list
-  - [ ] Comment out old phases: `EntrypointPhase`, `PortPhase`, `EnvVarsPhase`, `HealthPhase`, `NativeDepsPhase`
-- [ ] Update `src/pipeline/service_context.rs`:
-  - [ ] Add `runtime_config: Option<RuntimeConfig>` field
-- [ ] Wire runtime detection from `RuntimePhase` to `RuntimeConfigPhase`
-- [ ] Run all e2e tests and verify they pass
-- [ ] Verify same output as before (different implementation)
+- [x] Create `src/pipeline/phases/07_runtime_config.rs`
+- [x] Implement `RuntimeConfigPhase` using `Runtime.try_extract()`
+- [x] Add deterministic-first pattern:
+  - [x] Try `runtime.try_extract(files, framework)`
+  - [x] Fallback to LLM (not yet implemented, documented in technical debt)
+- [x] Update `src/pipeline/phases/07_service_analysis.rs`:
+  - [x] Add `RuntimeConfigPhase` to phase list after RuntimePhase
+  - [ ] Comment out old phases: `EntrypointPhase`, `PortPhase`, `EnvVarsPhase`, `HealthPhase`, `NativeDepsPhase` (PR5)
+- [x] Update `src/pipeline/service_context.rs`:
+  - [x] Add `runtime_config: Option<RuntimeConfig>` field
+- [x] Wire runtime detection from `RuntimePhase` to `RuntimeConfigPhase`
+- [x] Run all e2e tests and verify they pass
+- [x] Verify same output as before (different implementation)
 
 ### PR5: Remove Old Service Phases (~100 LOC - deletions)
 

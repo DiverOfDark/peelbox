@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeInfo {
-    pub runtime: String,
+    pub runtime: crate::stack::RuntimeId,
     pub runtime_version: Option<String>,
     pub framework: Option<String>,
     pub confidence: Confidence,
@@ -86,8 +86,11 @@ fn try_deterministic(
             None
         });
 
+    let runtime_id = crate::stack::RuntimeId::from_name(runtime)
+        .unwrap_or(crate::stack::RuntimeId::LLM);
+
     Some(RuntimeInfo {
-        runtime: runtime.to_string(),
+        runtime: runtime_id,
         runtime_version: None,
         framework,
         confidence: Confidence::High,
@@ -189,7 +192,7 @@ mod tests {
         let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
 
         let result = try_deterministic(&service, &dependencies, &stack_registry).unwrap();
-        assert_eq!(result.runtime, "rust");
+        assert_eq!(result.runtime, crate::stack::RuntimeId::Native);
         assert_eq!(result.confidence, Confidence::High);
         assert_eq!(result.framework, None);
     }
@@ -209,7 +212,7 @@ mod tests {
         let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
 
         let result = try_deterministic(&service, &dependencies, &stack_registry).unwrap();
-        assert_eq!(result.runtime, "node");
+        assert_eq!(result.runtime, crate::stack::RuntimeId::Node);
         assert_eq!(result.confidence, Confidence::High);
         assert_eq!(result.framework, None);
     }
@@ -239,7 +242,7 @@ mod tests {
         let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
 
         let result = try_deterministic(&service, &dependencies, &stack_registry).unwrap();
-        assert_eq!(result.runtime, "node");
+        assert_eq!(result.runtime, crate::stack::RuntimeId::Node);
         assert_eq!(result.framework, Some("Express".to_string()));
         assert_eq!(result.confidence, Confidence::High);
     }

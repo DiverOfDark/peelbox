@@ -278,11 +278,12 @@ mod tests {
             service: Arc::new(service),
             analysis_context: Arc::new(analysis_context),
             runtime: Some(RuntimeInfo {
-                runtime: "node".to_string(),
+                runtime: crate::stack::RuntimeId::Node,
                 runtime_version: None,
                 framework: None,
                 confidence: Confidence::High,
             }),
+            runtime_config: None,
             build: Some(BuildInfo {
                 build_cmd: Some("npm run build".to_string()),
                 output_dir: Some(PathBuf::from("dist")),

@@ -41,6 +41,10 @@ impl OrchestratorId {
             Self::Rush => "Rush",
         }
     }
+
+    pub fn all_variants() -> &'static [Self] {
+        &[Self::Turborepo, Self::Nx, Self::Lerna, Self::Rush]
+    }
 }
 
 pub mod lerna;

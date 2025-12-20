@@ -193,7 +193,7 @@ mod tests {
     #[test]
     fn test_framework_defaults_spring() {
         let runtime = RuntimeInfo {
-            runtime: "java".to_string(),
+            runtime: crate::stack::RuntimeId::JVM,
             runtime_version: None,
             framework: Some("Spring Boot".to_string()),
             confidence: crate::pipeline::Confidence::High,
@@ -213,7 +213,7 @@ mod tests {
     #[test]
     fn test_framework_defaults_express() {
         let runtime = RuntimeInfo {
-            runtime: "node".to_string(),
+            runtime: crate::stack::RuntimeId::Node,
             runtime_version: None,
             framework: Some("Express".to_string()),
             confidence: crate::pipeline::Confidence::High,
@@ -235,7 +235,7 @@ mod tests {
         };
 
         let runtime = RuntimeInfo {
-            runtime: "node".to_string(),
+            runtime: crate::stack::RuntimeId::Node,
             runtime_version: None,
             framework: Some("express".to_string()),
             confidence: crate::pipeline::Confidence::High,

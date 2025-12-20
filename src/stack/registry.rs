@@ -1,4 +1,4 @@
-use super::{BuildSystemId, DetectionStack, FrameworkId, LanguageId, OrchestratorId};
+use super::{BuildSystemId, DetectionStack, FrameworkId, LanguageId, OrchestratorId, RuntimeId};
 use crate::stack::buildsystem::*;
 use crate::stack::framework::*;
 use crate::stack::language::*;
@@ -27,77 +27,72 @@ impl StackRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
-        registry.register_language(Arc::new(RustLanguage));
-        registry.register_language(Arc::new(JavaLanguage));
-        registry.register_language(Arc::new(JavaScriptLanguage));
-        registry.register_language(Arc::new(PythonLanguage));
-        registry.register_language(Arc::new(GoLanguage));
-        registry.register_language(Arc::new(DotNetLanguage));
-        registry.register_language(Arc::new(RubyLanguage));
-        registry.register_language(Arc::new(PhpLanguage));
-        registry.register_language(Arc::new(CppLanguage));
-        registry.register_language(Arc::new(ElixirLanguage));
+        registry.languages.insert(LanguageId::Rust, Arc::new(RustLanguage));
+        registry.languages.insert(LanguageId::Java, Arc::new(JavaLanguage));
+        registry.languages.insert(LanguageId::JavaScript, Arc::new(JavaScriptLanguage));
+        registry.languages.insert(LanguageId::Python, Arc::new(PythonLanguage));
+        registry.languages.insert(LanguageId::Go, Arc::new(GoLanguage));
+        registry.languages.insert(LanguageId::CSharp, Arc::new(DotNetLanguage));
+        registry.languages.insert(LanguageId::Ruby, Arc::new(RubyLanguage));
+        registry.languages.insert(LanguageId::PHP, Arc::new(PhpLanguage));
+        registry.languages.insert(LanguageId::Cpp, Arc::new(CppLanguage));
+        registry.languages.insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
 
-        registry.register_build_system(Arc::new(CargoBuildSystem));
-        registry.register_build_system(Arc::new(MavenBuildSystem));
-        registry.register_build_system(Arc::new(GradleBuildSystem));
-        registry.register_build_system(Arc::new(NpmBuildSystem));
-        registry.register_build_system(Arc::new(YarnBuildSystem));
-        registry.register_build_system(Arc::new(PnpmBuildSystem));
-        registry.register_build_system(Arc::new(BunBuildSystem));
-        registry.register_build_system(Arc::new(PipBuildSystem));
-        registry.register_build_system(Arc::new(PoetryBuildSystem));
-        registry.register_build_system(Arc::new(PipenvBuildSystem));
-        registry.register_build_system(Arc::new(GoModBuildSystem));
-        registry.register_build_system(Arc::new(DotNetBuildSystem));
-        registry.register_build_system(Arc::new(ComposerBuildSystem));
-        registry.register_build_system(Arc::new(BundlerBuildSystem));
-        registry.register_build_system(Arc::new(CMakeBuildSystem));
-        registry.register_build_system(Arc::new(MakeBuildSystem));
-        registry.register_build_system(Arc::new(MesonBuildSystem));
-        registry.register_build_system(Arc::new(MixBuildSystem));
+        for id in BuildSystemId::all_variants() {
+            let bs: Arc<dyn BuildSystem> = match id {
+                BuildSystemId::Cargo => Arc::new(CargoBuildSystem),
+                BuildSystemId::Maven => Arc::new(MavenBuildSystem),
+                BuildSystemId::Gradle => Arc::new(GradleBuildSystem),
+                BuildSystemId::Npm => Arc::new(NpmBuildSystem),
+                BuildSystemId::Yarn => Arc::new(YarnBuildSystem),
+                BuildSystemId::Pnpm => Arc::new(PnpmBuildSystem),
+                BuildSystemId::Bun => Arc::new(BunBuildSystem),
+                BuildSystemId::Pip => Arc::new(PipBuildSystem),
+                BuildSystemId::Poetry => Arc::new(PoetryBuildSystem),
+                BuildSystemId::Pipenv => Arc::new(PipenvBuildSystem),
+                BuildSystemId::GoMod => Arc::new(GoModBuildSystem),
+                BuildSystemId::DotNet => Arc::new(DotNetBuildSystem),
+                BuildSystemId::Composer => Arc::new(ComposerBuildSystem),
+                BuildSystemId::Bundler => Arc::new(BundlerBuildSystem),
+                BuildSystemId::CMake => Arc::new(CMakeBuildSystem),
+                BuildSystemId::Make => Arc::new(MakeBuildSystem),
+                BuildSystemId::Meson => Arc::new(MesonBuildSystem),
+                BuildSystemId::Mix => Arc::new(MixBuildSystem),
+            };
+            registry.build_systems.insert(*id, bs);
+        }
 
-        registry.register_framework(Box::new(SpringBootFramework));
-        registry.register_framework(Box::new(QuarkusFramework));
-        registry.register_framework(Box::new(MicronautFramework));
-        registry.register_framework(Box::new(KtorFramework));
-        registry.register_framework(Box::new(ExpressFramework));
-        registry.register_framework(Box::new(NextJsFramework));
-        registry.register_framework(Box::new(NestJsFramework));
-        registry.register_framework(Box::new(FastifyFramework));
-        registry.register_framework(Box::new(DjangoFramework));
-        registry.register_framework(Box::new(FlaskFramework));
-        registry.register_framework(Box::new(FastApiFramework));
-        registry.register_framework(Box::new(RailsFramework));
-        registry.register_framework(Box::new(SinatraFramework));
-        registry.register_framework(Box::new(ActixFramework));
-        registry.register_framework(Box::new(AxumFramework));
-        registry.register_framework(Box::new(GinFramework));
-        registry.register_framework(Box::new(EchoFramework));
-        registry.register_framework(Box::new(AspNetFramework));
-        registry.register_framework(Box::new(LaravelFramework));
-        registry.register_framework(Box::new(PhoenixFramework));
+        for id in FrameworkId::all_variants() {
+            let fw: Box<dyn Framework> = match id {
+                FrameworkId::SpringBoot => Box::new(SpringBootFramework),
+                FrameworkId::Quarkus => Box::new(QuarkusFramework),
+                FrameworkId::Micronaut => Box::new(MicronautFramework),
+                FrameworkId::Ktor => Box::new(KtorFramework),
+                FrameworkId::Express => Box::new(ExpressFramework),
+                FrameworkId::NextJs => Box::new(NextJsFramework),
+                FrameworkId::NestJs => Box::new(NestJsFramework),
+                FrameworkId::Fastify => Box::new(FastifyFramework),
+                FrameworkId::Django => Box::new(DjangoFramework),
+                FrameworkId::Flask => Box::new(FlaskFramework),
+                FrameworkId::FastApi => Box::new(FastApiFramework),
+                FrameworkId::Rails => Box::new(RailsFramework),
+                FrameworkId::Sinatra => Box::new(SinatraFramework),
+                FrameworkId::ActixWeb => Box::new(ActixFramework),
+                FrameworkId::Axum => Box::new(AxumFramework),
+                FrameworkId::Gin => Box::new(GinFramework),
+                FrameworkId::Echo => Box::new(EchoFramework),
+                FrameworkId::AspNetCore => Box::new(AspNetFramework),
+                FrameworkId::Laravel => Box::new(LaravelFramework),
+                FrameworkId::Phoenix => Box::new(PhoenixFramework),
+            };
+            registry.frameworks.insert(*id, fw);
+        }
 
-        registry.register_orchestrator(Arc::new(TurborepoOrchestrator));
-        registry.register_orchestrator(Arc::new(NxOrchestrator));
-        registry.register_orchestrator(Arc::new(LernaOrchestrator));
+        registry.orchestrators.insert(OrchestratorId::Turborepo, Arc::new(TurborepoOrchestrator));
+        registry.orchestrators.insert(OrchestratorId::Nx, Arc::new(NxOrchestrator));
+        registry.orchestrators.insert(OrchestratorId::Lerna, Arc::new(LernaOrchestrator));
 
         registry
-    }
-
-    pub fn register_build_system(&mut self, build_system: Arc<dyn BuildSystem>) {
-        let id = build_system.id();
-        self.build_systems.insert(id, build_system);
-    }
-
-    pub fn register_language(&mut self, language: Arc<dyn LanguageDefinition>) {
-        let id = language.id();
-        self.languages.insert(id, language);
-    }
-
-    pub fn register_framework(&mut self, framework: Box<dyn Framework>) {
-        let id = framework.id();
-        self.frameworks.insert(id, framework);
     }
 
     pub fn get_build_system(&self, id: BuildSystemId) -> Option<&dyn BuildSystem> {
@@ -110,10 +105,6 @@ impl StackRegistry {
 
     pub fn get_framework(&self, id: FrameworkId) -> Option<&dyn Framework> {
         self.frameworks.get(&id).map(|f| f.as_ref())
-    }
-
-    pub fn register_orchestrator(&mut self, orchestrator: Arc<dyn MonorepoOrchestrator>) {
-        self.orchestrators.insert(orchestrator.id(), orchestrator);
     }
 
     pub fn get_orchestrator(&self, id: OrchestratorId) -> Option<&dyn MonorepoOrchestrator> {
@@ -252,6 +243,20 @@ impl StackRegistry {
             }
         }
         None
+    }
+
+    pub fn get_runtime(&self, id: RuntimeId) -> Box<dyn crate::stack::runtime::Runtime> {
+        match id {
+            RuntimeId::JVM => Box::new(crate::stack::runtime::JvmRuntime),
+            RuntimeId::Node => Box::new(crate::stack::runtime::NodeRuntime),
+            RuntimeId::Python => Box::new(crate::stack::runtime::PythonRuntime),
+            RuntimeId::Ruby => Box::new(crate::stack::runtime::RubyRuntime),
+            RuntimeId::PHP => Box::new(crate::stack::runtime::PhpRuntime),
+            RuntimeId::DotNet => Box::new(crate::stack::runtime::DotNetRuntime),
+            RuntimeId::BEAM => Box::new(crate::stack::runtime::BeamRuntime),
+            RuntimeId::Native => Box::new(crate::stack::runtime::NativeRuntime),
+            RuntimeId::LLM => Box::new(crate::stack::runtime::LLMRuntime),
+        }
     }
 }
 

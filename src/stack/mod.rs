@@ -195,6 +195,29 @@ impl BuildSystemId {
             _ => None,
         }
     }
+
+    pub fn all_variants() -> &'static [Self] {
+        &[
+            Self::Cargo,
+            Self::Maven,
+            Self::Gradle,
+            Self::Npm,
+            Self::Yarn,
+            Self::Pnpm,
+            Self::Bun,
+            Self::Pip,
+            Self::Poetry,
+            Self::Pipenv,
+            Self::GoMod,
+            Self::DotNet,
+            Self::Composer,
+            Self::Bundler,
+            Self::CMake,
+            Self::Make,
+            Self::Meson,
+            Self::Mix,
+        ]
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -276,6 +299,76 @@ impl FrameworkId {
             Self::AspNetCore,
             Self::Laravel,
             Self::Phoenix,
+        ]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeId {
+    #[serde(rename = "jvm")]
+    JVM,
+    Node,
+    Python,
+    Ruby,
+    #[serde(rename = "php")]
+    PHP,
+    #[serde(rename = "dotnet")]
+    DotNet,
+    #[serde(rename = "beam")]
+    BEAM,
+    Native,
+    #[serde(rename = "llm")]
+    LLM,
+}
+
+impl std::fmt::Display for RuntimeId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name())
+    }
+}
+
+impl RuntimeId {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::JVM => "JVM",
+            Self::Node => "Node",
+            Self::Python => "Python",
+            Self::Ruby => "Ruby",
+            Self::PHP => "PHP",
+            Self::DotNet => ".NET",
+            Self::BEAM => "BEAM",
+            Self::Native => "Native",
+            Self::LLM => "LLM",
+        }
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "JVM" | "java" | "kotlin" => Some(Self::JVM),
+            "Node" | "node" => Some(Self::Node),
+            "Python" | "python" => Some(Self::Python),
+            "Ruby" | "ruby" => Some(Self::Ruby),
+            "PHP" | "php" => Some(Self::PHP),
+            ".NET" | "dotnet" | "csharp" | "fsharp" => Some(Self::DotNet),
+            "BEAM" | "elixir" => Some(Self::BEAM),
+            "Native" | "rust" | "c++" | "go" => Some(Self::Native),
+            "LLM" => Some(Self::LLM),
+            _ => None,
+        }
+    }
+
+    pub fn all_variants() -> &'static [Self] {
+        &[
+            Self::JVM,
+            Self::Node,
+            Self::Python,
+            Self::Ruby,
+            Self::PHP,
+            Self::DotNet,
+            Self::BEAM,
+            Self::Native,
+            Self::LLM,
         ]
     }
 }

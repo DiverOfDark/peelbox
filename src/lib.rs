@@ -24,7 +24,7 @@ pub use stack::framework::Framework;
 pub use stack::language::LanguageDefinition;
 pub use stack::registry::StackRegistry;
 pub use stack::runtime::{HealthCheck, Runtime, RuntimeConfig};
-pub use stack::{BuildSystemId, FrameworkId, LanguageId};
+pub use stack::{BuildSystemId, FrameworkId, LanguageId, RuntimeId};
 pub use validation::Validator;
 
 pub fn init_default() {
