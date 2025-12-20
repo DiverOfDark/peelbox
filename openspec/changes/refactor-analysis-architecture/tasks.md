@@ -162,36 +162,30 @@
 
 **Independent**
 
-- [ ] Add `WorkspaceStructure` struct definition to `src/stack/orchestrator/mod.rs`:
-  - [ ] Fields: `orchestrator`, `applications`, `libraries`, `build_order`, `dependency_graph`
-- [ ] Extend `MonorepoOrchestrator` trait with new methods:
-  - [ ] `fn workspace_structure(&self, repo_path: &Path) -> Result<WorkspaceStructure>`
-  - [ ] `fn build_order(&self, workspace: &WorkspaceStructure) -> Vec<PathBuf>`
-  - [ ] `fn build_command(&self, package: &Package, workspace: &WorkspaceStructure) -> String`
-- [ ] Add default panic implementations for existing orchestrators:
-  ```rust
-  fn workspace_structure(&self, _repo_path: &Path) -> Result<WorkspaceStructure> {
-      unimplemented!("Not yet implemented")
-  }
-  ```
-- [ ] Verify trait compiles
+- [x] Add `WorkspaceStructure` struct definition to `src/stack/orchestrator/mod.rs`:
+  - [x] Fields: `orchestrator`, `packages` (simplified - removed build_order, dependency_graph, applications/libraries split)
+- [x] Add `Package` struct: `path`, `name`, `is_application`
+- [x] Extend `MonorepoOrchestrator` trait with new methods:
+  - [x] `fn workspace_structure(&self, repo_path: &Path) -> Result<WorkspaceStructure>`
+  - [x] `fn build_command(&self, package: &Package) -> String` (removed workspace param)
+  - [x] Removed build_order() method (orchestrator handles ordering internally)
+- [x] Add default unimplemented!() for new methods (backward compatible)
+- [x] Verify trait compiles
 
-### PR10: Implement TurborepoOrchestrator (~250 LOC)
+### PR10: Implement TurborepoOrchestrator (~110 LOC)
 
 **Depends on**: PR9
 
-- [ ] Update `src/stack/orchestrator/turborepo.rs`:
-  - [ ] Implement `workspace_structure()` method
-  - [ ] Parse `turbo.json` for workspace configuration
-  - [ ] Identify applications vs libraries
-  - [ ] Implement `build_order()` method with topological sort
-  - [ ] Implement `build_command()` method returning `turbo run build --filter={app}`
-- [ ] Add integration tests for TurborepoOrchestrator:
-  - [ ] Test workspace parsing
-  - [ ] Test build order calculation
-  - [ ] Test build command generation
-- [ ] Run Turborepo fixture test and verify workspace structure detected
-- [ ] Verify all tests pass
+- [x] Update `src/stack/orchestrator/turborepo.rs`:
+  - [x] Implement `workspace_structure()` method
+  - [x] Parse root `package.json` workspaces field (not turbo.json)
+  - [x] Glob workspace patterns ("apps/*", "packages/*")
+  - [x] Identify applications by "start" script presence (not directory heuristic)
+  - [x] Removed build_order() - Turbo handles ordering
+  - [x] Removed dependency graph - not needed
+  - [x] Implement `build_command()` returning `turbo run build --filter={name}`
+- [x] Simplified implementation (no topological sort, no dep graph)
+- [x] Verify all tests pass (459 library tests)
 
 ### PR11: Implement Nx + Lerna Orchestrators (~400 LOC)
 

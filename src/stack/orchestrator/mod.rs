@@ -21,10 +21,7 @@ pub struct Package {
 #[derive(Debug, Clone)]
 pub struct WorkspaceStructure {
     pub orchestrator: OrchestratorId,
-    pub applications: Vec<Package>,
-    pub libraries: Vec<Package>,
-    pub build_order: Vec<PathBuf>,
-    pub dependency_graph: HashMap<PathBuf, Vec<PathBuf>>,
+    pub packages: Vec<Package>,
 }
 
 /// Monorepo orchestrator trait
@@ -48,13 +45,8 @@ pub trait MonorepoOrchestrator: Send + Sync {
         unimplemented!("workspace_structure not yet implemented for {}", self.name())
     }
 
-    /// Calculate build order from workspace structure (PR9+)
-    fn build_order(&self, _workspace: &WorkspaceStructure) -> Vec<PathBuf> {
-        unimplemented!("build_order not yet implemented for {}", self.name())
-    }
-
     /// Generate build command for a package (PR9+)
-    fn build_command(&self, _package: &Package, _workspace: &WorkspaceStructure) -> String {
+    fn build_command(&self, _package: &Package) -> String {
         unimplemented!("build_command not yet implemented for {}", self.name())
     }
 }
