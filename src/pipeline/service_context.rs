@@ -1,6 +1,6 @@
 use super::context::AnalysisContext;
 use super::phases::{
-    build::BuildInfo, cache::CacheInfo, dependencies::DependencyResult, scan::ScanResult,
+    build::BuildInfo, cache::CacheInfo, scan::ScanResult,
     service_analysis::Service,
 };
 use crate::heuristics::HeuristicLogger;
@@ -55,13 +55,6 @@ impl ServiceContext {
             .scan
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Scan result must be available before service analysis"))
-    }
-
-    pub fn dependencies(&self) -> Result<&DependencyResult> {
-        self.analysis_context
-            .dependencies
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Dependencies must be available before service analysis"))
     }
 
     pub fn llm_client(&self) -> &dyn LLMClient {

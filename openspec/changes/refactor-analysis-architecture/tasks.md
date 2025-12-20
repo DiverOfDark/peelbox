@@ -246,23 +246,23 @@
 
 **Depends on**: PR12
 
-- [ ] Update `src/pipeline/phases/02_workspace.rs`:
-  - [ ] Move dependency graph extraction into `WorkspaceStructurePhase`
-  - [ ] Populate `WorkspaceStructure.dependency_graph` field
-  - [ ] Populate `WorkspaceStructure.build_order` field
-- [ ] Update all orchestrator implementations:
-  - [ ] Update `workspace_structure()` to include dependency parsing
-  - [ ] Return complete workspace with dependencies and build order
-- [ ] Delete `src/pipeline/phases/04_dependencies.rs`
-- [ ] Delete `src/pipeline/phases/05_build_order.rs`
-- [ ] Update `src/pipeline/orchestrator.rs`:
-  - [ ] Remove `DependenciesPhase` and `BuildOrderPhase` from workflow
-  - [ ] Final phase list: Scan → WorkspaceStructure → RootCache → ServiceAnalysis → Assemble
-- [ ] Update `src/pipeline/context.rs`:
-  - [ ] Remove `dependencies: Option<DependencyResult>` field
-  - [ ] Remove `build_order: Option<BuildOrderResult>` field
-- [ ] Run all e2e tests and verify they pass
-- [ ] Verify workflow phase count reduced from 6 to 5
+- [x] Update `src/pipeline/phases/02_workspace.rs`:
+  - [x] Removed dependency graph and build order fields (orchestrators handle this internally)
+  - [x] Added native workspace detection for npm (uses WorkspaceBuildSystem trait)
+- [x] Delete `src/pipeline/phases/04_dependencies.rs`
+- [x] Delete `src/pipeline/phases/05_build_order.rs`
+- [x] Update `src/pipeline/orchestrator.rs`:
+  - [x] Remove `DependenciesPhase` and `BuildOrderPhase` from workflow
+  - [x] Final phase list: Scan → WorkspaceStructure → RootCache → ServiceAnalysis → Assemble
+- [x] Update `src/pipeline/context.rs`:
+  - [x] Remove `dependencies: Option<DependencyResult>` field
+  - [x] Remove `build_order: Option<BuildOrderResult>` field
+- [x] Update `src/pipeline/phases/07_0_stack.rs`:
+  - [x] Remove dependency on `DependencyResult`
+  - [x] Framework detection now parses manifest directly using `StackRegistry.parse_dependencies_by_manifest()`
+- [x] Verify workflow phase count reduced from 7 to 5
+
+**Note**: npm workspaces now fully supported. Cargo, Maven, and Gradle workspace support tracked in Technical Debt section below (requires implementing `WorkspaceBuildSystem` trait).
 
 ---
 

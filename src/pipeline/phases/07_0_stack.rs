@@ -1,4 +1,3 @@
-use super::dependencies::DependencyResult;
 use crate::pipeline::phase_trait::ServicePhase;
 use crate::pipeline::service_context::{ServiceContext, Stack};
 use crate::stack::{FrameworkId, LanguageId, RuntimeId, StackRegistry};
@@ -20,7 +19,8 @@ impl ServicePhase for StackIdentificationPhase {
             context.service.language,
             context.service.build_system,
             &context.service.path,
-            context.dependencies()?,
+            &context.service.manifest,
+            context.repo_path(),
             context.stack_registry(),
         ) {
             context.stack = Some(stack);
@@ -40,14 +40,15 @@ fn try_detect_stack(
     language: LanguageId,
     build_system: crate::stack::BuildSystemId,
     service_path: &PathBuf,
-    dependencies: &DependencyResult,
+    manifest_name: &str,
+    repo_path: &std::path::Path,
     stack_registry: &Arc<StackRegistry>,
 ) -> Option<Stack> {
     let language_def = stack_registry.get_language(language)?;
     let runtime_name = language_def.runtime_name()?;
     let runtime = RuntimeId::from_name(runtime_name)?;
 
-    let framework = detect_framework(service_path, dependencies, stack_registry);
+    let framework = detect_framework(service_path, manifest_name, repo_path, stack_registry);
 
     Some(Stack {
         language,
@@ -60,17 +61,27 @@ fn try_detect_stack(
 
 fn detect_framework(
     service_path: &PathBuf,
-    dependencies: &DependencyResult,
+    manifest_name: &str,
+    repo_path: &std::path::Path,
     stack_registry: &Arc<StackRegistry>,
 ) -> Option<FrameworkId> {
-    let service_deps = dependencies.dependencies.get(service_path)?;
+    let manifest_path = repo_path.join(service_path).join(manifest_name);
+    let manifest_content = std::fs::read_to_string(&manifest_path).ok()?;
 
+    // Parse dependencies from manifest using stack registry
+    let dep_info = stack_registry.parse_dependencies_by_manifest(
+        manifest_name,
+        &manifest_content,
+        &[service_path.clone()],
+    )?;
+
+    // Try to match framework dependency patterns
     for fw_id in FrameworkId::all_variants() {
         if let Some(fw) = stack_registry.get_framework(*fw_id) {
             let patterns = fw.dependency_patterns();
             for pattern in &patterns {
-                if service_deps.external_deps.iter().any(|d| pattern.matches(d))
-                    || service_deps.internal_deps.iter().any(|d| pattern.matches(d))
+                if dep_info.external_deps.iter().any(|d| pattern.matches(d))
+                    || dep_info.internal_deps.iter().any(|d| pattern.matches(d))
                 {
                     return Some(*fw_id);
                 }
@@ -97,16 +108,15 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Cargo,
         };
 
-        let dependencies = DependencyResult {
-            dependencies: HashMap::new(),
-        };
         let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let repo_path = PathBuf::from(".");
 
         let stack = try_detect_stack(
             service.language,
             service.build_system,
             &service.path,
-            &dependencies,
+            &service.manifest,
+            &repo_path,
             &stack_registry,
         )
         .unwrap();
@@ -126,16 +136,15 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let dependencies = DependencyResult {
-            dependencies: HashMap::new(),
-        };
         let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let repo_path = PathBuf::from(".");
 
         let stack = try_detect_stack(
             service.language,
             service.build_system,
             &service.path,
-            &dependencies,
+            &service.manifest,
+            &repo_path,
             &stack_registry,
         )
         .unwrap();
@@ -148,6 +157,19 @@ mod tests {
 
     #[test]
     fn test_detect_stack_with_framework() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let package_json_content = r#"{
+            "name": "test-app",
+            "dependencies": {
+                "express": "^4.18.0"
+            }
+        }"#;
+
+        fs::write(temp_dir.path().join("package.json"), package_json_content).unwrap();
+
         let service = Service {
             path: PathBuf::from("."),
             manifest: "package.json".to_string(),
@@ -155,26 +177,14 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let mut deps_info = crate::stack::language::DependencyInfo::empty();
-        deps_info.external_deps.push(Dependency {
-            name: "express".to_string(),
-            version: Some("4.18.0".to_string()),
-            is_internal: false,
-        });
-
-        let mut deps_map = HashMap::new();
-        deps_map.insert(PathBuf::from("."), deps_info);
-
-        let dependencies = DependencyResult {
-            dependencies: deps_map,
-        };
         let stack_registry = Arc::new(StackRegistry::with_defaults());
 
         let stack = try_detect_stack(
             service.language,
             service.build_system,
             &service.path,
-            &dependencies,
+            &service.manifest,
+            temp_dir.path(),
             &stack_registry,
         )
         .unwrap();

@@ -11,10 +11,6 @@ pub mod llm_helper;
 pub mod scan;
 #[path = "02_workspace.rs"]
 pub mod workspace;
-#[path = "04_dependencies.rs"]
-pub mod dependencies;
-#[path = "05_build_order.rs"]
-pub mod build_order;
 #[path = "06_root_cache.rs"]
 pub mod root_cache;
 #[path = "07_service_analysis.rs"]

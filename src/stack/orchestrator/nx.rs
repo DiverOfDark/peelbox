@@ -92,7 +92,7 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
     }
 
     Ok(WorkspaceStructure {
-        orchestrator: OrchestratorId::Nx,
+        orchestrator: Some(OrchestratorId::Nx),
         packages,
     })
 }

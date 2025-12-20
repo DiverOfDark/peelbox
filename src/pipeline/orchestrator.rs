@@ -2,8 +2,6 @@ use super::context::AnalysisContext;
 use super::phase_trait::WorkflowPhase;
 use super::phases::{
     assemble::AssemblePhase,
-    build_order::BuildOrderPhase,
-    dependencies::DependenciesPhase,
     root_cache::RootCachePhase,
     scan::ScanPhase,
     service_analysis::ServiceAnalysisPhase,
@@ -45,8 +43,6 @@ impl PipelineOrchestrator {
         let workflow_phases: Vec<Box<dyn WorkflowPhase>> = vec![
             Box::new(ScanPhase),
             Box::new(WorkspaceStructurePhase),
-            Box::new(DependenciesPhase),
-            Box::new(BuildOrderPhase),
             Box::new(RootCachePhase),
             Box::new(ServiceAnalysisPhase),
             Box::new(AssemblePhase),

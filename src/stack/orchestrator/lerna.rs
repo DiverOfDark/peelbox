@@ -76,7 +76,7 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
     }
 
     Ok(WorkspaceStructure {
-        orchestrator: OrchestratorId::Lerna,
+        orchestrator: Some(OrchestratorId::Lerna),
         packages,
     })
 }

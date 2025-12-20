@@ -1,7 +1,4 @@
-use super::phases::{
-    build_order::BuildOrderResult, dependencies::DependencyResult, root_cache::RootCacheInfo,
-    scan::ScanResult,
-};
+use super::phases::{root_cache::RootCacheInfo, scan::ScanResult};
 use super::service_context::ServiceContext;
 use crate::config::DetectionMode;
 use crate::heuristics::HeuristicLogger;
@@ -23,8 +20,6 @@ pub struct AnalysisContext {
     pub detection_mode: DetectionMode,
     pub scan: Option<ScanResult>,
     pub workspace: Option<WorkspaceStructure>,
-    pub dependencies: Option<DependencyResult>,
-    pub build_order: Option<BuildOrderResult>,
     pub root_cache: Option<RootCacheInfo>,
     pub service_analyses: Vec<ServiceContext>,
     pub builds: Vec<UniversalBuild>,
@@ -48,8 +43,6 @@ impl AnalysisContext {
             detection_mode,
             scan: None,
             workspace: None,
-            dependencies: None,
-            build_order: None,
             root_cache: None,
             service_analyses: Vec::new(),
             builds: Vec::new(),

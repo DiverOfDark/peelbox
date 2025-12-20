@@ -28,7 +28,7 @@ mod tests {
         scan.detections[0].is_workspace_root = true;
 
         let workspace = WorkspaceStructure {
-            orchestrator: OrchestratorId::Turborepo,
+            orchestrator: Some(OrchestratorId::Turborepo),
             packages: vec![],
         };
 
@@ -48,7 +48,7 @@ mod tests {
         scan.detections[0].is_workspace_root = true;
 
         let workspace = WorkspaceStructure {
-            orchestrator: OrchestratorId::Turborepo,
+            orchestrator: Some(OrchestratorId::Turborepo),
             packages: vec![],
         };
 
@@ -64,7 +64,7 @@ mod tests {
 
         // Create a monorepo with 2+ packages to trigger orchestrator cache detection
         let workspace = WorkspaceStructure {
-            orchestrator: OrchestratorId::Turborepo,
+            orchestrator: Some(OrchestratorId::Turborepo),
             packages: vec![
                 crate::stack::orchestrator::Package {
                     path: PathBuf::from("apps/web"),
@@ -91,7 +91,7 @@ mod tests {
         let scan = create_scan_with_files(vec!["package.json"]);
 
         let workspace = WorkspaceStructure {
-            orchestrator: OrchestratorId::Turborepo, // Single service has a placeholder orchestrator
+            orchestrator: None,
             packages: vec![],
         };
 
@@ -106,7 +106,7 @@ mod tests {
 
         // Create a monorepo with 2+ packages to trigger orchestrator cache detection
         let workspace = WorkspaceStructure {
-            orchestrator: OrchestratorId::Nx,
+            orchestrator: Some(OrchestratorId::Nx),
             packages: vec![
                 crate::stack::orchestrator::Package {
                     path: PathBuf::from("apps/web"),
@@ -235,15 +235,16 @@ impl RootCachePhase {
             }
         }
 
-        // Add cache dirs from orchestrator (only for actual monorepos with > 1 package)
+        // Add cache dirs from orchestrator (only for actual monorepos with > 1 package and an orchestrator)
         if workspace.packages.len() > 1 {
-            let orchestrator_id = workspace.orchestrator;
-            for orchestrator in registry.all_orchestrators() {
-                if orchestrator.id() == orchestrator_id {
-                    for cache_dir in orchestrator.cache_dirs() {
-                        root_cache_dirs.insert(PathBuf::from(cache_dir));
+            if let Some(orchestrator_id) = workspace.orchestrator {
+                for orchestrator in registry.all_orchestrators() {
+                    if orchestrator.id() == orchestrator_id {
+                        for cache_dir in orchestrator.cache_dirs() {
+                            root_cache_dirs.insert(PathBuf::from(cache_dir));
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }

@@ -19,7 +19,7 @@ pub struct Package {
 /// Complete workspace structure
 #[derive(Debug, Clone)]
 pub struct WorkspaceStructure {
-    pub orchestrator: OrchestratorId,
+    pub orchestrator: Option<OrchestratorId>,
     pub packages: Vec<Package>,
 }
 

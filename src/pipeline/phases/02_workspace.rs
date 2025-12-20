@@ -1,8 +1,7 @@
 use super::scan::ScanResult;
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::WorkflowPhase;
-use crate::stack::buildsystem::BuildSystem;
-use crate::stack::orchestrator::{OrchestratorId, Package, WorkspaceStructure};
+use crate::stack::orchestrator::{Package, WorkspaceStructure};
 use crate::stack::StackRegistry;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -38,19 +37,72 @@ impl WorkflowPhase for WorkspaceStructurePhase {
     }
 }
 
+fn extract_package_metadata(
+    detection: &crate::stack::DetectionStack,
+    repo_path: &std::path::Path,
+    stack_registry: &StackRegistry,
+) -> (String, bool) {
+    stack_registry
+        .get_build_system(detection.build_system)
+        .and_then(|bs| {
+            let manifest_path = repo_path.join(&detection.manifest_path);
+            std::fs::read_to_string(&manifest_path)
+                .ok()
+                .and_then(|content| bs.parse_package_metadata(&content).ok())
+        })
+        .unwrap_or_else(|| ("app".to_string(), true))
+}
+
+fn is_workspace_root_manifest(
+    detection: &crate::stack::DetectionStack,
+    repo_path: &std::path::Path,
+    stack_registry: &StackRegistry,
+) -> bool {
+    if detection.manifest_path.parent().unwrap_or(repo_path) != repo_path {
+        return false;
+    }
+
+    let manifest_path = repo_path.join(&detection.manifest_path);
+    let Ok(content) = std::fs::read_to_string(&manifest_path) else {
+        return false;
+    };
+
+    stack_registry
+        .get_build_system(detection.build_system)
+        .map(|bs| bs.is_workspace_root(Some(&content)))
+        .unwrap_or(false)
+}
+
+fn create_package(
+    detection: &crate::stack::DetectionStack,
+    repo_path: &std::path::Path,
+    stack_registry: &StackRegistry,
+) -> Package {
+    let service_path = detection.manifest_path
+        .parent()
+        .unwrap_or(repo_path)
+        .to_path_buf();
+
+    let (name, is_application) = extract_package_metadata(detection, repo_path, stack_registry);
+
+    Package {
+        path: service_path,
+        name,
+        is_application,
+    }
+}
+
 fn detect_workspace_structure(
     repo_path: &std::path::Path,
     scan: &ScanResult,
     stack_registry: &StackRegistry,
 ) -> Result<WorkspaceStructure> {
-    // Try to detect orchestrator from scan results using StackRegistry
     for orchestrator in stack_registry.all_orchestrators() {
         for config_file in orchestrator.config_files() {
-            // Check if orchestrator config file exists in file tree
-            if scan.find_files_by_name(config_file).iter().any(|f| {
-                f.parent().unwrap_or(repo_path) == repo_path
-            }) {
-                // Found orchestrator config file at root, try to parse workspace structure
+            if scan.find_files_by_name(config_file)
+                .iter()
+                .any(|f| f.parent().unwrap_or(repo_path) == repo_path)
+            {
                 if let Ok(structure) = orchestrator.workspace_structure(repo_path) {
                     return Ok(structure);
                 }
@@ -58,38 +110,24 @@ fn detect_workspace_structure(
         }
     }
 
-    // No orchestrator found - create single-service workspace
-    let first_detection = scan
+    let packages: Vec<Package> = scan
         .detections
-        .first()
-        .ok_or_else(|| anyhow::anyhow!("No detections found in scan"))?;
+        .iter()
+        .filter(|d| !is_workspace_root_manifest(d, repo_path, stack_registry))
+        .map(|d| create_package(d, repo_path, stack_registry))
+        .collect();
 
-    let service_path = first_detection.manifest_path
-        .parent()
-        .unwrap_or(repo_path)
-        .to_path_buf();
-
-    // Extract package name from manifest using build system
-    let (name, is_application) = if let Some(build_system) = stack_registry.get_build_system(first_detection.build_system) {
-        let manifest_path = repo_path.join(&first_detection.manifest_path);
-        if let Ok(content) = std::fs::read_to_string(&manifest_path) {
-            build_system
-                .parse_package_metadata(&content)
-                .unwrap_or_else(|_| ("app".to_string(), true))
-        } else {
-            ("app".to_string(), true)
-        }
-    } else {
-        ("app".to_string(), true)
-    };
+    if packages.is_empty() && !scan.detections.is_empty() {
+        let package = create_package(&scan.detections[0], repo_path, stack_registry);
+        return Ok(WorkspaceStructure {
+            orchestrator: None,
+            packages: vec![package],
+        });
+    }
 
     Ok(WorkspaceStructure {
-        orchestrator: OrchestratorId::Turborepo, // Placeholder - single service has no orchestrator
-        packages: vec![Package {
-            path: service_path,
-            name,
-            is_application,
-        }],
+        orchestrator: None,
+        packages,
     })
 }
 
