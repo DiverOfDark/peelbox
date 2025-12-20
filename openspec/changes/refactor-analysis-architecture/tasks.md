@@ -121,16 +121,16 @@
 
 **Depends on**: PR3 (schema)
 
-- [ ] Update `src/pipeline/phases/08_assemble.rs`:
-  - [ ] Read `build_system.build_template().build_image`
-  - [ ] Read `build_system.build_template().runtime_image`
-  - [ ] Populate `BuildStage.base` from build_image
-  - [ ] Populate `RuntimeStage.base` from runtime_image
-  - [ ] Populate `RuntimeStage.health` from `RuntimeConfig` (if PR4 done)
-- [ ] Update e2e test expected outputs:
-  - [ ] Verify build and runtime base images are different
-  - [ ] Verify health endpoint populated where detected
-- [ ] Run all e2e tests and verify they pass
+- [x] Update `src/pipeline/phases/08_assemble.rs`:
+  - [x] Read `build_system.build_template().build_image`
+  - [x] Read `build_system.build_template().runtime_image`
+  - [x] Populate `BuildStage.base` from build_image
+  - [x] Populate `RuntimeStage.base` from runtime_image
+  - [x] Populate `RuntimeStage.health` from `RuntimeConfig` (if PR4 done)
+- [x] Update e2e test expected outputs:
+  - [x] Verify build and runtime base images are different
+  - [x] Verify health endpoint populated where detected
+- [x] Run all e2e tests and verify they pass
 
 ### PR8: Unified Stack Identification (~300 LOC)
 
