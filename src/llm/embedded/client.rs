@@ -11,7 +11,6 @@ use async_trait::async_trait;
 use candle_core::{quantized::gguf_file, Device, IndexOp, Tensor};
 use candle_transformers::generation::LogitsProcessor;
 use candle_transformers::models::quantized_qwen2::ModelWeights as QuantizedQwen2;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tokenizers::Tokenizer;
@@ -20,11 +19,9 @@ use tracing::{debug, info, warn};
 
 /// Embedded LLM client for local inference without external dependencies
 pub struct EmbeddedClient {
-    model: Arc<Mutex<Option<QuantizedQwen2>>>,
-    model_path: PathBuf,
-    tokenizer: Arc<Mutex<Option<Tokenizer>>>,
-    tokenizer_path: PathBuf,
-    device: Arc<Mutex<Device>>,
+    model: Arc<Mutex<QuantizedQwen2>>,
+    tokenizer: Arc<Tokenizer>,
+    device: Device,
     model_info: &'static EmbeddedModel,
     max_tokens: usize,
 }
@@ -49,7 +46,7 @@ impl EmbeddedClient {
 
     /// Create an embedded client with a specific model
     ///
-    /// Note: Model and tokenizer are not loaded into memory until first chat() call (lazy loading)
+    /// Loads model and tokenizer into memory during initialization.
     pub async fn with_model(
         model_info: &'static EmbeddedModel,
         capabilities: &HardwareCapabilities,
@@ -59,25 +56,41 @@ impl EmbeddedClient {
         let downloader = ModelDownloader::new()?;
         let model_paths = downloader.download(model_info, interactive)?;
 
-        // Get tokenizer path (but don't load it yet - lazy loading)
+        // Get tokenizer path
         let tokenizer_path = downloader
             .tokenizer_path(model_info)
             .ok_or_else(|| anyhow::anyhow!("Tokenizer not found for model"))?;
 
         // Select compute device
-        let device = Self::create_device(capabilities)?;
+        let mut device = Self::create_device(capabilities)?;
 
-        info!(
-            "Embedded client created (model and tokenizer will be loaded on first use): {}",
-            model_info.display_name
-        );
+        info!("Loading {} into memory...", model_info.display_name);
+
+        // Load tokenizer
+        let tokenizer = Tokenizer::from_file(&tokenizer_path)
+            .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {}", e))?;
+
+        // Load model - try preferred device, fallback to CPU if needed
+        let model = match Self::load_gguf_model(&model_paths[0], &device) {
+            Ok(m) => m,
+            Err(e) if !device.is_cpu() => {
+                warn!(
+                    "Failed to load model on {:?}: {}. Falling back to CPU",
+                    device, e
+                );
+                device = Device::Cpu;
+                Self::load_gguf_model(&model_paths[0], &device)
+                    .context("Failed to load model on CPU fallback")?
+            }
+            Err(e) => return Err(e),
+        };
+
+        info!("Embedded client ready: {}", model_info.display_name);
 
         Ok(Self {
-            model: Arc::new(Mutex::new(None)),
-            model_path: model_paths[0].clone(),
-            tokenizer: Arc::new(Mutex::new(None)),
-            tokenizer_path,
-            device: Arc::new(Mutex::new(device)),
+            model: Arc::new(Mutex::new(model)),
+            tokenizer: Arc::new(tokenizer),
+            device,
             model_info,
             max_tokens: 32768,
         })
@@ -133,84 +146,13 @@ impl EmbeddedClient {
         Ok(model)
     }
 
-    /// Ensure tokenizer is loaded (lazy initialization on first use)
-    async fn ensure_tokenizer_loaded(&self) -> Result<()> {
-        let mut tokenizer_guard = self.tokenizer.lock().await;
-
-        if tokenizer_guard.is_some() {
-            return Ok(());
-        }
-
-        debug!(
-            "Loading tokenizer for {} on first use...",
-            self.model_info.display_name
-        );
-
-        let tokenizer = Tokenizer::from_file(&self.tokenizer_path)
-            .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {}", e))?;
-
-        *tokenizer_guard = Some(tokenizer);
-        debug!("Tokenizer loaded successfully");
-
-        Ok(())
-    }
-
-    /// Ensure model is loaded (lazy initialization on first use)
-    async fn ensure_model_loaded(&self) -> Result<()> {
-        let mut model_guard = self.model.lock().await;
-
-        if model_guard.is_some() {
-            return Ok(());
-        }
-
-        info!(
-            "Loading {} into memory on first use...",
-            self.model_info.display_name
-        );
-
-        // Get current device
-        let device = self.device.lock().await.clone();
-
-        // Try to load on configured device, fallback to CPU if it fails
-        let (model, actual_device) = match Self::load_gguf_model(&self.model_path, &device) {
-            Ok(m) => (m, device),
-            Err(e) if !device.is_cpu() => {
-                warn!(
-                    "Failed to load model on {:?}: {}. Falling back to CPU",
-                    device, e
-                );
-                let cpu_device = Device::Cpu;
-                let m = Self::load_gguf_model(&self.model_path, &cpu_device)
-                    .context("Failed to load model on CPU fallback")?;
-                (m, cpu_device)
-            }
-            Err(e) => return Err(e),
-        };
-
-        // Update device if we fell back to CPU
-        *self.device.lock().await = actual_device;
-
-        *model_guard = Some(model);
-        info!("Model loaded successfully");
-
-        Ok(())
-    }
-
     /// Generate text completion
     async fn generate(&self, prompt: &str, max_new_tokens: usize) -> Result<String> {
-        // Ensure tokenizer and model are loaded before use
-        self.ensure_tokenizer_loaded().await?;
-        self.ensure_model_loaded().await?;
-
         let start = Instant::now();
 
         // Tokenize input
-        let tokenizer_guard = self.tokenizer.lock().await;
-        let tokenizer = tokenizer_guard
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Tokenizer failed to load"))?;
-
-        let encoding = tokenizer
+        let encoding = self
+            .tokenizer
             .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("Tokenization failed: {}", e))?;
 
@@ -219,21 +161,16 @@ impl EmbeddedClient {
 
         debug!("Input tokens: {}", input_len);
 
-        // Release tokenizer lock before generating
-        drop(tokenizer_guard);
-
-        // Generate tokens
+        // Generate tokens (need mutable access for KV cache)
         let mut model_guard = self.model.lock().await;
-        let model = model_guard
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("Model failed to load"))?;
+        let model = &mut *model_guard;
 
         let mut logits_processor = LogitsProcessor::new(42, Some(0.7), Some(0.9));
 
         let mut generated_tokens: Vec<u32> = Vec::new();
 
-        // Get the actual device being used
-        let device = self.device.lock().await.clone();
+        // Use the device from construction
+        let device = &self.device;
 
         for i in 0..max_new_tokens {
             // For autoregressive generation with KV cache:
@@ -278,12 +215,8 @@ impl EmbeddedClient {
         }
 
         // Decode output
-        let tokenizer_guard = self.tokenizer.lock().await;
-        let tokenizer = tokenizer_guard
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Tokenizer not loaded"))?;
-
-        let output = tokenizer
+        let output = self
+            .tokenizer
             .decode(&generated_tokens, true)
             .map_err(|e| anyhow::anyhow!("Decoding failed: {}", e))?;
 
@@ -514,7 +447,7 @@ impl std::fmt::Debug for EmbeddedClient {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EmbeddedClient")
             .field("model", &self.model_info.display_name)
-            .field("device", &format!("{:?}", self.device))
+            .field("device", &self.device)
             .finish()
     }
 }

@@ -2,6 +2,7 @@ mod client;
 pub mod embedded;
 mod error;
 mod genai;
+mod lazy;
 mod mock;
 mod recording;
 mod selector;
@@ -16,6 +17,7 @@ pub use embedded::{
 };
 pub use error::BackendError;
 pub use genai::GenAIClient;
+pub use lazy::LazyLLMClient;
 pub use mock::{MockLLMClient, MockResponse};
 pub use recording::{RecordedExchange, RecordedRequest, RecordingLLMClient, RecordingMode};
 pub use selector::{select_llm_client, SelectedClient};

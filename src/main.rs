@@ -2,7 +2,7 @@ use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
-use aipack::llm::{select_llm_client, RecordingLLMClient, RecordingMode};
+use aipack::llm::{RecordingLLMClient, RecordingMode};
 use aipack::VERSION;
 use genai::adapter::AdapterKind;
 
@@ -222,30 +222,15 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
         DetectionService::new(client)
     } else {
-        info!("Auto-selecting best available backend");
+        info!("Using lazy LLM client initialization - backend will be selected on first use");
         let interactive = atty::is(atty::Stream::Stdout);
 
-        match select_llm_client(&config, interactive).await {
-            Ok(selected) => {
-                info!("Auto-selected backend: {}", selected.description);
-                if !quiet {
-                    eprintln!("Using: {}", selected.description);
-                }
+        // Create lazy client that defers initialization until first chat() call
+        let lazy_client = aipack::llm::LazyLLMClient::new(config.clone(), interactive);
+        let client = Arc::new(lazy_client) as Arc<dyn aipack::llm::LLMClient>;
+        let client = wrap_with_recording(client);
 
-                let client = wrap_with_recording(selected.client);
-
-                DetectionService::new(client)
-            }
-            Err(e) => {
-                error!("Failed to auto-select backend: {}", e);
-                eprintln!("Failed to auto-select backend: {}", e);
-                eprintln!("\nNo LLM backend available. Please either:");
-                eprintln!("  - Set an API key (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)");
-                eprintln!("  - Start Ollama locally (ollama serve)");
-                eprintln!("  - Ensure sufficient RAM for embedded LLM (minimum 3GB available)");
-                return 1;
-            }
-        }
+        DetectionService::new(client)
     };
 
     info!(
