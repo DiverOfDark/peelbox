@@ -1,123 +1,16 @@
 [
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "lib",
-      "language": "Java",
-      "build_system": "Gradle",
-      "confidence": 0.95,
-      "reasoning": "Detected from build.gradle in lib"
-    },
     "build": {
+      "artifacts": [
+        "build/libs/*.jar"
+      ],
       "base": "gradle:8.5-jdk21",
-      "packages": [],
-      "env": {},
-      "commands": [
-        "gradle build -x test"
-      ],
-      "context": [
-        {
-          "from": "lib",
-          "to": "/app"
-        }
-      ],
       "cache": [
         ".gradle",
         "build",
         ".gradle",
         "build"
       ],
-      "artifacts": [
-        "build/libs/*.jar"
-      ]
-    },
-    "runtime": {
-      "base": "eclipse-temurin:21-jre",
-      "packages": [],
-      "env": {},
-      "copy": [
-        {
-          "from": "build/libs/*.jar",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "command": [
-        "java",
-        "-jar",
-        "app.jar"
-      ],
-      "ports": [
-        8080
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "api-service",
-      "language": "Java",
-      "build_system": "Gradle",
-      "framework": "Spring Boot",
-      "confidence": 0.95,
-      "reasoning": "Detected from build.gradle in api-service"
-    },
-    "build": {
-      "base": "gradle:8.5-jdk21",
-      "packages": [],
-      "env": {},
-      "commands": [
-        "gradle build -x test"
-      ],
-      "context": [
-        {
-          "from": "api-service",
-          "to": "/app"
-        }
-      ],
-      "cache": [
-        ".gradle",
-        "build",
-        ".gradle",
-        "build"
-      ],
-      "artifacts": [
-        "build/libs/*.jar"
-      ]
-    },
-    "runtime": {
-      "base": "eclipse-temurin:21-jre",
-      "packages": [],
-      "env": {},
-      "copy": [
-        {
-          "from": "build/libs/*.jar",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "command": [
-        "java",
-        "-jar",
-        "app.jar"
-      ],
-      "ports": [
-        8080
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "web-service",
-      "language": "Java",
-      "build_system": "Gradle",
-      "framework": "Spring Boot",
-      "confidence": 0.95,
-      "reasoning": "Detected from build.gradle in web-service"
-    },
-    "build": {
-      "base": "gradle:8.5-jdk21",
-      "packages": [],
-      "env": {},
       "commands": [
         "gradle build -x test"
       ],
@@ -127,34 +20,147 @@
           "to": "/app"
         }
       ],
-      "cache": [
-        ".gradle",
-        "build",
-        ".gradle",
-        "build"
-      ],
-      "artifacts": [
-        "build/libs/*.jar"
-      ]
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "Gradle",
+      "confidence": 0.949999988079071,
+      "framework": "Spring Boot",
+      "language": "Java",
+      "project_name": "web-service",
+      "reasoning": "Detected from build.gradle in web-service"
     },
     "runtime": {
       "base": "eclipse-temurin:21-jre",
-      "packages": [],
-      "env": {},
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
       "copy": [
         {
           "from": "build/libs/*.jar",
           "to": "/usr/local/bin/app"
         }
       ],
+      "env": {},
+      "health": {
+        "endpoint": "/actuator/health"
+      },
+      "packages": [],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  },
+  {
+    "build": {
+      "artifacts": [
+        "build/libs/*.jar"
+      ],
+      "base": "gradle:8.5-jdk21",
+      "cache": [
+        ".gradle",
+        "build",
+        ".gradle",
+        "build"
+      ],
+      "commands": [
+        "gradle build -x test"
+      ],
+      "context": [
+        {
+          "from": "api-service",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "Gradle",
+      "confidence": 0.949999988079071,
+      "framework": "Spring Boot",
+      "language": "Java",
+      "project_name": "api-service",
+      "reasoning": "Detected from build.gradle in api-service"
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
         "app.jar"
       ],
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/actuator/health"
+      },
+      "packages": [],
       "ports": [
         8080
       ]
-    }
+    },
+    "version": "1.0"
+  },
+  {
+    "build": {
+      "artifacts": [
+        "build/libs/*.jar"
+      ],
+      "base": "gradle:8.5-jdk21",
+      "cache": [
+        ".gradle",
+        "build",
+        ".gradle",
+        "build"
+      ],
+      "commands": [
+        "gradle build -x test"
+      ],
+      "context": [
+        {
+          "from": "lib",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "Gradle",
+      "confidence": 0.949999988079071,
+      "language": "Java",
+      "project_name": "lib",
+      "reasoning": "Detected from build.gradle in lib"
+    },
+    "runtime": {
+      "base": "eclipse-temurin:21-jre",
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
   }
 ]

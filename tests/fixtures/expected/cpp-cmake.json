@@ -1,56 +1,55 @@
 [
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "app",
-      "language": "C++",
-      "build_system": "CMake",
-      "confidence": 0.95,
-      "reasoning": "Detected from CMakeLists.txt in ."
-    },
     "build": {
-      "base": "gcc:12",
-      "packages": [
-        "cmake",
-        "make"
+      "artifacts": [
+        "build/app"
       ],
-      "env": {},
+      "base": "gcc:12",
+      "cache": [
+        "build",
+        "CMakeCache.txt"
+      ],
       "commands": [
         "cmake -B build -DCMAKE_BUILD_TYPE=Release"
       ],
       "context": [
         {
-          "from": ".",
+          "from": "",
           "to": "/app"
         }
       ],
-      "cache": [
-        "build"
-      ],
-      "artifacts": [
-        "build/app"
+      "env": {},
+      "packages": [
+        "cmake",
+        "make"
       ]
+    },
+    "metadata": {
+      "build_system": "CMake",
+      "confidence": 0.949999988079071,
+      "language": "C++",
+      "project_name": "app",
+      "reasoning": "Detected from CMakeLists.txt in "
     },
     "runtime": {
       "base": "ubuntu:22.04",
-      "packages": [
-        "libstdc++6"
+      "command": [
+        "bin/app"
       ],
-      "env": {
-        "PORT": "3000"
-      },
       "copy": [
         {
           "from": "build/app",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "./app"
+      "env": {},
+      "packages": [
+        "libstdc++6"
       ],
       "ports": [
         8080
       ]
-    }
+    },
+    "version": "1.0"
   }
 ]

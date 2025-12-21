@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use serde_json;
+use serde_json::{self, Map, Value};
 use serde_yaml;
 use std::collections::HashMap;
 
@@ -22,18 +22,46 @@ impl OutputFormatter {
 
     pub fn format(&self, result: &UniversalBuild) -> Result<String> {
         match self.format {
-            OutputFormat::Json => serde_json::to_string_pretty(result)
-                .context("Failed to serialize UniversalBuild to JSON"),
+            OutputFormat::Json => {
+                let value = serde_json::to_value(result)
+                    .context("Failed to convert UniversalBuild to JSON value")?;
+                let sorted = Self::sort_json_keys(value);
+                serde_json::to_string_pretty(&sorted)
+                    .context("Failed to serialize UniversalBuild to JSON")
+            }
             OutputFormat::Yaml => result.to_yaml(),
         }
     }
 
     pub fn format_multiple(&self, results: &[UniversalBuild]) -> Result<String> {
         match self.format {
-            OutputFormat::Json => serde_json::to_string_pretty(results)
-                .context("Failed to serialize UniversalBuild array to JSON"),
+            OutputFormat::Json => {
+                let value = serde_json::to_value(results)
+                    .context("Failed to convert UniversalBuild array to JSON value")?;
+                let sorted = Self::sort_json_keys(value);
+                serde_json::to_string_pretty(&sorted)
+                    .context("Failed to serialize UniversalBuild array to JSON")
+            }
             OutputFormat::Yaml => serde_yaml::to_string(results)
                 .context("Failed to serialize UniversalBuild array to YAML"),
+        }
+    }
+
+    fn sort_json_keys(value: Value) -> Value {
+        match value {
+            Value::Object(map) => {
+                let mut sorted = Map::new();
+                let mut keys: Vec<_> = map.keys().cloned().collect();
+                keys.sort();
+                for key in keys {
+                    if let Some(v) = map.get(&key) {
+                        sorted.insert(key, Self::sort_json_keys(v.clone()));
+                    }
+                }
+                Value::Object(sorted)
+            }
+            Value::Array(arr) => Value::Array(arr.into_iter().map(Self::sort_json_keys).collect()),
+            _ => value,
         }
     }
 
@@ -176,10 +204,11 @@ mod tests {
 
         assert!(output.contains("cargo"));
         assert!(output.contains("rust"));
-        assert!(output.contains("0.95"));
+        assert!(output.contains("confidence"));
 
         // Verify it's valid JSON
-        let _parsed: UniversalBuild = serde_json::from_str(&output).unwrap();
+        let parsed: UniversalBuild = serde_json::from_str(&output).unwrap();
+        assert_eq!(parsed.metadata.confidence, 0.95);
     }
 
     #[test]

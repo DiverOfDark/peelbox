@@ -2,19 +2,21 @@
   {
     "build": {
       "artifacts": [
-        "target/*.jar"
+        "build/libs/*.jar"
       ],
-      "base": "maven:3.9-eclipse-temurin-21",
+      "base": "gradle:8.5-jdk21",
       "cache": [
-        ".m2/repository",
-        "target"
+        ".gradle",
+        "build",
+        ".gradle",
+        "build"
       ],
       "commands": [
-        "mvn clean package -DskipTests"
+        "gradle build -x test"
       ],
       "context": [
         {
-          "from": "backend",
+          "from": "web-service",
           "to": "/app"
         }
       ],
@@ -22,12 +24,12 @@
       "packages": []
     },
     "metadata": {
-      "build_system": "Maven",
+      "build_system": "Gradle",
       "confidence": 0.949999988079071,
       "framework": "Spring Boot",
       "language": "Java",
-      "project_name": "backend",
-      "reasoning": "Detected from pom.xml in backend"
+      "project_name": "web-service",
+      "reasoning": "Detected from build.gradle in web-service"
     },
     "runtime": {
       "base": "eclipse-temurin:21-jre",
@@ -38,7 +40,7 @@
       ],
       "copy": [
         {
-          "from": "target/*.jar",
+          "from": "build/libs/*.jar",
           "to": "/usr/local/bin/app"
         }
       ],
@@ -56,55 +58,49 @@
   {
     "build": {
       "artifacts": [
-        "target/release/cli"
+        "build/libs/*.jar"
       ],
-      "base": "rust:1.75",
+      "base": "gradle:8.5-jdk21",
       "cache": [
-        "target",
-        ".cargo"
+        ".gradle",
+        "build",
+        ".gradle",
+        "build"
       ],
       "commands": [
-        "cargo build --release"
+        "gradle build -x test"
       ],
       "context": [
         {
-          "from": "cli",
+          "from": "lib",
           "to": "/app"
         }
       ],
       "env": {},
-      "packages": [
-        "pkg-config",
-        "libssl-dev"
-      ]
+      "packages": []
     },
     "metadata": {
-      "build_system": "Cargo",
+      "build_system": "Gradle",
       "confidence": 0.949999988079071,
-      "framework": "Actix Web",
-      "language": "Rust",
-      "project_name": "cli",
-      "reasoning": "Detected from Cargo.toml in cli"
+      "language": "Java",
+      "project_name": "lib",
+      "reasoning": "Detected from build.gradle in lib"
     },
     "runtime": {
-      "base": "debian:bookworm-slim",
+      "base": "eclipse-temurin:21-jre",
       "command": [
-        "bin/app"
+        "java",
+        "-jar",
+        "app.jar"
       ],
       "copy": [
         {
-          "from": "target/release/cli",
+          "from": "build/libs/*.jar",
           "to": "/usr/local/bin/app"
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "ca-certificates",
-        "libssl3"
-      ],
+      "packages": [],
       "ports": [
         8080
       ]
@@ -114,20 +110,21 @@
   {
     "build": {
       "artifacts": [
-        "dist/",
-        "build/"
+        "build/libs/*.jar"
       ],
-      "base": "node:20",
+      "base": "gradle:8.5-jdk21",
       "cache": [
-        "node_modules",
-        ".npm"
+        ".gradle",
+        "build",
+        ".gradle",
+        "build"
       ],
       "commands": [
-        "npm ci"
+        "gradle build -x test"
       ],
       "context": [
         {
-          "from": "frontend",
+          "from": "api-service",
           "to": "/app"
         }
       ],
@@ -135,31 +132,33 @@
       "packages": []
     },
     "metadata": {
-      "build_system": "npm",
+      "build_system": "Gradle",
       "confidence": 0.949999988079071,
-      "framework": "Express",
-      "language": "JavaScript",
-      "project_name": "frontend",
-      "reasoning": "Detected from package.json in frontend"
+      "framework": "Spring Boot",
+      "language": "Java",
+      "project_name": "api-service",
+      "reasoning": "Detected from build.gradle in api-service"
     },
     "runtime": {
-      "base": "node:20-slim",
+      "base": "eclipse-temurin:21-jre",
       "command": [
-        "bin/app"
+        "java",
+        "-jar",
+        "app.jar"
       ],
       "copy": [
         {
-          "from": "dist/",
+          "from": "build/libs/*.jar",
           "to": "/usr/local/bin/app"
         }
       ],
       "env": {},
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/actuator/health"
       },
       "packages": [],
       "ports": [
-        3000
+        8080
       ]
     },
     "version": "1.0"

@@ -1,71 +1,17 @@
 [
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "web",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "framework": "Express",
-      "confidence": 0.95,
-      "reasoning": "Detected from package.json in apps/web"
-    },
     "build": {
+      "artifacts": [
+        "dist/",
+        "build/"
+      ],
       "base": "node:20",
-      "packages": [],
-      "env": {},
-      "commands": [
-        "npm ci"
-      ],
-      "context": [
-        {
-          "from": "apps/web",
-          "to": "/app"
-        }
-      ],
       "cache": [
         "node_modules",
         ".npm",
         ".npm",
-        ".turbo",
         "node_modules"
       ],
-      "artifacts": [
-        "dist/",
-        "build/"
-      ]
-    },
-    "runtime": {
-      "base": "node:20-slim",
-      "packages": [],
-      "env": {},
-      "copy": [
-        {
-          "from": "dist/",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "command": [
-        "node",
-        "dist/index.js"
-      ],
-      "ports": [
-        3000
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "ui",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "confidence": 0.95,
-      "reasoning": "Detected from package.json in packages/ui"
-    },
-    "build": {
-      "base": "node:20",
-      "packages": [],
-      "env": {},
       "commands": [
         "npm ci"
       ],
@@ -75,50 +21,48 @@
           "to": "/app"
         }
       ],
-      "cache": [
-        "node_modules",
-        ".npm",
-        ".npm",
-        ".turbo",
-        "node_modules"
-      ],
-      "artifacts": [
-        "dist/",
-        "build/"
-      ]
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "npm",
+      "confidence": 0.949999988079071,
+      "language": "JavaScript",
+      "project_name": "ui",
+      "reasoning": "Detected from package.json in packages/ui"
     },
     "runtime": {
       "base": "node:20-slim",
-      "packages": [],
-      "env": {},
+      "command": [
+        "bin/app"
+      ],
       "copy": [
         {
           "from": "dist/",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "node",
-        "src/index.ts"
-      ],
+      "env": {},
+      "packages": [],
       "ports": [
         3000
       ]
-    }
+    },
+    "version": "1.0"
   },
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "api",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "confidence": 0.95,
-      "reasoning": "Detected from package.json in packages/api"
-    },
     "build": {
+      "artifacts": [
+        "dist/",
+        "build/"
+      ],
       "base": "node:20",
-      "packages": [],
-      "env": {},
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".npm",
+        "node_modules"
+      ],
       "commands": [
         "npm ci"
       ],
@@ -128,35 +72,88 @@
           "to": "/app"
         }
       ],
-      "cache": [
-        "node_modules",
-        ".npm",
-        ".npm",
-        ".turbo",
-        "node_modules"
-      ],
-      "artifacts": [
-        "dist/",
-        "build/"
-      ]
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "npm",
+      "confidence": 0.949999988079071,
+      "language": "JavaScript",
+      "project_name": "api",
+      "reasoning": "Detected from package.json in packages/api"
     },
     "runtime": {
       "base": "node:20-slim",
-      "packages": [],
-      "env": {},
+      "command": [
+        "bin/app"
+      ],
       "copy": [
         {
           "from": "dist/",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "node",
-        "src/index.ts"
-      ],
+      "env": {},
+      "packages": [],
       "ports": [
         3000
       ]
-    }
+    },
+    "version": "1.0"
+  },
+  {
+    "build": {
+      "artifacts": [
+        "dist/",
+        "build/"
+      ],
+      "base": "node:20",
+      "cache": [
+        "node_modules",
+        ".npm",
+        ".npm",
+        "node_modules"
+      ],
+      "commands": [
+        "npm ci"
+      ],
+      "context": [
+        {
+          "from": "apps/web",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "npm",
+      "confidence": 0.949999988079071,
+      "framework": "Express",
+      "language": "JavaScript",
+      "project_name": "web",
+      "reasoning": "Detected from package.json in apps/web"
+    },
+    "runtime": {
+      "base": "node:20-slim",
+      "command": [
+        "bin/app"
+      ],
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [],
+      "ports": [
+        3000
+      ]
+    },
+    "version": "1.0"
   }
 ]

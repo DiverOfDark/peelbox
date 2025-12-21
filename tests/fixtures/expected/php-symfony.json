@@ -1,57 +1,55 @@
 [
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "app",
-      "language": "PHP",
-      "build_system": "Composer",
-      "framework": "Symfony",
-      "confidence": 0.95,
-      "reasoning": "Detected from composer.json in ."
-    },
     "build": {
+      "artifacts": [
+        "vendor/",
+        "public/"
+      ],
       "base": "composer:2",
-      "packages": [],
-      "env": {},
+      "cache": [
+        ".composer/cache",
+        "vendor"
+      ],
       "commands": [
         "composer install --no-dev --optimize-autoloader"
       ],
       "context": [
         {
-          "from": ".",
+          "from": "",
           "to": "/app"
         }
       ],
-      "cache": [
-        "vendor"
-      ],
-      "artifacts": [
-        "vendor/",
-        "public/"
-      ]
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "Composer",
+      "confidence": 0.949999988079071,
+      "framework": "Symfony",
+      "language": "PHP",
+      "project_name": "app",
+      "reasoning": "Detected from composer.json in "
     },
     "runtime": {
       "base": "php:8.2-fpm",
-      "packages": [],
-      "env": {},
+      "command": [
+        "bin/app"
+      ],
       "copy": [
         {
           "from": "vendor/",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "php",
-        "-S",
-        "0.0.0.0:8000",
-        "public/index.php"
-      ],
-      "ports": [
-        8000
-      ],
+      "env": {},
       "health": {
         "endpoint": "/_health"
-      }
-    }
+      },
+      "packages": [],
+      "ports": [
+        8000
+      ]
+    },
+    "version": "1.0"
   }
 ]

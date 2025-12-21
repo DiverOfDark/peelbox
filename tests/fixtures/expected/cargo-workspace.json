@@ -1,20 +1,16 @@
 [
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "lib-a",
-      "language": "Rust",
-      "build_system": "Cargo",
-      "confidence": 0.95,
-      "reasoning": "Detected from Cargo.toml in lib-a"
-    },
     "build": {
-      "base": "rust:1.75",
-      "packages": [
-        "pkg-config",
-        "libssl-dev"
+      "artifacts": [
+        "target/release/lib-a"
       ],
-      "env": {},
+      "base": "rust:1.75",
+      "cache": [
+        "target",
+        ".cargo",
+        ".cargo",
+        "target"
+      ],
       "commands": [
         "cargo build --release"
       ],
@@ -24,53 +20,53 @@
           "to": "/app"
         }
       ],
-      "cache": [
-        "target",
-        ".cargo",
-        ".cargo",
-        "target"
-      ],
-      "artifacts": [
-        "target/release/lib-a"
+      "env": {},
+      "packages": [
+        "pkg-config",
+        "libssl-dev"
       ]
+    },
+    "metadata": {
+      "build_system": "Cargo",
+      "confidence": 0.949999988079071,
+      "language": "Rust",
+      "project_name": "lib-a",
+      "reasoning": "Detected from Cargo.toml in lib-a"
     },
     "runtime": {
       "base": "debian:bookworm-slim",
-      "packages": [
-        "ca-certificates",
-        "libssl3"
+      "command": [
+        "bin/app"
       ],
-      "env": {},
       "copy": [
         {
           "from": "target/release/lib-a",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "./target/release/lib-a"
+      "env": {},
+      "packages": [
+        "ca-certificates",
+        "libssl3"
       ],
       "ports": [
         8080
       ]
-    }
+    },
+    "version": "1.0"
   },
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "lib-b",
-      "language": "Rust",
-      "build_system": "Cargo",
-      "confidence": 0.95,
-      "reasoning": "Detected from Cargo.toml in lib-b"
-    },
     "build": {
-      "base": "rust:1.75",
-      "packages": [
-        "pkg-config",
-        "libssl-dev"
+      "artifacts": [
+        "target/release/lib-b"
       ],
-      "env": {},
+      "base": "rust:1.75",
+      "cache": [
+        "target",
+        ".cargo",
+        ".cargo",
+        "target"
+      ],
       "commands": [
         "cargo build --release"
       ],
@@ -80,53 +76,53 @@
           "to": "/app"
         }
       ],
-      "cache": [
-        "target",
-        ".cargo",
-        ".cargo",
-        "target"
-      ],
-      "artifacts": [
-        "target/release/lib-b"
+      "env": {},
+      "packages": [
+        "pkg-config",
+        "libssl-dev"
       ]
+    },
+    "metadata": {
+      "build_system": "Cargo",
+      "confidence": 0.949999988079071,
+      "language": "Rust",
+      "project_name": "lib-b",
+      "reasoning": "Detected from Cargo.toml in lib-b"
     },
     "runtime": {
       "base": "debian:bookworm-slim",
-      "packages": [
-        "ca-certificates",
-        "libssl3"
+      "command": [
+        "bin/app"
       ],
-      "env": {},
       "copy": [
         {
           "from": "target/release/lib-b",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "./target/release/lib-b"
+      "env": {},
+      "packages": [
+        "ca-certificates",
+        "libssl3"
       ],
       "ports": [
         8080
       ]
-    }
+    },
+    "version": "1.0"
   },
   {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "app",
-      "language": "Rust",
-      "build_system": "Cargo",
-      "confidence": 0.95,
-      "reasoning": "Detected from Cargo.toml in app"
-    },
     "build": {
-      "base": "rust:1.75",
-      "packages": [
-        "pkg-config",
-        "libssl-dev"
+      "artifacts": [
+        "target/release/app"
       ],
-      "env": {},
+      "base": "rust:1.75",
+      "cache": [
+        "target",
+        ".cargo",
+        ".cargo",
+        "target"
+      ],
       "commands": [
         "cargo build --release"
       ],
@@ -136,35 +132,39 @@
           "to": "/app"
         }
       ],
-      "cache": [
-        "target",
-        ".cargo",
-        ".cargo",
-        "target"
-      ],
-      "artifacts": [
-        "target/release/app"
+      "env": {},
+      "packages": [
+        "pkg-config",
+        "libssl-dev"
       ]
+    },
+    "metadata": {
+      "build_system": "Cargo",
+      "confidence": 0.949999988079071,
+      "language": "Rust",
+      "project_name": "app",
+      "reasoning": "Detected from Cargo.toml in app"
     },
     "runtime": {
       "base": "debian:bookworm-slim",
-      "packages": [
-        "ca-certificates",
-        "libssl3"
+      "command": [
+        "bin/app"
       ],
-      "env": {},
       "copy": [
         {
           "from": "target/release/app",
           "to": "/usr/local/bin/app"
         }
       ],
-      "command": [
-        "./target/release/app"
+      "env": {},
+      "packages": [
+        "ca-certificates",
+        "libssl3"
       ],
       "ports": [
         8080
       ]
-    }
+    },
+    "version": "1.0"
   }
 ]
