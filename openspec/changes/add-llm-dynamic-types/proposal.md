@@ -65,195 +65,149 @@ pub enum OrchestratorId {
     // LLM-discovered type
     Custom(String),  // e.g., "Moon", "Bit"
 }
-```
 
-### 2. Implement Custom Type Providers
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum RuntimeId {
+    // Known types
+    JVM,
+    Node,
+    Python,
+    // ... existing variants
 
-Create dynamic trait implementations that wrap LLM responses:
-
-```rust
-/// LLM-discovered language with runtime-provided data
-pub struct CustomLanguage {
-    pub name: String,
-    pub file_extensions: Vec<String>,
-    pub package_managers: Vec<String>,
-    pub confidence: f32,
-    pub reasoning: String,
-}
-
-impl LanguageDefinition for CustomLanguage {
-    fn id(&self) -> LanguageId {
-        LanguageId::Custom(self.name.clone())
-    }
-
-    fn file_extensions(&self) -> &[&str] {
-        // Convert Vec<String> to &[&str] using temporary storage
-    }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    // Other trait methods implemented from LLM-provided data
-}
-
-/// LLM-discovered build system
-pub struct CustomBuildSystem {
-    pub name: String,
-    pub manifest_files: Vec<String>,
-    pub build_commands: Vec<String>,
-    pub cache_dirs: Vec<String>,
-    pub confidence: f32,
-}
-
-/// LLM-discovered framework
-pub struct CustomFramework {
-    pub name: String,
-    pub language: String,  // Which language it's for
-    pub dependency_patterns: Vec<String>,
-    pub confidence: f32,
-}
-
-/// LLM-discovered orchestrator
-pub struct CustomOrchestrator {
-    pub name: String,
-    pub config_files: Vec<String>,
-    pub cache_dirs: Vec<String>,
+    // LLM-discovered type (NEW)
+    Custom(String),  // e.g., "Deno", "Bun", "GraalVM"
 }
 ```
 
-### 3. Add LLM Fallback Detection (Simplified)
+### 2. Implement LLM-Backed Trait Implementations
 
-Extend StackRegistry with LLM-based detection as fallback. **Key rule: LLM path ALWAYS creates custom types, no mapping.**
+Create Llm* structs that implement traits and call LLM on-demand:
 
 ```rust
-impl StackRegistry {
-    /// Try hardcoded detection first, fallback to LLM on failure
-    /// LLM responses ALWAYS create custom types (no mapping to known types)
-    pub async fn detect_build_system_with_llm(
-        &self,
-        manifest_path: &Path,
-        content: &str,
-        llm: &dyn LLMClient,
-    ) -> Result<BuildSystemId> {
-        // 1. Try pattern-based detection (existing logic)
-        if let Some(id) = self.detect_build_system(manifest_path, content) {
-            return Ok(id);  // Known type - return immediately
-        }
-
-        // 2. Pattern failed - use LLM and ALWAYS create custom type
-        let response = llm.identify_build_system(manifest_path, content).await?;
-
-        // 3. Create custom build system (even if name is "cargo", "npm", etc.)
-        let custom = Arc::new(CustomBuildSystem {
-            name: response.name.clone(),
-            manifest_files: response.manifest_files,
-            build_commands: response.build_commands,
-            cache_dirs: response.cache_dirs,
-            confidence: response.confidence,
-        });
-
-        let id = BuildSystemId::Custom(response.name);
-        self.register_build_system_runtime(custom);
-        Ok(id)
-    }
+/// LLM-backed language detection (calls LLM on first .detect())
+pub struct LlmLanguage {
+    llm_client: Arc<dyn LLMClient>,
+    detected_info: Arc<Mutex<Option<LanguageInfo>>>,
 }
-```
 
-**Rationale**: No `from_name()` mapping = simpler logic, clear boundary (deterministic = known, LLM = custom)
-
-### 4. Add Runtime Registration
-
-Support dynamic registration of LLM-discovered types:
-
-```rust
-impl StackRegistry {
-    /// Register a custom language discovered by LLM
-    pub fn register_language_runtime(
-        &mut self,
-        id: LanguageId,
-        language: Arc<dyn LanguageDefinition>,
-    ) {
-        match &id {
-            LanguageId::Custom(name) => {
-                self.languages.insert(id, language);
-            },
-            _ => {
-                // Known types should use register_language()
-                panic!("Use register_language() for known types");
+impl LanguageDefinition for LlmLanguage {
+    fn detect(&self, manifest_path: &Path, content: &str) -> bool {
+        let mut info = self.detected_info.lock().unwrap();
+        if info.is_none() {
+            // Call LLM (blocks on async)
+            match tokio::runtime::Handle::current()
+                .block_on(self.llm_client.identify_language(manifest_path, content)) {
+                Ok(detected) => *info = Some(detected),
+                Err(_) => return false,
             }
         }
+        true
     }
 
-    // Similar for build_system, framework, orchestrator
+    fn id(&self) -> LanguageId {
+        LanguageId::Custom(self.detected_info.lock().unwrap().as_ref().unwrap().name.clone())
+    }
+
+    // Other methods return LLM-discovered data
+}
+
+/// LLM-backed build system (similar pattern)
+pub struct LlmBuildSystem {
+    llm_client: Arc<dyn LLMClient>,
+    detected_info: Arc<Mutex<Option<BuildSystemInfo>>>,
+}
+
+/// LLM-backed framework
+pub struct LlmFramework {
+    llm_client: Arc<dyn LLMClient>,
+    detected_info: Arc<Mutex<Option<FrameworkInfo>>>,
+}
+
+/// LLM-backed runtime (NEW)
+pub struct LlmRuntime {
+    llm_client: Arc<dyn LLMClient>,
+    detected_info: Arc<Mutex<Option<RuntimeInfo>>>,
+}
+
+/// LLM-backed orchestrator
+pub struct LlmOrchestrator {
+    llm_client: Arc<dyn LLMClient>,
+    detected_info: Arc<Mutex<Option<OrchestratorInfo>>>,
 }
 ```
 
-### 5. Update Detection Flow
+### 3. Register Llm* Implementations in StackRegistry
 
-Modify detection to try patterns first, LLM as fallback:
+Update StackRegistry to register Llm* implementations LAST (as fallback).
 
 ```rust
-// In PipelineOrchestrator or DetectionService
-pub async fn detect_stack(
-    &self,
-    repo_path: &Path,
-) -> Result<Vec<DetectionStack>> {
-    let registry = &self.stack_registry;
+impl StackRegistry {
+    pub fn with_defaults(llm_client: Option<Arc<dyn LLMClient>>) -> Self {
+        let mut registry = Self::new();
 
-    // 1. Scan files
-    let manifests = scan_manifests(repo_path, registry)?;
+        // Register known languages (deterministic, tried first)
+        registry.register_language(Arc::new(RustLanguage));
+        registry.register_language(Arc::new(JavaLanguage));
+        // ... other known languages
 
-    for manifest in manifests {
-        let content = fs::read_to_string(&manifest)?;
-
-        // 2. Try pattern-based detection (fast path)
-        if let Some(stack) = registry.detect_stack(&manifest, &content) {
-            results.push(stack);
-            continue;
+        // Register LLM fallback LAST (only called if all above fail)
+        if let Some(llm) = llm_client {
+            registry.register_language(Arc::new(LlmLanguage::new(llm.clone())));
+            registry.register_build_system(Arc::new(LlmBuildSystem::new(llm.clone())));
+            registry.register_framework(Arc::new(LlmFramework::new(llm.clone())));
+            registry.register_runtime(Arc::new(LlmRuntime::new(llm.clone())));
+            registry.register_orchestrator(Arc::new(LlmOrchestrator::new(llm)));
         }
 
-        // 3. Fallback to LLM (slow path for unknown tech)
-        let build_system = registry
-            .detect_build_system_with_llm(&manifest, &content, &self.llm)
-            .await?;
-
-        let language = registry
-            .detect_language_with_llm(&manifest, &content, build_system, &self.llm)
-            .await?;
-
-        results.push(DetectionStack::new(build_system, language, manifest));
+        registry
     }
 }
 ```
+
+**Rationale**: No phase changes needed - phases already iterate registry implementations in order
 
 ## Impact
 
 ### Affected Specs
 
 - **stack-registry** (new): Type system with Custom variants and LLM fallback
-- **prompt-pipeline**: Phase 1 (Scan) and Phase 6 (Runtime) updated to use LLM fallback
+- **refactor-analysis-architecture** (completed): Pipeline now uses 5 phases, this change integrates with Phase 2 (WorkspaceStructure) and Phase 4 (ServiceAnalysis → StackIdentificationPhase)
 
 ### Affected Code
 
 **New files**:
-- `src/stack/custom/mod.rs` - Module for custom types (~300 lines)
-- `src/stack/custom/language.rs` - CustomLanguage implementation (~100 lines)
-- `src/stack/custom/buildsystem.rs` - CustomBuildSystem implementation (~100 lines)
-- `src/stack/custom/framework.rs` - CustomFramework implementation (~100 lines)
-- `src/stack/custom/orchestrator.rs` - CustomOrchestrator implementation (~50 lines)
+- `src/stack/llm/mod.rs` - Module for LLM-backed implementations (~50 lines)
+- `src/stack/llm/language.rs` - LlmLanguage implementation (~150 lines)
+- `src/stack/llm/buildsystem.rs` - LlmBuildSystem implementation (~150 lines)
+- `src/stack/llm/framework.rs` - LlmFramework implementation (~150 lines)
+- `src/stack/llm/runtime.rs` - LlmRuntime implementation (~150 lines, NEW)
+- `src/stack/llm/orchestrator.rs` - LlmOrchestrator implementation (~100 lines)
 
 **Modified files**:
-- `src/stack/mod.rs` - Add `Custom(String)` to all ID enums (~50 lines changed)
-- `src/stack/registry.rs` - Add `detect_*_with_llm()` and `register_*_runtime()` methods (~200 lines added)
-- `src/pipeline/orchestrator.rs` - Use LLM fallback in detection flow (~50 lines changed)
-- `src/detection/service.rs` - Pass LLM client to registry (~20 lines changed)
+- `src/stack/mod.rs` - Add `Custom(String)` to all ID enums including RuntimeId (~60 lines changed)
+- `src/stack/registry.rs` - Update `with_defaults()` to optionally register Llm* implementations (~30 lines changed)
+- `src/llm/client.rs` - Add identification methods to trait (~100 lines added):
+  - `identify_language()`
+  - `identify_build_system()`
+  - `identify_framework()`
+  - `identify_runtime()`
+  - `identify_orchestrator()`
+- `src/llm/genai.rs` - Implement new LLMClient methods (~200 lines added)
+- `src/llm/mock.rs` - Implement new methods for MockLLMClient (~50 lines added)
 
 **LLM prompts** (new):
 - `identify_language` - JSON schema for language detection
 - `identify_build_system` - JSON schema for build system detection
 - `identify_framework` - JSON schema for framework detection
+- `identify_runtime` - JSON schema for runtime detection
 - `identify_orchestrator` - JSON schema for orchestrator detection
+
+**PHASE CLEANUP** - Remove LLM calls from phases:
+- Remove `llm_client` from AnalysisContext and ServiceContext
+- Remove LLM fallback logic from RuntimeConfigPhase (currently has llm.chat() call)
+- Remove `llm_helper.rs`
+- Phases become pure orchestration (iterate registry, call trait methods)
 
 ### Breaking Changes
 
@@ -294,14 +248,23 @@ match language_id {
 
 ### Migration Path
 
-1. Add `Custom(String)` variants to all enums in `src/stack/mod.rs`
-2. Implement `CustomLanguage`, `CustomBuildSystem`, `CustomFramework`, `CustomOrchestrator` structs
-3. Add `detect_*_with_llm()` methods to StackRegistry (async)
-4. Update PipelineOrchestrator to use LLM fallback
-5. Add LLM prompt schemas for type identification
-6. Update all pattern matches to handle `Custom` variant
-7. Add tests for custom type detection
-8. Update recording system to capture LLM type identification calls
+1. Add `Custom(String)` variants to all enums in `src/stack/mod.rs` (including RuntimeId)
+2. Add LLM response schemas (LanguageInfo, BuildSystemInfo, FrameworkInfo, RuntimeInfo, OrchestratorInfo)
+3. Add identification methods to LLMClient trait
+4. Implement Llm* trait implementations (`src/stack/llm/*`)
+5. Update `StackRegistry::with_defaults()` to optionally register Llm* implementations
+6. **CLEAN UP PHASES** - remove all LLM calls:
+   - Remove `llm_client` from AnalysisContext and ServiceContext
+   - Remove LLM fallback from RuntimeConfigPhase
+   - Delete `llm_helper.rs`
+7. Update all pattern matches to handle `Custom` variant
+8. Add tests for Llm* implementations
+9. Add fixtures for unknown technologies (Bazel, Zig, etc.)
+10. Update recording system to capture LLM identification calls
+
+**Key Benefit**:
+- ~500 lines of code vs ~1000+ lines with phase-level fallback logic
+- Phases become pure orchestration (no LLM awareness)
 
 ### Performance Impact
 
@@ -335,15 +298,38 @@ match language_id {
 - Integration tests for custom type detection
 - Confidence scores to flag low-quality LLM responses
 
+## Testing Strategy
+
+The implementation includes three detection modes for comprehensive testing:
+
+| Mode | Environment Variable | Purpose |
+|------|---------------------|---------|
+| **Full** | `AIPACK_DETECTION_MODE=full` | Default - deterministic first, LLM fallback |
+| **Static** | `AIPACK_DETECTION_MODE=static` | Fast CI - deterministic only, no LLM |
+| **LLM-only** | `AIPACK_DETECTION_MODE=llm_only` | Validate LLM* implementations |
+
+**LLM-only mode** (NEW):
+- Registry registers ONLY LLM* implementations (no deterministic Rust, Java, npm, etc.)
+- Forces all detection through LLM code path
+- Validates that LLM* implementations correctly detect mainstream tech (not just unknowns)
+- Each fixture gets three test variants: `test_*_full()`, `test_*_static()`, `test_*_llm_only()`
+
+Benefits:
+- ✅ Both deterministic and LLM code paths validated independently
+- ✅ LLM quality assurance for known tech (ensures prompts work correctly)
+- ✅ Recording mode captures LLM responses for mainstream languages/build systems
+- ✅ CI can run static mode (fast, no LLM backend) and LLM-only mode (comprehensive)
+
 ## Success Criteria
 
 ✅ All existing tests pass with `Custom` variants added
 ✅ Pattern-based detection still works without LLM calls
-✅ LLM fallback correctly identifies unknown build systems
-✅ CustomLanguage/CustomBuildSystem implement traits correctly
+✅ LLM* implementations correctly identify both known and unknown technologies
+✅ Custom* types implement traits correctly
 ✅ Runtime registration works for LLM-discovered types
 ✅ JSON serialization backward compatible
 ✅ All pattern matches handle `Custom` variant
-✅ Recording system captures custom type LLM calls
+✅ Recording system captures LLM calls from LLM* implementations
 ✅ Performance neutral for known tech (no regression)
 ✅ Documentation explains when LLM fallback triggers
+✅ LLM-only mode validates LLM* implementations work for mainstream tech
