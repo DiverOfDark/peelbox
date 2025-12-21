@@ -178,11 +178,11 @@ impl EmbeddedClient {
             // - Subsequent iterations: pass only last token, seqlen_offset = tokens already cached
             let (current_input, seqlen_offset) = if i == 0 {
                 // First iteration: pass full prompt
-                (Tensor::new(input_ids.as_slice(), &device)?.unsqueeze(0)?, 0)
+                (Tensor::new(input_ids.as_slice(), device)?.unsqueeze(0)?, 0)
             } else {
                 // Subsequent iterations: pass only the last generated token
                 (
-                    Tensor::new(&[generated_tokens.last().copied().unwrap()], &device)?
+                    Tensor::new(&[generated_tokens.last().copied().unwrap()], device)?
                         .unsqueeze(0)?,
                     input_len + i - 1,
                 )
