@@ -426,13 +426,22 @@ Extended Framework trait with config parsing capabilities (103 framework tests t
   - All tests passing: 73 total (70 original + 3 Symfony)
 
 #### LLM Fallback (centralized in RuntimeConfigPhase)
-- [ ] Design LLMRuntimeFallback for when all deterministic methods return None
-  - [ ] Create minimal LLM prompt for runtime config extraction
-  - [ ] Accept Runtime + Framework + files as context
-  - [ ] Call LLM client with focused prompt (<500 tokens)
-  - [ ] Parse and validate LLM response
-  - [ ] Use framework defaults as hints in prompt
-  - [ ] Return RuntimeConfig or error
+
+**Status: COMPLETED (2025-12-21)**
+
+- ✅ Designed LLM fallback for when all deterministic methods return None
+  - ✅ Created minimal LLM prompt for runtime config extraction
+  - ✅ Accepts stack (runtime, language, build system, framework) as context
+  - ✅ Calls LLM client with focused prompt (<500 tokens)
+  - ✅ Parses and validates LLM JSON response (LLMRuntimeResponse struct)
+  - ✅ Uses framework defaults as hints in prompt (port, health endpoints)
+  - ✅ Returns RuntimeConfig with all fields (entrypoint, port, env_vars, health, native_deps)
+
+Implementation in `RuntimeConfigPhase.execute_llm()`:
+- Builds prompt from service stack context
+- Includes framework hints when available
+- Parses JSON response into RuntimeConfig
+- All 73 e2e tests passing
 
 ### Build Systems That Are Also Orchestrators
 
