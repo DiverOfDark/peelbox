@@ -1,6 +1,7 @@
 //! Gradle build system (Java/Kotlin)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use anyhow::Result;
 
 pub struct GradleBuildSystem;
 
@@ -12,20 +13,20 @@ impl BuildSystem for GradleBuildSystem {
     fn manifest_patterns(&self) -> &[ManifestPattern] {
         &[
             ManifestPattern {
+                filename: "settings.gradle",
+                priority: 15,
+            },
+            ManifestPattern {
+                filename: "settings.gradle.kts",
+                priority: 15,
+            },
+            ManifestPattern {
                 filename: "build.gradle",
                 priority: 10,
             },
             ManifestPattern {
                 filename: "build.gradle.kts",
                 priority: 10,
-            },
-            ManifestPattern {
-                filename: "settings.gradle",
-                priority: 5,
-            },
-            ManifestPattern {
-                filename: "settings.gradle.kts",
-                priority: 5,
             },
         ]
     }
@@ -73,5 +74,32 @@ impl BuildSystem for GradleBuildSystem {
 
     fn workspace_configs(&self) -> &[&str] {
         &["settings.gradle", "settings.gradle.kts"]
+    }
+
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
+        let mut patterns = Vec::new();
+
+        for line in manifest_content.lines() {
+            let trimmed = line.trim();
+
+            if trimmed.starts_with("include") {
+                let include_str = if trimmed.contains('(') {
+                    trimmed.split('(').nth(1).and_then(|s| s.split(')').next())
+                } else {
+                    None
+                };
+
+                if let Some(projects_str) = include_str {
+                    for project in projects_str.split(',') {
+                        let project = project.trim().trim_matches(|c| c == '\'' || c == '"');
+                        if !project.is_empty() {
+                            patterns.push(project.trim_start_matches(':').to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(patterns)
     }
 }

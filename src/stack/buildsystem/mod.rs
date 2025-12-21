@@ -59,18 +59,57 @@ pub trait BuildSystem: Send + Sync {
         let _ = manifest_content;
         Ok(("app".to_string(), true))
     }
-}
 
-/// Workspace-aware build system trait
-///
-/// Build systems that support monorepo/workspace structures (npm, yarn, pnpm, Cargo, Gradle, Maven)
-/// can implement this trait to provide workspace parsing capabilities.
-pub trait WorkspaceBuildSystem: BuildSystem {
     /// Parse workspace patterns from manifest (e.g., npm/yarn/pnpm workspaces field, Cargo [workspace])
-    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error>;
+    /// Default implementation returns empty Vec (not a workspace build system)
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error> {
+        let _ = manifest_content;
+        Ok(vec![])
+    }
 
     /// Glob workspace pattern (e.g., "packages/*") to find package directories
-    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error>;
+    /// Default implementation handles simple directory paths (used by Cargo, Gradle, Maven, DotNet)
+    /// Override for more complex globbing (npm/yarn/pnpm use wildcard patterns)
+    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+        let project_path = repo_path.join(pattern);
+        if project_path.exists() && project_path.is_dir() {
+            Ok(vec![project_path])
+        } else {
+            Ok(vec![])
+        }
+    }
+}
+
+/// Helper function for parsing package.json workspaces field (used by npm, yarn, pnpm)
+pub(crate) fn parse_package_json_workspaces(manifest_content: &str) -> Result<Vec<String>, anyhow::Error> {
+    let package: serde_json::Value = serde_json::from_str(manifest_content)?;
+
+    if let Some(workspaces) = package["workspaces"].as_array() {
+        Ok(workspaces
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect())
+    } else {
+        Ok(vec![])
+    }
+}
+
+/// Helper function for globbing package.json workspace patterns (used by npm, yarn, pnpm)
+pub(crate) fn glob_package_json_workspace_pattern(repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+    let mut results = Vec::new();
+
+    if pattern.ends_with("/*") {
+        let base_dir = repo_path.join(pattern.trim_end_matches("/*"));
+        if let Ok(entries) = std::fs::read_dir(&base_dir) {
+            for entry in entries.flatten() {
+                if entry.path().is_dir() {
+                    results.push(entry.path());
+                }
+            }
+        }
+    }
+
+    Ok(results)
 }
 
 pub mod bun;

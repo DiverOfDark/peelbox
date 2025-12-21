@@ -1,6 +1,8 @@
 //! Cargo build system (Rust)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use anyhow::Result;
+use toml::Value;
 
 pub struct CargoBuildSystem;
 
@@ -53,6 +55,22 @@ impl BuildSystem for CargoBuildSystem {
             content.contains("[workspace]")
         } else {
             false
+        }
+    }
+
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
+        let value: Value = toml::from_str(manifest_content)?;
+
+        if let Some(members) = value.get("workspace")
+            .and_then(|w| w.get("members"))
+            .and_then(|m| m.as_array())
+        {
+            Ok(members
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect())
+        } else {
+            Ok(vec![])
         }
     }
 }

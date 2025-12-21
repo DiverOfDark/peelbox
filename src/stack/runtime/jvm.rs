@@ -22,7 +22,7 @@ impl Runtime for JvmRuntime {
         });
 
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint: Some(self.start_command(Path::new("app.jar"))),
             port,
             env_vars: vec![],
             health,

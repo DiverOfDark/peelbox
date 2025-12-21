@@ -58,7 +58,9 @@ fn is_workspace_root_manifest(
     repo_path: &std::path::Path,
     stack_registry: &StackRegistry,
 ) -> bool {
-    if detection.manifest_path.parent().unwrap_or(repo_path) != repo_path {
+    // Check if manifest is at repo root (parent is empty path)
+    let parent = detection.manifest_path.parent().unwrap_or(std::path::Path::new(""));
+    if parent != std::path::Path::new("") {
         return false;
     }
 
@@ -92,6 +94,61 @@ fn create_package(
     }
 }
 
+fn try_workspace_build_system(
+    detection: &crate::stack::DetectionStack,
+    repo_path: &std::path::Path,
+    stack_registry: &StackRegistry,
+) -> Result<Option<WorkspaceStructure>> {
+    let manifest_path = repo_path.join(&detection.manifest_path);
+    let Ok(manifest_content) = std::fs::read_to_string(&manifest_path) else {
+        return Ok(None);
+    };
+
+    let Some(build_system) = stack_registry.get_build_system(detection.build_system) else {
+        return Ok(None);
+    };
+
+    let workspace_patterns = build_system.parse_workspace_patterns(&manifest_content)?;
+
+    if workspace_patterns.is_empty() {
+        return Ok(None);
+    }
+
+    let mut packages = Vec::new();
+
+    for pattern in workspace_patterns {
+        let paths = build_system.glob_workspace_pattern(repo_path, &pattern)?;
+
+        for package_path in paths {
+            let name = package_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+
+            let relative_path = package_path
+                .strip_prefix(repo_path)
+                .unwrap_or(&package_path)
+                .to_path_buf();
+
+            packages.push(Package {
+                path: relative_path,
+                name,
+                is_application: true,
+            });
+        }
+    }
+
+    if packages.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(WorkspaceStructure {
+            orchestrator: None,
+            packages,
+        }))
+    }
+}
+
 fn detect_workspace_structure(
     repo_path: &std::path::Path,
     scan: &ScanResult,
@@ -106,6 +163,30 @@ fn detect_workspace_structure(
                 if let Ok(structure) = orchestrator.workspace_structure(repo_path) {
                     return Ok(structure);
                 }
+            }
+        }
+    }
+
+    for detection in &scan.detections {
+        if is_workspace_root_manifest(detection, repo_path, stack_registry) {
+            if let Some(mut workspace_structure) = try_workspace_build_system(detection, repo_path, stack_registry)? {
+                // Also include standalone modules not in workspace
+                let workspace_paths: std::collections::HashSet<_> = workspace_structure
+                    .packages
+                    .iter()
+                    .map(|p| p.path.clone())
+                    .collect();
+
+                let standalone_packages: Vec<Package> = scan
+                    .detections
+                    .iter()
+                    .filter(|d| !is_workspace_root_manifest(d, repo_path, stack_registry))
+                    .map(|d| create_package(d, repo_path, stack_registry))
+                    .filter(|p| !workspace_paths.contains(&p.path))
+                    .collect();
+
+                workspace_structure.packages.extend(standalone_packages);
+                return Ok(workspace_structure);
             }
         }
     }

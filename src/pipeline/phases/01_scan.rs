@@ -281,7 +281,7 @@ fn detect_language(
 
     let depth = rel_path.to_string_lossy().matches('/').count();
 
-    let detection_result = stack_registry.detect_stack_opt(path, content.as_deref());
+    let detection_result = stack_registry.detect_stack_opt(rel_path, content.as_deref());
     trace!(
         file = filename,
         detected = detection_result.is_some(),

@@ -1,6 +1,8 @@
 //! Maven build system (Java/Kotlin)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use anyhow::Result;
+use roxmltree::Document;
 
 pub struct MavenBuildSystem;
 
@@ -50,5 +52,24 @@ impl BuildSystem for MavenBuildSystem {
         } else {
             false
         }
+    }
+
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
+        let doc = Document::parse(manifest_content)?;
+
+        let mut patterns = Vec::new();
+        for node in doc.descendants() {
+            if node.has_tag_name("modules") {
+                for child in node.children() {
+                    if child.has_tag_name("module") {
+                        if let Some(text) = child.text() {
+                            patterns.push(text.trim().to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(patterns)
     }
 }

@@ -58,7 +58,7 @@ fn execute_assemble(
     let mut builds = Vec::new();
 
     for result in analysis_results {
-        let build = assemble_single_service(result, root_cache, &registry)?;
+        let build = assemble_single_service(result, root_cache, registry)?;
         builds.push(build);
     }
 
@@ -208,7 +208,7 @@ fn calculate_confidence(result: &ServiceContext) -> f32 {
     // Stack detection is always High confidence (deterministic)
     let stack_confidence = crate::pipeline::Confidence::High.to_f32();
 
-    let mut scores = vec![
+    let mut scores = [
         stack_confidence,
         result.build.as_ref().expect("Build must be set").confidence.to_f32(),
         result.cache.as_ref().expect("Cache must be set").confidence.to_f32(),

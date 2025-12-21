@@ -1,7 +1,7 @@
 //! Turborepo orchestrator (Vercel)
 
 use super::{MonorepoOrchestrator, OrchestratorId, Package, WorkspaceStructure};
-use crate::stack::buildsystem::{BuildSystem, NpmBuildSystem, WorkspaceBuildSystem};
+use crate::stack::buildsystem::{BuildSystem, NpmBuildSystem};
 use anyhow::{Context, Result};
 use std::path::Path;
 

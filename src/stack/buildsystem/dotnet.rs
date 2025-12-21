@@ -1,6 +1,8 @@
 //! .NET build system (C#, F#, VB)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use anyhow::Result;
+use std::path::Path;
 
 pub struct DotNetBuildSystem;
 
@@ -81,5 +83,33 @@ impl BuildSystem for DotNetBuildSystem {
 
     fn workspace_configs(&self) -> &[&str] {
         &["*.sln"]
+    }
+
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
+        let mut patterns = Vec::new();
+
+        for line in manifest_content.lines() {
+            let trimmed = line.trim();
+
+            if trimmed.starts_with("Project(") {
+                let parts: Vec<&str> = trimmed.split('"').collect();
+
+                if parts.len() >= 4 {
+                    let project_path = parts[3];
+
+                    if project_path.ends_with(".csproj")
+                        || project_path.ends_with(".fsproj")
+                        || project_path.ends_with(".vbproj")
+                    {
+                        let normalized = project_path.replace('\\', "/");
+                        if let Some(dir) = Path::new(&normalized).parent() {
+                            patterns.push(dir.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(patterns)
     }
 }

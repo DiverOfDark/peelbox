@@ -378,37 +378,44 @@ Several build systems have built-in workspace/monorepo capabilities. A new `Work
 - Implemented `WorkspaceBuildSystem` for `NpmBuildSystem`
 - Orchestrators (Turborepo, Nx, Lerna) now delegate to `WorkspaceBuildSystem` methods
 
-**Future Work - Implement WorkspaceBuildSystem for Other Build Systems**:
+**Completed - WorkspaceBuildSystem Implementations (2025-12-21)**:
 
-- **Gradle** (JVM):
-  - Already has `is_workspace_root()` checking for `include()` statements
-  - Already has `workspace_configs()` returning `["settings.gradle", "settings.gradle.kts"]`
-  - TODO: Implement `WorkspaceBuildSystem` trait:
-    - `parse_workspace_patterns()` - parse `settings.gradle[.kts]` include() directives
-    - `parse_package_metadata()` - parse `build.gradle[.kts]` project name, detect application (has application plugin)
-    - `glob_workspace_pattern()` - expand project paths from settings
+- ✅ **Yarn** (JavaScript/TypeScript):
+  - Implemented `WorkspaceBuildSystem` trait for `YarnBuildSystem`
+  - Parses `package.json` workspaces field (same as npm)
+  - Fixed deduplication priority (yarn.lock priority 15 > package.json priority 10)
+  - All 3 test modes passing (detection, llm, static)
 
-- **Maven** (JVM):
-  - Already has `is_workspace_root()` checking for `<modules>` tag
-  - TODO: Implement `WorkspaceBuildSystem` trait:
-    - `parse_workspace_patterns()` - parse `pom.xml` <modules> section
-    - `parse_package_metadata()` - parse module `pom.xml` <artifactId>, detect packaging type (jar vs war)
-    - `glob_workspace_pattern()` - expand module paths
+- ✅ **Pnpm** (JavaScript/TypeScript):
+  - Implemented `WorkspaceBuildSystem` trait for `PnpmBuildSystem`
+  - Parses `package.json` workspaces field (identical to Yarn)
+  - Fixed deduplication priority (pnpm-lock.yaml priority 15 > package.json priority 10)
+  - All 3 test modes passing
 
-- **Cargo** (Rust):
-  - Already has `is_workspace_root()` checking for `[workspace]` section
-  - TODO: Implement `WorkspaceBuildSystem` trait:
-    - `parse_workspace_patterns()` - parse `Cargo.toml` [workspace.members] array
-    - `parse_package_metadata()` - parse member `Cargo.toml` name, detect [[bin]] sections
-    - `glob_workspace_pattern()` - expand workspace member paths
+- ✅ **Gradle** (JVM):
+  - Implemented `WorkspaceBuildSystem` trait for `GradleBuildSystem`
+  - Parses `settings.gradle[.kts]` include() directives
+  - Expands project paths from settings file
+  - Fixed manifest priority (settings.gradle priority 15 > build.gradle priority 10)
+  - All 3 Gradle multiproject tests passing
 
-- **.NET**:
-  - Already has `is_workspace_root()` checking for `Project()` statements
-  - Already has `workspace_configs()` returning `["*.sln"]`
-  - TODO: Implement `WorkspaceBuildSystem` trait:
-    - `parse_workspace_patterns()` - parse `*.sln` Project() references
-    - `parse_package_metadata()` - parse `.csproj`/`.fsproj` for name, OutputType (Exe vs Library)
-    - `glob_workspace_pattern()` - expand project file paths
+- ✅ **Maven** (JVM):
+  - Implemented `WorkspaceBuildSystem` trait for `MavenBuildSystem`
+  - Parses `pom.xml` <modules> section
+  - Expands module paths
+  - All 3 Maven multimodule tests passing
+
+- ✅ **Cargo** (Rust):
+  - Implemented `WorkspaceBuildSystem` trait for `CargoBuildSystem`
+  - Parses `Cargo.toml` [workspace.members] array
+  - Expands workspace member paths
+  - All Cargo workspace tests passing
+
+- ✅ **.NET** (C#/F#):
+  - Implemented `WorkspaceBuildSystem` trait for `DotNetBuildSystem`
+  - Parses `*.sln` Project() references
+  - Extracts project directory from .csproj/.fsproj path
+  - No test fixtures yet (no .NET workspace tests in suite)
 
 **Architecture Decision (PR11)**:
 - Orchestrators (Nx/Turborepo/Lerna) delegate to `WorkspaceBuildSystem` for package.json parsing
