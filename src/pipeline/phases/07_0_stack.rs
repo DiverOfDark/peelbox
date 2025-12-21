@@ -72,7 +72,7 @@ fn detect_framework(
     let dep_info = stack_registry.parse_dependencies_by_manifest(
         manifest_name,
         &manifest_content,
-        &[service_path.clone()],
+        std::slice::from_ref(service_path),
     )?;
 
     // Try to match framework dependency patterns
@@ -96,8 +96,6 @@ fn detect_framework(
 mod tests {
     use super::*;
     use crate::pipeline::phases::service_analysis::Service;
-    use crate::stack::language::Dependency;
-    use std::collections::HashMap;
 
     #[test]
     fn test_detect_stack_rust() {

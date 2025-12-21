@@ -300,117 +300,6 @@ fn detect_language(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::heuristics::HeuristicLogger;
-    use crate::llm::MockLLMClient;
-    use std::fs;
-    use std::io::Write;
-    use tempfile::TempDir;
-
-    fn create_test_repo() -> TempDir {
-        let dir = TempDir::new().unwrap();
-        let base = dir.path();
-
-        fs::create_dir(base.join(".git")).unwrap();
-
-        fs::File::create(base.join("Cargo.toml"))
-            .unwrap()
-            .write_all(b"[package]\nname = \"test\"\nversion = \"0.1.0\"")
-            .unwrap();
-
-        fs::File::create(base.join("package.json"))
-            .unwrap()
-            .write_all(b"{\"name\": \"test\", \"version\": \"1.0.0\"}")
-            .unwrap();
-
-        fs::create_dir_all(base.join("crates/lib")).unwrap();
-        fs::File::create(base.join("crates/lib/Cargo.toml"))
-            .unwrap()
-            .write_all(b"[package]\nname = \"lib\"")
-            .unwrap();
-
-        fs::create_dir(base.join("node_modules")).unwrap();
-        fs::File::create(base.join("node_modules/package.json"))
-            .unwrap()
-            .write_all(b"{\"name\": \"ignored\"}")
-            .unwrap();
-
-        dir
-    }
-
-    fn create_test_context(repo_path: &Path) -> AnalysisContext {
-        use crate::config::DetectionMode;
-        let llm_client = Arc::new(MockLLMClient::new());
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
-        let heuristic_logger = Arc::new(HeuristicLogger::disabled());
-        AnalysisContext::new(
-            repo_path,
-            llm_client,
-            stack_registry,
-            None,
-            heuristic_logger,
-            DetectionMode::Full,
-        )
-    }
-
-    #[tokio::test]
-    async fn test_scan_execution() {
-        let temp_dir = create_test_repo();
-        let mut context = create_test_context(temp_dir.path());
-        let phase = ScanPhase;
-        let result = phase.try_deterministic(&mut context).unwrap();
-        assert!(result.is_some());
-        assert!(context.scan.is_some());
-    }
-
-    #[tokio::test]
-    async fn test_scan_detects_languages() {
-        let temp_dir = create_test_repo();
-        let mut context = create_test_context(temp_dir.path());
-        let phase = ScanPhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
-
-        let scan = context.scan.as_ref().unwrap();
-        assert!(scan.detections.len() >= 2);
-
-        use crate::stack::LanguageId;
-        let languages: Vec<LanguageId> = scan.detections.iter().map(|d| d.language).collect();
-        assert!(languages.contains(&LanguageId::Rust));
-        assert!(languages.contains(&LanguageId::JavaScript));
-    }
-
-    #[tokio::test]
-    async fn test_file_tree_excludes_node_modules() {
-        let temp_dir = create_test_repo();
-        let mut context = create_test_context(temp_dir.path());
-        let phase = ScanPhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
-
-        let scan = context.scan.as_ref().unwrap();
-        let paths: Vec<String> = scan
-            .file_tree
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect();
-
-        assert!(!paths.iter().any(|p| p.contains("node_modules")));
-    }
-
-    #[tokio::test]
-    async fn test_find_files_by_name() {
-        let temp_dir = create_test_repo();
-        let mut context = create_test_context(temp_dir.path());
-        let phase = ScanPhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
-
-        let scan = context.scan.as_ref().unwrap();
-        let cargo_files = scan.find_files_by_name("Cargo.toml");
-        assert!(!cargo_files.is_empty());
-    }
-}
-
 pub struct ScanPhase;
 
 #[async_trait]
@@ -584,5 +473,116 @@ impl ScanPhase {
 
         context.scan = Some(result);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::heuristics::HeuristicLogger;
+    use crate::llm::MockLLMClient;
+    use std::fs;
+    use std::io::Write;
+    use tempfile::TempDir;
+
+    fn create_test_repo() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let base = dir.path();
+
+        fs::create_dir(base.join(".git")).unwrap();
+
+        fs::File::create(base.join("Cargo.toml"))
+            .unwrap()
+            .write_all(b"[package]\nname = \"test\"\nversion = \"0.1.0\"")
+            .unwrap();
+
+        fs::File::create(base.join("package.json"))
+            .unwrap()
+            .write_all(b"{\"name\": \"test\", \"version\": \"1.0.0\"}")
+            .unwrap();
+
+        fs::create_dir_all(base.join("crates/lib")).unwrap();
+        fs::File::create(base.join("crates/lib/Cargo.toml"))
+            .unwrap()
+            .write_all(b"[package]\nname = \"lib\"")
+            .unwrap();
+
+        fs::create_dir(base.join("node_modules")).unwrap();
+        fs::File::create(base.join("node_modules/package.json"))
+            .unwrap()
+            .write_all(b"{\"name\": \"ignored\"}")
+            .unwrap();
+
+        dir
+    }
+
+    fn create_test_context(repo_path: &Path) -> AnalysisContext {
+        use crate::config::DetectionMode;
+        let llm_client = Arc::new(MockLLMClient::new());
+        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let heuristic_logger = Arc::new(HeuristicLogger::disabled());
+        AnalysisContext::new(
+            repo_path,
+            llm_client,
+            stack_registry,
+            None,
+            heuristic_logger,
+            DetectionMode::Full,
+        )
+    }
+
+    #[tokio::test]
+    async fn test_scan_execution() {
+        let temp_dir = create_test_repo();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        let result = phase.try_deterministic(&mut context).unwrap();
+        assert!(result.is_some());
+        assert!(context.scan.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_scan_detects_languages() {
+        let temp_dir = create_test_repo();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        phase.try_deterministic(&mut context).unwrap().unwrap();
+
+        let scan = context.scan.as_ref().unwrap();
+        assert!(scan.detections.len() >= 2);
+
+        use crate::stack::LanguageId;
+        let languages: Vec<LanguageId> = scan.detections.iter().map(|d| d.language).collect();
+        assert!(languages.contains(&LanguageId::Rust));
+        assert!(languages.contains(&LanguageId::JavaScript));
+    }
+
+    #[tokio::test]
+    async fn test_file_tree_excludes_node_modules() {
+        let temp_dir = create_test_repo();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        phase.try_deterministic(&mut context).unwrap().unwrap();
+
+        let scan = context.scan.as_ref().unwrap();
+        let paths: Vec<String> = scan
+            .file_tree
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
+
+        assert!(!paths.iter().any(|p| p.contains("node_modules")));
+    }
+
+    #[tokio::test]
+    async fn test_find_files_by_name() {
+        let temp_dir = create_test_repo();
+        let mut context = create_test_context(temp_dir.path());
+        let phase = ScanPhase;
+        phase.try_deterministic(&mut context).unwrap().unwrap();
+
+        let scan = context.scan.as_ref().unwrap();
+        let cargo_files = scan.find_files_by_name("Cargo.toml");
+        assert!(!cargo_files.is_empty());
     }
 }

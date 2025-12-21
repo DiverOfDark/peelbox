@@ -72,7 +72,6 @@ impl LLMClient for LazyLLMClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::llm::{ChatMessage, MessageRole};
 
     #[tokio::test]
     async fn test_lazy_client_name() {

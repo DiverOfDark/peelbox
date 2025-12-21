@@ -10,6 +10,82 @@ pub struct RootCacheInfo {
     pub confidence: Confidence,
 }
 
+use crate::pipeline::context::AnalysisContext;
+use crate::pipeline::phase_trait::WorkflowPhase;
+use anyhow::Result;
+use async_trait::async_trait;
+
+pub struct RootCachePhase;
+
+#[async_trait]
+impl WorkflowPhase for RootCachePhase {
+    fn name(&self) -> &'static str {
+        "RootCachePhase"
+    }
+
+    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
+        self.execute_root_cache(context)?;
+        Ok(Some(()))
+    }
+
+    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+        self.execute_root_cache(context)
+    }
+}
+
+impl RootCachePhase {
+    fn execute_root_cache(&self, context: &mut AnalysisContext) -> Result<()> {
+        let scan = context
+            .scan
+            .as_ref()
+            .expect("Scan must be available before root_cache");
+        let workspace = context
+            .workspace
+            .as_ref()
+            .expect("Workspace must be available before root_cache");
+
+        let mut root_cache_dirs = HashSet::new();
+
+        let registry = StackRegistry::with_defaults();
+
+        // Add cache dirs from workspace root build systems
+        for detection in &scan.detections {
+            if detection.is_workspace_root {
+                if let Some(build_system) = registry.get_build_system(detection.build_system) {
+                    for cache_dir in build_system.cache_dirs() {
+                        root_cache_dirs.insert(PathBuf::from(cache_dir));
+                    }
+                }
+            }
+        }
+
+        // Add cache dirs from orchestrator (only for actual monorepos with > 1 package and an orchestrator)
+        if workspace.packages.len() > 1 {
+            if let Some(orchestrator_id) = workspace.orchestrator {
+                for orchestrator in registry.all_orchestrators() {
+                    if orchestrator.id() == orchestrator_id {
+                        for cache_dir in orchestrator.cache_dirs() {
+                            root_cache_dirs.insert(PathBuf::from(cache_dir));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        let mut dirs: Vec<PathBuf> = root_cache_dirs.into_iter().collect();
+        dirs.sort();
+
+        let result = RootCacheInfo {
+            root_cache_dirs: dirs,
+            confidence: Confidence::High,
+        };
+
+        context.root_cache = Some(result);
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,81 +259,5 @@ mod tests {
             file_tree: files.iter().map(PathBuf::from).collect(),
             scan_time_ms: 50,
         }
-    }
-}
-
-use crate::pipeline::context::AnalysisContext;
-use crate::pipeline::phase_trait::WorkflowPhase;
-use anyhow::Result;
-use async_trait::async_trait;
-
-pub struct RootCachePhase;
-
-#[async_trait]
-impl WorkflowPhase for RootCachePhase {
-    fn name(&self) -> &'static str {
-        "RootCachePhase"
-    }
-
-    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
-        self.execute_root_cache(context)?;
-        Ok(Some(()))
-    }
-
-    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
-        self.execute_root_cache(context)
-    }
-}
-
-impl RootCachePhase {
-    fn execute_root_cache(&self, context: &mut AnalysisContext) -> Result<()> {
-        let scan = context
-            .scan
-            .as_ref()
-            .expect("Scan must be available before root_cache");
-        let workspace = context
-            .workspace
-            .as_ref()
-            .expect("Workspace must be available before root_cache");
-
-        let mut root_cache_dirs = HashSet::new();
-
-        let registry = StackRegistry::with_defaults();
-
-        // Add cache dirs from workspace root build systems
-        for detection in &scan.detections {
-            if detection.is_workspace_root {
-                if let Some(build_system) = registry.get_build_system(detection.build_system) {
-                    for cache_dir in build_system.cache_dirs() {
-                        root_cache_dirs.insert(PathBuf::from(cache_dir));
-                    }
-                }
-            }
-        }
-
-        // Add cache dirs from orchestrator (only for actual monorepos with > 1 package and an orchestrator)
-        if workspace.packages.len() > 1 {
-            if let Some(orchestrator_id) = workspace.orchestrator {
-                for orchestrator in registry.all_orchestrators() {
-                    if orchestrator.id() == orchestrator_id {
-                        for cache_dir in orchestrator.cache_dirs() {
-                            root_cache_dirs.insert(PathBuf::from(cache_dir));
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        let mut dirs: Vec<PathBuf> = root_cache_dirs.into_iter().collect();
-        dirs.sort();
-
-        let result = RootCacheInfo {
-            root_cache_dirs: dirs,
-            confidence: Confidence::High,
-        };
-
-        context.root_cache = Some(result);
-        Ok(())
     }
 }
