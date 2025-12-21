@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use candle_core::{quantized::gguf_file, Device, IndexOp, Tensor};
 use candle_transformers::generation::LogitsProcessor;
 use candle_transformers::models::quantized_qwen2::ModelWeights as QuantizedQwen2;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 use tokenizers::Tokenizer;
@@ -20,8 +21,9 @@ use tracing::{debug, info, warn};
 /// Embedded LLM client for local inference without external dependencies
 pub struct EmbeddedClient {
     model: Arc<Mutex<Option<QuantizedQwen2>>>,
-    model_path: std::path::PathBuf,
-    tokenizer: Tokenizer,
+    model_path: PathBuf,
+    tokenizer: Arc<Mutex<Option<Tokenizer>>>,
+    tokenizer_path: PathBuf,
     device: Arc<Mutex<Device>>,
     model_info: &'static EmbeddedModel,
     max_tokens: usize,
@@ -47,7 +49,7 @@ impl EmbeddedClient {
 
     /// Create an embedded client with a specific model
     ///
-    /// Note: Model is not loaded into memory until first chat() call (lazy loading)
+    /// Note: Model and tokenizer are not loaded into memory until first chat() call (lazy loading)
     pub async fn with_model(
         model_info: &'static EmbeddedModel,
         capabilities: &HardwareCapabilities,
@@ -57,25 +59,24 @@ impl EmbeddedClient {
         let downloader = ModelDownloader::new()?;
         let model_paths = downloader.download(model_info, interactive)?;
 
-        // Load tokenizer from model's tokenizer repo
+        // Get tokenizer path (but don't load it yet - lazy loading)
         let tokenizer_path = downloader
             .tokenizer_path(model_info)
             .ok_or_else(|| anyhow::anyhow!("Tokenizer not found for model"))?;
-        let tokenizer = Tokenizer::from_file(&tokenizer_path)
-            .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {}", e))?;
 
         // Select compute device
         let device = Self::create_device(capabilities)?;
 
         info!(
-            "Embedded client created (model will be loaded on first use): {}",
+            "Embedded client created (model and tokenizer will be loaded on first use): {}",
             model_info.display_name
         );
 
         Ok(Self {
             model: Arc::new(Mutex::new(None)),
             model_path: model_paths[0].clone(),
-            tokenizer,
+            tokenizer: Arc::new(Mutex::new(None)),
+            tokenizer_path,
             device: Arc::new(Mutex::new(device)),
             model_info,
             max_tokens: 32768,
@@ -132,6 +133,28 @@ impl EmbeddedClient {
         Ok(model)
     }
 
+    /// Ensure tokenizer is loaded (lazy initialization on first use)
+    async fn ensure_tokenizer_loaded(&self) -> Result<()> {
+        let mut tokenizer_guard = self.tokenizer.lock().await;
+
+        if tokenizer_guard.is_some() {
+            return Ok(());
+        }
+
+        debug!(
+            "Loading tokenizer for {} on first use...",
+            self.model_info.display_name
+        );
+
+        let tokenizer = Tokenizer::from_file(&self.tokenizer_path)
+            .map_err(|e| anyhow::anyhow!("Failed to load tokenizer: {}", e))?;
+
+        *tokenizer_guard = Some(tokenizer);
+        debug!("Tokenizer loaded successfully");
+
+        Ok(())
+    }
+
     /// Ensure model is loaded (lazy initialization on first use)
     async fn ensure_model_loaded(&self) -> Result<()> {
         let mut model_guard = self.model.lock().await;
@@ -175,14 +198,19 @@ impl EmbeddedClient {
 
     /// Generate text completion
     async fn generate(&self, prompt: &str, max_new_tokens: usize) -> Result<String> {
-        // Ensure model is loaded before use
+        // Ensure tokenizer and model are loaded before use
+        self.ensure_tokenizer_loaded().await?;
         self.ensure_model_loaded().await?;
 
         let start = Instant::now();
 
         // Tokenize input
-        let encoding = self
-            .tokenizer
+        let tokenizer_guard = self.tokenizer.lock().await;
+        let tokenizer = tokenizer_guard
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Tokenizer failed to load"))?;
+
+        let encoding = tokenizer
             .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("Tokenization failed: {}", e))?;
 
@@ -190,6 +218,9 @@ impl EmbeddedClient {
         let input_len = input_ids.len();
 
         debug!("Input tokens: {}", input_len);
+
+        // Release tokenizer lock before generating
+        drop(tokenizer_guard);
 
         // Generate tokens
         let mut model_guard = self.model.lock().await;
@@ -247,8 +278,12 @@ impl EmbeddedClient {
         }
 
         // Decode output
-        let output = self
-            .tokenizer
+        let tokenizer_guard = self.tokenizer.lock().await;
+        let tokenizer = tokenizer_guard
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Tokenizer not loaded"))?;
+
+        let output = tokenizer
             .decode(&generated_tokens, true)
             .map_err(|e| anyhow::anyhow!("Decoding failed: {}", e))?;
 
