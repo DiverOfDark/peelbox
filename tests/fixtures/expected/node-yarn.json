@@ -2,31 +2,28 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "web",
+      "project_name": "node-yarn",
       "language": "JavaScript",
-      "build_system": "npm",
+      "build_system": "Yarn",
       "confidence": 0.95,
-      "reasoning": "Detected from package.json in apps/web"
+      "reasoning": "Detected from yarn.lock in /var/home/diverofdark/Projects/AppBahn/aipack/tests/fixtures/single-language/node-yarn"
     },
     "build": {
       "base": "node:20",
       "packages": [],
       "env": {},
       "commands": [
-        "npm ci"
+        "yarn install --frozen-lockfile"
       ],
       "context": [
         {
-          "from": "apps/web",
+          "from": "/var/home/diverofdark/Projects/AppBahn/aipack/tests/fixtures/single-language/node-yarn",
           "to": "/app"
         }
       ],
       "cache": [
         "node_modules",
-        ".npm",
-        ".pnpm-store",
-        ".yarn/cache",
-        "target"
+        ".yarn"
       ],
       "artifacts": [
         "dist/",
@@ -36,9 +33,7 @@
     "runtime": {
       "base": "node:20-slim",
       "packages": [],
-      "env": {
-        "PORT": "3000"
-      },
+      "env": {},
       "copy": [
         {
           "from": "dist/",
@@ -46,7 +41,7 @@
         }
       ],
       "command": [
-        "./server.js"
+        "bin/app"
       ],
       "ports": [
         3000

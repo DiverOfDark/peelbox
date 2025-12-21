@@ -295,7 +295,7 @@ fn test_node_yarn_detection() {
     let fixture = fixture_path("single-language", "node-yarn");
     let results = run_detection(fixture, "e2e_test_node_yarn_detection").expect("Detection failed");
 
-    assert_detection(&results, "npm", "node-yarn");
+    assert_detection(&results, "Yarn", "node-yarn");
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn test_node_pnpm_detection() {
     let fixture = fixture_path("single-language", "node-pnpm");
     let results = run_detection(fixture, "e2e_test_node_pnpm_detection").expect("Detection failed");
 
-    assert_detection(&results, "npm", "node-pnpm");
+    assert_detection(&results, "pnpm", "node-pnpm");
 }
 
 #[test]
@@ -541,7 +541,7 @@ fn test_java_maven_llm() {
 fn test_node_yarn_llm() {
     let fixture = fixture_path("single-language", "node-yarn");
     let results = run_detection_llm(fixture, "e2e_test_node_yarn_llm").expect("Detection failed");
-    assert_detection(&results, "npm", "node-yarn");
+    assert_detection(&results, "Yarn", "node-yarn");
 }
 
 #[test]
@@ -549,7 +549,7 @@ fn test_node_yarn_llm() {
 fn test_node_pnpm_llm() {
     let fixture = fixture_path("single-language", "node-pnpm");
     let results = run_detection_llm(fixture, "e2e_test_node_pnpm_llm").expect("Detection failed");
-    assert_detection(&results, "npm", "node-pnpm");
+    assert_detection(&results, "pnpm", "node-pnpm");
 }
 
 #[test]
@@ -735,7 +735,7 @@ fn test_java_maven_static() {
 fn test_node_yarn_static() {
     let fixture = fixture_path("single-language", "node-yarn");
     let results = run_detection_static(fixture, "e2e_test_node_yarn_static").expect("Detection failed");
-    assert_detection_with_mode(&results, "npm", "node-yarn", Some("static"));
+    assert_detection_with_mode(&results, "Yarn", "node-yarn", Some("static"));
 }
 
 #[test]
@@ -743,7 +743,7 @@ fn test_node_yarn_static() {
 fn test_node_pnpm_static() {
     let fixture = fixture_path("single-language", "node-pnpm");
     let results = run_detection_static(fixture, "e2e_test_node_pnpm_static").expect("Detection failed");
-    assert_detection_with_mode(&results, "npm", "node-pnpm", Some("static"));
+    assert_detection_with_mode(&results, "pnpm", "node-pnpm", Some("static"));
 }
 
 #[test]

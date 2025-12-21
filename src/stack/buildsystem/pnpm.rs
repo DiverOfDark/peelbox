@@ -1,6 +1,7 @@
 //! pnpm build system (JavaScript/TypeScript)
 
-use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use super::{BuildSystem, BuildTemplate, ManifestPattern, WorkspaceBuildSystem};
+use anyhow::Result;
 
 pub struct PnpmBuildSystem;
 
@@ -66,5 +67,37 @@ impl BuildSystem for PnpmBuildSystem {
 
     fn workspace_configs(&self) -> &[&str] {
         &["pnpm-workspace.yaml", "turbo.json"]
+    }
+}
+
+impl WorkspaceBuildSystem for PnpmBuildSystem {
+    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
+        let package: serde_json::Value = serde_json::from_str(manifest_content)?;
+
+        if let Some(workspaces) = package["workspaces"].as_array() {
+            Ok(workspaces
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect())
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>> {
+        let mut results = Vec::new();
+
+        if pattern.ends_with("/*") {
+            let base_dir = repo_path.join(pattern.trim_end_matches("/*"));
+            if let Ok(entries) = std::fs::read_dir(&base_dir) {
+                for entry in entries.flatten() {
+                    if entry.path().is_dir() {
+                        results.push(entry.path());
+                    }
+                }
+            }
+        }
+
+        Ok(results)
     }
 }

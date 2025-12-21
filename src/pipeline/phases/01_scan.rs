@@ -215,6 +215,49 @@ Use these manifest files to guide your analysis. Read them directly without sear
     }
 }
 
+fn deduplicate_detections(
+    detections: Vec<DetectionStack>,
+    stack_registry: &Arc<StackRegistry>,
+) -> Vec<DetectionStack> {
+    let mut by_directory: HashMap<PathBuf, Vec<DetectionStack>> = HashMap::new();
+
+    for detection in detections {
+        let dir = detection
+            .manifest_path
+            .parent()
+            .unwrap_or_else(|| Path::new(""))
+            .to_path_buf();
+        by_directory.entry(dir).or_default().push(detection);
+    }
+
+    let mut deduplicated = Vec::new();
+
+    for (_dir, mut detections_in_dir) in by_directory {
+        if detections_in_dir.len() == 1 {
+            deduplicated.extend(detections_in_dir);
+        } else {
+            detections_in_dir.sort_by_key(|d| {
+                let build_system = stack_registry.get_build_system(d.build_system);
+                let priority = build_system
+                    .and_then(|bs| {
+                        bs.manifest_patterns()
+                            .iter()
+                            .find(|p| d.manifest_path.file_name() == Some(std::ffi::OsStr::new(p.filename)))
+                            .map(|p| p.priority)
+                    })
+                    .unwrap_or(0);
+                std::cmp::Reverse(priority)
+            });
+
+            if let Some(highest_priority) = detections_in_dir.first() {
+                deduplicated.push(highest_priority.clone());
+            }
+        }
+    }
+
+    deduplicated
+}
+
 fn detect_language(
     path: &Path,
     filename: &str,
@@ -523,6 +566,8 @@ impl ScanPhase {
 
         let elapsed = start.elapsed();
         let scan_time_ms = elapsed.as_millis() as u64;
+
+        let detections = deduplicate_detections(detections, &stack_registry);
 
         info!(
             detections_found = detections.len(),
