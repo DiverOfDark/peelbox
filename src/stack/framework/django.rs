@@ -49,6 +49,83 @@ impl Framework for DjangoFramework {
             (r"SECRET_KEY\s*=\s*", "Django secret key"),
         ]
     }
+
+    fn config_files(&self) -> Vec<&str> {
+        vec!["settings.py", "*/settings.py", "config/settings.py"]
+    }
+
+    fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
+        let mut config = FrameworkConfig::default();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if let Some(port_str) = trimmed.strip_prefix("PORT") {
+                if let Some(eq_pos) = port_str.find('=') {
+                    let value = port_str[eq_pos + 1..].trim();
+                    if let Some(num) = extract_number(value) {
+                        config.port = Some(num);
+                    }
+                }
+            }
+
+            if trimmed.contains("os.environ") || trimmed.contains("os.getenv(") {
+                extract_django_env_vars(trimmed, &mut config.env_vars);
+            }
+
+            if trimmed.contains("ALLOWED_HOSTS") {
+                if let Some(eq_pos) = trimmed.find('=') {
+                    let value = trimmed[eq_pos + 1..].trim();
+                    if value.contains("os.environ") {
+                        extract_django_env_vars(value, &mut config.env_vars);
+                    }
+                }
+            }
+        }
+
+        if config.port.is_some() || !config.env_vars.is_empty() {
+            Some(config)
+        } else {
+            None
+        }
+    }
+}
+
+fn extract_number(s: &str) -> Option<u16> {
+    let s = s.trim_matches(|c: char| !c.is_numeric());
+    s.parse::<u16>().ok()
+}
+
+fn extract_django_env_vars(line: &str, env_vars: &mut Vec<String>) {
+    let patterns = [
+        ("os.environ.get(", true),
+        ("os.getenv(", true),
+        ("environ.get(", true),
+        ("getenv(", true),
+        ("os.environ[", false),
+    ];
+
+    for (pattern, _uses_parens) in &patterns {
+        let mut pos = 0;
+        while let Some(start) = line[pos..].find(pattern) {
+            let abs_start = pos + start + pattern.len();
+            let rest = &line[abs_start..];
+
+            if let Some(quote_start) = rest.find(|c| c == '"' || c == '\'') {
+                let quote_char = rest.chars().nth(quote_start).unwrap();
+                let after_quote = &rest[quote_start + 1..];
+
+                if let Some(quote_end) = after_quote.find(quote_char) {
+                    let var_name = &after_quote[..quote_end];
+                    if !var_name.is_empty() && !env_vars.contains(&var_name.to_string()) {
+                        env_vars.push(var_name.to_string());
+                    }
+                }
+            }
+
+            pos = abs_start + 1;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -94,5 +171,38 @@ mod tests {
     fn test_django_default_ports() {
         let framework = DjangoFramework;
         assert_eq!(framework.default_ports(), &[8000]);
+    }
+
+    #[test]
+    fn test_django_parse_settings() {
+        let framework = DjangoFramework;
+        let content = r#"
+import os
+
+PORT = int(os.environ.get('PORT', 8080))
+SECRET_KEY = os.getenv('SECRET_KEY')
+ALLOWED_HOSTS = [os.environ.get('ALLOWED_HOST', 'localhost')]
+
+DATABASE_URL = os.environ['DATABASE_URL']
+"#;
+
+        let config = framework
+            .parse_config(Path::new("settings.py"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(8080));
+        assert!(config.env_vars.contains(&"PORT".to_string()));
+        assert!(config.env_vars.contains(&"SECRET_KEY".to_string()));
+        assert!(config.env_vars.contains(&"ALLOWED_HOST".to_string()));
+        assert!(config.env_vars.contains(&"DATABASE_URL".to_string()));
+    }
+
+    #[test]
+    fn test_django_config_files() {
+        let framework = DjangoFramework;
+        let files = framework.config_files();
+
+        assert!(files.contains(&"settings.py"));
+        assert!(files.contains(&"*/settings.py"));
     }
 }

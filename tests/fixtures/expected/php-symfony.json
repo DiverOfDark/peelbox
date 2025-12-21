@@ -1,0 +1,57 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "Composer",
+      "framework": "Symfony",
+      "confidence": 0.95,
+      "reasoning": "Detected from composer.json in ."
+    },
+    "build": {
+      "base": "composer:2",
+      "packages": [],
+      "env": {},
+      "commands": [
+        "composer install --no-dev --optimize-autoloader"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "cache": [
+        "vendor"
+      ],
+      "artifacts": [
+        "vendor/",
+        "public/"
+      ]
+    },
+    "runtime": {
+      "base": "php:8.2-fpm",
+      "packages": [],
+      "env": {},
+      "copy": [
+        {
+          "from": "vendor/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "command": [
+        "php",
+        "-S",
+        "0.0.0.0:8000",
+        "public/index.php"
+      ],
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/_health"
+      }
+    }
+  }
+]

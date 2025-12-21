@@ -40,12 +40,73 @@ impl Framework for NextJsFramework {
         ]
     }
 
+    fn config_files(&self) -> Vec<&str> {
+        vec!["next.config.js", "next.config.ts", "next.config.mjs"]
+    }
+
+    fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
+        let mut config = FrameworkConfig::default();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if trimmed.contains("port") && trimmed.contains(':') {
+                if let Some(port) = extract_js_port(trimmed) {
+                    config.port = Some(port);
+                }
+            }
+
+            if trimmed.contains("process.env.") {
+                extract_js_env_vars(trimmed, &mut config.env_vars);
+            }
+        }
+
+        if config.port.is_some() || !config.env_vars.is_empty() {
+            Some(config)
+        } else {
+            None
+        }
+    }
+
     fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
         if !template.artifacts.iter().any(|a| a.contains(".next")) {
             template.artifacts.push(".next/".to_string());
             template.artifacts.push("public/".to_string());
         }
         template
+    }
+}
+
+fn extract_js_port(line: &str) -> Option<u16> {
+    let num_str: String = line
+        .chars()
+        .skip_while(|c| !c.is_numeric())
+        .take_while(|c| c.is_numeric())
+        .collect();
+
+    if !num_str.is_empty() {
+        num_str.parse::<u16>().ok()
+    } else {
+        None
+    }
+}
+
+fn extract_js_env_vars(line: &str, env_vars: &mut Vec<String>) {
+    let mut pos = 0;
+    while let Some(start) = line[pos..].find("process.env.") {
+        let abs_start = pos + start + 12;
+        let rest = &line[abs_start..];
+
+        let var_name: String = rest
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+
+        if !var_name.is_empty() && !env_vars.contains(&var_name) {
+            env_vars.push(var_name.clone());
+        }
+
+        pos = abs_start + var_name.len().max(1);
     }
 }
 
@@ -94,5 +155,39 @@ mod tests {
     fn test_nextjs_default_ports() {
         let framework = NextJsFramework;
         assert_eq!(framework.default_ports(), &[3000]);
+    }
+
+    #[test]
+    fn test_nextjs_parse_config() {
+        let framework = NextJsFramework;
+        let content = r#"
+const nextConfig = {
+  env: {
+    API_URL: process.env.API_URL,
+    PUBLIC_KEY: process.env.PUBLIC_KEY,
+  },
+  serverRuntimeConfig: {
+    port: 3001,
+  },
+}
+module.exports = nextConfig
+"#;
+
+        let config = framework
+            .parse_config(Path::new("next.config.js"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(3001));
+        assert!(config.env_vars.contains(&"API_URL".to_string()));
+        assert!(config.env_vars.contains(&"PUBLIC_KEY".to_string()));
+    }
+
+    #[test]
+    fn test_nextjs_config_files() {
+        let framework = NextJsFramework;
+        let files = framework.config_files();
+
+        assert!(files.contains(&"next.config.js"));
+        assert!(files.contains(&"next.config.ts"));
     }
 }

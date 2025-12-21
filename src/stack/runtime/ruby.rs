@@ -1,8 +1,86 @@
 use super::{HealthCheck, Runtime, RuntimeConfig};
 use crate::stack::framework::Framework;
+use regex::Regex;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub struct RubyRuntime;
+
+impl RubyRuntime {
+    fn extract_env_vars(&self, files: &[PathBuf]) -> Vec<String> {
+        let mut env_vars = HashSet::new();
+        let env_pattern = Regex::new(r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]\]"#).unwrap();
+
+        for file in files {
+            if let Some(ext) = file.extension() {
+                if ext == "rb" || ext == "ru" {
+                    if let Ok(content) = std::fs::read_to_string(file) {
+                        for cap in env_pattern.captures_iter(&content) {
+                            if let Some(var) = cap.get(1) {
+                                env_vars.insert(var.as_str().to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut vars: Vec<String> = env_vars.into_iter().collect();
+        vars.sort();
+        vars
+    }
+
+    fn extract_ports(&self, files: &[PathBuf]) -> Option<u16> {
+        let rack_pattern = Regex::new(r"(?s)Rack::Server.*?Port:\s*(\d+)").unwrap();
+        let webrick_pattern = Regex::new(r"(?s)WEBrick.*?:Port\s*=>\s*(\d+)").unwrap();
+
+        for file in files {
+            if let Some(ext) = file.extension() {
+                if ext == "rb" || ext == "ru" {
+                    if let Ok(content) = std::fs::read_to_string(file) {
+                        if let Some(cap) = rack_pattern.captures(&content) {
+                            if let Some(port_str) = cap.get(1) {
+                                if let Ok(port) = port_str.as_str().parse::<u16>() {
+                                    return Some(port);
+                                }
+                            }
+                        }
+                        if let Some(cap) = webrick_pattern.captures(&content) {
+                            if let Some(port_str) = cap.get(1) {
+                                if let Ok(port) = port_str.as_str().parse::<u16>() {
+                                    return Some(port);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn extract_native_deps(&self, files: &[PathBuf]) -> Vec<String> {
+        let mut deps = HashSet::new();
+
+        for file in files {
+            if file.file_name().map_or(false, |n| n == "Gemfile") {
+                if let Ok(content) = std::fs::read_to_string(file) {
+                    if content.contains("pg")
+                        || content.contains("mysql2")
+                        || content.contains("nokogiri")
+                        || content.contains("ffi")
+                    {
+                        deps.insert("build-base".to_string());
+                    }
+                }
+            }
+        }
+
+        let mut result: Vec<String> = deps.into_iter().collect();
+        result.sort();
+        result
+    }
+}
 
 impl Runtime for RubyRuntime {
     fn name(&self) -> &str {
@@ -11,10 +89,14 @@ impl Runtime for RubyRuntime {
 
     fn try_extract(
         &self,
-        _files: &[PathBuf],
+        files: &[PathBuf],
         framework: Option<&dyn Framework>,
     ) -> Option<RuntimeConfig> {
-        let port = framework.and_then(|f| f.default_ports().first().copied());
+        let env_vars = self.extract_env_vars(files);
+        let native_deps = self.extract_native_deps(files);
+        let detected_port = self.extract_ports(files);
+
+        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
@@ -24,9 +106,9 @@ impl Runtime for RubyRuntime {
         Some(RuntimeConfig {
             entrypoint: None,
             port,
-            env_vars: vec![],
+            env_vars,
             health,
-            native_deps: vec![],
+            native_deps,
         })
     }
 
@@ -47,6 +129,8 @@ impl Runtime for RubyRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn test_ruby_runtime_name() {
@@ -78,5 +162,63 @@ mod tests {
         let runtime = RubyRuntime;
         let entrypoint = Path::new("app.rb");
         assert_eq!(runtime.start_command(entrypoint), "ruby app.rb");
+    }
+
+    #[test]
+    fn test_extract_env_vars() {
+        let temp_dir = TempDir::new().unwrap();
+        let rb_file = temp_dir.path().join("app.rb");
+        fs::write(
+            &rb_file,
+            r#"
+db_url = ENV['DATABASE_URL']
+api_key = ENV["API_KEY"]
+"#,
+        )
+        .unwrap();
+
+        let runtime = RubyRuntime;
+        let files = vec![rb_file];
+        let env_vars = runtime.extract_env_vars(&files);
+
+        assert_eq!(env_vars, vec!["API_KEY", "DATABASE_URL"]);
+    }
+
+    #[test]
+    fn test_extract_ports_rack() {
+        let temp_dir = TempDir::new().unwrap();
+        let rb_file = temp_dir.path().join("config.ru");
+        let content = r#"
+require 'rack'
+Rack::Server.start(Port: 9292)
+"#;
+        fs::write(&rb_file, content).unwrap();
+
+        let runtime = RubyRuntime;
+        let files = vec![rb_file];
+        let port = runtime.extract_ports(&files);
+
+        assert_eq!(port, Some(9292));
+    }
+
+    #[test]
+    fn test_extract_native_deps() {
+        let temp_dir = TempDir::new().unwrap();
+        let gemfile = temp_dir.path().join("Gemfile");
+        fs::write(
+            &gemfile,
+            r#"
+source 'https://rubygems.org'
+gem 'pg'
+gem 'rails'
+"#,
+        )
+        .unwrap();
+
+        let runtime = RubyRuntime;
+        let files = vec![gemfile];
+        let deps = runtime.extract_native_deps(&files);
+
+        assert_eq!(deps, vec!["build-base"]);
     }
 }

@@ -1,0 +1,13 @@
+parameters:
+    app.env: '%env(APP_ENV)%'
+    app.port: '%env(int:APP_PORT)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'

@@ -248,6 +248,7 @@ pub enum FrameworkId {
     #[serde(rename = "aspnet-core")]
     AspNetCore,
     Laravel,
+    Symfony,
     Phoenix,
 }
 
@@ -273,6 +274,7 @@ impl FrameworkId {
             Self::Echo => "Echo",
             Self::AspNetCore => "ASP.NET Core",
             Self::Laravel => "Laravel",
+            Self::Symfony => "Symfony",
             Self::Phoenix => "Phoenix",
         }
     }
@@ -298,6 +300,7 @@ impl FrameworkId {
             Self::Echo,
             Self::AspNetCore,
             Self::Laravel,
+            Self::Symfony,
             Self::Phoenix,
         ]
     }

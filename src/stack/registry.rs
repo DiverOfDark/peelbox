@@ -83,6 +83,7 @@ impl StackRegistry {
                 FrameworkId::Echo => Box::new(EchoFramework),
                 FrameworkId::AspNetCore => Box::new(AspNetFramework),
                 FrameworkId::Laravel => Box::new(LaravelFramework),
+                FrameworkId::Symfony => Box::new(SymfonyFramework),
                 FrameworkId::Phoenix => Box::new(PhoenixFramework),
             };
             registry.frameworks.insert(*id, fw);

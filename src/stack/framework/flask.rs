@@ -46,6 +46,68 @@ impl Framework for FlaskFramework {
             (r"FLASK_APP\s*=\s*(\S+)", "Flask application"),
         ]
     }
+
+    fn config_files(&self) -> Vec<&str> {
+        vec!["config.py", "instance/config.py", "app/config.py"]
+    }
+
+    fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
+        let mut config = FrameworkConfig::default();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if trimmed.starts_with("PORT") && trimmed.contains('=') {
+                if let Some(eq_pos) = trimmed.find('=') {
+                    let value = trimmed[eq_pos + 1..].trim();
+                    if let Some(num) = extract_number(value) {
+                        config.port = Some(num);
+                    }
+                }
+            }
+
+            if trimmed.contains("os.environ") || trimmed.contains("os.getenv(") {
+                extract_env_vars(trimmed, &mut config.env_vars);
+            }
+        }
+
+        if config.port.is_some() || !config.env_vars.is_empty() {
+            Some(config)
+        } else {
+            None
+        }
+    }
+}
+
+fn extract_number(s: &str) -> Option<u16> {
+    let s = s.trim_matches(|c: char| !c.is_numeric());
+    s.parse::<u16>().ok()
+}
+
+fn extract_env_vars(line: &str, env_vars: &mut Vec<String>) {
+    let patterns = ["os.environ.get(", "os.getenv(", "os.environ["];
+
+    for pattern in &patterns {
+        let mut pos = 0;
+        while let Some(start) = line[pos..].find(pattern) {
+            let abs_start = pos + start + pattern.len();
+            let rest = &line[abs_start..];
+
+            if let Some(quote_start) = rest.find(|c| c == '"' || c == '\'') {
+                let quote_char = rest.chars().nth(quote_start).unwrap();
+                let after_quote = &rest[quote_start + 1..];
+
+                if let Some(quote_end) = after_quote.find(quote_char) {
+                    let var_name = &after_quote[..quote_end];
+                    if !var_name.is_empty() && !env_vars.contains(&var_name.to_string()) {
+                        env_vars.push(var_name.to_string());
+                    }
+                }
+            }
+
+            pos = abs_start + 1;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -91,5 +153,35 @@ mod tests {
     fn test_flask_default_ports() {
         let framework = FlaskFramework;
         assert_eq!(framework.default_ports(), &[5000]);
+    }
+
+    #[test]
+    fn test_flask_parse_config() {
+        let framework = FlaskFramework;
+        let content = r#"
+import os
+
+PORT = int(os.environ.get('PORT', 3000))
+SECRET_KEY = os.getenv('SECRET_KEY')
+DATABASE_URL = os.environ['DB_URL']
+"#;
+
+        let config = framework
+            .parse_config(Path::new("config.py"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(3000));
+        assert!(config.env_vars.contains(&"PORT".to_string()));
+        assert!(config.env_vars.contains(&"SECRET_KEY".to_string()));
+        assert!(config.env_vars.contains(&"DB_URL".to_string()));
+    }
+
+    #[test]
+    fn test_flask_config_files() {
+        let framework = FlaskFramework;
+        let files = framework.config_files();
+
+        assert!(files.contains(&"config.py"));
+        assert!(files.contains(&"instance/config.py"));
     }
 }

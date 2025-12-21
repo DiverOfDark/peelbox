@@ -7,6 +7,7 @@
 use crate::stack::buildsystem::BuildTemplate;
 use crate::stack::language::Dependency;
 use regex::Regex;
+use std::path::Path;
 
 /// Dependency pattern for framework detection
 #[derive(Debug, Clone)]
@@ -53,6 +54,14 @@ impl DependencyPattern {
     }
 }
 
+/// Configuration extracted from framework config files
+#[derive(Debug, Clone, Default)]
+pub struct FrameworkConfig {
+    pub port: Option<u16>,
+    pub env_vars: Vec<String>,
+    pub health_endpoint: Option<String>,
+}
+
 /// Framework trait defining framework-specific behavior
 pub trait Framework: Send + Sync {
     fn id(&self) -> crate::stack::FrameworkId;
@@ -75,6 +84,16 @@ pub trait Framework: Send + Sync {
     /// Environment variable patterns (regex, description)
     fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
         vec![]
+    }
+
+    /// Config file patterns to search for (e.g., ["application.yml", "settings.py"])
+    fn config_files(&self) -> Vec<&str> {
+        vec![]
+    }
+
+    /// Parse framework-specific config file
+    fn parse_config(&self, _file_path: &Path, _content: &str) -> Option<FrameworkConfig> {
+        None
     }
 
     /// Customize build template with framework-specific optimizations
@@ -103,6 +122,7 @@ pub mod quarkus;
 pub mod rails;
 pub mod sinatra;
 pub mod spring_boot;
+pub mod symfony;
 
 pub use actix::ActixFramework;
 pub use aspnet::AspNetFramework;
@@ -124,3 +144,4 @@ pub use quarkus::QuarkusFramework;
 pub use rails::RailsFramework;
 pub use sinatra::SinatraFramework;
 pub use spring_boot::SpringBootFramework;
+pub use symfony::SymfonyFramework;

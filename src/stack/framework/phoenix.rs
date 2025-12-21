@@ -39,6 +39,71 @@ impl Framework for PhoenixFramework {
             (r"PORT\s*=\s*(\d+)", "Phoenix port"),
         ]
     }
+
+    fn config_files(&self) -> Vec<&str> {
+        vec!["config/runtime.exs", "config/prod.exs", "config/config.exs"]
+    }
+
+    fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
+        let mut config = FrameworkConfig::default();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if trimmed.contains("port:") && !trimmed.starts_with('#') {
+                if let Some(port) = extract_elixir_port(trimmed) {
+                    config.port = Some(port);
+                }
+            }
+
+            if trimmed.contains("System.get_env(") || trimmed.contains("System.fetch_env!(") {
+                extract_elixir_env_vars(trimmed, &mut config.env_vars);
+            }
+        }
+
+        if config.port.is_some() || !config.env_vars.is_empty() {
+            Some(config)
+        } else {
+            None
+        }
+    }
+}
+
+fn extract_elixir_port(line: &str) -> Option<u16> {
+    if let Some(port_pos) = line.find("port:") {
+        let rest = &line[port_pos + 5..];
+        let num_str: String = rest
+            .chars()
+            .skip_while(|c| c.is_whitespace())
+            .take_while(|c| c.is_numeric())
+            .collect();
+
+        if !num_str.is_empty() {
+            return num_str.parse::<u16>().ok();
+        }
+    }
+    None
+}
+
+fn extract_elixir_env_vars(line: &str, env_vars: &mut Vec<String>) {
+    let patterns = ["System.get_env(", "System.fetch_env!("];
+
+    for pattern in &patterns {
+        if let Some(start) = line.find(pattern) {
+            let rest = &line[start + pattern.len()..];
+
+            if let Some(quote_start) = rest.find('"') {
+                let after_quote = &rest[quote_start + 1..];
+
+                if let Some(quote_end) = after_quote.find('"') {
+                    let var_name = &after_quote[..quote_end];
+                    if !var_name.is_empty() && !env_vars.contains(&var_name.to_string()) {
+                        env_vars.push(var_name.to_string());
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -73,5 +138,35 @@ mod tests {
     fn test_phoenix_default_ports() {
         let framework = PhoenixFramework;
         assert_eq!(framework.default_ports(), &[4000]);
+    }
+
+    #[test]
+    fn test_phoenix_parse_config() {
+        let framework = PhoenixFramework;
+        let content = r#"
+import Config
+
+config :my_app, MyAppWeb.Endpoint,
+  http: [port: 4001],
+  url: [host: System.get_env("PHX_HOST")],
+  secret_key_base: System.fetch_env!("SECRET_KEY_BASE")
+"#;
+
+        let config = framework
+            .parse_config(Path::new("config/runtime.exs"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(4001));
+        assert!(config.env_vars.contains(&"PHX_HOST".to_string()));
+        assert!(config.env_vars.contains(&"SECRET_KEY_BASE".to_string()));
+    }
+
+    #[test]
+    fn test_phoenix_config_files() {
+        let framework = PhoenixFramework;
+        let files = framework.config_files();
+
+        assert!(files.contains(&"config/runtime.exs"));
+        assert!(files.contains(&"config/prod.exs"));
     }
 }

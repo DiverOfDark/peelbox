@@ -378,6 +378,16 @@ fn test_php_composer_detection() {
 
 #[test]
 #[serial]
+fn test_php_symfony_detection() {
+    let fixture = fixture_path("single-language", "php-symfony");
+    let results =
+        run_detection(fixture, "e2e_test_php_symfony_detection").expect("Detection failed");
+
+    assert_detection(&results, "Composer", "php-symfony");
+}
+
+#[test]
+#[serial]
 fn test_cpp_cmake_detection() {
     let fixture = fixture_path("single-language", "cpp-cmake");
     let results = run_detection(fixture, "e2e_test_cpp_cmake_detection").expect("Detection failed");
@@ -610,6 +620,14 @@ fn test_php_composer_llm() {
 
 #[test]
 #[serial]
+fn test_php_symfony_llm() {
+    let fixture = fixture_path("single-language", "php-symfony");
+    let results = run_detection_llm(fixture, "e2e_test_php_symfony_llm").expect("Detection failed");
+    assert_detection(&results, "Composer", "php-symfony");
+}
+
+#[test]
+#[serial]
 fn test_cpp_cmake_llm() {
     let fixture = fixture_path("single-language", "cpp-cmake");
     let results = run_detection_llm(fixture, "e2e_test_cpp_cmake_llm").expect("Detection failed");
@@ -800,6 +818,14 @@ fn test_php_composer_static() {
     let fixture = fixture_path("single-language", "php-composer");
     let results = run_detection_static(fixture, "e2e_test_php_composer_static").expect("Detection failed");
     assert_detection_with_mode(&results, "Composer", "php-composer", Some("static"));
+}
+
+#[test]
+#[serial]
+fn test_php_symfony_static() {
+    let fixture = fixture_path("single-language", "php-symfony");
+    let results = run_detection_static(fixture, "e2e_test_php_symfony_static").expect("Detection failed");
+    assert_detection_with_mode(&results, "Composer", "php-symfony", Some("static"));
 }
 
 #[test]

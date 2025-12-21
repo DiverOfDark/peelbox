@@ -39,6 +39,67 @@ impl Framework for RailsFramework {
             (r"PORT\s*=\s*(\d+)", "Rails port"),
         ]
     }
+
+    fn config_files(&self) -> Vec<&str> {
+        vec!["config/puma.rb", "config/application.rb", "config/environment.rb"]
+    }
+
+    fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
+        let mut config = FrameworkConfig::default();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if (trimmed.contains("port") || trimmed.contains("bind")) && !trimmed.starts_with('#')
+            {
+                if let Some(port) = extract_ruby_port(trimmed) {
+                    config.port = Some(port);
+                }
+            }
+
+            if trimmed.contains("ENV[") || trimmed.contains("ENV.fetch(") {
+                extract_ruby_env_vars(trimmed, &mut config.env_vars);
+            }
+        }
+
+        if config.port.is_some() || !config.env_vars.is_empty() {
+            Some(config)
+        } else {
+            None
+        }
+    }
+}
+
+fn extract_ruby_port(line: &str) -> Option<u16> {
+    let num_str: String = line.chars().filter(|c| c.is_numeric()).collect();
+
+    if !num_str.is_empty() {
+        num_str.parse::<u16>().ok()
+    } else {
+        None
+    }
+}
+
+fn extract_ruby_env_vars(line: &str, env_vars: &mut Vec<String>) {
+    let patterns = ["ENV[", "ENV.fetch("];
+
+    for pattern in &patterns {
+        if let Some(start) = line.find(pattern) {
+            let rest = &line[start + pattern.len()..];
+
+            if let Some(quote_start) = rest.find(|c| c == '"' || c == '\'') {
+                let quote_char = rest.chars().nth(quote_start).unwrap();
+                let after_quote = &rest[quote_start + 1..];
+
+                if let Some(quote_end) = after_quote.find(quote_char) {
+                    let var_name = &after_quote[..quote_end];
+                    if !var_name.is_empty() && !env_vars.contains(&var_name.to_string()) {
+                        env_vars.push(var_name.to_string());
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -83,5 +144,33 @@ mod tests {
     fn test_rails_default_ports() {
         let framework = RailsFramework;
         assert_eq!(framework.default_ports(), &[3000]);
+    }
+
+    #[test]
+    fn test_rails_parse_puma_config() {
+        let framework = RailsFramework;
+        let content = r#"
+# Puma configuration
+port ENV.fetch('PORT', 3001)
+environment ENV['RAILS_ENV']
+bind "tcp://0.0.0.0:#{ENV.fetch('PORT', 3001)}"
+"#;
+
+        let config = framework
+            .parse_config(Path::new("config/puma.rb"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(3001));
+        assert!(config.env_vars.contains(&"PORT".to_string()));
+        assert!(config.env_vars.contains(&"RAILS_ENV".to_string()));
+    }
+
+    #[test]
+    fn test_rails_config_files() {
+        let framework = RailsFramework;
+        let files = framework.config_files();
+
+        assert!(files.contains(&"config/puma.rb"));
+        assert!(files.contains(&"config/application.rb"));
     }
 }

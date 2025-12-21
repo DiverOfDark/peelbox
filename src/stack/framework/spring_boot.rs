@@ -56,12 +56,134 @@ impl Framework for SpringBootFramework {
         ]
     }
 
+    fn config_files(&self) -> Vec<&str> {
+        vec![
+            "application.properties",
+            "application.yml",
+            "application.yaml",
+            "src/main/resources/application.properties",
+            "src/main/resources/application.yml",
+            "src/main/resources/application.yaml",
+        ]
+    }
+
+    fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
+        let mut config = FrameworkConfig::default();
+
+        if content.contains('=') && !content.trim_start().starts_with('#') {
+            parse_properties(content, &mut config);
+        } else if content.contains(':') {
+            parse_yaml(content, &mut config);
+        }
+
+        if config.port.is_some() || !config.env_vars.is_empty() || config.health_endpoint.is_some()
+        {
+            Some(config)
+        } else {
+            None
+        }
+    }
+
     fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
-        // Spring Boot creates fat JARs - adjust artifact path
         if template.artifacts.is_empty() || !template.artifacts.iter().any(|a| a.contains(".jar")) {
             template.artifacts.push("target/*.jar".to_string());
         }
         template
+    }
+}
+
+fn parse_properties(content: &str, config: &mut FrameworkConfig) {
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+
+        if let Some((key, value)) = line.split_once('=') {
+            let key = key.trim();
+            let value = value.trim();
+
+            if key == "server.port" {
+                if let Ok(port) = value.parse::<u16>() {
+                    config.port = Some(port);
+                }
+            } else if key == "management.endpoints.web.base-path" {
+                let health = format!("{}/health", value);
+                config.health_endpoint = Some(health);
+            }
+
+            if value.contains("${") && value.contains('}') {
+                extract_env_vars_from_value(value, &mut config.env_vars);
+            }
+        }
+    }
+}
+
+fn parse_yaml(content: &str, config: &mut FrameworkConfig) {
+    let mut in_server_section = false;
+    let mut in_management_section = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("server:") {
+            in_server_section = true;
+            in_management_section = false;
+        } else if trimmed.starts_with("management:") {
+            in_management_section = true;
+            in_server_section = false;
+        } else if !trimmed.starts_with(' ') && trimmed.ends_with(':') {
+            in_server_section = false;
+            in_management_section = false;
+        }
+
+        if let Some((key, value)) = trimmed.split_once(':') {
+            let key = key.trim();
+            let value = value.trim();
+
+            if in_server_section && key == "port" {
+                if let Ok(port) = value.parse::<u16>() {
+                    config.port = Some(port);
+                }
+            }
+
+            if in_management_section && trimmed.contains("base-path") {
+                let health = format!("{}/health", value);
+                config.health_endpoint = Some(health);
+            }
+
+            if value.contains("${") && value.contains('}') {
+                extract_env_vars_from_value(value, &mut config.env_vars);
+            }
+        }
+    }
+}
+
+fn extract_env_vars_from_value(value: &str, env_vars: &mut Vec<String>) {
+    let mut chars = value.chars().peekable();
+    let mut var_name = String::new();
+    let mut in_var = false;
+
+    while let Some(ch) = chars.next() {
+        if ch == '$' && chars.peek() == Some(&'{') {
+            chars.next();
+            in_var = true;
+            var_name.clear();
+        } else if in_var && (ch == '}' || ch == ':') {
+            if !var_name.is_empty() && !env_vars.contains(&var_name) {
+                env_vars.push(var_name.clone());
+            }
+            if ch == ':' {
+                while let Some(ch) = chars.next() {
+                    if ch == '}' {
+                        break;
+                    }
+                }
+            }
+            in_var = false;
+        } else if in_var {
+            var_name.push(ch);
+        }
     }
 }
 
@@ -109,5 +231,60 @@ mod tests {
     fn test_spring_boot_default_ports() {
         let framework = SpringBootFramework;
         assert_eq!(framework.default_ports(), &[8080]);
+    }
+
+    #[test]
+    fn test_spring_boot_parse_properties() {
+        let framework = SpringBootFramework;
+        let content = r#"
+server.port=9090
+management.endpoints.web.base-path=/management
+spring.datasource.url=${DATABASE_URL}
+spring.application.name=${APP_NAME:myapp}
+"#;
+
+        let config = framework
+            .parse_config(Path::new("application.properties"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(9090));
+        assert!(config.env_vars.contains(&"DATABASE_URL".to_string()));
+        assert!(config.env_vars.contains(&"APP_NAME".to_string()));
+        assert_eq!(config.health_endpoint, Some("/management/health".to_string()));
+    }
+
+    #[test]
+    fn test_spring_boot_parse_yaml() {
+        let framework = SpringBootFramework;
+        let content = r#"
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+
+spring:
+  datasource:
+    url: ${DB_URL}
+"#;
+
+        let config = framework
+            .parse_config(Path::new("application.yml"), content)
+            .unwrap();
+
+        assert_eq!(config.port, Some(8081));
+        assert!(config.env_vars.contains(&"DB_URL".to_string()));
+    }
+
+    #[test]
+    fn test_spring_boot_config_files() {
+        let framework = SpringBootFramework;
+        let files = framework.config_files();
+
+        assert!(files.contains(&"application.properties"));
+        assert!(files.contains(&"application.yml"));
+        assert!(files.contains(&"application.yaml"));
     }
 }
