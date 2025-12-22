@@ -14,7 +14,7 @@ impl ServicePhase for StackIdentificationPhase {
         "StackIdentificationPhase"
     }
 
-    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
+    async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
         if let Some(stack) = try_detect_stack(
             context.service.language.clone(),
             context.service.build_system.clone(),
@@ -24,14 +24,7 @@ impl ServicePhase for StackIdentificationPhase {
             context.stack_registry(),
         ) {
             context.stack = Some(stack);
-            Ok(Some(()))
-        } else {
-            Ok(None)
         }
-    }
-
-    async fn execute_llm(&self, _context: &mut ServiceContext) -> Result<()> {
-        // LLM fallback not yet implemented - use deterministic detection only
         Ok(())
     }
 }
@@ -106,7 +99,7 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Cargo,
         };
 
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let repo_path = PathBuf::from(".");
 
         let stack = try_detect_stack(
@@ -134,7 +127,7 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let repo_path = PathBuf::from(".");
 
         let stack = try_detect_stack(
@@ -175,7 +168,7 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
 
         let stack = try_detect_stack(
             service.language,

@@ -36,7 +36,7 @@ impl DotNetRuntime {
         for file in files {
             if file
                 .file_name()
-                .map_or(false, |n| n == "launchSettings.json")
+                .is_some_and(|n| n == "launchSettings.json")
             {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     if let Ok(json) = serde_json::from_str::<Value>(&content) {
@@ -99,7 +99,8 @@ impl Runtime for DotNetRuntime {
         let native_deps = self.extract_native_deps(files);
         let detected_port = self.extract_ports(files);
 
-        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+        let port =
+            detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),

@@ -63,10 +63,6 @@ impl WorkflowPhase for ServiceAnalysisPhase {
 
         Ok(())
     }
-
-    async fn execute_llm(&self, _context: &mut AnalysisContext) -> Result<()> {
-        unreachable!("ServiceAnalysisPhase uses custom execute() implementation")
-    }
 }
 
 impl ServiceAnalysisPhase {

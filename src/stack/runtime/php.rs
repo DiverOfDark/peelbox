@@ -34,7 +34,7 @@ impl PhpRuntime {
         let mut deps = HashSet::new();
 
         for file in files {
-            if file.file_name().map_or(false, |n| n == "composer.json") {
+            if file.file_name().is_some_and(|n| n == "composer.json") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     if content.contains("ext-")
                         || content.contains("imagick")

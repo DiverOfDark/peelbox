@@ -221,7 +221,8 @@ impl DetectionService {
     ) -> Result<Vec<UniversalBuild>, ServiceError> {
         use crate::config::DetectionMode;
         let mode = DetectionMode::from_env();
-        self.detect_with_mode(repo_path, enable_progress, mode).await
+        self.detect_with_mode(repo_path, enable_progress, mode)
+            .await
     }
 
     pub async fn detect_with_mode(
@@ -252,8 +253,7 @@ impl DetectionService {
 
         let mut context = AnalysisContext::new(
             &repo_path,
-            self.client.clone(),
-            Arc::new(StackRegistry::with_defaults()),
+            Arc::new(StackRegistry::with_defaults(Some(self.client.clone()))),
             None,
             Arc::new(HeuristicLogger::disabled()),
             mode,

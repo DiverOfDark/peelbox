@@ -41,7 +41,11 @@ impl Framework for LaravelFramework {
     }
 
     fn config_files(&self) -> Vec<&str> {
-        vec!["config/app.php", "config/database.php", "config/services.php"]
+        vec![
+            "config/app.php",
+            "config/database.php",
+            "config/services.php",
+        ]
     }
 
     fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
@@ -75,7 +79,7 @@ fn extract_laravel_env(line: &str, env_vars: &mut Vec<String>) {
         let abs_start = pos + start + 4;
         let rest = &line[abs_start..];
 
-        if let Some(quote_start) = rest.find(|c| c == '"' || c == '\'') {
+        if let Some(quote_start) = rest.find(['"', '\'']) {
             let quote_char = rest.chars().nth(quote_start).unwrap();
             let after_quote = &rest[quote_start + 1..];
 

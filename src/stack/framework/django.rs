@@ -111,7 +111,7 @@ fn extract_django_env_vars(line: &str, env_vars: &mut Vec<String>) {
             let abs_start = pos + start + pattern.len();
             let rest = &line[abs_start..];
 
-            if let Some(quote_start) = rest.find(|c| c == '"' || c == '\'') {
+            if let Some(quote_start) = rest.find(['"', '\'']) {
                 let quote_char = rest.chars().nth(quote_start).unwrap();
                 let after_quote = &rest[quote_start + 1..];
 

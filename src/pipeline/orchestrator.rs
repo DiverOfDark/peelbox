@@ -1,11 +1,8 @@
 use super::context::AnalysisContext;
 use super::phase_trait::WorkflowPhase;
 use super::phases::{
-    assemble::AssemblePhase,
-    root_cache::RootCachePhase,
-    scan::ScanPhase,
-    service_analysis::ServiceAnalysisPhase,
-    workspace::WorkspaceStructurePhase,
+    assemble::AssemblePhase, root_cache::RootCachePhase, scan::ScanPhase,
+    service_analysis::ServiceAnalysisPhase, workspace::WorkspaceStructurePhase,
 };
 use crate::output::schema::UniversalBuild;
 use crate::progress::{LoggingHandler, ProgressEvent};

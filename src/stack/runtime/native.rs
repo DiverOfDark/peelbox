@@ -41,10 +41,9 @@ impl NativeRuntime {
         let deps = HashSet::new();
 
         for file in files {
-            if file.file_name().map_or(false, |n| n == "Cargo.toml") {
+            if file.file_name().is_some_and(|n| n == "Cargo.toml") {
                 if let Ok(content) = std::fs::read_to_string(file) {
-                    let metadata_port_pattern =
-                        Regex::new(r#"(?m)^#\s*port\s*=\s*(\d+)"#).unwrap();
+                    let metadata_port_pattern = Regex::new(r#"(?m)^#\s*port\s*=\s*(\d+)"#).unwrap();
                     if let Some(cap) = metadata_port_pattern.captures(&content) {
                         if let Some(port_str) = cap.get(1) {
                             if let Ok(p) = port_str.as_str().parse::<u16>() {
@@ -53,7 +52,7 @@ impl NativeRuntime {
                         }
                     }
                 }
-            } else if file.file_name().map_or(false, |n| n == "go.mod") {
+            } else if file.file_name().is_some_and(|n| n == "go.mod") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     let metadata_port_pattern =
                         Regex::new(r#"(?m)^//\s*port\s*=\s*(\d+)"#).unwrap();
@@ -88,7 +87,8 @@ impl Runtime for NativeRuntime {
         let (metadata_port, native_deps) = self.extract_metadata_hints(files);
 
         let detected_port = source_port.or(metadata_port);
-        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+        let port =
+            detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),

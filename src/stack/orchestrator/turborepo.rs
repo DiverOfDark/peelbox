@@ -43,7 +43,8 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
         .with_context(|| format!("Failed to read {}", package_json_path.display()))?;
 
     let npm = NpmBuildSystem;
-    let workspace_patterns = npm.parse_workspace_patterns(&content)
+    let workspace_patterns = npm
+        .parse_workspace_patterns(&content)
         .context("Failed to parse workspace patterns")?;
 
     let mut packages = Vec::new();
@@ -70,4 +71,3 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
         packages,
     })
 }
-

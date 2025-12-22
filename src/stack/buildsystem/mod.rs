@@ -55,14 +55,20 @@ pub trait BuildSystem: Send + Sync {
 
     /// Parse package metadata from manifest (name, is_application)
     /// Returns (package_name, is_application). Default fallback returns ("app", true).
-    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+    fn parse_package_metadata(
+        &self,
+        manifest_content: &str,
+    ) -> Result<(String, bool), anyhow::Error> {
         let _ = manifest_content;
         Ok(("app".to_string(), true))
     }
 
     /// Parse workspace patterns from manifest (e.g., npm/yarn/pnpm workspaces field, Cargo [workspace])
     /// Default implementation returns empty Vec (not a workspace build system)
-    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error> {
+    fn parse_workspace_patterns(
+        &self,
+        manifest_content: &str,
+    ) -> Result<Vec<String>, anyhow::Error> {
         let _ = manifest_content;
         Ok(vec![])
     }
@@ -70,7 +76,11 @@ pub trait BuildSystem: Send + Sync {
     /// Glob workspace pattern (e.g., "packages/*") to find package directories
     /// Default implementation handles simple directory paths (used by Cargo, Gradle, Maven, DotNet)
     /// Override for more complex globbing (npm/yarn/pnpm use wildcard patterns)
-    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+    fn glob_workspace_pattern(
+        &self,
+        repo_path: &std::path::Path,
+        pattern: &str,
+    ) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
         let project_path = repo_path.join(pattern);
         if project_path.exists() && project_path.is_dir() {
             Ok(vec![project_path])
@@ -81,7 +91,9 @@ pub trait BuildSystem: Send + Sync {
 }
 
 /// Helper function for parsing package.json workspaces field (used by npm, yarn, pnpm)
-pub(crate) fn parse_package_json_workspaces(manifest_content: &str) -> Result<Vec<String>, anyhow::Error> {
+pub(crate) fn parse_package_json_workspaces(
+    manifest_content: &str,
+) -> Result<Vec<String>, anyhow::Error> {
     let package: serde_json::Value = serde_json::from_str(manifest_content)?;
 
     if let Some(workspaces) = package["workspaces"].as_array() {
@@ -95,7 +107,10 @@ pub(crate) fn parse_package_json_workspaces(manifest_content: &str) -> Result<Ve
 }
 
 /// Helper function for globbing package.json workspace patterns (used by npm, yarn, pnpm)
-pub(crate) fn glob_package_json_workspace_pattern(repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+pub(crate) fn glob_package_json_workspace_pattern(
+    repo_path: &std::path::Path,
+    pattern: &str,
+) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
     let mut results = Vec::new();
 
     if pattern.ends_with("/*") {
@@ -120,6 +135,7 @@ pub mod composer;
 pub mod dotnet;
 pub mod go_mod;
 pub mod gradle;
+pub mod llm;
 pub mod make;
 pub mod maven;
 pub mod meson;
@@ -139,6 +155,7 @@ pub use composer::ComposerBuildSystem;
 pub use dotnet::DotNetBuildSystem;
 pub use go_mod::GoModBuildSystem;
 pub use gradle::GradleBuildSystem;
+pub use llm::LLMBuildSystem;
 pub use make::MakeBuildSystem;
 pub use maven::MavenBuildSystem;
 pub use meson::MesonBuildSystem;

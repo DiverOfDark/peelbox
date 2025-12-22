@@ -76,7 +76,9 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
                         for workspace_path in workspace_paths {
                             let pkg_json = workspace_path.join("package.json");
                             if let Ok(pkg_content) = std::fs::read_to_string(&pkg_json) {
-                                if let Ok((name, is_application)) = npm.parse_package_metadata(&pkg_content) {
+                                if let Ok((name, is_application)) =
+                                    npm.parse_package_metadata(&pkg_content)
+                                {
                                     packages.push(Package {
                                         path: workspace_path,
                                         name,
@@ -123,4 +125,3 @@ fn parse_project(project_path: &Path, name: &str, npm: &NpmBuildSystem) -> Resul
         is_application,
     })
 }
-

@@ -1,10 +1,10 @@
 use super::root_cache::RootCacheInfo;
-use crate::pipeline::service_context::ServiceContext;
 use crate::output::schema::{
     BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
 };
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::WorkflowPhase;
+use crate::pipeline::service_context::ServiceContext;
 use crate::stack::registry::StackRegistry;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -18,23 +18,7 @@ impl WorkflowPhase for AssemblePhase {
         "AssemblePhase"
     }
 
-    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
-        let root_cache = context
-            .root_cache
-            .as_ref()
-            .expect("Root cache must be available before assemble");
-
-        let builds = execute_assemble(
-            &context.service_analyses,
-            root_cache,
-            &context.stack_registry,
-        )?;
-
-        context.builds = builds;
-        Ok(Some(()))
-    }
-
-    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let root_cache = context
             .root_cache
             .as_ref()
@@ -91,7 +75,11 @@ fn assemble_single_service(
         .unwrap_or_else(|| "bin/app".to_string());
     let port = runtime_config
         .and_then(|rc| rc.port)
-        .or_else(|| registry.get_language(result.service.language.clone()).and_then(|lang| lang.default_port()))
+        .or_else(|| {
+            registry
+                .get_language(result.service.language.clone())
+                .and_then(|lang| lang.default_port())
+        })
         .unwrap_or(8080);
     let _env_vars = runtime_config
         .map(|rc| &rc.env_vars)
@@ -210,8 +198,18 @@ fn calculate_confidence(result: &ServiceContext) -> f32 {
 
     let mut scores = [
         stack_confidence,
-        result.build.as_ref().expect("Build must be set").confidence.to_f32(),
-        result.cache.as_ref().expect("Cache must be set").confidence.to_f32(),
+        result
+            .build
+            .as_ref()
+            .expect("Build must be set")
+            .confidence
+            .to_f32(),
+        result
+            .cache
+            .as_ref()
+            .expect("Cache must be set")
+            .confidence
+            .to_f32(),
     ];
 
     scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
@@ -262,13 +260,11 @@ mod tests {
             build_system: crate::stack::BuildSystemId::Npm,
         };
 
-        let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(crate::llm::MockLLMClient::default());
-        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults());
+        let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults(None));
         let heuristic_logger = Arc::new(crate::heuristics::HeuristicLogger::new(None));
 
         let analysis_context = crate::pipeline::context::AnalysisContext::new(
             &PathBuf::from("."),
-            llm_client,
             stack_registry,
             None,
             heuristic_logger,

@@ -14,24 +14,14 @@ impl WorkflowPhase for WorkspaceStructurePhase {
         "WorkspaceStructurePhase"
     }
 
-    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         let scan = context
             .scan
             .as_ref()
             .expect("Scan must be available before WorkspaceStructurePhase");
 
-        let workspace_structure = detect_workspace_structure(&context.repo_path, scan, &context.stack_registry)?;
-        context.workspace = Some(workspace_structure);
-        Ok(Some(()))
-    }
-
-    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
-        let scan = context
-            .scan
-            .as_ref()
-            .expect("Scan must be available before WorkspaceStructurePhase");
-
-        let workspace_structure = detect_workspace_structure(&context.repo_path, scan, &context.stack_registry)?;
+        let workspace_structure =
+            detect_workspace_structure(&context.repo_path, scan, &context.stack_registry)?;
         context.workspace = Some(workspace_structure);
         Ok(())
     }
@@ -59,7 +49,10 @@ fn is_workspace_root_manifest(
     stack_registry: &StackRegistry,
 ) -> bool {
     // Check if manifest is at repo root (parent is empty path)
-    let parent = detection.manifest_path.parent().unwrap_or(std::path::Path::new(""));
+    let parent = detection
+        .manifest_path
+        .parent()
+        .unwrap_or(std::path::Path::new(""));
     if parent != std::path::Path::new("") {
         return false;
     }
@@ -80,7 +73,8 @@ fn create_package(
     repo_path: &std::path::Path,
     stack_registry: &StackRegistry,
 ) -> Package {
-    let service_path = detection.manifest_path
+    let service_path = detection
+        .manifest_path
         .parent()
         .unwrap_or(repo_path)
         .to_path_buf();
@@ -156,7 +150,8 @@ fn detect_workspace_structure(
 ) -> Result<WorkspaceStructure> {
     for orchestrator in stack_registry.all_orchestrators() {
         for config_file in orchestrator.config_files() {
-            if scan.find_files_by_name(config_file)
+            if scan
+                .find_files_by_name(config_file)
                 .iter()
                 .any(|f| f.parent().unwrap_or(repo_path) == repo_path)
             {
@@ -169,7 +164,9 @@ fn detect_workspace_structure(
 
     for detection in &scan.detections {
         if is_workspace_root_manifest(detection, repo_path, stack_registry) {
-            if let Some(mut workspace_structure) = try_workspace_build_system(detection, repo_path, stack_registry)? {
+            if let Some(mut workspace_structure) =
+                try_workspace_build_system(detection, repo_path, stack_registry)?
+            {
                 // Also include standalone modules not in workspace
                 let workspace_paths: std::collections::HashSet<_> = workspace_structure
                     .packages
@@ -249,7 +246,7 @@ mod tests {
             scan_time_ms: 0,
         };
 
-        let registry = StackRegistry::with_defaults();
+        let registry = StackRegistry::with_defaults(None);
         let workspace = detect_workspace_structure(&PathBuf::from("."), &scan, &registry).unwrap();
         assert_eq!(workspace.packages.len(), 1);
         assert_eq!(workspace.packages[0].name, "app");

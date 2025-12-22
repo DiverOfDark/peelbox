@@ -242,7 +242,10 @@ fn deduplicate_detections(
                     .and_then(|bs| {
                         bs.manifest_patterns()
                             .iter()
-                            .find(|p| d.manifest_path.file_name() == Some(std::ffi::OsStr::new(p.filename)))
+                            .find(|p| {
+                                d.manifest_path.file_name()
+                                    == Some(std::ffi::OsStr::new(p.filename))
+                            })
                             .map(|p| p.priority)
                     })
                     .unwrap_or(0);
@@ -308,12 +311,7 @@ impl WorkflowPhase for ScanPhase {
         "ScanPhase"
     }
 
-    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
-        self.scan_repository(context)?;
-        Ok(Some(()))
-    }
-
-    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         self.scan_repository(context)
     }
 }
@@ -340,7 +338,7 @@ impl ScanPhase {
             .canonicalize()
             .context("Failed to canonicalize repository path")?;
 
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
 
         debug!(
             repo_path = %repo_path.display(),
@@ -480,7 +478,6 @@ impl ScanPhase {
 mod tests {
     use super::*;
     use crate::heuristics::HeuristicLogger;
-    use crate::llm::MockLLMClient;
     use std::fs;
     use std::io::Write;
     use tempfile::TempDir;
@@ -518,12 +515,10 @@ mod tests {
 
     fn create_test_context(repo_path: &Path) -> AnalysisContext {
         use crate::config::DetectionMode;
-        let llm_client = Arc::new(MockLLMClient::new());
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let heuristic_logger = Arc::new(HeuristicLogger::disabled());
         AnalysisContext::new(
             repo_path,
-            llm_client,
             stack_registry,
             None,
             heuristic_logger,
@@ -536,8 +531,7 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        let result = phase.try_deterministic(&mut context).unwrap();
-        assert!(result.is_some());
+        phase.execute(&mut context).await.unwrap();
         assert!(context.scan.is_some());
     }
 
@@ -546,13 +540,14 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
+        phase.execute(&mut context).await.unwrap();
 
         let scan = context.scan.as_ref().unwrap();
         assert!(scan.detections.len() >= 2);
 
         use crate::stack::LanguageId;
-        let languages: Vec<LanguageId> = scan.detections.iter().map(|d| d.language.clone()).collect();
+        let languages: Vec<LanguageId> =
+            scan.detections.iter().map(|d| d.language.clone()).collect();
         assert!(languages.contains(&LanguageId::Rust));
         assert!(languages.contains(&LanguageId::JavaScript));
     }
@@ -562,7 +557,7 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
+        phase.execute(&mut context).await.unwrap();
 
         let scan = context.scan.as_ref().unwrap();
         let paths: Vec<String> = scan
@@ -579,7 +574,7 @@ mod tests {
         let temp_dir = create_test_repo();
         let mut context = create_test_context(temp_dir.path());
         let phase = ScanPhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
+        phase.execute(&mut context).await.unwrap();
 
         let scan = context.scan.as_ref().unwrap();
         let cargo_files = scan.find_files_by_name("Cargo.toml");

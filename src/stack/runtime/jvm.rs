@@ -31,8 +31,7 @@ impl JvmRuntime {
     }
 
     fn extract_ports(&self, files: &[PathBuf]) -> Option<u16> {
-        let server_socket_pattern =
-            Regex::new(r"ServerSocket\s*\(\s*(\d+)\s*\)").unwrap();
+        let server_socket_pattern = Regex::new(r"ServerSocket\s*\(\s*(\d+)\s*\)").unwrap();
         let jetty_pattern = Regex::new(r"\.setPort\s*\(\s*(\d+)\s*\)").unwrap();
 
         for file in files {
@@ -64,7 +63,7 @@ impl JvmRuntime {
         let mut deps = HashSet::new();
 
         for file in files {
-            if file.file_name().map_or(false, |n| n == "pom.xml") {
+            if file.file_name().is_some_and(|n| n == "pom.xml") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     if content.contains("<packaging>so</packaging>")
                         || content.contains("<packaging>jni</packaging>")
@@ -74,9 +73,10 @@ impl JvmRuntime {
                         deps.insert("build-base".to_string());
                     }
                 }
-            } else if file.file_name().map_or(false, |n| {
-                n == "build.gradle" || n == "build.gradle.kts"
-            }) {
+            } else if file
+                .file_name()
+                .is_some_and(|n| n == "build.gradle" || n == "build.gradle.kts")
+            {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     if content.contains("jni") || content.contains("jna") {
                         deps.insert("build-base".to_string());
@@ -105,7 +105,8 @@ impl Runtime for JvmRuntime {
         let native_deps = self.extract_native_deps(files);
         let detected_port = self.extract_ports(files);
 
-        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+        let port =
+            detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),

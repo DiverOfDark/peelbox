@@ -31,7 +31,7 @@ impl<F: FileSystem> EnvVarExtractor<F> {
     pub fn new(fs: F) -> Self {
         Self {
             fs,
-            registry: StackRegistry::with_defaults(),
+            registry: StackRegistry::with_defaults(None),
         }
     }
 

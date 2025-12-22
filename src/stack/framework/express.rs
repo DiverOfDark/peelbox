@@ -41,7 +41,14 @@ impl Framework for ExpressFramework {
     }
 
     fn config_files(&self) -> Vec<&str> {
-        vec!["server.js", "app.js", "index.js", "src/server.js", "src/app.js", "src/index.js"]
+        vec![
+            "server.js",
+            "app.js",
+            "index.js",
+            "src/server.js",
+            "src/app.js",
+            "src/index.js",
+        ]
     }
 
     fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {

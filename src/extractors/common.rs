@@ -59,7 +59,7 @@ mod tests {
         fs.add_file("README.md", "docs");
         fs.add_file("package.json", "{}");
 
-        let registry = StackRegistry::with_defaults();
+        let registry = StackRegistry::with_defaults(None);
         let lang = registry
             .get_language(crate::stack::LanguageId::JavaScript)
             .unwrap();
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_scan_directory_handles_empty_dir() {
         let fs = MockFileSystem::new();
-        let registry = StackRegistry::with_defaults();
+        let registry = StackRegistry::with_defaults(None);
         let lang = registry
             .get_language(crate::stack::LanguageId::JavaScript)
             .unwrap();
@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn test_scan_directory_handles_nonexistent_dir() {
         let fs = MockFileSystem::new();
-        let registry = StackRegistry::with_defaults();
+        let registry = StackRegistry::with_defaults(None);
         let lang = registry
             .get_language(crate::stack::LanguageId::JavaScript)
             .unwrap();

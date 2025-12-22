@@ -2,7 +2,6 @@ use super::phases::{root_cache::RootCacheInfo, scan::ScanResult};
 use super::service_context::ServiceContext;
 use crate::config::DetectionMode;
 use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::output::schema::UniversalBuild;
 use crate::progress::LoggingHandler;
 use crate::stack::orchestrator::WorkspaceStructure;
@@ -13,7 +12,6 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct AnalysisContext {
     pub repo_path: PathBuf,
-    pub llm_client: Arc<dyn LLMClient>,
     pub stack_registry: Arc<StackRegistry>,
     pub progress_handler: Option<LoggingHandler>,
     pub heuristic_logger: Arc<HeuristicLogger>,
@@ -28,7 +26,6 @@ pub struct AnalysisContext {
 impl AnalysisContext {
     pub fn new(
         repo_path: &Path,
-        llm_client: Arc<dyn LLMClient>,
         stack_registry: Arc<StackRegistry>,
         progress_handler: Option<LoggingHandler>,
         heuristic_logger: Arc<HeuristicLogger>,
@@ -36,7 +33,6 @@ impl AnalysisContext {
     ) -> Self {
         Self {
             repo_path: repo_path.to_path_buf(),
-            llm_client,
             stack_registry,
             progress_handler,
             heuristic_logger,

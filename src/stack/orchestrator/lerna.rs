@@ -43,8 +43,8 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
     let lerna_content = std::fs::read_to_string(&lerna_json_path)
         .with_context(|| format!("Failed to read {}", lerna_json_path.display()))?;
 
-    let lerna_config: Value = serde_json::from_str(&lerna_content)
-        .with_context(|| "Failed to parse lerna.json")?;
+    let lerna_config: Value =
+        serde_json::from_str(&lerna_content).with_context(|| "Failed to parse lerna.json")?;
 
     let npm = NpmBuildSystem;
     let mut packages = Vec::new();
@@ -80,4 +80,3 @@ fn parse_workspace_structure(repo_path: &Path) -> Result<WorkspaceStructure> {
         packages,
     })
 }
-

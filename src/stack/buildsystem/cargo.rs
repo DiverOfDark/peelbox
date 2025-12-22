@@ -61,7 +61,8 @@ impl BuildSystem for CargoBuildSystem {
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
         let value: Value = toml::from_str(manifest_content)?;
 
-        if let Some(members) = value.get("workspace")
+        if let Some(members) = value
+            .get("workspace")
             .and_then(|w| w.get("members"))
             .and_then(|m| m.as_array())
         {

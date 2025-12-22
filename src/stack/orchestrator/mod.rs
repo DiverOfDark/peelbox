@@ -40,7 +40,10 @@ pub trait MonorepoOrchestrator: Send + Sync {
 
     /// Parse workspace structure (PR9+)
     fn workspace_structure(&self, _repo_path: &std::path::Path) -> Result<WorkspaceStructure> {
-        unimplemented!("workspace_structure not yet implemented for {}", self.name())
+        unimplemented!(
+            "workspace_structure not yet implemented for {}",
+            self.name()
+        )
     }
 
     /// Generate build command for a package (PR9+)
@@ -60,9 +63,11 @@ crate::define_id_enum! {
 }
 
 pub mod lerna;
+pub mod llm;
 pub mod nx;
 pub mod turborepo;
 
 pub use lerna::LernaOrchestrator;
+pub use llm::LLMOrchestrator;
 pub use nx::NxOrchestrator;
 pub use turborepo::TurborepoOrchestrator;

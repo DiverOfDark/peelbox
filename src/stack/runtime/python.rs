@@ -9,7 +9,10 @@ pub struct PythonRuntime;
 impl PythonRuntime {
     fn extract_env_vars(&self, files: &[PathBuf]) -> Vec<String> {
         let mut env_vars = HashSet::new();
-        let os_environ_pattern = Regex::new(r#"os\.environ(?:\[['"]([A-Z_][A-Z0-9_]*)['"]\]|\.get\(['"]([A-Z_][A-Z0-9_]*)['"])"#).unwrap();
+        let os_environ_pattern = Regex::new(
+            r#"os\.environ(?:\[['"]([A-Z_][A-Z0-9_]*)['"]\]|\.get\(['"]([A-Z_][A-Z0-9_]*)['"])"#,
+        )
+        .unwrap();
 
         for file in files {
             if let Some(ext) = file.extension() {
@@ -63,7 +66,7 @@ impl PythonRuntime {
         let mut deps = HashSet::new();
 
         for file in files {
-            if file.file_name().map_or(false, |n| n == "requirements.txt") {
+            if file.file_name().is_some_and(|n| n == "requirements.txt") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     for line in content.lines() {
                         let lower = line.to_lowercase();
@@ -103,7 +106,8 @@ impl Runtime for PythonRuntime {
         let native_deps = self.extract_native_deps(files);
         let detected_port = self.extract_ports(files);
 
-        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+        let port =
+            detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),

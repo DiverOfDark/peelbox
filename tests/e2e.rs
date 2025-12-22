@@ -43,17 +43,16 @@ fn fixture_path(category: &str, name: &str) -> PathBuf {
 fn load_expected(fixture_name: &str, mode: Option<&str>) -> Option<Vec<UniversalBuild>> {
     // Try mode-specific file first if mode is provided
     if let Some(m) = mode {
-        let mode_specific_path = PathBuf::from("tests/fixtures/expected")
-            .join(format!("{}-{}.json", fixture_name, m));
+        let mode_specific_path =
+            PathBuf::from("tests/fixtures/expected").join(format!("{}-{}.json", fixture_name, m));
 
         if mode_specific_path.exists() {
-            let content = std::fs::read_to_string(&mode_specific_path)
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "Failed to read expected JSON: {}",
-                        mode_specific_path.display()
-                    )
-                });
+            let content = std::fs::read_to_string(&mode_specific_path).unwrap_or_else(|_| {
+                panic!(
+                    "Failed to read expected JSON: {}",
+                    mode_specific_path.display()
+                )
+            });
 
             // Try parsing as array of UniversalBuild first (for monorepos)
             if let Ok(multi) = serde_json::from_str::<Vec<UniversalBuild>>(&content) {
@@ -151,11 +150,7 @@ fn run_detection_with_mode(
 }
 
 /// Helper to assert detection results against expected output with mode-specific expectations
-fn assert_detection_with_mode(
-    results: &[UniversalBuild],
-    fixture_name: &str,
-    mode: Option<&str>,
-) {
+fn assert_detection_with_mode(results: &[UniversalBuild], fixture_name: &str, mode: Option<&str>) {
     assert!(!results.is_empty(), "Results should not be empty");
 
     assert!(
@@ -192,7 +187,11 @@ fn assert_detection_with_mode(
     expected.sort_by(|a, b| a.metadata.project_name.cmp(&b.metadata.project_name));
 
     for (i, (detected, expected_build)) in sorted_results.iter().zip(expected.iter()).enumerate() {
-        let project_name = detected.metadata.project_name.as_deref().unwrap_or("<unknown>");
+        let project_name = detected
+            .metadata
+            .project_name
+            .as_deref()
+            .unwrap_or("<unknown>");
 
         assert_eq!(
             detected.metadata.project_name, expected_build.metadata.project_name,
@@ -281,7 +280,11 @@ fn assert_detection_with_mode(
 fn test_single_language(fixture_name: &str, mode: Option<&str>) {
     let fixture = fixture_path("single-language", fixture_name);
     let mode_suffix = mode.unwrap_or("detection");
-    let test_name = format!("e2e_test_{}_{}", fixture_name.replace("-", "_"), mode_suffix.replace("-", "_"));
+    let test_name = format!(
+        "e2e_test_{}_{}",
+        fixture_name.replace("-", "_"),
+        mode_suffix.replace("-", "_")
+    );
     let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
     assert_detection_with_mode(&results, fixture_name, mode);
 }
@@ -311,8 +314,11 @@ fn test_single_language(fixture_name: &str, mode: Option<&str>) {
 fn test_monorepo(fixture_name: &str, mode: Option<&str>) {
     let fixture = fixture_path("monorepo", fixture_name);
     let mode_suffix = mode.unwrap_or("detection");
-    let test_name = format!("e2e_test_{}_{}", fixture_name.replace("-", "_"), mode_suffix.replace("-", "_"));
+    let test_name = format!(
+        "e2e_test_{}_{}",
+        fixture_name.replace("-", "_"),
+        mode_suffix.replace("-", "_")
+    );
     let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
     assert_detection_with_mode(&results, fixture_name, mode);
 }
-

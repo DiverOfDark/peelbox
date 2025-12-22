@@ -63,7 +63,7 @@ impl BeamRuntime {
         let mut deps = HashSet::new();
 
         for file in files {
-            if file.file_name().map_or(false, |n| n == "mix.exs") {
+            if file.file_name().is_some_and(|n| n == "mix.exs") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     if content.contains(":nif") || content.contains("rustler") {
                         deps.insert("build-base".to_string());
@@ -92,7 +92,8 @@ impl Runtime for BeamRuntime {
         let native_deps = self.extract_native_deps(files);
         let detected_port = self.extract_ports(files);
 
-        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+        let port =
+            detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
@@ -137,10 +138,7 @@ mod tests {
     #[test]
     fn test_beam_runtime_base_image_default() {
         let runtime = BeamRuntime;
-        assert_eq!(
-            runtime.runtime_base_image(None),
-            "hexpm/elixir:1.15-alpine"
-        );
+        assert_eq!(runtime.runtime_base_image(None), "hexpm/elixir:1.15-alpine");
     }
 
     #[test]

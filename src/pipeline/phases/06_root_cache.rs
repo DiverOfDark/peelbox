@@ -23,12 +23,7 @@ impl WorkflowPhase for RootCachePhase {
         "RootCachePhase"
     }
 
-    fn try_deterministic(&self, context: &mut AnalysisContext) -> Result<Option<()>> {
-        self.execute_root_cache(context)?;
-        Ok(Some(()))
-    }
-
-    async fn execute_llm(&self, context: &mut AnalysisContext) -> Result<()> {
+    async fn execute(&self, context: &mut AnalysisContext) -> Result<()> {
         self.execute_root_cache(context)
     }
 }
@@ -46,12 +41,14 @@ impl RootCachePhase {
 
         let mut root_cache_dirs = HashSet::new();
 
-        let registry = StackRegistry::with_defaults();
+        let registry = StackRegistry::with_defaults(None);
 
         // Add cache dirs from workspace root build systems
         for detection in &scan.detections {
             if detection.is_workspace_root {
-                if let Some(build_system) = registry.get_build_system(detection.build_system.clone()) {
+                if let Some(build_system) =
+                    registry.get_build_system(detection.build_system.clone())
+                {
                     for cache_dir in build_system.cache_dirs() {
                         root_cache_dirs.insert(PathBuf::from(cache_dir));
                     }
@@ -206,18 +203,15 @@ mod tests {
 
     async fn execute_phase(scan: &ScanResult, workspace: &WorkspaceStructure) -> RootCacheInfo {
         use crate::heuristics::HeuristicLogger;
-        use crate::llm::MockLLMClient;
         use crate::stack::StackRegistry;
         use std::sync::Arc;
 
         use crate::config::DetectionMode;
-        let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(MockLLMClient::default());
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let heuristic_logger = Arc::new(HeuristicLogger::new(None));
 
         let mut context = AnalysisContext::new(
             &PathBuf::from("."),
-            llm_client,
             stack_registry,
             None,
             heuristic_logger,
@@ -227,7 +221,7 @@ mod tests {
         context.workspace = Some(workspace.clone());
 
         let phase = RootCachePhase;
-        phase.try_deterministic(&mut context).unwrap().unwrap();
+        phase.execute(&mut context).await.unwrap();
 
         context.root_cache.unwrap()
     }

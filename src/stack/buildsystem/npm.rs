@@ -66,24 +66,31 @@ impl BuildSystem for NpmBuildSystem {
         &["lerna.json", "nx.json", "turbo.json", "rush.json"]
     }
 
-    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+    fn parse_package_metadata(
+        &self,
+        manifest_content: &str,
+    ) -> Result<(String, bool), anyhow::Error> {
         let package: serde_json::Value = serde_json::from_str(manifest_content)?;
 
-        let name = package["name"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
+        let name = package["name"].as_str().unwrap_or("unknown").to_string();
 
         let is_application = package["scripts"]["start"].is_string();
 
         Ok((name, is_application))
     }
 
-    fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>, anyhow::Error> {
+    fn parse_workspace_patterns(
+        &self,
+        manifest_content: &str,
+    ) -> Result<Vec<String>, anyhow::Error> {
         super::parse_package_json_workspaces(manifest_content)
     }
 
-    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+    fn glob_workspace_pattern(
+        &self,
+        repo_path: &std::path::Path,
+        pattern: &str,
+    ) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
         super::glob_package_json_workspace_pattern(repo_path, pattern)
     }
 }

@@ -1,10 +1,8 @@
 use super::context::AnalysisContext;
 use super::phases::{
-    build::BuildInfo, cache::CacheInfo, scan::ScanResult,
-    service_analysis::Service,
+    build::BuildInfo, cache::CacheInfo, scan::ScanResult, service_analysis::Service,
 };
 use crate::heuristics::HeuristicLogger;
-use crate::llm::LLMClient;
 use crate::stack::runtime::RuntimeConfig;
 use crate::stack::{BuildSystemId, FrameworkId, LanguageId, RuntimeId, StackRegistry};
 use anyhow::Result;
@@ -33,7 +31,6 @@ pub struct ServiceContext {
     pub cache: Option<CacheInfo>,
 }
 
-
 impl ServiceContext {
     pub fn new(service: Arc<Service>, analysis_context: Arc<AnalysisContext>) -> Self {
         Self {
@@ -55,10 +52,6 @@ impl ServiceContext {
             .scan
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Scan result must be available before service analysis"))
-    }
-
-    pub fn llm_client(&self) -> &dyn LLMClient {
-        self.analysis_context.llm_client.as_ref()
     }
 
     pub fn stack_registry(&self) -> &Arc<StackRegistry> {

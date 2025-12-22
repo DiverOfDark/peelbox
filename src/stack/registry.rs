@@ -1,4 +1,5 @@
 use super::{BuildSystemId, DetectionStack, FrameworkId, LanguageId, OrchestratorId, RuntimeId};
+use crate::llm::LLMClient;
 use crate::stack::buildsystem::*;
 use crate::stack::framework::*;
 use crate::stack::language::*;
@@ -7,6 +8,20 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+/// Registry for all technology stack components.
+///
+/// Provides unified detection and lookup for languages, build systems, frameworks,
+/// orchestrators, and runtimes. Supports both deterministic pattern matching and
+/// LLM-based fallback for unknown technologies.
+///
+/// # Registration Order
+///
+/// Components are registered in priority order:
+/// 1. Known deterministic implementations (Rust, Java, npm, etc.)
+/// 2. LLM-backed fallback implementations (if llm_client provided)
+///
+/// This ensures fast, reliable detection for known tech while enabling discovery
+/// of unknown technologies via LLM inference.
 pub struct StackRegistry {
     build_systems: HashMap<BuildSystemId, Arc<dyn BuildSystem>>,
     languages: HashMap<LanguageId, Arc<dyn LanguageDefinition>>,
@@ -24,19 +39,55 @@ impl StackRegistry {
         }
     }
 
-    pub fn with_defaults() -> Self {
+    /// Creates a registry pre-populated with default implementations.
+    ///
+    /// # Arguments
+    ///
+    /// * `llm_client` - Optional LLM client for fallback detection. If provided, LLM-backed
+    ///                  implementations are registered last to handle unknown technologies.
+    ///
+    /// # Registration Order
+    ///
+    /// 1. All known languages (Rust, Java, JavaScript, Python, Go, etc.)
+    /// 2. All known build systems (Cargo, Maven, Gradle, npm, etc.)
+    /// 3. All known frameworks (Spring Boot, Next.js, Django, etc.)
+    /// 4. All known orchestrators (Turborepo, Nx, Lerna)
+    /// 5. LLM fallback implementations (if llm_client provided)
+    ///
+    /// This order ensures deterministic detection tries first, with LLM as last resort.
+    pub fn with_defaults(llm_client: Option<Arc<dyn LLMClient>>) -> Self {
         let mut registry = Self::new();
 
-        registry.languages.insert(LanguageId::Rust, Arc::new(RustLanguage));
-        registry.languages.insert(LanguageId::Java, Arc::new(JavaLanguage));
-        registry.languages.insert(LanguageId::JavaScript, Arc::new(JavaScriptLanguage));
-        registry.languages.insert(LanguageId::Python, Arc::new(PythonLanguage));
-        registry.languages.insert(LanguageId::Go, Arc::new(GoLanguage));
-        registry.languages.insert(LanguageId::CSharp, Arc::new(DotNetLanguage));
-        registry.languages.insert(LanguageId::Ruby, Arc::new(RubyLanguage));
-        registry.languages.insert(LanguageId::PHP, Arc::new(PhpLanguage));
-        registry.languages.insert(LanguageId::Cpp, Arc::new(CppLanguage));
-        registry.languages.insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Rust, Arc::new(RustLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Java, Arc::new(JavaLanguage));
+        registry
+            .languages
+            .insert(LanguageId::JavaScript, Arc::new(JavaScriptLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Python, Arc::new(PythonLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Go, Arc::new(GoLanguage));
+        registry
+            .languages
+            .insert(LanguageId::CSharp, Arc::new(DotNetLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Ruby, Arc::new(RubyLanguage));
+        registry
+            .languages
+            .insert(LanguageId::PHP, Arc::new(PhpLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Cpp, Arc::new(CppLanguage));
+        registry
+            .languages
+            .insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
 
         for id in BuildSystemId::all_variants() {
             let bs: Arc<dyn BuildSystem> = match id {
@@ -91,9 +142,37 @@ impl StackRegistry {
             registry.frameworks.insert(id.clone(), fw);
         }
 
-        registry.orchestrators.insert(OrchestratorId::Turborepo, Arc::new(TurborepoOrchestrator));
-        registry.orchestrators.insert(OrchestratorId::Nx, Arc::new(NxOrchestrator));
-        registry.orchestrators.insert(OrchestratorId::Lerna, Arc::new(LernaOrchestrator));
+        registry
+            .orchestrators
+            .insert(OrchestratorId::Turborepo, Arc::new(TurborepoOrchestrator));
+        registry
+            .orchestrators
+            .insert(OrchestratorId::Nx, Arc::new(NxOrchestrator));
+        registry
+            .orchestrators
+            .insert(OrchestratorId::Lerna, Arc::new(LernaOrchestrator));
+
+        if let Some(llm) = llm_client {
+            registry.languages.insert(
+                LanguageId::Custom("__llm_fallback__".to_string()),
+                Arc::new(LLMLanguage::new(llm.clone())),
+            );
+
+            registry.build_systems.insert(
+                BuildSystemId::Custom("__llm_fallback__".to_string()),
+                Arc::new(LLMBuildSystem::new(llm.clone())),
+            );
+
+            registry.frameworks.insert(
+                FrameworkId::Custom("__llm_fallback__".to_string()),
+                Box::new(LLMFramework::new(llm.clone())),
+            );
+
+            registry.orchestrators.insert(
+                OrchestratorId::Custom("__llm_fallback__".to_string()),
+                Arc::new(LLMOrchestrator::new(llm.clone())),
+            );
+        }
 
         registry
     }
@@ -248,7 +327,11 @@ impl StackRegistry {
         None
     }
 
-    pub fn get_runtime(&self, id: RuntimeId) -> Box<dyn crate::stack::runtime::Runtime> {
+    pub fn get_runtime(
+        &self,
+        id: RuntimeId,
+        llm_client: Option<Arc<dyn LLMClient>>,
+    ) -> Box<dyn crate::stack::runtime::Runtime> {
         match id {
             RuntimeId::JVM => Box::new(crate::stack::runtime::JvmRuntime),
             RuntimeId::Node => Box::new(crate::stack::runtime::NodeRuntime),
@@ -258,13 +341,16 @@ impl StackRegistry {
             RuntimeId::DotNet => Box::new(crate::stack::runtime::DotNetRuntime),
             RuntimeId::BEAM => Box::new(crate::stack::runtime::BeamRuntime),
             RuntimeId::Native => Box::new(crate::stack::runtime::NativeRuntime),
-            RuntimeId::Custom(_) => Box::new(crate::stack::runtime::LLMRuntime),
+            RuntimeId::Custom(_) => match llm_client {
+                Some(llm) => Box::new(crate::stack::runtime::LLMRuntime::new(llm)),
+                None => Box::new(crate::stack::runtime::LLMRuntime::default()),
+            },
         }
     }
 }
 
 impl Default for StackRegistry {
     fn default() -> Self {
-        Self::with_defaults()
+        Self::with_defaults(None)
     }
 }

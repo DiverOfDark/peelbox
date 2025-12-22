@@ -41,7 +41,11 @@ impl Framework for RailsFramework {
     }
 
     fn config_files(&self) -> Vec<&str> {
-        vec!["config/puma.rb", "config/application.rb", "config/environment.rb"]
+        vec![
+            "config/puma.rb",
+            "config/application.rb",
+            "config/environment.rb",
+        ]
     }
 
     fn parse_config(&self, _file_path: &Path, content: &str) -> Option<FrameworkConfig> {
@@ -50,8 +54,7 @@ impl Framework for RailsFramework {
         for line in content.lines() {
             let trimmed = line.trim();
 
-            if (trimmed.contains("port") || trimmed.contains("bind")) && !trimmed.starts_with('#')
-            {
+            if (trimmed.contains("port") || trimmed.contains("bind")) && !trimmed.starts_with('#') {
                 if let Some(port) = extract_ruby_port(trimmed) {
                     config.port = Some(port);
                 }
@@ -87,7 +90,7 @@ fn extract_ruby_env_vars(line: &str, env_vars: &mut Vec<String>) {
         if let Some(start) = line.find(pattern) {
             let rest = &line[start + pattern.len()..];
 
-            if let Some(quote_start) = rest.find(|c| c == '"' || c == '\'') {
+            if let Some(quote_start) = rest.find(['"', '\'']) {
                 let quote_char = rest.chars().nth(quote_start).unwrap();
                 let after_quote = &rest[quote_start + 1..];
 

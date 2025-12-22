@@ -35,7 +35,7 @@ impl NodeRuntime {
         let port_arg_pattern = Regex::new(r"--port\s+(\d+)").unwrap();
 
         for file in files {
-            if file.file_name().map_or(false, |n| n == "package.json") {
+            if file.file_name().is_some_and(|n| n == "package.json") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     for cap in port_arg_pattern.captures_iter(&content) {
                         if let Some(port_str) = cap.get(1) {
@@ -76,7 +76,8 @@ impl Runtime for NodeRuntime {
         let env_vars = self.extract_env_vars(files);
         let detected_port = self.extract_ports(files);
 
-        let port = detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+        let port =
+            detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
             f.health_endpoints().first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),

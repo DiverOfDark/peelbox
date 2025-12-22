@@ -73,7 +73,11 @@ impl BuildSystem for PnpmBuildSystem {
         super::parse_package_json_workspaces(manifest_content)
     }
 
-    fn glob_workspace_pattern(&self, repo_path: &std::path::Path, pattern: &str) -> Result<Vec<std::path::PathBuf>> {
+    fn glob_workspace_pattern(
+        &self,
+        repo_path: &std::path::Path,
+        pattern: &str,
+    ) -> Result<Vec<std::path::PathBuf>> {
         super::glob_package_json_workspace_pattern(repo_path, pattern)
     }
 }

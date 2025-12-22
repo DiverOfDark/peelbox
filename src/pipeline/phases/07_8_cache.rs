@@ -20,15 +20,12 @@ impl ServicePhase for CachePhase {
         "CachePhase"
     }
 
-    fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
+    async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
         let build_system = context
             .stack_registry()
             .get_build_system(context.service.build_system.clone())
             .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Unknown build system: {:?}",
-                    context.service.build_system
-                )
+                anyhow::anyhow!("Unknown build system: {:?}", context.service.build_system)
             })?;
 
         let cache_dirs = build_system
@@ -41,14 +38,7 @@ impl ServicePhase for CachePhase {
             cache_dirs,
             confidence: Confidence::High,
         });
-        Ok(Some(()))
-    }
-
-    async fn execute_llm(&self, _context: &mut ServiceContext) -> Result<()> {
-        anyhow::bail!(
-            "CachePhase is always deterministic and should never call execute_llm. \
-             This indicates a bug in the pipeline orchestration."
-        )
+        Ok(())
     }
 }
 
@@ -56,7 +46,6 @@ impl ServicePhase for CachePhase {
 mod tests {
     use super::*;
     use crate::heuristics::HeuristicLogger;
-    use crate::llm::MockLLMClient;
     use crate::pipeline::context::AnalysisContext;
     use crate::pipeline::phases::service_analysis::Service;
     use crate::stack::StackRegistry;
@@ -64,13 +53,11 @@ mod tests {
 
     async fn execute_phase(service: &Service) -> CacheInfo {
         use crate::config::DetectionMode;
-        let llm_client: Arc<dyn crate::llm::LLMClient> = Arc::new(MockLLMClient::default());
-        let stack_registry = Arc::new(StackRegistry::with_defaults());
+        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let heuristic_logger = Arc::new(HeuristicLogger::new(None));
 
         let analysis_context = AnalysisContext::new(
             &PathBuf::from("."),
-            llm_client,
             stack_registry,
             None,
             heuristic_logger,
@@ -81,7 +68,7 @@ mod tests {
         let context_arc = Arc::new(analysis_context);
         let mut service_context = ServiceContext::new(service_arc, context_arc);
         let phase = CachePhase;
-        phase.try_deterministic(&mut service_context).unwrap();
+        phase.execute(&mut service_context).await.unwrap();
         service_context.cache.unwrap()
     }
 

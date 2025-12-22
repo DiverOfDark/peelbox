@@ -59,12 +59,30 @@ mod tests {
 
     #[test]
     fn test_from_name_with_aliases() {
-        assert_eq!(BuildSystemId::from_name("Cargo"), Some(BuildSystemId::Cargo));
-        assert_eq!(BuildSystemId::from_name("cargo"), Some(BuildSystemId::Cargo));
-        assert_eq!(BuildSystemId::from_name("go mod"), Some(BuildSystemId::GoMod));
-        assert_eq!(BuildSystemId::from_name("go-mod"), Some(BuildSystemId::GoMod));
-        assert_eq!(BuildSystemId::from_name(".NET"), Some(BuildSystemId::DotNet));
-        assert_eq!(BuildSystemId::from_name("dotnet"), Some(BuildSystemId::DotNet));
+        assert_eq!(
+            BuildSystemId::from_name("Cargo"),
+            Some(BuildSystemId::Cargo)
+        );
+        assert_eq!(
+            BuildSystemId::from_name("cargo"),
+            Some(BuildSystemId::Cargo)
+        );
+        assert_eq!(
+            BuildSystemId::from_name("go mod"),
+            Some(BuildSystemId::GoMod)
+        );
+        assert_eq!(
+            BuildSystemId::from_name("go-mod"),
+            Some(BuildSystemId::GoMod)
+        );
+        assert_eq!(
+            BuildSystemId::from_name(".NET"),
+            Some(BuildSystemId::DotNet)
+        );
+        assert_eq!(
+            BuildSystemId::from_name("dotnet"),
+            Some(BuildSystemId::DotNet)
+        );
         assert_eq!(BuildSystemId::from_name("unknown"), None);
     }
 }

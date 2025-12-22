@@ -174,7 +174,7 @@ fn extract_env_vars_from_value(value: &str, env_vars: &mut Vec<String>) {
                 env_vars.push(var_name.clone());
             }
             if ch == ':' {
-                while let Some(ch) = chars.next() {
+                for ch in chars.by_ref() {
                     if ch == '}' {
                         break;
                     }
@@ -250,7 +250,10 @@ spring.application.name=${APP_NAME:myapp}
         assert_eq!(config.port, Some(9090));
         assert!(config.env_vars.contains(&"DATABASE_URL".to_string()));
         assert!(config.env_vars.contains(&"APP_NAME".to_string()));
-        assert_eq!(config.health_endpoint, Some("/management/health".to_string()));
+        assert_eq!(
+            config.health_endpoint,
+            Some("/management/health".to_string())
+        );
     }
 
     #[test]
