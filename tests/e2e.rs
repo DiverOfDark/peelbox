@@ -39,41 +39,12 @@ fn fixture_path(category: &str, name: &str) -> PathBuf {
 }
 
 /// Helper to load expected UniversalBuild(s) from JSON
-/// Tries mode-specific file first (e.g., fixture-static.json), falls back to generic (fixture.json)
-fn load_expected(fixture_name: &str, mode: Option<&str>) -> Option<Vec<UniversalBuild>> {
-    // Try mode-specific file first if mode is provided
-    if let Some(m) = mode {
-        let mode_specific_path =
-            PathBuf::from("tests/fixtures/expected").join(format!("{}-{}.json", fixture_name, m));
-
-        if mode_specific_path.exists() {
-            let content = std::fs::read_to_string(&mode_specific_path).unwrap_or_else(|_| {
-                panic!(
-                    "Failed to read expected JSON: {}",
-                    mode_specific_path.display()
-                )
-            });
-
-            // Try parsing as array of UniversalBuild first (for monorepos)
-            if let Ok(multi) = serde_json::from_str::<Vec<UniversalBuild>>(&content) {
-                return Some(multi);
-            }
-
-            // Fall back to single UniversalBuild
-            if let Ok(single) = serde_json::from_str::<UniversalBuild>(&content) {
-                return Some(vec![single]);
-            }
-
-            panic!(
-                "Failed to parse expected JSON as UniversalBuild: {}",
-                mode_specific_path.display()
-            );
-        }
-    }
-
-    // Fall back to generic expected file
-    let expected_path =
-        PathBuf::from("tests/fixtures/expected").join(format!("{}.json", fixture_name));
+/// Loads universalbuild.json from the fixture directory itself (same for all modes)
+fn load_expected(category: &str, fixture_name: &str, _mode: Option<&str>) -> Option<Vec<UniversalBuild>> {
+    let expected_path = PathBuf::from("tests/fixtures")
+        .join(category)
+        .join(fixture_name)
+        .join("universalbuild.json");
 
     if !expected_path.exists() {
         return None;
@@ -149,8 +120,8 @@ fn run_detection_with_mode(
     Err(format!("Failed to parse output as JSON: {}", stdout))
 }
 
-/// Helper to assert detection results against expected output with mode-specific expectations
-fn assert_detection_with_mode(results: &[UniversalBuild], fixture_name: &str, mode: Option<&str>) {
+/// Helper to assert detection results against expected output
+fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixture_name: &str, mode: Option<&str>) {
     assert!(!results.is_empty(), "Results should not be empty");
 
     assert!(
@@ -164,14 +135,12 @@ fn assert_detection_with_mode(results: &[UniversalBuild], fixture_name: &str, mo
         results[0].metadata.confidence
     );
 
-    // Load and validate against expected JSON (required)
-    let mode_suffix = mode.map(|m| format!("-{}", m)).unwrap_or_default();
-    let mut expected = load_expected(fixture_name, mode).expect(&format!(
-        "Expected JSON file not found for fixture '{}' (mode: {}). Expected file: tests/fixtures/expected/{}{}.json",
+    // Load and validate against expected JSON (required, same for all modes)
+    let mut expected = load_expected(category, fixture_name, mode).expect(&format!(
+        "Expected JSON file not found for fixture '{}'. Expected file: tests/fixtures/{}/{}/universalbuild.json",
         fixture_name,
-        mode.unwrap_or("full"),
-        fixture_name,
-        mode_suffix
+        category,
+        fixture_name
     ));
 
     assert_eq!(
@@ -286,7 +255,7 @@ fn test_single_language(fixture_name: &str, mode: Option<&str>) {
         mode_suffix.replace("-", "_")
     );
     let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
-    assert_detection_with_mode(&results, fixture_name, mode);
+    assert_detection_with_mode(&results, "single-language", fixture_name, mode);
 }
 
 // Monorepo fixtures - all modes
@@ -320,5 +289,5 @@ fn test_monorepo(fixture_name: &str, mode: Option<&str>) {
         mode_suffix.replace("-", "_")
     );
     let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
-    assert_detection_with_mode(&results, fixture_name, mode);
+    assert_detection_with_mode(&results, "monorepo", fixture_name, mode);
 }
