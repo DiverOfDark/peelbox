@@ -51,7 +51,7 @@ impl RootCachePhase {
         // Add cache dirs from workspace root build systems
         for detection in &scan.detections {
             if detection.is_workspace_root {
-                if let Some(build_system) = registry.get_build_system(detection.build_system) {
+                if let Some(build_system) = registry.get_build_system(detection.build_system.clone()) {
                     for cache_dir in build_system.cache_dirs() {
                         root_cache_dirs.insert(PathBuf::from(cache_dir));
                     }
@@ -61,9 +61,9 @@ impl RootCachePhase {
 
         // Add cache dirs from orchestrator (only for actual monorepos with > 1 package and an orchestrator)
         if workspace.packages.len() > 1 {
-            if let Some(orchestrator_id) = workspace.orchestrator {
+            if let Some(orchestrator_id) = &workspace.orchestrator {
                 for orchestrator in registry.all_orchestrators() {
-                    if orchestrator.id() == orchestrator_id {
+                    if &orchestrator.id() == orchestrator_id {
                         for cache_dir in orchestrator.cache_dirs() {
                             root_cache_dirs.insert(PathBuf::from(cache_dir));
                         }

@@ -32,8 +32,9 @@ fn build_llm_prompt(context: &ServiceContext) -> Result<String> {
 
     let framework_info = stack
         .framework
+        .as_ref()
         .map(|fw_id| {
-            let fw = stack_registry.get_framework(fw_id).expect("Framework must exist");
+            let fw = stack_registry.get_framework(fw_id.clone()).expect("Framework must exist");
             format!(
                 "\nFramework: {}\nDefault port: {:?}\nHealth endpoints: {:?}",
                 fw_id.name(),
@@ -121,13 +122,13 @@ impl ServicePhase for RuntimeConfigPhase {
             .ok_or_else(|| anyhow::anyhow!("Stack must be detected before RuntimeConfigPhase"))?;
 
         let stack_registry = context.stack_registry();
-        let runtime = stack_registry.get_runtime(stack.runtime);
+        let runtime = stack_registry.get_runtime(stack.runtime.clone());
 
         let scan = context.scan()?;
         let files = &scan.file_tree;
 
-        let framework = stack.framework.and_then(|fw_id| {
-            stack_registry.get_framework(fw_id)
+        let framework = stack.framework.as_ref().and_then(|fw_id| {
+            stack_registry.get_framework(fw_id.clone())
         });
 
         if let Some(config) = runtime.try_extract(files, framework) {

@@ -2,17 +2,17 @@
 
 ## Phase 1: Extend Enums with Custom Variants
 
-- [ ] 1.1 Add `Custom(String)` variant to `LanguageId` enum in `src/stack/mod.rs`
-- [ ] 1.2 Add `Custom(String)` variant to `BuildSystemId` enum
-- [ ] 1.3 Add `Custom(String)` variant to `FrameworkId` enum
-- [ ] 1.4 Add `Custom(String)` variant to `OrchestratorId` enum
-- [ ] 1.5 Add `Custom(String)` variant to `RuntimeId` enum (NEW)
-- [ ] 1.6 Update `name()` methods to handle `Custom` variant (return inner String)
-- [ ] 1.7 Keep `from_name()` methods unchanged (only used for deserialization, not LLM mapping)
-- [ ] 1.8 Add `#[serde(untagged)]` attribute to all ID enums for backward-compatible JSON
-- [ ] 1.9 Update serialization tests to verify `Custom` variant JSON output
-- [ ] 1.10 Run `cargo test` to identify pattern match compilation errors
-- [ ] 1.11 Fix all non-exhaustive pattern matches to handle `Custom` variant
+- [x] 1.1 Add `Custom(String)` variant to `LanguageId` enum in `src/stack/mod.rs`
+- [x] 1.2 Add `Custom(String)` variant to `BuildSystemId` enum
+- [x] 1.3 Add `Custom(String)` variant to `FrameworkId` enum
+- [x] 1.4 Add `Custom(String)` variant to `OrchestratorId` enum
+- [x] 1.5 Add `Custom(String)` variant to `RuntimeId` enum (NEW)
+- [x] 1.6 Update `name()` methods to handle `Custom` variant (return String instead of &'static str)
+- [x] 1.7 Keep `from_name()` methods unchanged (only used for deserialization, not LLM mapping)
+- [x] 1.8 Implement custom Serialize/Deserialize for all ID enums (replaced #[serde(untagged)] approach)
+- [x] 1.9 Update serialization tests to verify `Custom` variant JSON output
+- [x] 1.10 Run `cargo test` to identify pattern match compilation errors
+- [x] 1.11 Fix all non-exhaustive pattern matches and `.clone()` issues to handle `Custom` variant
 
 ## Phase 2: Extend LLM-Backed Trait Implementations
 

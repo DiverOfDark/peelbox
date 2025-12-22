@@ -97,8 +97,8 @@ impl ServiceAnalysisPhase {
                             .and_then(|n| n.to_str())
                             .unwrap_or("unknown")
                             .to_string(),
-                        language: detection.language,
-                        build_system: detection.build_system,
+                        language: detection.language.clone(),
+                        build_system: detection.build_system.clone(),
                     })
             })
             .collect()

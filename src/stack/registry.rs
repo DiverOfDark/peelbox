@@ -58,8 +58,9 @@ impl StackRegistry {
                 BuildSystemId::Make => Arc::new(MakeBuildSystem),
                 BuildSystemId::Meson => Arc::new(MesonBuildSystem),
                 BuildSystemId::Mix => Arc::new(MixBuildSystem),
+                BuildSystemId::Custom(_) => continue,
             };
-            registry.build_systems.insert(*id, bs);
+            registry.build_systems.insert(id.clone(), bs);
         }
 
         for id in FrameworkId::all_variants() {
@@ -85,8 +86,9 @@ impl StackRegistry {
                 FrameworkId::Laravel => Box::new(LaravelFramework),
                 FrameworkId::Symfony => Box::new(SymfonyFramework),
                 FrameworkId::Phoenix => Box::new(PhoenixFramework),
+                FrameworkId::Custom(_) => continue,
             };
-            registry.frameworks.insert(*id, fw);
+            registry.frameworks.insert(id.clone(), fw);
         }
 
         registry.orchestrators.insert(OrchestratorId::Turborepo, Arc::new(TurborepoOrchestrator));
@@ -125,7 +127,7 @@ impl StackRegistry {
 
         for (id, build_system) in &self.build_systems {
             if build_system.detect(filename, content) {
-                return Some(*id);
+                return Some(id.clone());
             }
         }
         None
@@ -150,7 +152,7 @@ impl StackRegistry {
         for (id, language) in &self.languages {
             if let Some(result) = language.detect(filename, content) {
                 if result.build_system == build_system {
-                    return Some(*id);
+                    return Some(id.clone());
                 }
             }
         }
@@ -172,7 +174,7 @@ impl StackRegistry {
         content: Option<&str>,
     ) -> Option<DetectionStack> {
         let build_system = self.detect_build_system_opt(manifest_path, content)?;
-        let language = self.detect_language_opt(manifest_path, content, build_system)?;
+        let language = self.detect_language_opt(manifest_path, content, build_system.clone())?;
 
         Some(DetectionStack::new(
             build_system,
@@ -256,7 +258,7 @@ impl StackRegistry {
             RuntimeId::DotNet => Box::new(crate::stack::runtime::DotNetRuntime),
             RuntimeId::BEAM => Box::new(crate::stack::runtime::BeamRuntime),
             RuntimeId::Native => Box::new(crate::stack::runtime::NativeRuntime),
-            RuntimeId::LLM => Box::new(crate::stack::runtime::LLMRuntime),
+            RuntimeId::Custom(_) => Box::new(crate::stack::runtime::LLMRuntime),
         }
     }
 }

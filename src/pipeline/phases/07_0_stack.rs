@@ -16,8 +16,8 @@ impl ServicePhase for StackIdentificationPhase {
 
     fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         if let Some(stack) = try_detect_stack(
-            context.service.language,
-            context.service.build_system,
+            context.service.language.clone(),
+            context.service.build_system.clone(),
             &context.service.path,
             &context.service.manifest,
             context.repo_path(),
@@ -44,7 +44,7 @@ fn try_detect_stack(
     repo_path: &std::path::Path,
     stack_registry: &Arc<StackRegistry>,
 ) -> Option<Stack> {
-    let language_def = stack_registry.get_language(language)?;
+    let language_def = stack_registry.get_language(language.clone())?;
     let runtime_name = language_def.runtime_name()?;
     let runtime = RuntimeId::from_name(runtime_name)?;
 
@@ -77,13 +77,13 @@ fn detect_framework(
 
     // Try to match framework dependency patterns
     for fw_id in FrameworkId::all_variants() {
-        if let Some(fw) = stack_registry.get_framework(*fw_id) {
+        if let Some(fw) = stack_registry.get_framework(fw_id.clone()) {
             let patterns = fw.dependency_patterns();
             for pattern in &patterns {
                 if dep_info.external_deps.iter().any(|d| pattern.matches(d))
                     || dep_info.internal_deps.iter().any(|d| pattern.matches(d))
                 {
-                    return Some(*fw_id);
+                    return Some(fw_id.clone());
                 }
             }
         }

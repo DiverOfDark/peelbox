@@ -54,7 +54,7 @@ impl DetectionStack {
         (
             self.build_system.name().to_string(),
             self.language.name().to_string(),
-            self.framework.map(|f| f.name().to_string()),
+            self.framework.as_ref().map(|f| f.name().to_string()),
         )
     }
 }

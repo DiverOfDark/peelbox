@@ -237,7 +237,7 @@ fn deduplicate_detections(
             deduplicated.extend(detections_in_dir);
         } else {
             detections_in_dir.sort_by_key(|d| {
-                let build_system = stack_registry.get_build_system(d.build_system);
+                let build_system = stack_registry.get_build_system(d.build_system.clone());
                 let priority = build_system
                     .and_then(|bs| {
                         bs.manifest_patterns()
@@ -552,7 +552,7 @@ mod tests {
         assert!(scan.detections.len() >= 2);
 
         use crate::stack::LanguageId;
-        let languages: Vec<LanguageId> = scan.detections.iter().map(|d| d.language).collect();
+        let languages: Vec<LanguageId> = scan.detections.iter().map(|d| d.language.clone()).collect();
         assert!(languages.contains(&LanguageId::Rust));
         assert!(languages.contains(&LanguageId::JavaScript));
     }

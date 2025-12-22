@@ -44,7 +44,7 @@ Rules:
 
 fn try_deterministic(service: &Service) -> Option<BuildInfo> {
     let build_system_registry = crate::stack::registry::StackRegistry::with_defaults();
-    let build_system = build_system_registry.get_build_system(service.build_system)?;
+    let build_system = build_system_registry.get_build_system(service.build_system.clone())?;
 
     let template = build_system.build_template();
 

@@ -43,7 +43,7 @@ fn extract_package_metadata(
     stack_registry: &StackRegistry,
 ) -> (String, bool) {
     stack_registry
-        .get_build_system(detection.build_system)
+        .get_build_system(detection.build_system.clone())
         .and_then(|bs| {
             let manifest_path = repo_path.join(&detection.manifest_path);
             std::fs::read_to_string(&manifest_path)
@@ -70,7 +70,7 @@ fn is_workspace_root_manifest(
     };
 
     stack_registry
-        .get_build_system(detection.build_system)
+        .get_build_system(detection.build_system.clone())
         .map(|bs| bs.is_workspace_root(Some(&content)))
         .unwrap_or(false)
 }
@@ -104,7 +104,7 @@ fn try_workspace_build_system(
         return Ok(None);
     };
 
-    let Some(build_system) = stack_registry.get_build_system(detection.build_system) else {
+    let Some(build_system) = stack_registry.get_build_system(detection.build_system.clone()) else {
         return Ok(None);
     };
 

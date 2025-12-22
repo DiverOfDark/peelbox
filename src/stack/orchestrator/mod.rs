@@ -5,7 +5,6 @@
 //! (e.g., Turborepo works with npm/yarn/pnpm).
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Package within a workspace
@@ -50,27 +49,13 @@ pub trait MonorepoOrchestrator: Send + Sync {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum OrchestratorId {
-    Turborepo,
-    Nx,
-    Lerna,
-    Rush,
-}
-
-impl OrchestratorId {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Turborepo => "Turborepo",
-            Self::Nx => "Nx",
-            Self::Lerna => "Lerna",
-            Self::Rush => "Rush",
-        }
-    }
-
-    pub fn all_variants() -> &'static [Self] {
-        &[Self::Turborepo, Self::Nx, Self::Lerna, Self::Rush]
+crate::define_id_enum! {
+    /// Orchestrator identifier with support for LLM-discovered orchestrators
+    OrchestratorId {
+        Turborepo => "turborepo" : "Turborepo",
+        Nx => "nx" : "Nx",
+        Lerna => "lerna" : "Lerna",
+        Rush => "rush" : "Rush",
     }
 }
 

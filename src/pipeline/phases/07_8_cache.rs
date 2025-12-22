@@ -23,7 +23,7 @@ impl ServicePhase for CachePhase {
     fn try_deterministic(&self, context: &mut ServiceContext) -> Result<Option<()>> {
         let build_system = context
             .stack_registry()
-            .get_build_system(context.service.build_system)
+            .get_build_system(context.service.build_system.clone())
             .ok_or_else(|| {
                 anyhow::anyhow!(
                     "Unknown build system: {:?}",

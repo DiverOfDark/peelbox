@@ -70,10 +70,10 @@ fn assemble_single_service(
     root_cache: &RootCacheInfo,
     registry: &StackRegistry,
 ) -> Result<UniversalBuild> {
-    let _language_def = registry.get_language(result.service.language);
+    let _language_def = registry.get_language(result.service.language.clone());
 
     let template = registry
-        .get_build_system(result.service.build_system)
+        .get_build_system(result.service.build_system.clone())
         .map(|bs| bs.build_template());
 
     let project_name = extract_project_name(&result.service);
@@ -91,7 +91,7 @@ fn assemble_single_service(
         .unwrap_or_else(|| "bin/app".to_string());
     let port = runtime_config
         .and_then(|rc| rc.port)
-        .or_else(|| registry.get_language(result.service.language).and_then(|lang| lang.default_port()))
+        .or_else(|| registry.get_language(result.service.language.clone()).and_then(|lang| lang.default_port()))
         .unwrap_or(8080);
     let _env_vars = runtime_config
         .map(|rc| &rc.env_vars)
@@ -106,7 +106,7 @@ fn assemble_single_service(
         project_name: Some(project_name.clone()),
         language: stack.language.name().to_string(),
         build_system: stack.build_system.name().to_string(),
-        framework: stack.framework.map(|fw| fw.name().to_string()),
+        framework: stack.framework.as_ref().map(|fw| fw.name().to_string()),
         confidence,
         reasoning: format!(
             "Detected from {} in {}",

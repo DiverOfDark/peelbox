@@ -70,7 +70,8 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
     ) {
         let lang = match context
             .language
-            .and_then(|id| self.registry.get_language(id))
+            .as_ref()
+            .and_then(|id| self.registry.get_language(id.clone()))
         {
             Some(l) => l,
             None => return,
@@ -128,7 +129,8 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
     ) {
         let language = context
             .language
-            .and_then(|id| self.registry.get_language(id));
+            .as_ref()
+            .and_then(|id| self.registry.get_language(id.clone()));
 
         if let Some(lang) = language {
             for (endpoint, framework) in lang.default_health_endpoints() {

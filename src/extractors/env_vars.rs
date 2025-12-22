@@ -107,7 +107,8 @@ impl<F: FileSystem> EnvVarExtractor<F> {
     ) {
         let lang = match context
             .language
-            .and_then(|id| self.registry.get_language(id))
+            .as_ref()
+            .and_then(|id| self.registry.get_language(id.clone()))
         {
             Some(l) => l,
             None => return,
