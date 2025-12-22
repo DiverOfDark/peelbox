@@ -39,7 +39,7 @@ fn try_detect_stack(
 ) -> Option<Stack> {
     let language_def = stack_registry.get_language(language.clone())?;
     let runtime_name = language_def.runtime_name()?;
-    let runtime = RuntimeId::from_name(runtime_name)?;
+    let runtime = RuntimeId::from_name(&runtime_name)?;
 
     let framework = detect_framework(service_path, manifest_name, repo_path, stack_registry);
 

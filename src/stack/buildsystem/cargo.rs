@@ -11,9 +11,9 @@ impl BuildSystem for CargoBuildSystem {
         crate::stack::BuildSystemId::Cargo
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "Cargo.toml",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "Cargo.toml".to_string(),
             priority: 10,
         }]
     }

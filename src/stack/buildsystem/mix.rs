@@ -9,9 +9,9 @@ impl BuildSystem for MixBuildSystem {
         crate::stack::BuildSystemId::Mix
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "mix.exs",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "mix.exs".to_string(),
             priority: 10,
         }]
     }

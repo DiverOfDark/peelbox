@@ -9,12 +9,12 @@ impl Framework for SpringBootFramework {
         crate::stack::FrameworkId::SpringBoot
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Java", "Kotlin"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Java".to_string(), "Kotlin".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["maven", "gradle"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["maven".to_string(), "gradle".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -41,18 +41,18 @@ impl Framework for SpringBootFramework {
         &[8080]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &[
-            "/actuator/health",
-            "/actuator/health/liveness",
-            "/actuator/health/readiness",
+    fn health_endpoints(&self) -> Vec<String> {
+        vec![
+            "/actuator/health".to_string(),
+            "/actuator/health/liveness".to_string(),
+            "/actuator/health/readiness".to_string(),
         ]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"SERVER_PORT\s*=\s*(\d+)", "Spring Boot server.port"),
-            (r"SPRING_PROFILES_ACTIVE\s*=\s*(\w+)", "Spring profiles"),
+            (r"SERVER_PORT\s*=\s*(\d+)".to_string(), "Spring Boot server.port".to_string()),
+            (r"SPRING_PROFILES_ACTIVE\s*=\s*(\w+)".to_string(), "Spring profiles".to_string()),
         ]
     }
 
@@ -196,10 +196,10 @@ mod tests {
     fn test_spring_boot_compatibility() {
         let framework = SpringBootFramework;
 
-        assert!(framework.compatible_languages().contains(&"Java"));
-        assert!(framework.compatible_languages().contains(&"Kotlin"));
-        assert!(framework.compatible_build_systems().contains(&"maven"));
-        assert!(framework.compatible_build_systems().contains(&"gradle"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Java"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
     }
 
     #[test]
@@ -223,8 +223,8 @@ mod tests {
         let framework = SpringBootFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/actuator/health"));
-        assert!(endpoints.contains(&"/actuator/health/liveness"));
+        assert!(endpoints.iter().any(|s| s == "/actuator/health"));
+        assert!(endpoints.iter().any(|s| s == "/actuator/health/liveness"));
     }
 
     #[test]
@@ -286,8 +286,8 @@ spring:
         let framework = SpringBootFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"application.properties"));
-        assert!(files.contains(&"application.yml"));
-        assert!(files.contains(&"application.yaml"));
+        assert!(files.iter().any(|s| *s == "application.properties"));
+        assert!(files.iter().any(|s| *s == "application.yml"));
+        assert!(files.iter().any(|s| *s == "application.yaml"));
     }
 }

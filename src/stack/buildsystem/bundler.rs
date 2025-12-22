@@ -9,9 +9,9 @@ impl BuildSystem for BundlerBuildSystem {
         crate::stack::BuildSystemId::Bundler
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "Gemfile",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "Gemfile".to_string(),
             priority: 10,
         }]
     }

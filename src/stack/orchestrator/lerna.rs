@@ -13,8 +13,8 @@ impl MonorepoOrchestrator for LernaOrchestrator {
         OrchestratorId::Lerna
     }
 
-    fn config_files(&self) -> &[&str] {
-        &["lerna.json"]
+    fn config_files(&self) -> Vec<String> {
+        vec!["lerna.json".to_string()]
     }
 
     fn detect(&self, config_file: &str, _content: Option<&str>) -> bool {

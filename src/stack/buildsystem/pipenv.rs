@@ -9,9 +9,9 @@ impl BuildSystem for PipenvBuildSystem {
         crate::stack::BuildSystemId::Pipenv
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "Pipfile",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "Pipfile".to_string(),
             priority: 10,
         }]
     }

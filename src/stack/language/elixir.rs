@@ -10,8 +10,8 @@ impl LanguageDefinition for ElixirLanguage {
         crate::stack::LanguageId::Elixir
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["ex", "exs"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["ex".to_string(), "exs".to_string()]
     }
 
     fn detect(
@@ -40,16 +40,16 @@ impl LanguageDefinition for ElixirLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["mix"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["mix".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["_build", "deps", "cover", ".elixir_ls"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["_build".to_string(), "deps".to_string(), "cover".to_string(), ".elixir_ls".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -124,32 +124,32 @@ impl LanguageDefinition for ElixirLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![(
-            r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)["']"#,
-            "System.get_env",
+            r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
+            "System.get_env".to_string(),
         )]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"port:\s*(\d{4,5})"#, "config"),
+            (r#"port:\s*(\d{4,5})"#.to_string(), "config".to_string()),
             (
-                r#"Plug\.Cowboy\.http\([^,)]*,\s*port:\s*(\d{4,5})"#,
-                "Plug.Cowboy",
+                r#"Plug\.Cowboy\.http\([^,)]*,\s*port:\s*(\d{4,5})"#.to_string(),
+                "Plug.Cowboy".to_string(),
             ),
         ]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
+    fn default_env_vars(&self) -> Vec<String> {
         vec![]
     }
 
@@ -169,8 +169,8 @@ impl LanguageDefinition for ElixirLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("elixir")
+    fn runtime_name(&self) -> Option<String> {
+        Some("elixir".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -193,8 +193,8 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = ElixirLanguage;
-        assert!(lang.extensions().contains(&"ex"));
-        assert!(lang.extensions().contains(&"exs"));
+        assert!(lang.extensions().iter().any(|s| s == "ex"));
+        assert!(lang.extensions().iter().any(|s| s == "exs"));
     }
 
     #[test]
@@ -234,14 +234,14 @@ end
     #[test]
     fn test_compatible_build_systems() {
         let lang = ElixirLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["mix"]);
+        assert_eq!(lang.compatible_build_systems(), vec!["mix".to_string()]);
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = ElixirLanguage;
-        assert!(lang.excluded_dirs().contains(&"_build"));
-        assert!(lang.excluded_dirs().contains(&"deps"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "_build"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "deps"));
     }
 
     #[test]

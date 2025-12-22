@@ -27,7 +27,7 @@ pub trait MonorepoOrchestrator: Send + Sync {
     fn id(&self) -> OrchestratorId;
 
     /// Configuration files that indicate this orchestrator is in use
-    fn config_files(&self) -> &[&str];
+    fn config_files(&self) -> Vec<String>;
 
     /// Detect if this orchestrator is present based on file existence
     fn detect(&self, config_file: &str, content: Option<&str>) -> bool;

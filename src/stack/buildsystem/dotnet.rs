@@ -11,22 +11,22 @@ impl BuildSystem for DotNetBuildSystem {
         crate::stack::BuildSystemId::DotNet
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "*.csproj",
+                filename: "*.csproj".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "*.fsproj",
+                filename: "*.fsproj".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "*.vbproj",
+                filename: "*.vbproj".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "*.sln",
+                filename: "*.sln".to_string(),
                 priority: 8,
             },
         ]
@@ -81,8 +81,8 @@ impl BuildSystem for DotNetBuildSystem {
         }
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["*.sln"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["*.sln".to_string()]
     }
 
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {

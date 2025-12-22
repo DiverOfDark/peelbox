@@ -9,14 +9,14 @@ impl BuildSystem for BunBuildSystem {
         crate::stack::BuildSystemId::Bun
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "bun.lockb",
+                filename: "bun.lockb".to_string(),
                 priority: 15,
             },
             ManifestPattern {
-                filename: "package.json",
+                filename: "package.json".to_string(),
                 priority: 10,
             },
         ]

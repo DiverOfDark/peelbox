@@ -67,10 +67,10 @@ pub trait Framework: Send + Sync {
     fn id(&self) -> crate::stack::FrameworkId;
 
     /// Compatible language names (e.g., ["Java", "Kotlin"] for Spring Boot)
-    fn compatible_languages(&self) -> &[&str];
+    fn compatible_languages(&self) -> Vec<String>;
 
     /// Compatible build system names (e.g., ["maven", "gradle"] for Spring Boot)
-    fn compatible_build_systems(&self) -> &[&str];
+    fn compatible_build_systems(&self) -> Vec<String>;
 
     /// Dependency patterns for framework detection
     fn dependency_patterns(&self) -> Vec<DependencyPattern>;
@@ -79,10 +79,10 @@ pub trait Framework: Send + Sync {
     fn default_ports(&self) -> &[u16];
 
     /// Health check endpoints (e.g., ["/actuator/health"] for Spring Boot)
-    fn health_endpoints(&self) -> &[&str];
+    fn health_endpoints(&self) -> Vec<String>;
 
     /// Environment variable patterns (regex, description)
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![]
     }
 

@@ -9,12 +9,12 @@ impl Framework for ExpressFramework {
         crate::stack::FrameworkId::Express
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["JavaScript", "TypeScript"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["JavaScript".to_string(), "TypeScript".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["npm", "yarn", "pnpm", "bun"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["npm".to_string(), "yarn".to_string(), "pnpm".to_string(), "bun".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for ExpressFramework {
         &[3000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz", "/ping"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string(), "/ping".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"PORT\s*=\s*(\d+)", "Express port"),
-            (r"NODE_ENV\s*=\s*(\w+)", "Node environment"),
+            (r"PORT\s*=\s*(\d+)".to_string(), "Express port".to_string()),
+            (r"NODE_ENV\s*=\s*(\w+)".to_string(), "Node environment".to_string()),
         ]
     }
 
@@ -149,11 +149,11 @@ mod tests {
     fn test_express_compatibility() {
         let framework = ExpressFramework;
 
-        assert!(framework.compatible_languages().contains(&"JavaScript"));
-        assert!(framework.compatible_languages().contains(&"TypeScript"));
-        assert!(framework.compatible_build_systems().contains(&"npm"));
-        assert!(framework.compatible_build_systems().contains(&"yarn"));
-        assert!(framework.compatible_build_systems().contains(&"pnpm"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "JavaScript"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "TypeScript"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "npm"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "yarn"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "pnpm"));
     }
 
     #[test]
@@ -177,8 +177,8 @@ mod tests {
         let framework = ExpressFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/healthz"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/healthz"));
     }
 
     #[test]
@@ -216,8 +216,8 @@ app.listen(PORT, () => {
         let framework = ExpressFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"server.js"));
-        assert!(files.contains(&"app.js"));
-        assert!(files.contains(&"index.js"));
+        assert!(files.iter().any(|s| *s == "server.js"));
+        assert!(files.iter().any(|s| *s == "app.js"));
+        assert!(files.iter().any(|s| *s == "index.js"));
     }
 }

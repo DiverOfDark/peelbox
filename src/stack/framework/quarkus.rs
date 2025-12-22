@@ -9,12 +9,12 @@ impl Framework for QuarkusFramework {
         crate::stack::FrameworkId::Quarkus
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Java", "Kotlin"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Java".to_string(), "Kotlin".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["maven", "gradle"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["maven".to_string(), "gradle".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,14 +36,14 @@ impl Framework for QuarkusFramework {
         &[8080]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/q/health", "/q/health/live", "/q/health/ready"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/q/health".to_string(), "/q/health/live".to_string(), "/q/health/ready".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"QUARKUS_HTTP_PORT\s*=\s*(\d+)", "Quarkus HTTP port"),
-            (r"QUARKUS_PROFILE\s*=\s*(\w+)", "Quarkus profile"),
+            (r"QUARKUS_HTTP_PORT\s*=\s*(\d+)".to_string(), "Quarkus HTTP port".to_string()),
+            (r"QUARKUS_PROFILE\s*=\s*(\w+)".to_string(), "Quarkus profile".to_string()),
         ]
     }
 }
@@ -57,10 +57,10 @@ mod tests {
     fn test_quarkus_compatibility() {
         let framework = QuarkusFramework;
 
-        assert!(framework.compatible_languages().contains(&"Java"));
-        assert!(framework.compatible_languages().contains(&"Kotlin"));
-        assert!(framework.compatible_build_systems().contains(&"maven"));
-        assert!(framework.compatible_build_systems().contains(&"gradle"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Java"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
     }
 
     #[test]
@@ -84,8 +84,8 @@ mod tests {
         let framework = QuarkusFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/q/health"));
-        assert!(endpoints.contains(&"/q/health/live"));
+        assert!(endpoints.iter().any(|s| s == "/q/health"));
+        assert!(endpoints.iter().any(|s| s == "/q/health/live"));
     }
 
     #[test]

@@ -10,14 +10,14 @@ impl BuildSystem for YarnBuildSystem {
         crate::stack::BuildSystemId::Yarn
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "yarn.lock",
+                filename: "yarn.lock".to_string(),
                 priority: 15,
             },
             ManifestPattern {
-                filename: "package.json",
+                filename: "package.json".to_string(),
                 priority: 10,
             },
         ]
@@ -64,8 +64,8 @@ impl BuildSystem for YarnBuildSystem {
         }
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["lerna.json", "nx.json", "turbo.json"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["lerna.json".to_string(), "nx.json".to_string(), "turbo.json".to_string()]
     }
 
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {

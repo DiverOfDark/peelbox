@@ -9,14 +9,14 @@ impl BuildSystem for ComposerBuildSystem {
         crate::stack::BuildSystemId::Composer
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "composer.json",
+                filename: "composer.json".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "composer.lock",
+                filename: "composer.lock".to_string(),
                 priority: 12,
             },
         ]

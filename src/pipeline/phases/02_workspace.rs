@@ -151,7 +151,7 @@ fn detect_workspace_structure(
     for orchestrator in stack_registry.all_orchestrators() {
         for config_file in orchestrator.config_files() {
             if scan
-                .find_files_by_name(config_file)
+                .find_files_by_name(&config_file)
                 .iter()
                 .any(|f| f.parent().unwrap_or(repo_path) == repo_path)
             {

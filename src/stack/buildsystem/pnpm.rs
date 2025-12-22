@@ -10,14 +10,14 @@ impl BuildSystem for PnpmBuildSystem {
         crate::stack::BuildSystemId::Pnpm
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "pnpm-lock.yaml",
+                filename: "pnpm-lock.yaml".to_string(),
                 priority: 15,
             },
             ManifestPattern {
-                filename: "package.json",
+                filename: "package.json".to_string(),
                 priority: 10,
             },
         ]
@@ -65,8 +65,8 @@ impl BuildSystem for PnpmBuildSystem {
         }
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["pnpm-workspace.yaml", "turbo.json"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["pnpm-workspace.yaml".to_string(), "turbo.json".to_string()]
     }
 
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {

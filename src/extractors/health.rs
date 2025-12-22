@@ -78,13 +78,17 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
         };
 
         let patterns = lang.health_check_patterns();
+        let pattern_refs: Vec<(&str, &str)> = patterns
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
         let dir_path = &context.path;
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
             lang,
             |file_path| {
-                self.extract_health_checks_from_file(file_path, &patterns, health_checks, seen);
+                self.extract_health_checks_from_file(file_path, &pattern_refs, health_checks, seen);
             },
         );
     }

@@ -14,8 +14,8 @@ impl LanguageDefinition for PythonLanguage {
         crate::stack::LanguageId::Python
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["py", "pyi", "pyw"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["py".to_string(), "pyi".to_string(), "pyw".to_string()]
     }
 
     fn detect(
@@ -69,26 +69,26 @@ impl LanguageDefinition for PythonLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["pip", "poetry", "pipenv"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &[
-            "__pycache__",
-            ".venv",
-            "venv",
-            ".tox",
-            ".pytest_cache",
-            ".mypy_cache",
-            "dist",
-            "build",
-            "*.egg-info",
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec![
+            "__pycache__".to_string(),
+            ".venv".to_string(),
+            "venv".to_string(),
+            ".tox".to_string(),
+            ".pytest_cache".to_string(),
+            ".mypy_cache".to_string(),
+            "dist".to_string(),
+            "build".to_string(),
+            "*.egg-info".to_string(),
         ]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -137,53 +137,35 @@ impl LanguageDefinition for PythonLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (
-                r#"os\.environ\.get\(["']([A-Z_][A-Z0-9_]*)["']"#,
-                "os.environ",
-            ),
-            (r#"os\.getenv\(["']([A-Z_][A-Z0-9_]*)["']"#, "os.getenv"),
+            (r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "os.environ.get".to_string()),
+            (r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "os.getenv".to_string()),
         ]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"@app\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Flask"),
-            (r#"@app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "FastAPI"),
+            (r"@app\.route.*:(\d{4,5})".to_string(), "Flask route decorator".to_string()),
+            (r"app\.run\(.*port\s*=\s*(\d{4,5})".to_string(), "app.run()".to_string()),
+            (r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})".to_string(), "uvicorn.run()".to_string()),
         ]
     }
 
-    fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
-        if let Some(filename) = file_path.file_name().and_then(|f| f.to_str()) {
-            let entry_files = ["main.py", "app.py", "server.py", "__main__.py", "run.py"];
-            entry_files.contains(&filename)
-        } else {
-            false
-        }
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![
-            ("/health", "FastAPI/Flask"),
-            ("/api/health", "FastAPI/Flask"),
-        ]
-    }
-
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![
-            (r"@app\.route.*:(\d{4,5})", "Flask route decorator"),
-            (r"app\.run\(.*port\s*=\s*(\d{4,5})", "app.run()"),
-            (r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})", "uvicorn.run()"),
-        ]
-    }
-
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("python")
+    fn runtime_name(&self) -> Option<String> {
+        Some("python".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
         Some(8000)
+    }
+
+    fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
+        if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+            ext == "py" || ext == "pyw" || ext == "pyi"
+        } else {
+            false
+        }
     }
 
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
@@ -207,8 +189,8 @@ impl PythonLanguage {
 
         if let Some(tool) = parsed.get("tool").and_then(|t| t.as_table()) {
             if let Some(poetry) = tool.get("poetry").and_then(|p| p.as_table()) {
-                for dep_section in &["dependencies", "dev-dependencies"] {
-                    if let Some(deps) = poetry.get(*dep_section).and_then(|d| d.as_table()) {
+                for dep_section in vec!["dependencies".to_string(), "dev-dependencies".to_string()] {
+                    if let Some(deps) = poetry.get(&dep_section).and_then(|d| d.as_table()) {
                         for (name, value) in deps {
                             if name == "python" || seen.contains(name) {
                                 continue;
@@ -261,7 +243,7 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = PythonLanguage;
-        assert!(lang.extensions().contains(&"py"));
+        assert!(lang.extensions().iter().any(|s| s == "py"));
     }
 
     #[test]
@@ -316,16 +298,16 @@ version = "0.1.0"
     fn test_compatible_build_systems() {
         let lang = PythonLanguage;
         let systems = lang.compatible_build_systems();
-        assert!(systems.contains(&"pip"));
-        assert!(systems.contains(&"poetry"));
-        assert!(systems.contains(&"pipenv"));
+        assert!(systems.iter().any(|s| s == "pip"));
+        assert!(systems.iter().any(|s| s == "poetry"));
+        assert!(systems.iter().any(|s| s == "pipenv"));
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = PythonLanguage;
-        assert!(lang.excluded_dirs().contains(&"__pycache__"));
-        assert!(lang.excluded_dirs().contains(&".venv"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "__pycache__"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == ".venv"));
     }
 
     #[test]

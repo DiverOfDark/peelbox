@@ -9,12 +9,12 @@ impl Framework for PhoenixFramework {
         crate::stack::FrameworkId::Phoenix
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Elixir"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Elixir".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["mix"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["mix".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for PhoenixFramework {
         &[4000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/api/health"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/api/health".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"PHX_HOST\s*=\s*(\S+)", "Phoenix host"),
-            (r"PORT\s*=\s*(\d+)", "Phoenix port"),
+            (r"PHX_HOST\s*=\s*(\S+)".to_string(), "Phoenix host".to_string()),
+            (r"PORT\s*=\s*(\d+)".to_string(), "Phoenix port".to_string()),
         ]
     }
 
@@ -114,8 +114,8 @@ mod tests {
     #[test]
     fn test_phoenix_compatibility() {
         let framework = PhoenixFramework;
-        assert!(framework.compatible_languages().contains(&"Elixir"));
-        assert!(framework.compatible_build_systems().contains(&"mix"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Elixir"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "mix"));
     }
 
     #[test]
@@ -166,7 +166,7 @@ config :my_app, MyAppWeb.Endpoint,
         let framework = PhoenixFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"config/runtime.exs"));
-        assert!(files.contains(&"config/prod.exs"));
+        assert!(files.iter().any(|s| *s == "config/runtime.exs"));
+        assert!(files.iter().any(|s| *s == "config/prod.exs"));
     }
 }

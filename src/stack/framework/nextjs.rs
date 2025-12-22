@@ -9,12 +9,12 @@ impl Framework for NextJsFramework {
         crate::stack::FrameworkId::NextJs
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["JavaScript", "TypeScript"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["JavaScript".to_string(), "TypeScript".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["npm", "yarn", "pnpm", "bun"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["npm".to_string(), "yarn".to_string(), "pnpm".to_string(), "bun".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for NextJsFramework {
         &[3000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/api/health", "/health"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/api/health".to_string(), "/health".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"PORT\s*=\s*(\d+)", "Next.js port"),
-            (r"NODE_ENV\s*=\s*(\w+)", "Node environment"),
+            (r"PORT\s*=\s*(\d+)".to_string(), "Next.js port".to_string()),
+            (r"NODE_ENV\s*=\s*(\w+)".to_string(), "Node environment".to_string()),
         ]
     }
 
@@ -119,11 +119,11 @@ mod tests {
     fn test_nextjs_compatibility() {
         let framework = NextJsFramework;
 
-        assert!(framework.compatible_languages().contains(&"JavaScript"));
-        assert!(framework.compatible_languages().contains(&"TypeScript"));
-        assert!(framework.compatible_build_systems().contains(&"npm"));
-        assert!(framework.compatible_build_systems().contains(&"yarn"));
-        assert!(framework.compatible_build_systems().contains(&"pnpm"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "JavaScript"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "TypeScript"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "npm"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "yarn"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "pnpm"));
     }
 
     #[test]
@@ -147,8 +147,8 @@ mod tests {
         let framework = NextJsFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/api/health"));
-        assert!(endpoints.contains(&"/health"));
+        assert!(endpoints.iter().any(|s| s == "/api/health"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
     }
 
     #[test]
@@ -187,7 +187,7 @@ module.exports = nextConfig
         let framework = NextJsFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"next.config.js"));
-        assert!(files.contains(&"next.config.ts"));
+        assert!(files.iter().any(|s| *s == "next.config.js"));
+        assert!(files.iter().any(|s| *s == "next.config.ts"));
     }
 }

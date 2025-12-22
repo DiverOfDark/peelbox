@@ -115,13 +115,17 @@ impl<F: FileSystem> EnvVarExtractor<F> {
         };
 
         let patterns = lang.env_var_patterns();
+        let pattern_refs: Vec<(&str, &str)> = patterns
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
         let dir_path = &context.path;
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
             lang,
             |file_path| {
-                self.extract_env_vars_from_file(file_path, &patterns, env_vars);
+                self.extract_env_vars_from_file(file_path, &pattern_refs, env_vars);
             },
         );
     }

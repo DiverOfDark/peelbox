@@ -15,8 +15,8 @@ impl LanguageDefinition for RustLanguage {
         crate::stack::LanguageId::Rust
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["rs"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["rs".to_string()]
     }
 
     fn detect(
@@ -42,12 +42,12 @@ impl LanguageDefinition for RustLanguage {
         })
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["cargo"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["cargo".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["target", ".cargo"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["target".to_string(), ".cargo".to_string()]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -97,24 +97,24 @@ impl LanguageDefinition for RustLanguage {
         .parse(manifest_content, all_internal_paths)
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#, "std::env"),
-            (r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#, "env::var"),
+            (r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "std::env".to_string()),
+            (r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "env::var".to_string()),
         ]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"\.bind\([^,)]*:(\d{4,5})", "bind()"),
-            (r#"addr\s*=\s*"[^:]*:(\d{4,5})""#, "addr config"),
+            (r"\.bind\([^,)]*:(\d{4,5})".to_string(), "bind()".to_string()),
+            (r#"addr\s*=\s*"[^:]*:(\d{4,5})""#.to_string(), "addr config".to_string()),
         ]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "axum/actix"),
-            (r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "rocket/warp"),
+            (r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "axum/actix".to_string()),
+            (r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "rocket/warp".to_string()),
         ]
     }
 
@@ -139,8 +139,8 @@ impl LanguageDefinition for RustLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("rust")
+    fn runtime_name(&self) -> Option<String> {
+        Some("rust".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = RustLanguage;
-        assert_eq!(lang.extensions(), &["rs"]);
+        assert_eq!(lang.extensions(), vec!["rs".to_string()]);
     }
 
     #[test]
@@ -221,7 +221,7 @@ members = ["crate1", "crate2"]
     #[test]
     fn test_compatible_build_systems() {
         let lang = RustLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["cargo"]);
+        assert_eq!(lang.compatible_build_systems(), vec!["cargo".to_string()]);
     }
 
     #[test]

@@ -13,8 +13,8 @@ impl MonorepoOrchestrator for NxOrchestrator {
         OrchestratorId::Nx
     }
 
-    fn config_files(&self) -> &[&str] {
-        &["nx.json"]
+    fn config_files(&self) -> Vec<String> {
+        vec!["nx.json".to_string()]
     }
 
     fn detect(&self, config_file: &str, _content: Option<&str>) -> bool {

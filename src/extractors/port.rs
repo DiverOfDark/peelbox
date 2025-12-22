@@ -86,13 +86,18 @@ impl<F: FileSystem> PortExtractor<F> {
             return;
         }
 
+        let pattern_refs: Vec<(&str, &str)> = patterns
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
+
         let dir_path = &context.path;
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
             lang,
             |file_path| {
-                self.extract_ports_from_file(file_path, &patterns, ports, seen);
+                self.extract_ports_from_file(file_path, &pattern_refs, ports, seen);
             },
         );
     }

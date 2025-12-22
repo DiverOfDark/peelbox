@@ -9,12 +9,12 @@ impl Framework for GinFramework {
         crate::stack::FrameworkId::Gin
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Go"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Go".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["go"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["go".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for GinFramework {
         &[8080]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz", "/ping"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string(), "/ping".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"GIN_MODE\s*=\s*(\w+)", "Gin mode"),
-            (r"PORT\s*=\s*(\d+)", "Server port"),
+            (r"GIN_MODE\s*=\s*(\w+)".to_string(), "Gin mode".to_string()),
+            (r"PORT\s*=\s*(\d+)".to_string(), "Server port".to_string()),
         ]
     }
 }
@@ -49,8 +49,8 @@ mod tests {
     #[test]
     fn test_gin_compatibility() {
         let framework = GinFramework;
-        assert!(framework.compatible_languages().contains(&"Go"));
-        assert!(framework.compatible_build_systems().contains(&"go"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Go"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "go"));
     }
 
     #[test]

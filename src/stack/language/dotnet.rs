@@ -10,8 +10,8 @@ impl LanguageDefinition for DotNetLanguage {
         crate::stack::LanguageId::CSharp
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["cs", "fs", "vb"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["cs".to_string(), "fs".to_string(), "vb".to_string()]
     }
 
     fn detect(
@@ -41,16 +41,16 @@ impl LanguageDefinition for DotNetLanguage {
         })
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["dotnet"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["dotnet".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["bin", "obj", ".nuget"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["bin".to_string(), "obj".to_string(), ".nuget".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -141,32 +141,32 @@ impl LanguageDefinition for DotNetLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![(
-            r#"Environment\.GetEnvironmentVariable\("([A-Z_][A-Z0-9_]*)""#,
-            "Environment.GetEnvironmentVariable",
+            r#"Environment\.GetEnvironmentVariable\("([A-Z_][A-Z0-9_]*)""#.to_string(),
+            "Environment.GetEnvironmentVariable".to_string(),
         )]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"UseUrls\([^:)]*:(\d{4,5})"#, "UseUrls()"),
+            (r#"UseUrls\([^:)]*:(\d{4,5})"#.to_string(), "UseUrls()".to_string()),
             (
-                r#"ApplicationUrl['"]\s*=\s*[^:]*:(\d{4,5})"#,
-                "ApplicationUrl",
+                r#"ApplicationUrl['"]\s*=\s*[^:]*:(\d{4,5})"#.to_string(),
+                "ApplicationUrl".to_string(),
             ),
         ]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "ASP.NET")]
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "ASP.NET".to_string())]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![("/health", "ASP.NET Core")]
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
+        vec![("/health".to_string(), "ASP.NET Core".to_string())]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
+    fn default_env_vars(&self) -> Vec<String> {
         vec![]
     }
 
@@ -186,8 +186,8 @@ impl LanguageDefinition for DotNetLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("dotnet")
+    fn runtime_name(&self) -> Option<String> {
+        Some("dotnet".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -210,8 +210,8 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = DotNetLanguage;
-        assert!(lang.extensions().contains(&"cs"));
-        assert!(lang.extensions().contains(&"fs"));
+        assert!(lang.extensions().iter().any(|s| s == "cs"));
+        assert!(lang.extensions().iter().any(|s| s == "fs"));
     }
 
     #[test]
@@ -250,15 +250,15 @@ mod tests {
     #[test]
     fn test_compatible_build_systems() {
         let lang = DotNetLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["dotnet"]);
+        assert_eq!(lang.compatible_build_systems(), vec!["dotnet".to_string()]);
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = DotNetLanguage;
-        assert!(lang.excluded_dirs().contains(&"bin"));
-        assert!(lang.excluded_dirs().contains(&"obj"));
-        assert!(lang.excluded_dirs().contains(&".nuget"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "bin"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "obj"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == ".nuget"));
     }
 
     #[test]

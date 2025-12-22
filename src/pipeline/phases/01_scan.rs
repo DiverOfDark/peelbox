@@ -244,7 +244,7 @@ fn deduplicate_detections(
                             .iter()
                             .find(|p| {
                                 d.manifest_path.file_name()
-                                    == Some(std::ffi::OsStr::new(p.filename))
+                                    == Some(std::ffi::OsStr::new(&p.filename))
                             })
                             .map(|p| p.priority)
                     })

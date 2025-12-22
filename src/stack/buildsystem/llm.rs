@@ -37,8 +37,21 @@ impl BuildSystem for LLMBuildSystem {
             .unwrap_or_else(|| BuildSystemId::Custom("Unknown".to_string()))
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[]
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| {
+                info.manifest_files
+                    .iter()
+                    .map(|name| ManifestPattern {
+                        filename: name.clone(),
+                        priority: 50,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {

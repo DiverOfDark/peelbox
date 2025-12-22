@@ -275,26 +275,26 @@ impl StackRegistry {
         false
     }
 
-    pub fn all_excluded_dirs(&self) -> Vec<&str> {
+    pub fn all_excluded_dirs(&self) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();
         let mut result = Vec::new();
         for lang in self.languages.values() {
             for dir in lang.excluded_dirs() {
-                if seen.insert(*dir) {
-                    result.push(*dir);
+                if seen.insert(dir.clone()) {
+                    result.push(dir);
                 }
             }
         }
         result
     }
 
-    pub fn all_workspace_configs(&self) -> Vec<&str> {
+    pub fn all_workspace_configs(&self) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();
         let mut result = Vec::new();
         for lang in self.languages.values() {
             for config in lang.workspace_configs() {
-                if seen.insert(*config) {
-                    result.push(*config);
+                if seen.insert(config.clone()) {
+                    result.push(config);
                 }
             }
         }

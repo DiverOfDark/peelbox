@@ -9,9 +9,9 @@ impl BuildSystem for MakeBuildSystem {
         crate::stack::BuildSystemId::Make
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "Makefile",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "Makefile".to_string(),
             priority: 8,
         }]
     }
@@ -37,7 +37,7 @@ impl BuildSystem for MakeBuildSystem {
         vec![]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 }

@@ -9,9 +9,9 @@ impl BuildSystem for GoModBuildSystem {
         crate::stack::BuildSystemId::GoMod
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "go.mod",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "go.mod".to_string(),
             priority: 10,
         }]
     }
@@ -47,7 +47,7 @@ impl BuildSystem for GoModBuildSystem {
     fn cache_dirs(&self) -> Vec<String> {
         vec![".cache/go-build".to_string()]
     }
-    fn workspace_configs(&self) -> &[&str] {
-        &["go.work"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["go.work".to_string()]
     }
 }

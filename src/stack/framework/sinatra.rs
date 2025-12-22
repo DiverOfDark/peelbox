@@ -9,12 +9,12 @@ impl Framework for SinatraFramework {
         crate::stack::FrameworkId::Sinatra
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Ruby"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Ruby".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["bundler"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["bundler".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,12 +29,12 @@ impl Framework for SinatraFramework {
         &[4567]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r"PORT\s*=\s*(\d+)", "Server port")]
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        vec![(r"PORT\s*=\s*(\d+)".to_string(), "Server port".to_string())]
     }
 }
 
@@ -46,8 +46,8 @@ mod tests {
     #[test]
     fn test_sinatra_compatibility() {
         let framework = SinatraFramework;
-        assert!(framework.compatible_languages().contains(&"Ruby"));
-        assert!(framework.compatible_build_systems().contains(&"bundler"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Ruby"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "bundler"));
     }
 
     #[test]

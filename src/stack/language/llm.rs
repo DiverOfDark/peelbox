@@ -9,6 +9,11 @@ struct LanguageInfo {
     name: String,
     file_extensions: Vec<String>,
     package_managers: Vec<String>,
+    excluded_dirs: Vec<String>,
+    workspace_configs: Vec<String>,
+    env_vars: Vec<String>,
+    health_endpoints: Vec<String>,
+    default_port: Option<u16>,
     confidence: f32,
 }
 
@@ -36,8 +41,62 @@ impl LanguageDefinition for LLMLanguage {
             .unwrap_or_else(|| LanguageId::Custom("Unknown".to_string()))
     }
 
-    fn extensions(&self) -> &[&str] {
-        &[]
+    fn extensions(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.file_extensions.clone())
+            .unwrap_or_default()
+    }
+
+    fn excluded_dirs(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.excluded_dirs.clone())
+            .unwrap_or_default()
+    }
+
+    fn workspace_configs(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.workspace_configs.clone())
+            .unwrap_or_default()
+    }
+
+    fn default_env_vars(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.env_vars.clone())
+            .unwrap_or_default()
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| {
+                info.health_endpoints
+                    .iter()
+                    .map(|endpoint| (endpoint.clone(), "GET".to_string()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|info| info.default_port)
     }
 
     fn detect(
@@ -61,6 +120,11 @@ Response format:
   "name": "LanguageName",
   "file_extensions": [".ext"],
   "package_managers": ["manager1"],
+  "excluded_dirs": ["node_modules", "target"],
+  "workspace_configs": ["package.json"],
+  "env_vars": ["PORT", "NODE_ENV"],
+  "health_endpoints": ["/health", "/ready"],
+  "default_port": 3000,
   "confidence": 0.95
 }}
 "#,
@@ -92,8 +156,13 @@ Response format:
         })
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &[]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.package_managers.clone())
+            .unwrap_or_default()
     }
 
     fn parse_dependencies(
@@ -127,6 +196,11 @@ mod tests {
             name: "Zig".to_string(),
             file_extensions: vec![".zig".to_string()],
             package_managers: vec!["zig".to_string()],
+            excluded_dirs: vec!["zig-out".to_string(), "zig-cache".to_string()],
+            workspace_configs: vec!["build.zig".to_string()],
+            env_vars: vec!["ZIG_PATH".to_string()],
+            health_endpoints: vec!["/health".to_string()],
+            default_port: Some(8080),
             confidence: 0.9,
         };
 
@@ -147,6 +221,11 @@ mod tests {
             name: "Unknown".to_string(),
             file_extensions: vec![],
             package_managers: vec![],
+            excluded_dirs: vec![],
+            workspace_configs: vec![],
+            env_vars: vec![],
+            health_endpoints: vec![],
+            default_port: None,
             confidence: 0.3,
         };
 

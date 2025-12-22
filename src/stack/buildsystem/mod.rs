@@ -22,7 +22,7 @@ pub struct BuildTemplate {
 /// Manifest pattern for build system detection
 #[derive(Debug, Clone)]
 pub struct ManifestPattern {
-    pub filename: &'static str,
+    pub filename: String,
     pub priority: u8,
 }
 
@@ -31,7 +31,7 @@ pub trait BuildSystem: Send + Sync {
     fn id(&self) -> crate::stack::BuildSystemId;
 
     /// Manifest file patterns (e.g., "Cargo.toml", "package.json")
-    fn manifest_patterns(&self) -> &[ManifestPattern];
+    fn manifest_patterns(&self) -> Vec<ManifestPattern>;
 
     /// Detect if a manifest belongs to this build system
     fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool;
@@ -49,8 +49,8 @@ pub trait BuildSystem: Send + Sync {
     }
 
     /// Workspace configuration files (e.g., "pnpm-workspace.yaml")
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     /// Parse package metadata from manifest (name, is_application)

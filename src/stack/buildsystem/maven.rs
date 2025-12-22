@@ -11,9 +11,9 @@ impl BuildSystem for MavenBuildSystem {
         crate::stack::BuildSystemId::Maven
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "pom.xml",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "pom.xml".to_string(),
             priority: 10,
         }]
     }

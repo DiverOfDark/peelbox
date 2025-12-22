@@ -11,8 +11,8 @@ impl LanguageDefinition for GoLanguage {
         crate::stack::LanguageId::Go
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["go"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["go".to_string()]
     }
 
     fn detect(
@@ -37,16 +37,16 @@ impl LanguageDefinition for GoLanguage {
         })
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["go"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["go".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["vendor"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["vendor".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["go.work"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["go.work".to_string()]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -144,32 +144,28 @@ impl LanguageDefinition for GoLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#, "os.Getenv"),
-            (r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#, "viper"),
+            (r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "os.Getenv".to_string()),
+            (r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "viper".to_string()),
         ]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"\.Run\([^:)]*:(\d{4,5})", "gin.Run()"),
+            (r"\.Run\([^:)]*:(\d{4,5})".to_string(), "gin.Run()".to_string()),
             (
-                r#"http\.ListenAndServe\([^:)]*:(\d{4,5})"#,
-                "http.ListenAndServe",
+                r#"http\.ListenAndServe\([^:)]*:(\d{4,5})"#.to_string(),
+                "http.ListenAndServe".to_string(),
             ),
         ]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"router\.GET\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Gin")]
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        vec![("/health".to_string(), "Gin".to_string()), ("/healthz".to_string(), "Kubernetes".to_string())]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![("/health", "Gin"), ("/healthz", "Kubernetes")]
-    }
-
-    fn default_env_vars(&self) -> Vec<&'static str> {
+    fn default_env_vars(&self) -> Vec<String> {
         vec![]
     }
 
@@ -195,8 +191,8 @@ impl LanguageDefinition for GoLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("go")
+    fn runtime_name(&self) -> Option<String> {
+        Some("go".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -259,7 +255,7 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = GoLanguage;
-        assert_eq!(lang.extensions(), &["go"]);
+        assert_eq!(lang.extensions(), vec!["go".to_string()]);
     }
 
     #[test]
@@ -284,13 +280,13 @@ mod tests {
     #[test]
     fn test_compatible_build_systems() {
         let lang = GoLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["go"]);
+        assert_eq!(lang.compatible_build_systems(), vec!["go".to_string()]);
     }
 
     #[test]
     fn test_workspace_configs() {
         let lang = GoLanguage;
-        assert!(lang.workspace_configs().contains(&"go.work"));
+        assert!(lang.workspace_configs().iter().any(|s| s == "go.work"));
     }
 
     #[test]

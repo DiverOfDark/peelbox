@@ -9,12 +9,12 @@ impl Framework for FastifyFramework {
         crate::stack::FrameworkId::Fastify
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["JavaScript", "TypeScript"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["JavaScript".to_string(), "TypeScript".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["npm", "yarn", "pnpm"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["npm".to_string(), "yarn".to_string(), "pnpm".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for FastifyFramework {
         &[3000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"PORT\s*=\s*(\d+)", "Fastify port"),
-            (r"NODE_ENV\s*=\s*(\w+)", "Node environment"),
+            (r"PORT\s*=\s*(\d+)".to_string(), "Fastify port".to_string()),
+            (r"NODE_ENV\s*=\s*(\w+)".to_string(), "Node environment".to_string()),
         ]
     }
 }
@@ -50,10 +50,10 @@ mod tests {
     fn test_fastify_compatibility() {
         let framework = FastifyFramework;
 
-        assert!(framework.compatible_languages().contains(&"JavaScript"));
-        assert!(framework.compatible_languages().contains(&"TypeScript"));
-        assert!(framework.compatible_build_systems().contains(&"npm"));
-        assert!(framework.compatible_build_systems().contains(&"yarn"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "JavaScript"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "TypeScript"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "npm"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "yarn"));
     }
 
     #[test]
@@ -77,8 +77,8 @@ mod tests {
         let framework = FastifyFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/healthz"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/healthz"));
     }
 
     #[test]

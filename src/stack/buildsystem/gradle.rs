@@ -10,22 +10,22 @@ impl BuildSystem for GradleBuildSystem {
         crate::stack::BuildSystemId::Gradle
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "settings.gradle",
+                filename: "settings.gradle".to_string(),
                 priority: 15,
             },
             ManifestPattern {
-                filename: "settings.gradle.kts",
+                filename: "settings.gradle.kts".to_string(),
                 priority: 15,
             },
             ManifestPattern {
-                filename: "build.gradle",
+                filename: "build.gradle".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "build.gradle.kts",
+                filename: "build.gradle.kts".to_string(),
                 priority: 10,
             },
         ]
@@ -72,8 +72,8 @@ impl BuildSystem for GradleBuildSystem {
         }
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["settings.gradle", "settings.gradle.kts"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["settings.gradle".to_string(), "settings.gradle.kts".to_string()]
     }
 
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {

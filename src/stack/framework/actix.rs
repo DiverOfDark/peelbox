@@ -9,12 +9,12 @@ impl Framework for ActixFramework {
         crate::stack::FrameworkId::ActixWeb
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Rust"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Rust".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["cargo"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["cargo".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for ActixFramework {
         &[8080]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"ACTIX_HOST\s*=\s*(\S+)", "Actix host"),
-            (r"ACTIX_PORT\s*=\s*(\d+)", "Actix port"),
+            (r"ACTIX_HOST\s*=\s*(\S+)".to_string(), "Actix host".to_string()),
+            (r"ACTIX_PORT\s*=\s*(\d+)".to_string(), "Actix port".to_string()),
         ]
     }
 }
@@ -49,8 +49,8 @@ mod tests {
     #[test]
     fn test_actix_compatibility() {
         let framework = ActixFramework;
-        assert!(framework.compatible_languages().contains(&"Rust"));
-        assert!(framework.compatible_build_systems().contains(&"cargo"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Rust"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "cargo"));
     }
 
     #[test]

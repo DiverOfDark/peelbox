@@ -9,14 +9,14 @@ impl BuildSystem for NpmBuildSystem {
         crate::stack::BuildSystemId::Npm
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "package.json",
+                filename: "package.json".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "package-lock.json",
+                filename: "package-lock.json".to_string(),
                 priority: 12,
             },
         ]
@@ -62,8 +62,8 @@ impl BuildSystem for NpmBuildSystem {
         }
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["lerna.json", "nx.json", "turbo.json", "rush.json"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["lerna.json".to_string(), "nx.json".to_string(), "turbo.json".to_string(), "rush.json".to_string()]
     }
 
     fn parse_package_metadata(

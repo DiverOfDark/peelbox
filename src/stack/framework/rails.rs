@@ -9,12 +9,12 @@ impl Framework for RailsFramework {
         crate::stack::FrameworkId::Rails
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Ruby"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Ruby".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["bundler"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["bundler".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for RailsFramework {
         &[3000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz", "/up"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string(), "/up".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"RAILS_ENV\s*=\s*(\w+)", "Rails environment"),
-            (r"PORT\s*=\s*(\d+)", "Rails port"),
+            (r"RAILS_ENV\s*=\s*(\w+)".to_string(), "Rails environment".to_string()),
+            (r"PORT\s*=\s*(\d+)".to_string(), "Rails port".to_string()),
         ]
     }
 
@@ -114,8 +114,8 @@ mod tests {
     fn test_rails_compatibility() {
         let framework = RailsFramework;
 
-        assert!(framework.compatible_languages().contains(&"Ruby"));
-        assert!(framework.compatible_build_systems().contains(&"bundler"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Ruby"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "bundler"));
     }
 
     #[test]
@@ -139,8 +139,8 @@ mod tests {
         let framework = RailsFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/up"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/up"));
     }
 
     #[test]
@@ -173,7 +173,7 @@ bind "tcp://0.0.0.0:#{ENV.fetch('PORT', 3001)}"
         let framework = RailsFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"config/puma.rb"));
-        assert!(files.contains(&"config/application.rb"));
+        assert!(files.iter().any(|s| *s == "config/puma.rb"));
+        assert!(files.iter().any(|s| *s == "config/application.rb"));
     }
 }

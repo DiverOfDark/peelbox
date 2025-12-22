@@ -9,9 +9,9 @@ impl BuildSystem for PoetryBuildSystem {
         crate::stack::BuildSystemId::Poetry
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "pyproject.toml",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "pyproject.toml".to_string(),
             priority: 12,
         }]
     }

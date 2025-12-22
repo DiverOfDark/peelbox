@@ -9,12 +9,12 @@ impl Framework for MicronautFramework {
         crate::stack::FrameworkId::Micronaut
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Java", "Kotlin"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Java".to_string(), "Kotlin".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["maven", "gradle"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["maven".to_string(), "gradle".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,19 +36,19 @@ impl Framework for MicronautFramework {
         &[8080]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/health/liveness", "/health/readiness"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/health/liveness".to_string(), "/health/readiness".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
             (
-                r"MICRONAUT_SERVER_PORT\s*=\s*(\d+)",
-                "Micronaut server port",
+                r"MICRONAUT_SERVER_PORT\s*=\s*(\d+)".to_string(),
+                "Micronaut server port".to_string(),
             ),
             (
-                r"MICRONAUT_ENVIRONMENTS\s*=\s*(\w+)",
-                "Micronaut environments",
+                r"MICRONAUT_ENVIRONMENTS\s*=\s*(\w+)".to_string(),
+                "Micronaut environments".to_string(),
             ),
         ]
     }
@@ -63,10 +63,10 @@ mod tests {
     fn test_micronaut_compatibility() {
         let framework = MicronautFramework;
 
-        assert!(framework.compatible_languages().contains(&"Java"));
-        assert!(framework.compatible_languages().contains(&"Kotlin"));
-        assert!(framework.compatible_build_systems().contains(&"maven"));
-        assert!(framework.compatible_build_systems().contains(&"gradle"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Java"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
     }
 
     #[test]
@@ -90,8 +90,8 @@ mod tests {
         let framework = MicronautFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/health/liveness"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/health/liveness"));
     }
 
     #[test]

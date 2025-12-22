@@ -37,20 +37,20 @@ pub struct BuildTemplate {
 
 pub trait LanguageDefinition: Send + Sync {
     fn id(&self) -> crate::stack::LanguageId;
-    fn extensions(&self) -> &[&str];
+    fn extensions(&self) -> Vec<String>;
     fn detect(
         &self,
         manifest_name: &str,
         manifest_content: Option<&str>,
     ) -> Option<DetectionResult>;
-    fn compatible_build_systems(&self) -> &[&str];
+    fn compatible_build_systems(&self) -> Vec<String>;
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &[]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec![]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
@@ -69,11 +69,11 @@ pub trait LanguageDefinition: Send + Sync {
         DependencyInfo::empty()
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![]
     }
 
@@ -81,19 +81,19 @@ pub trait LanguageDefinition: Send + Sync {
         false
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
+    fn default_env_vars(&self) -> Vec<String> {
         vec![]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
+    fn runtime_name(&self) -> Option<String> {
         None
     }
 

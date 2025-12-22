@@ -9,12 +9,12 @@ impl Framework for LaravelFramework {
         crate::stack::FrameworkId::Laravel
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["PHP"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["PHP".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["composer"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["composer".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for LaravelFramework {
         &[8000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/api/health"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/api/health".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"APP_ENV\s*=\s*(\w+)", "Laravel environment"),
-            (r"APP_PORT\s*=\s*(\d+)", "Laravel port"),
+            (r"APP_ENV\s*=\s*(\w+)".to_string(), "Laravel environment".to_string()),
+            (r"APP_PORT\s*=\s*(\d+)".to_string(), "Laravel port".to_string()),
         ]
     }
 
@@ -122,8 +122,8 @@ mod tests {
     #[test]
     fn test_laravel_compatibility() {
         let framework = LaravelFramework;
-        assert!(framework.compatible_languages().contains(&"PHP"));
-        assert!(framework.compatible_build_systems().contains(&"composer"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "PHP"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "composer"));
     }
 
     #[test]
@@ -178,7 +178,7 @@ return [
         let framework = LaravelFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"config/app.php"));
-        assert!(files.contains(&"config/database.php"));
+        assert!(files.iter().any(|s| *s == "config/app.php"));
+        assert!(files.iter().any(|s| *s == "config/database.php"));
     }
 }

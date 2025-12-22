@@ -10,8 +10,8 @@ impl LanguageDefinition for PhpLanguage {
         crate::stack::LanguageId::PHP
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["php", "phtml"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["php".to_string(), "phtml".to_string()]
     }
 
     fn detect(
@@ -40,16 +40,16 @@ impl LanguageDefinition for PhpLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["composer"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["composer".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["vendor", "storage", "bootstrap/cache"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["vendor".to_string(), "storage".to_string(), "bootstrap/cache".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -128,18 +128,18 @@ impl LanguageDefinition for PhpLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#, "getenv")]
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "getenv".to_string())]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"['"]SERVER_PORT['"].*?(\d{4,5})"#, "server port")]
+    fn port_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"['"]SERVER_PORT['"].*?(\d{4,5})"#.to_string(), "server port".to_string())]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Slim"),
-            (r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Laravel"),
+            (r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Slim".to_string()),
+            (r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Laravel".to_string()),
         ]
     }
 
@@ -159,8 +159,8 @@ impl LanguageDefinition for PhpLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("php")
+    fn runtime_name(&self) -> Option<String> {
+        Some("php".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = PhpLanguage;
-        assert!(lang.extensions().contains(&"php"));
+        assert!(lang.extensions().iter().any(|s| s == "php"));
     }
 
     #[test]
@@ -215,13 +215,13 @@ mod tests {
     #[test]
     fn test_compatible_build_systems() {
         let lang = PhpLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["composer"]);
+        assert_eq!(lang.compatible_build_systems(), vec!["composer".to_string()]);
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = PhpLanguage;
-        assert!(lang.excluded_dirs().contains(&"vendor"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "vendor"));
     }
 
     #[test]

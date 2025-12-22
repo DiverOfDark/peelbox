@@ -10,8 +10,8 @@ impl LanguageDefinition for RubyLanguage {
         crate::stack::LanguageId::Ruby
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["rb", "rake", "gemspec"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["rb".to_string(), "rake".to_string(), "gemspec".to_string()]
     }
 
     fn detect(
@@ -40,16 +40,16 @@ impl LanguageDefinition for RubyLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["bundler"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["bundler".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["vendor", "tmp", "log", "coverage", ".bundle"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["vendor".to_string(), "tmp".to_string(), "log".to_string(), "coverage".to_string(), ".bundle".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -132,26 +132,26 @@ impl LanguageDefinition for RubyLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#, "ENV")]
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "ENV".to_string())]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"port:\s*(\d{4,5})"#, "config")]
+    fn port_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"port:\s*(\d{4,5})"#.to_string(), "config".to_string())]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#, "Rails/Sinatra"),
-            (r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#, "Rails"),
+            (r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Rails/Sinatra".to_string()),
+            (r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Rails".to_string()),
         ]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
+    fn default_env_vars(&self) -> Vec<String> {
         vec![]
     }
 
@@ -179,8 +179,8 @@ impl LanguageDefinition for RubyLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("ruby")
+    fn runtime_name(&self) -> Option<String> {
+        Some("ruby".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = RubyLanguage;
-        assert!(lang.extensions().contains(&"rb"));
+        assert!(lang.extensions().iter().any(|s| s == "rb"));
     }
 
     #[test]
@@ -241,14 +241,14 @@ gem 'rails', '~> 7.0'
     #[test]
     fn test_compatible_build_systems() {
         let lang = RubyLanguage;
-        assert_eq!(lang.compatible_build_systems(), &["bundler"]);
+        assert_eq!(lang.compatible_build_systems(), vec!["bundler".to_string()]);
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = RubyLanguage;
-        assert!(lang.excluded_dirs().contains(&"vendor"));
-        assert!(lang.excluded_dirs().contains(&".bundle"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "vendor"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == ".bundle"));
     }
 
     #[test]

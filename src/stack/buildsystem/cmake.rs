@@ -9,9 +9,9 @@ impl BuildSystem for CMakeBuildSystem {
         crate::stack::BuildSystemId::CMake
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "CMakeLists.txt",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "CMakeLists.txt".to_string(),
             priority: 10,
         }]
     }

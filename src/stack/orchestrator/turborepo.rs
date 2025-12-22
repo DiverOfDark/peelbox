@@ -12,8 +12,8 @@ impl MonorepoOrchestrator for TurborepoOrchestrator {
         OrchestratorId::Turborepo
     }
 
-    fn config_files(&self) -> &[&str] {
-        &["turbo.json"]
+    fn config_files(&self) -> Vec<String> {
+        vec!["turbo.json".to_string()]
     }
 
     fn detect(&self, config_file: &str, _content: Option<&str>) -> bool {

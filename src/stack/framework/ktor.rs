@@ -9,12 +9,12 @@ impl Framework for KtorFramework {
         crate::stack::FrameworkId::Ktor
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Kotlin"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Kotlin".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["gradle", "maven"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["gradle".to_string(), "maven".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,14 +36,14 @@ impl Framework for KtorFramework {
         &[8080]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"KTOR_PORT\s*=\s*(\d+)", "Ktor port"),
-            (r"KTOR_ENV\s*=\s*(\w+)", "Ktor environment"),
+            (r"KTOR_PORT\s*=\s*(\d+)".to_string(), "Ktor port".to_string()),
+            (r"KTOR_ENV\s*=\s*(\w+)".to_string(), "Ktor environment".to_string()),
         ]
     }
 }
@@ -57,9 +57,9 @@ mod tests {
     fn test_ktor_compatibility() {
         let framework = KtorFramework;
 
-        assert!(framework.compatible_languages().contains(&"Kotlin"));
-        assert!(framework.compatible_build_systems().contains(&"gradle"));
-        assert!(framework.compatible_build_systems().contains(&"maven"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
     }
 
     #[test]
@@ -83,8 +83,8 @@ mod tests {
         let framework = KtorFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/healthz"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/healthz"));
     }
 
     #[test]

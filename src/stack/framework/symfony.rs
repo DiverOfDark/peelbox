@@ -9,12 +9,12 @@ impl Framework for SymfonyFramework {
         crate::stack::FrameworkId::Symfony
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["PHP"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["PHP".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["composer"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["composer".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,14 +36,14 @@ impl Framework for SymfonyFramework {
         &[8000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/_health", "/health"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/_health".to_string(), "/health".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"%env\(([A-Z_]+)\)%", "Symfony environment variable"),
-            (r"APP_ENV\s*=\s*(\w+)", "Symfony environment"),
+            (r"%env\(([A-Z_]+)\)%".to_string(), "Symfony environment variable".to_string()),
+            (r"APP_ENV\s*=\s*(\w+)".to_string(), "Symfony environment".to_string()),
         ]
     }
 }
@@ -56,8 +56,8 @@ mod tests {
     #[test]
     fn test_symfony_compatibility() {
         let framework = SymfonyFramework;
-        assert!(framework.compatible_languages().contains(&"PHP"));
-        assert!(framework.compatible_build_systems().contains(&"composer"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "PHP"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "composer"));
     }
 
     #[test]
@@ -96,8 +96,8 @@ mod tests {
     fn test_symfony_health_endpoints() {
         let framework = SymfonyFramework;
         let endpoints = framework.health_endpoints();
-        assert!(endpoints.contains(&"/_health"));
-        assert!(endpoints.contains(&"/health"));
+        assert!(endpoints.iter().any(|s| s == "/_health"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
     }
 
     #[test]

@@ -9,12 +9,12 @@ impl Framework for FastApiFramework {
         crate::stack::FrameworkId::FastApi
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Python"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Python".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["pip", "poetry", "pipenv"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -29,14 +29,14 @@ impl Framework for FastApiFramework {
         &[8000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz", "/docs"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string(), "/docs".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"PORT\s*=\s*(\d+)", "FastAPI port"),
-            (r"ENVIRONMENT\s*=\s*(\w+)", "FastAPI environment"),
+            (r"PORT\s*=\s*(\d+)".to_string(), "FastAPI port".to_string()),
+            (r"ENVIRONMENT\s*=\s*(\w+)".to_string(), "FastAPI environment".to_string()),
         ]
     }
 }
@@ -50,9 +50,9 @@ mod tests {
     fn test_fastapi_compatibility() {
         let framework = FastApiFramework;
 
-        assert!(framework.compatible_languages().contains(&"Python"));
-        assert!(framework.compatible_build_systems().contains(&"pip"));
-        assert!(framework.compatible_build_systems().contains(&"poetry"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Python"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "pip"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "poetry"));
     }
 
     #[test]
@@ -76,8 +76,8 @@ mod tests {
         let framework = FastApiFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/docs"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/docs"));
     }
 
     #[test]

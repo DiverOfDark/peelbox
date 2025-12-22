@@ -35,8 +35,13 @@ impl MonorepoOrchestrator for LLMOrchestrator {
             .unwrap_or_else(|| OrchestratorId::Custom("Unknown".to_string()))
     }
 
-    fn config_files(&self) -> &[&str] {
-        &[]
+    fn config_files(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.config_files.clone())
+            .unwrap_or_default()
     }
 
     fn detect(&self, config_file: &str, content: Option<&str>) -> bool {

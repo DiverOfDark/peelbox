@@ -11,8 +11,8 @@ impl LanguageDefinition for JavaLanguage {
         crate::stack::LanguageId::Java
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["java", "kt", "kts"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["java".to_string(), "kt".to_string(), "kts".to_string()]
     }
 
     fn detect(
@@ -57,16 +57,16 @@ impl LanguageDefinition for JavaLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["maven", "gradle"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["maven".to_string(), "gradle".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &["target", "build", ".gradle", ".m2"]
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec!["target".to_string(), "build".to_string(), ".gradle".to_string(), ".m2".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &["settings.gradle", "settings.gradle.kts"]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec!["settings.gradle".to_string(), "settings.gradle.kts".to_string()]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -163,23 +163,23 @@ impl LanguageDefinition for JavaLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#, "System.getenv")]
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#.to_string(), "System.getenv".to_string())]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"server\.port\s*=\s*(\d{4,5})"#, "application.properties"),
-            (r#"port:\s*(\d{4,5})"#, "application.yml"),
+            (r#"server\.port\s*=\s*(\d{4,5})"#.to_string(), "application.properties".to_string()),
+            (r#"port:\s*(\d{4,5})"#.to_string(), "application.yml".to_string()),
         ]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Spring")]
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Spring".to_string())]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![("/actuator/health", "Spring Boot")]
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
+        vec![("/actuator/health".to_string(), "Spring Boot".to_string())]
     }
 
     fn is_main_file(&self, fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
@@ -203,8 +203,8 @@ impl LanguageDefinition for JavaLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("java")
+    fn runtime_name(&self) -> Option<String> {
+        Some("java".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -319,9 +319,10 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = JavaLanguage;
-        assert!(lang.extensions().contains(&"java"));
-        assert!(lang.extensions().contains(&"kt"));
-        assert!(lang.extensions().contains(&"kts"));
+        let exts = lang.extensions();
+        assert!(exts.contains(&"java".to_string()));
+        assert!(exts.contains(&"kt".to_string()));
+        assert!(exts.contains(&"kts".to_string()));
     }
 
     #[test]
@@ -365,21 +366,22 @@ mod tests {
     fn test_compatible_build_systems() {
         let lang = JavaLanguage;
         let systems = lang.compatible_build_systems();
-        assert!(systems.contains(&"maven"));
-        assert!(systems.contains(&"gradle"));
+        assert!(systems.contains(&"maven".to_string()));
+        assert!(systems.contains(&"gradle".to_string()));
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = JavaLanguage;
-        assert!(lang.excluded_dirs().contains(&"target"));
-        assert!(lang.excluded_dirs().contains(&".gradle"));
+        let dirs = lang.excluded_dirs();
+        assert!(dirs.contains(&"target".to_string()));
+        assert!(dirs.contains(&".gradle".to_string()));
     }
 
     #[test]
     fn test_workspace_configs() {
         let lang = JavaLanguage;
-        assert!(lang.workspace_configs().contains(&"settings.gradle"));
+        assert!(lang.workspace_configs().contains(&"settings.gradle".to_string()));
     }
 
     #[test]

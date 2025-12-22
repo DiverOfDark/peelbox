@@ -9,12 +9,12 @@ impl Framework for DjangoFramework {
         crate::stack::FrameworkId::Django
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Python"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Python".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["pip", "poetry", "pipenv"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,17 +36,17 @@ impl Framework for DjangoFramework {
         &[8000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health/", "/healthz/", "/ping/"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health/".to_string(), "/healthz/".to_string(), "/ping/".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
             (
-                r"DJANGO_SETTINGS_MODULE\s*=\s*(\S+)",
-                "Django settings module",
+                r"DJANGO_SETTINGS_MODULE\s*=\s*(\S+)".to_string(),
+                "Django settings module".to_string(),
             ),
-            (r"SECRET_KEY\s*=\s*", "Django secret key"),
+            (r"SECRET_KEY\s*=\s*".to_string(), "Django secret key".to_string()),
         ]
     }
 
@@ -137,9 +137,9 @@ mod tests {
     fn test_django_compatibility() {
         let framework = DjangoFramework;
 
-        assert!(framework.compatible_languages().contains(&"Python"));
-        assert!(framework.compatible_build_systems().contains(&"pip"));
-        assert!(framework.compatible_build_systems().contains(&"poetry"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Python"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "pip"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "poetry"));
     }
 
     #[test]
@@ -163,8 +163,8 @@ mod tests {
         let framework = DjangoFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health/"));
-        assert!(endpoints.contains(&"/healthz/"));
+        assert!(endpoints.iter().any(|s| s == "/health/"));
+        assert!(endpoints.iter().any(|s| s == "/healthz/"));
     }
 
     #[test]
@@ -202,7 +202,7 @@ DATABASE_URL = os.environ['DATABASE_URL']
         let framework = DjangoFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"settings.py"));
-        assert!(files.contains(&"*/settings.py"));
+        assert!(files.iter().any(|s| *s == "settings.py"));
+        assert!(files.iter().any(|s| *s == "*/settings.py"));
     }
 }

@@ -9,18 +9,18 @@ impl BuildSystem for PipBuildSystem {
         crate::stack::BuildSystemId::Pip
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![
             ManifestPattern {
-                filename: "requirements.txt",
+                filename: "requirements.txt".to_string(),
                 priority: 8,
             },
             ManifestPattern {
-                filename: "setup.py",
+                filename: "setup.py".to_string(),
                 priority: 6,
             },
             ManifestPattern {
-                filename: "setup.cfg",
+                filename: "setup.cfg".to_string(),
                 priority: 5,
             },
         ]

@@ -10,6 +10,8 @@ struct FrameworkInfo {
     name: String,
     language: String,
     dependency_patterns: Vec<String>,
+    default_ports: Vec<u16>,
+    health_endpoints: Vec<String>,
     confidence: f32,
 }
 
@@ -57,6 +59,8 @@ Response format:
   "name": "FrameworkName",
   "language": "LanguageName",
   "dependency_patterns": ["pattern1", "pattern2"],
+  "default_ports": [3000, 8080],
+  "health_endpoints": ["/health", "/ready"],
   "confidence": 0.95
 }}
 "#,
@@ -95,12 +99,17 @@ impl Framework for LLMFramework {
             .unwrap_or_else(|| FrameworkId::Custom("Unknown".to_string()))
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &[]
+    fn compatible_languages(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| vec![info.language.clone()])
+            .unwrap_or_default()
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &[]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec![]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -111,8 +120,13 @@ impl Framework for LLMFramework {
         &[]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &[]
+    fn health_endpoints(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.health_endpoints.clone())
+            .unwrap_or_default()
     }
 
     fn parse_config(&self, _file_path: &Path, _content: &str) -> Option<FrameworkConfig> {
@@ -142,6 +156,8 @@ mod tests {
             name: "Remix".to_string(),
             language: "JavaScript".to_string(),
             dependency_patterns: vec!["@remix-run/react".to_string()],
+            default_ports: vec![3000],
+            health_endpoints: vec!["/health".to_string()],
             confidence: 0.9,
         };
 
@@ -168,6 +184,8 @@ mod tests {
             name: "Unknown".to_string(),
             language: "Unknown".to_string(),
             dependency_patterns: vec![],
+            default_ports: vec![],
+            health_endpoints: vec![],
             confidence: 0.1,
         };
 

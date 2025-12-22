@@ -10,8 +10,8 @@ impl LanguageDefinition for CppLanguage {
         crate::stack::LanguageId::Cpp
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["cpp", "cc", "cxx", "c", "h", "hpp", "hxx"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["cpp".to_string(), "cc".to_string(), "cxx".to_string(), "c".to_string(), "h".to_string(), "hpp".to_string(), "hxx".to_string()]
     }
 
     fn detect(
@@ -52,21 +52,21 @@ impl LanguageDefinition for CppLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["cmake", "make", "meson"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["cmake".to_string(), "make".to_string(), "meson".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &[
-            "build",
-            "builddir",
-            "cmake-build-debug",
-            "cmake-build-release",
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec![
+            "build".to_string(),
+            "builddir".to_string(),
+            "cmake-build-debug".to_string(),
+            "cmake-build-release".to_string(),
         ]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 
     fn parse_dependencies(
@@ -130,23 +130,23 @@ impl LanguageDefinition for CppLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#, "getenv")]
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#.to_string(), "getenv".to_string())]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"bind\([^,)]*,\s*(\d{4,5})"#, "bind()")]
+    fn port_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"bind\([^,)]*,\s*(\d{4,5})"#.to_string(), "bind()".to_string())]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#, "Crow/Beast")]
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#.to_string(), "Crow/Beast".to_string())]
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
         vec![]
     }
 
-    fn default_env_vars(&self) -> Vec<&'static str> {
+    fn default_env_vars(&self) -> Vec<String> {
         vec![]
     }
 
@@ -166,8 +166,8 @@ impl LanguageDefinition for CppLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("c++")
+    fn runtime_name(&self) -> Option<String> {
+        Some("c++".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -190,9 +190,9 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = CppLanguage;
-        assert!(lang.extensions().contains(&"cpp"));
-        assert!(lang.extensions().contains(&"c"));
-        assert!(lang.extensions().contains(&"hpp"));
+        assert!(lang.extensions().iter().any(|s| s == "cpp"));
+        assert!(lang.extensions().iter().any(|s| s == "c"));
+        assert!(lang.extensions().iter().any(|s| s == "hpp"));
     }
 
     #[test]
@@ -241,8 +241,8 @@ mod tests {
     #[test]
     fn test_excluded_dirs() {
         let lang = CppLanguage;
-        assert!(lang.excluded_dirs().contains(&"build"));
-        assert!(lang.excluded_dirs().contains(&"cmake-build-debug"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "build"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "cmake-build-debug"));
     }
 
     #[test]

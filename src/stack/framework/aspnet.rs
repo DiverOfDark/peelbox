@@ -9,12 +9,12 @@ impl Framework for AspNetFramework {
         crate::stack::FrameworkId::AspNetCore
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["C#", "F#"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["C#".to_string(), "F#".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["dotnet"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["dotnet".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,14 +36,14 @@ impl Framework for AspNetFramework {
         &[5000, 5001]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz", "/ready"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string(), "/ready".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"ASPNETCORE_ENVIRONMENT\s*=\s*(\w+)", "ASP.NET environment"),
-            (r"ASPNETCORE_URLS\s*=\s*([^\s]+)", "ASP.NET URLs"),
+            (r"ASPNETCORE_ENVIRONMENT\s*=\s*(\w+)".to_string(), "ASP.NET environment".to_string()),
+            (r"ASPNETCORE_URLS\s*=\s*([^\s]+)".to_string(), "ASP.NET URLs".to_string()),
         ]
     }
 
@@ -135,9 +135,9 @@ mod tests {
     fn test_aspnet_compatibility() {
         let framework = AspNetFramework;
 
-        assert!(framework.compatible_languages().contains(&"C#"));
-        assert!(framework.compatible_languages().contains(&"F#"));
-        assert!(framework.compatible_build_systems().contains(&"dotnet"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "C#"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "F#"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "dotnet"));
     }
 
     #[test]
@@ -161,8 +161,8 @@ mod tests {
         let framework = AspNetFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/ready"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/ready"));
     }
 
     #[test]
@@ -205,7 +205,7 @@ mod tests {
         let framework = AspNetFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"appsettings.json"));
-        assert!(files.contains(&"appsettings.Development.json"));
+        assert!(files.iter().any(|s| *s == "appsettings.json"));
+        assert!(files.iter().any(|s| *s == "appsettings.Development.json"));
     }
 }

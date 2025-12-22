@@ -9,9 +9,9 @@ impl BuildSystem for MesonBuildSystem {
         crate::stack::BuildSystemId::Meson
     }
 
-    fn manifest_patterns(&self) -> &[ManifestPattern] {
-        &[ManifestPattern {
-            filename: "meson.build",
+    fn manifest_patterns(&self) -> Vec<ManifestPattern> {
+        vec![ManifestPattern {
+            filename: "meson.build".to_string(),
             priority: 9,
         }]
     }
@@ -48,7 +48,7 @@ impl BuildSystem for MesonBuildSystem {
         vec!["builddir".to_string()]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[]
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
     }
 }

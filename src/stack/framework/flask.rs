@@ -9,12 +9,12 @@ impl Framework for FlaskFramework {
         crate::stack::FrameworkId::Flask
     }
 
-    fn compatible_languages(&self) -> &[&str] {
-        &["Python"]
+    fn compatible_languages(&self) -> Vec<String> {
+        vec!["Python".to_string()]
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["pip", "poetry", "pipenv"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,14 +36,14 @@ impl Framework for FlaskFramework {
         &[5000]
     }
 
-    fn health_endpoints(&self) -> &[&str] {
-        &["/health", "/healthz"]
+    fn health_endpoints(&self) -> Vec<String> {
+        vec!["/health".to_string(), "/healthz".to_string()]
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"FLASK_ENV\s*=\s*(\w+)", "Flask environment"),
-            (r"FLASK_APP\s*=\s*(\S+)", "Flask application"),
+            (r"FLASK_ENV\s*=\s*(\w+)".to_string(), "Flask environment".to_string()),
+            (r"FLASK_APP\s*=\s*(\S+)".to_string(), "Flask application".to_string()),
         ]
     }
 
@@ -119,9 +119,9 @@ mod tests {
     fn test_flask_compatibility() {
         let framework = FlaskFramework;
 
-        assert!(framework.compatible_languages().contains(&"Python"));
-        assert!(framework.compatible_build_systems().contains(&"pip"));
-        assert!(framework.compatible_build_systems().contains(&"poetry"));
+        assert!(framework.compatible_languages().iter().any(|s| s == "Python"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "pip"));
+        assert!(framework.compatible_build_systems().iter().any(|s| s == "poetry"));
     }
 
     #[test]
@@ -145,8 +145,8 @@ mod tests {
         let framework = FlaskFramework;
         let endpoints = framework.health_endpoints();
 
-        assert!(endpoints.contains(&"/health"));
-        assert!(endpoints.contains(&"/healthz"));
+        assert!(endpoints.iter().any(|s| s == "/health"));
+        assert!(endpoints.iter().any(|s| s == "/healthz"));
     }
 
     #[test]
@@ -181,7 +181,7 @@ DATABASE_URL = os.environ['DB_URL']
         let framework = FlaskFramework;
         let files = framework.config_files();
 
-        assert!(files.contains(&"config.py"));
-        assert!(files.contains(&"instance/config.py"));
+        assert!(files.iter().any(|s| *s == "config.py"));
+        assert!(files.iter().any(|s| *s == "instance/config.py"));
     }
 }

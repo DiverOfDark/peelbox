@@ -15,8 +15,8 @@ impl LanguageDefinition for JavaScriptLanguage {
         crate::stack::LanguageId::JavaScript
     }
 
-    fn extensions(&self) -> &[&str] {
-        &["js", "mjs", "cjs", "jsx", "ts", "tsx", "mts", "cts"]
+    fn extensions(&self) -> Vec<String> {
+        vec!["js".to_string(), "mjs".to_string(), "cjs".to_string(), "jsx".to_string(), "ts".to_string(), "tsx".to_string(), "mts".to_string(), "cts".to_string()]
     }
 
     fn detect(
@@ -78,29 +78,29 @@ impl LanguageDefinition for JavaScriptLanguage {
         }
     }
 
-    fn compatible_build_systems(&self) -> &[&str] {
-        &["npm", "yarn", "pnpm", "bun"]
+    fn compatible_build_systems(&self) -> Vec<String> {
+        vec!["npm".to_string(), "yarn".to_string(), "pnpm".to_string(), "bun".to_string()]
     }
 
-    fn excluded_dirs(&self) -> &[&str] {
-        &[
-            "node_modules",
-            "dist",
-            "build",
-            "out",
-            ".next",
-            ".nuxt",
-            "coverage",
+    fn excluded_dirs(&self) -> Vec<String> {
+        vec![
+            "node_modules".to_string(),
+            "dist".to_string(),
+            "build".to_string(),
+            "out".to_string(),
+            ".next".to_string(),
+            ".nuxt".to_string(),
+            "coverage".to_string(),
         ]
     }
 
-    fn workspace_configs(&self) -> &[&str] {
-        &[
-            "pnpm-workspace.yaml",
-            "lerna.json",
-            "nx.json",
-            "turbo.json",
-            "rush.json",
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![
+            "pnpm-workspace.yaml".to_string(),
+            "lerna.json".to_string(),
+            "nx.json".to_string(),
+            "turbo.json".to_string(),
+            "rush.json".to_string(),
         ]
     }
 
@@ -168,12 +168,12 @@ impl LanguageDefinition for JavaScriptLanguage {
         .parse(manifest_content, all_internal_paths)
     }
 
-    fn env_var_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r"process\.env\.([A-Z_][A-Z0-9_]*)", "process.env")]
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        vec![(r"process\.env\.([A-Z_][A-Z0-9_]*)".to_string(), "process.env".to_string())]
     }
 
-    fn health_check_patterns(&self) -> Vec<(&'static str, &'static str)> {
-        vec![(r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "Express")]
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        vec![(r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Express".to_string())]
     }
 
     fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
@@ -196,19 +196,19 @@ impl LanguageDefinition for JavaScriptLanguage {
         }
     }
 
-    fn default_health_endpoints(&self) -> Vec<(&'static str, &'static str)> {
-        vec![("/health", "Express")]
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
+        vec![("/health".to_string(), "Express".to_string())]
     }
 
-    fn port_patterns(&self) -> Vec<(&'static str, &'static str)> {
+    fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"\.listen\s*\(\s*(\d{4,5})", "listen()"),
-            (r"port\s*:\s*(\d{4,5})", "port config"),
+            (r"\.listen\s*\(\s*(\d{4,5})".to_string(), "listen()".to_string()),
+            (r"port\s*:\s*(\d{4,5})".to_string(), "port config".to_string()),
         ]
     }
 
-    fn runtime_name(&self) -> Option<&'static str> {
-        Some("node")
+    fn runtime_name(&self) -> Option<String> {
+        Some("node".to_string())
     }
 
     fn default_port(&self) -> Option<u16> {
@@ -242,10 +242,10 @@ mod tests {
     #[test]
     fn test_extensions() {
         let lang = JavaScriptLanguage;
-        assert!(lang.extensions().contains(&"js"));
-        assert!(lang.extensions().contains(&"jsx"));
-        assert!(lang.extensions().contains(&"ts"));
-        assert!(lang.extensions().contains(&"tsx"));
+        assert!(lang.extensions().iter().any(|s| s == "js"));
+        assert!(lang.extensions().iter().any(|s| s == "jsx"));
+        assert!(lang.extensions().iter().any(|s| s == "ts"));
+        assert!(lang.extensions().iter().any(|s| s == "tsx"));
     }
 
     #[test]
@@ -308,24 +308,24 @@ mod tests {
     fn test_compatible_build_systems() {
         let lang = JavaScriptLanguage;
         let systems = lang.compatible_build_systems();
-        assert!(systems.contains(&"npm"));
-        assert!(systems.contains(&"yarn"));
-        assert!(systems.contains(&"pnpm"));
-        assert!(systems.contains(&"bun"));
+        assert!(systems.iter().any(|s| s == "npm"));
+        assert!(systems.iter().any(|s| s == "yarn"));
+        assert!(systems.iter().any(|s| s == "pnpm"));
+        assert!(systems.iter().any(|s| s == "bun"));
     }
 
     #[test]
     fn test_excluded_dirs() {
         let lang = JavaScriptLanguage;
-        assert!(lang.excluded_dirs().contains(&"node_modules"));
-        assert!(lang.excluded_dirs().contains(&".next"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "node_modules"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == ".next"));
     }
 
     #[test]
     fn test_workspace_configs() {
         let lang = JavaScriptLanguage;
-        assert!(lang.workspace_configs().contains(&"pnpm-workspace.yaml"));
-        assert!(lang.workspace_configs().contains(&"turbo.json"));
+        assert!(lang.workspace_configs().iter().any(|s| s == "pnpm-workspace.yaml"));
+        assert!(lang.workspace_configs().iter().any(|s| s == "turbo.json"));
     }
 
     #[test]
