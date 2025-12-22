@@ -32,8 +32,8 @@ impl Framework for AspNetFramework {
         ]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[5000, 5001]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![5000, 5001]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn test_aspnet_default_ports() {
         let framework = AspNetFramework;
-        assert_eq!(framework.default_ports(), &[5000, 5001]);
+        assert_eq!(framework.default_ports(), vec![5000, 5001]);
     }
 
     #[test]

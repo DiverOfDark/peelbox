@@ -76,7 +76,7 @@ pub trait Framework: Send + Sync {
     fn dependency_patterns(&self) -> Vec<DependencyPattern>;
 
     /// Default ports for this framework (e.g., [8080] for Spring Boot, [3000] for Express)
-    fn default_ports(&self) -> &[u16];
+    fn default_ports(&self) -> Vec<u16>;
 
     /// Health check endpoints (e.g., ["/actuator/health"] for Spring Boot)
     fn health_endpoints(&self) -> Vec<String>;

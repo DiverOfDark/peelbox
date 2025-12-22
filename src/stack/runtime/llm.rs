@@ -125,8 +125,13 @@ Response format:
             .unwrap_or_else(|| "alpine:latest".to_string())
     }
 
-    fn required_packages(&self) -> Vec<&str> {
-        vec![]
+    fn required_packages(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.system_packages.clone())
+            .unwrap_or_default()
     }
 
     fn start_command(&self, entrypoint: &Path) -> String {
@@ -162,7 +167,7 @@ mod tests {
     fn test_llm_required_packages() {
         let client = Arc::new(MockLLMClient::new());
         let runtime = LLMRuntime::new(client);
-        let packages: Vec<&str> = vec![];
+        let packages: Vec<String> = vec![];
         assert_eq!(runtime.required_packages(), packages);
     }
 

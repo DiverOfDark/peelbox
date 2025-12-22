@@ -32,8 +32,8 @@ impl Framework for FlaskFramework {
         ]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[5000]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![5000]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_flask_default_ports() {
         let framework = FlaskFramework;
-        assert_eq!(framework.default_ports(), &[5000]);
+        assert_eq!(framework.default_ports(), vec![5000]);
     }
 
     #[test]

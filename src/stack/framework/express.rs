@@ -25,8 +25,8 @@ impl Framework for ExpressFramework {
         }]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[3000]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![3000]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn test_express_default_ports() {
         let framework = ExpressFramework;
-        assert_eq!(framework.default_ports(), &[3000]);
+        assert_eq!(framework.default_ports(), vec![3000]);
     }
 
     #[test]

@@ -118,7 +118,7 @@ impl Runtime for RubyRuntime {
         format!("ruby:{}-alpine", version)
     }
 
-    fn required_packages(&self) -> Vec<&str> {
+    fn required_packages(&self) -> Vec<String> {
         vec![]
     }
 
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn test_ruby_required_packages() {
         let runtime = RubyRuntime;
-        let packages: Vec<&str> = vec![];
+        let packages: Vec<String> = vec![];
         assert_eq!(runtime.required_packages(), packages);
     }
 
@@ -220,6 +220,6 @@ gem 'rails'
         let files = vec![gemfile];
         let deps = runtime.extract_native_deps(&files);
 
-        assert_eq!(deps, vec!["build-base"]);
+        assert_eq!(deps, vec!["build-base".to_string()]);
     }
 }

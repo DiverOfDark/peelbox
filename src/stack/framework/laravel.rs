@@ -25,8 +25,8 @@ impl Framework for LaravelFramework {
         }]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[8000]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![8000]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_laravel_default_ports() {
         let framework = LaravelFramework;
-        assert_eq!(framework.default_ports(), &[8000]);
+        assert_eq!(framework.default_ports(), vec![8000]);
     }
 
     #[test]

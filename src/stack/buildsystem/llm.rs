@@ -10,6 +10,12 @@ struct BuildSystemInfo {
     manifest_files: Vec<String>,
     build_commands: Vec<String>,
     cache_dirs: Vec<String>,
+    build_image: String,
+    runtime_image: String,
+    build_packages: Vec<String>,
+    runtime_packages: Vec<String>,
+    artifacts: Vec<String>,
+    common_ports: Vec<u16>,
     confidence: f32,
 }
 
@@ -72,6 +78,12 @@ Response format:
   "manifest_files": ["file1.ext"],
   "build_commands": ["build", "test"],
   "cache_dirs": [".cache"],
+  "build_image": "base-image:tag",
+  "runtime_image": "runtime-image:tag",
+  "build_packages": ["gcc", "make"],
+  "runtime_packages": ["libc"],
+  "artifacts": ["/app/build/*"],
+  "common_ports": [8080, 3000],
   "confidence": 0.95
 }}
 "#,
@@ -100,22 +112,30 @@ Response format:
     }
 
     fn build_template(&self) -> BuildTemplate {
-        BuildTemplate {
-            build_image: "alpine:latest".to_string(),
-            runtime_image: "alpine:latest".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
-            build_commands: self
-                .detected_info
-                .lock()
-                .unwrap()
-                .as_ref()
-                .map(|info| info.build_commands.clone())
-                .unwrap_or_default(),
-            cache_paths: self.cache_dirs(),
-            artifacts: vec![],
-            common_ports: vec![],
-        }
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| BuildTemplate {
+                build_image: info.build_image.clone(),
+                runtime_image: info.runtime_image.clone(),
+                build_packages: info.build_packages.clone(),
+                runtime_packages: info.runtime_packages.clone(),
+                build_commands: info.build_commands.clone(),
+                cache_paths: info.cache_dirs.clone(),
+                artifacts: info.artifacts.clone(),
+                common_ports: info.common_ports.clone(),
+            })
+            .unwrap_or_else(|| BuildTemplate {
+                build_image: "alpine:latest".to_string(),
+                runtime_image: "alpine:latest".to_string(),
+                build_packages: vec![],
+                runtime_packages: vec![],
+                build_commands: vec![],
+                cache_paths: vec![],
+                artifacts: vec![],
+                common_ports: vec![],
+            })
     }
 
     fn cache_dirs(&self) -> Vec<String> {
@@ -150,6 +170,12 @@ mod tests {
             manifest_files: vec!["BUILD".to_string()],
             build_commands: vec!["bazel build".to_string()],
             cache_dirs: vec!["bazel-out".to_string()],
+            build_image: "ubuntu:22.04".to_string(),
+            runtime_image: "ubuntu:22.04".to_string(),
+            build_packages: vec!["bazel".to_string()],
+            runtime_packages: vec![],
+            artifacts: vec!["/app/bazel-bin/*".to_string()],
+            common_ports: vec![8080],
             confidence: 0.9,
         };
 
@@ -175,6 +201,12 @@ mod tests {
             manifest_files: vec![],
             build_commands: vec![],
             cache_dirs: vec![],
+            build_image: "alpine:latest".to_string(),
+            runtime_image: "alpine:latest".to_string(),
+            build_packages: vec![],
+            runtime_packages: vec![],
+            artifacts: vec![],
+            common_ports: vec![],
             confidence: 0.2,
         };
 

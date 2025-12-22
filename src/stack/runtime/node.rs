@@ -98,8 +98,8 @@ impl Runtime for NodeRuntime {
         format!("node:{}-alpine", version)
     }
 
-    fn required_packages(&self) -> Vec<&str> {
-        vec!["dumb-init"]
+    fn required_packages(&self) -> Vec<String> {
+        vec!["dumb-init".to_string()]
     }
 
     fn start_command(&self, entrypoint: &Path) -> String {
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn test_node_required_packages() {
         let runtime = NodeRuntime;
-        assert_eq!(runtime.required_packages(), vec!["dumb-init"]);
+        assert_eq!(runtime.required_packages(), vec!["dumb-init".to_string()]);
     }
 
     #[test]

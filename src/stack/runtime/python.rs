@@ -128,7 +128,7 @@ impl Runtime for PythonRuntime {
         format!("python:{}-alpine", version)
     }
 
-    fn required_packages(&self) -> Vec<&str> {
+    fn required_packages(&self) -> Vec<String> {
         vec![]
     }
 
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_python_required_packages() {
         let runtime = PythonRuntime;
-        let packages: Vec<&str> = vec![];
+        let packages: Vec<String> = vec![];
         assert_eq!(runtime.required_packages(), packages);
     }
 
@@ -259,7 +259,7 @@ requests==2.28.0
         let files = vec![req_file];
         let deps = runtime.extract_native_deps(&files);
 
-        assert_eq!(deps, vec!["build-base"]);
+        assert_eq!(deps, vec!["build-base".to_string()]);
     }
 
     #[test]

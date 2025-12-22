@@ -108,7 +108,7 @@ impl Runtime for NativeRuntime {
         "alpine:latest".to_string()
     }
 
-    fn required_packages(&self) -> Vec<&str> {
+    fn required_packages(&self) -> Vec<String> {
         vec![]
     }
 
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn test_native_required_packages() {
         let runtime = NativeRuntime;
-        let packages: Vec<&str> = vec![];
+        let packages: Vec<String> = vec![];
         assert_eq!(runtime.required_packages(), packages);
     }
 

@@ -86,7 +86,7 @@ impl Runtime for PhpRuntime {
         format!("php:{}-fpm-alpine", version)
     }
 
-    fn required_packages(&self) -> Vec<&str> {
+    fn required_packages(&self) -> Vec<String> {
         vec![]
     }
 
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_php_required_packages() {
         let runtime = PhpRuntime;
-        let packages: Vec<&str> = vec![];
+        let packages: Vec<String> = vec![];
         assert_eq!(runtime.required_packages(), packages);
     }
 
@@ -179,6 +179,6 @@ $key = $_ENV["API_KEY"];
         let files = vec![composer_file];
         let deps = runtime.extract_native_deps(&files);
 
-        assert_eq!(deps, vec!["build-base"]);
+        assert_eq!(deps, vec!["build-base".to_string()]);
     }
 }

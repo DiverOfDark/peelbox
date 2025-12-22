@@ -25,8 +25,8 @@ impl Framework for SinatraFramework {
         }]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[4567]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![4567]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -69,6 +69,6 @@ mod tests {
     #[test]
     fn test_sinatra_default_ports() {
         let framework = SinatraFramework;
-        assert_eq!(framework.default_ports(), &[4567]);
+        assert_eq!(framework.default_ports(), vec![4567]);
     }
 }

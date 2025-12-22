@@ -127,8 +127,8 @@ impl Runtime for JvmRuntime {
         format!("eclipse-temurin:{}-jre-alpine", version)
     }
 
-    fn required_packages(&self) -> Vec<&str> {
-        vec!["ca-certificates"]
+    fn required_packages(&self) -> Vec<String> {
+        vec!["ca-certificates".to_string()]
     }
 
     fn start_command(&self, entrypoint: &Path) -> String {
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_jvm_required_packages() {
         let runtime = JvmRuntime;
-        assert_eq!(runtime.required_packages(), vec!["ca-certificates"]);
+        assert_eq!(runtime.required_packages(), vec!["ca-certificates".to_string()]);
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
         let files = vec![pom_file];
         let deps = runtime.extract_native_deps(&files);
 
-        assert_eq!(deps, vec!["build-base"]);
+        assert_eq!(deps, vec!["build-base".to_string()]);
     }
 
     #[test]
@@ -294,6 +294,6 @@ mod tests {
         let files = vec![gradle_file];
         let deps = runtime.extract_native_deps(&files);
 
-        assert_eq!(deps, vec!["build-base"]);
+        assert_eq!(deps, vec!["build-base".to_string()]);
     }
 }

@@ -25,8 +25,8 @@ impl Framework for EchoFramework {
         }]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[1323]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![1323]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -69,6 +69,6 @@ mod tests {
     #[test]
     fn test_echo_default_ports() {
         let framework = EchoFramework;
-        assert_eq!(framework.default_ports(), &[1323]);
+        assert_eq!(framework.default_ports(), vec![1323]);
     }
 }

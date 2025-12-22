@@ -41,7 +41,7 @@ pub trait Runtime: Send + Sync {
     fn runtime_base_image(&self, version: Option<&str>) -> String;
 
     /// Get required system packages
-    fn required_packages(&self) -> Vec<&str>;
+    fn required_packages(&self) -> Vec<String>;
 
     /// Generate start command for the given entrypoint
     fn start_command(&self, entrypoint: &Path) -> String;

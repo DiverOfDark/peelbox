@@ -10,6 +10,7 @@ struct FrameworkInfo {
     name: String,
     language: String,
     dependency_patterns: Vec<String>,
+    build_systems: Vec<String>,
     default_ports: Vec<u16>,
     health_endpoints: Vec<String>,
     confidence: f32,
@@ -59,6 +60,7 @@ Response format:
   "name": "FrameworkName",
   "language": "LanguageName",
   "dependency_patterns": ["pattern1", "pattern2"],
+  "build_systems": ["npm", "yarn"],
   "default_ports": [3000, 8080],
   "health_endpoints": ["/health", "/ready"],
   "confidence": 0.95
@@ -109,15 +111,25 @@ impl Framework for LLMFramework {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec![]
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.build_systems.clone())
+            .unwrap_or_default()
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
         vec![]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[]
+    fn default_ports(&self) -> Vec<u16> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.default_ports.clone())
+            .unwrap_or_default()
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -156,6 +168,7 @@ mod tests {
             name: "Remix".to_string(),
             language: "JavaScript".to_string(),
             dependency_patterns: vec!["@remix-run/react".to_string()],
+            build_systems: vec!["npm".to_string(), "yarn".to_string()],
             default_ports: vec![3000],
             health_endpoints: vec!["/health".to_string()],
             confidence: 0.9,
@@ -184,6 +197,7 @@ mod tests {
             name: "Unknown".to_string(),
             language: "Unknown".to_string(),
             dependency_patterns: vec![],
+            build_systems: vec![],
             default_ports: vec![],
             health_endpoints: vec![],
             confidence: 0.1,

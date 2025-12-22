@@ -121,7 +121,7 @@ impl Runtime for DotNetRuntime {
         format!("mcr.microsoft.com/dotnet/aspnet:{}", version)
     }
 
-    fn required_packages(&self) -> Vec<&str> {
+    fn required_packages(&self) -> Vec<String> {
         vec![]
     }
 
@@ -163,7 +163,7 @@ mod tests {
     #[test]
     fn test_dotnet_required_packages() {
         let runtime = DotNetRuntime;
-        let packages: Vec<&str> = vec![];
+        let packages: Vec<String> = vec![];
         assert_eq!(runtime.required_packages(), packages);
     }
 
@@ -240,6 +240,6 @@ var apiKey = Environment.GetEnvironmentVariable("API_KEY");
         let files = vec![csproj_file];
         let deps = runtime.extract_native_deps(&files);
 
-        assert_eq!(deps, vec!["build-base"]);
+        assert_eq!(deps, vec!["build-base".to_string()]);
     }
 }

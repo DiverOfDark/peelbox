@@ -25,8 +25,8 @@ impl Framework for PhoenixFramework {
         }]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[4000]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![4000]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn test_phoenix_default_ports() {
         let framework = PhoenixFramework;
-        assert_eq!(framework.default_ports(), &[4000]);
+        assert_eq!(framework.default_ports(), vec![4000]);
     }
 
     #[test]

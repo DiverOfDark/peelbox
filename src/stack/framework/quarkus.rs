@@ -32,8 +32,8 @@ impl Framework for QuarkusFramework {
         ]
     }
 
-    fn default_ports(&self) -> &[u16] {
-        &[8080]
+    fn default_ports(&self) -> Vec<u16> {
+        vec![8080]
     }
 
     fn health_endpoints(&self) -> Vec<String> {
@@ -91,6 +91,6 @@ mod tests {
     #[test]
     fn test_quarkus_default_ports() {
         let framework = QuarkusFramework;
-        assert_eq!(framework.default_ports(), &[8080]);
+        assert_eq!(framework.default_ports(), vec![8080]);
     }
 }

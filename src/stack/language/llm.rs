@@ -14,6 +14,12 @@ struct LanguageInfo {
     env_vars: Vec<String>,
     health_endpoints: Vec<String>,
     default_port: Option<u16>,
+    runtime_name: Option<String>,
+    version_pattern: Option<String>,
+    default_entrypoint: Option<String>,
+    env_var_patterns: Vec<(String, String)>,
+    port_patterns: Vec<(String, String)>,
+    health_check_patterns: Vec<(String, String)>,
     confidence: f32,
 }
 
@@ -125,6 +131,12 @@ Response format:
   "env_vars": ["PORT", "NODE_ENV"],
   "health_endpoints": ["/health", "/ready"],
   "default_port": 3000,
+  "runtime_name": "node",
+  "version_pattern": "\"version\": \"(.+?)\"",
+  "default_entrypoint": "index.js",
+  "env_var_patterns": [["PORT", "\\bport\\s*=\\s*(\\d+)"]],
+  "port_patterns": [["listen", "\\blisten\\((\\d+)"]],
+  "health_check_patterns": [["health", "\\/health"]],
   "confidence": 0.95
 }}
 "#,
@@ -176,6 +188,53 @@ Response format:
             detected_by: DetectionMethod::LLM,
         }
     }
+
+    fn runtime_name(&self) -> Option<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|info| info.runtime_name.clone())
+    }
+
+    fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
+        None
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|info| info.default_entrypoint.clone())
+    }
+
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.env_var_patterns.clone())
+            .unwrap_or_default()
+    }
+
+    fn port_patterns(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.port_patterns.clone())
+            .unwrap_or_default()
+    }
+
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.health_check_patterns.clone())
+            .unwrap_or_default()
+    }
 }
 
 #[cfg(test)]
@@ -201,6 +260,12 @@ mod tests {
             env_vars: vec!["ZIG_PATH".to_string()],
             health_endpoints: vec!["/health".to_string()],
             default_port: Some(8080),
+            runtime_name: Some("zig".to_string()),
+            version_pattern: Some("\"version\": \"(.+?)\"".to_string()),
+            default_entrypoint: Some("main.zig".to_string()),
+            env_var_patterns: vec![],
+            port_patterns: vec![],
+            health_check_patterns: vec![],
             confidence: 0.9,
         };
 
@@ -226,6 +291,12 @@ mod tests {
             env_vars: vec![],
             health_endpoints: vec![],
             default_port: None,
+            runtime_name: None,
+            version_pattern: None,
+            default_entrypoint: None,
+            env_var_patterns: vec![],
+            port_patterns: vec![],
+            health_check_patterns: vec![],
             confidence: 0.3,
         };
 
