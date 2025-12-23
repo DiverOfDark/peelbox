@@ -297,9 +297,11 @@ impl EmbeddedClient {
             formatted.push('\n');
         }
 
-        formatted.push_str("**Tool Call Format:**\n");
-        formatted.push_str("Output JSON exactly like this:\n");
-        formatted.push_str("{\"name\": \"tool_name\", \"arguments\": {\"param1\": \"value1\", \"param2\": \"value2\"}}\n\n");
+        formatted.push_str("**CRITICAL: Output Format**\n");
+        formatted.push_str("When calling a tool, you MUST output ONLY the JSON object with no explanatory text.\n");
+        formatted.push_str("Do NOT include phrases like \"Let's...\", \"I will...\", or any explanation.\n");
+        formatted.push_str("Output ONLY this JSON format:\n");
+        formatted.push_str("{\"name\": \"tool_name\", \"arguments\": {\"param1\": \"value1\"}}\n\n");
 
         formatted
     }
@@ -363,8 +365,9 @@ impl EmbeddedClient {
 
     /// Parse tool calls from generated output
     fn parse_tool_call(&self, output: &str) -> Option<ToolCall> {
-        // Try parsing the whole output first (if it's pure JSON)
         let trimmed = output.trim();
+
+        // With improved prompt, LLM outputs pure JSON (no explanatory text)
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(trimmed) {
             if let (Some(name), Some(args)) = (
                 parsed.get("name").and_then(|n| n.as_str()),
@@ -375,26 +378,6 @@ impl EmbeddedClient {
                     name: name.to_string(),
                     arguments: args.clone(),
                 });
-            }
-        }
-
-        // Extract JSON from output (model may generate text + JSON)
-        // Find JSON object pattern: {"name": ..., "arguments": ...}
-        for line in output.lines() {
-            let line_trimmed = line.trim();
-            if line_trimmed.starts_with('{') && line_trimmed.contains("\"name\"") {
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(line_trimmed) {
-                    if let (Some(name), Some(args)) = (
-                        parsed.get("name").and_then(|n| n.as_str()),
-                        parsed.get("arguments"),
-                    ) {
-                        return Some(ToolCall {
-                            call_id: "embedded_0".to_string(),
-                            name: name.to_string(),
-                            arguments: args.clone(),
-                        });
-                    }
-                }
             }
         }
 
