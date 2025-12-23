@@ -147,7 +147,7 @@ impl EmbeddedClient {
     }
 
     /// Generate text completion
-    async fn generate(&self, prompt: &str, max_new_tokens: usize) -> Result<String> {
+    async fn generate(&self, prompt: &str, max_new_tokens: usize, temperature: f32) -> Result<String> {
         let start = Instant::now();
 
         // Tokenize input
@@ -159,13 +159,16 @@ impl EmbeddedClient {
         let input_ids: Vec<u32> = encoding.get_ids().to_vec();
         let input_len = input_ids.len();
 
-        debug!("Input tokens: {}", input_len);
+        debug!("Input tokens: {}, temperature: {}", input_len, temperature);
 
         // Generate tokens (need mutable access for KV cache)
         let mut model_guard = self.model.lock().await;
         let model = &mut *model_guard;
 
-        let mut logits_processor = LogitsProcessor::new(42, Some(0.7), Some(0.9));
+        // Use greedy sampling (argmax) when temperature=0.0 for fully deterministic output
+        // Otherwise use the specified temperature with fixed seed (42) for reproducibility
+        let temp = if temperature == 0.0 { None } else { Some(temperature as f64) };
+        let mut logits_processor = LogitsProcessor::new(42, temp, None);
 
         let mut generated_tokens: Vec<u32> = Vec::new();
 
@@ -360,8 +363,8 @@ impl EmbeddedClient {
 
     /// Parse tool calls from generated output
     fn parse_tool_call(&self, output: &str) -> Option<ToolCall> {
+        // Try parsing the whole output first (if it's pure JSON)
         let trimmed = output.trim();
-
         if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(trimmed) {
             if let (Some(name), Some(args)) = (
                 parsed.get("name").and_then(|n| n.as_str()),
@@ -372,6 +375,26 @@ impl EmbeddedClient {
                     name: name.to_string(),
                     arguments: args.clone(),
                 });
+            }
+        }
+
+        // Extract JSON from output (model may generate text + JSON)
+        // Find JSON object pattern: {"name": ..., "arguments": ...}
+        for line in output.lines() {
+            let line_trimmed = line.trim();
+            if line_trimmed.starts_with('{') && line_trimmed.contains("\"name\"") {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(line_trimmed) {
+                    if let (Some(name), Some(args)) = (
+                        parsed.get("name").and_then(|n| n.as_str()),
+                        parsed.get("arguments"),
+                    ) {
+                        return Some(ToolCall {
+                            call_id: "embedded_0".to_string(),
+                            name: name.to_string(),
+                            arguments: args.clone(),
+                        });
+                    }
+                }
             }
         }
 
@@ -396,9 +419,13 @@ impl LLMClient for EmbeddedClient {
         let max_tokens = request.max_tokens.unwrap_or(self.max_tokens as u32) as usize;
         debug!("Max tokens: {}", max_tokens);
 
+        // Use temperature 0.0 by default for fully deterministic output (critical for test recordings)
+        // With fixed seed and greedy sampling, outputs are 100% reproducible across hosts
+        let temperature = request.temperature.unwrap_or(0.0);
+
         // Generate response
         let output = self
-            .generate(&prompt, max_tokens)
+            .generate(&prompt, max_tokens, temperature)
             .await
             .map_err(|e| BackendError::Other {
                 message: format!("Embedded LLM generation failed: {}", e),
