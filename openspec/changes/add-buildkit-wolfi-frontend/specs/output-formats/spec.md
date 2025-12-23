@@ -3,15 +3,23 @@
 ### Requirement: Build Command
 The system SHALL provide a `build` command that builds container images via BuildKit.
 
-#### Scenario: Build command with tag
-- **WHEN** `aipack build --tag image:tag` is executed
-- **THEN** the system detects the repository, generates LLB, and builds the image
-- **AND** the image is tagged with the specified name
+#### Scenario: Build single app with image name
+- **WHEN** `aipack build --repo /path/to/repo --spec spec.json --image myapp:latest` is executed
+- **THEN** the system loads the spec, generates LLB, and builds the image
+- **AND** the image is named `myapp:latest`
 
-#### Scenario: Build and push
-- **WHEN** `aipack build --tag registry/image:tag --push` is executed
-- **THEN** the system builds and pushes the image to the registry
-- **AND** authentication uses Docker config or environment credentials
+#### Scenario: Build multi-app with template
+- **WHEN** `aipack build --repo /path/to/repo --spec spec.json --image myapp-{app}:latest` is executed
+- **AND** spec contains apps named "backend" and "frontend"
+- **THEN** the system builds both apps sequentially
+- **AND** produces images `myapp-backend:latest` and `myapp-frontend:latest`
+
+#### Scenario: Build specific app from multi-app spec
+- **WHEN** `aipack build --repo /path/to/repo --spec spec.json --app backend --image backend:latest` is executed
+- **AND** spec contains multiple apps including "backend"
+- **THEN** the system builds only the "backend" app
+- **AND** produces image `backend:latest`
+
 
 #### Scenario: Export to Docker daemon
 - **WHEN** `--output type=docker` is specified
@@ -45,24 +53,13 @@ The system SHALL support configuring the BuildKit daemon endpoint.
 
 ---
 
-### Requirement: Attestation Flags
-The system SHALL support flags to control SBOM and provenance attestation generation.
+### Requirement: Mandatory Attestations
+The system SHALL always generate SBOM and provenance attestations for all builds.
 
-#### Scenario: Attestations enabled by default
-- **WHEN** `aipack build` is executed without attestation flags
+#### Scenario: Attestations always enabled
+- **WHEN** `aipack build` is executed
 - **THEN** SBOM and provenance attestations are generated and attached
-
-#### Scenario: Disable SBOM
-- **WHEN** `--no-sbom` flag is specified
-- **THEN** no SBOM attestation is generated
-
-#### Scenario: Disable provenance
-- **WHEN** `--no-provenance` flag is specified
-- **THEN** no provenance attestation is generated
-
-#### Scenario: Disable all attestations
-- **WHEN** `--no-attestations` flag is specified
-- **THEN** neither SBOM nor provenance attestations are generated
+- **AND** attestations cannot be disabled (security by default)
 
 ---
 

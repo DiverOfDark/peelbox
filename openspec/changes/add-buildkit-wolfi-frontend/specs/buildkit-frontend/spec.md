@@ -83,14 +83,10 @@ The system SHALL generate SBOM attestations in SPDX format for all builds.
 - **AND** the SBOM is attached to the image manifest in SPDX JSON format
 
 #### Scenario: Include build context in SBOM
-- **WHEN** SBOM is generated
+- **WHEN** SBOM is generated (always)
 - **THEN** the scan includes files from the build context
 - **AND** the scan includes packages installed in all build stages
-
-#### Scenario: Disable SBOM generation
-- **WHEN** `--no-sbom` flag is specified
-- **THEN** no SBOM attestation is generated
-- **AND** build completes faster without scanning overhead
+- **AND** SBOM generation is mandatory (cannot be disabled)
 
 ---
 
