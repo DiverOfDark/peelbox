@@ -1,8 +1,20 @@
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
 use crate::llm::{ChatMessage, LLMClient, LLMRequest};
-use crate::stack::BuildSystemId;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ManifestInfo {
+    manifest_path: String,
+    build_system: String,
+    language: String,
+    confidence: f32,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BuildSystemInfo {
@@ -60,55 +72,53 @@ impl BuildSystem for LLMBuildSystem {
             .unwrap_or_default()
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        let content_preview = manifest_content
-            .map(|c| c.chars().take(500).collect::<String>())
-            .unwrap_or_default();
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        _fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let summary = create_file_tree_summary(file_tree);
 
         let prompt = format!(
-            r#"Analyze this build manifest to identify the build system. Respond with JSON only.
+            r#"Analyze this repository to identify build system manifests.
 
-File: {}
-Content:
+Repository: {}
+File tree summary:
 {}
 
-Response format:
-{{
-  "name": "BuildSystemName",
-  "manifest_files": ["file1.ext"],
-  "build_commands": ["build", "test"],
-  "cache_dirs": [".cache"],
-  "build_image": "base-image:tag",
-  "runtime_image": "runtime-image:tag",
-  "build_packages": ["gcc", "make"],
-  "runtime_packages": ["libc"],
-  "artifacts": ["/app/build/*"],
-  "common_ports": [8080, 3000],
-  "confidence": 0.95
-}}
+Identify manifest files and their build systems. Return JSON array:
+[{{
+  "manifest_path": "build.zig",
+  "build_system": "zig",
+  "language": "Zig",
+  "confidence": 0.85
+}}]
 "#,
-            manifest_name, content_preview
+            repo_root.display(),
+            summary
         );
 
         let request = LLMRequest::new(vec![ChatMessage::user(prompt)]);
-        let response = match tokio::task::block_in_place(|| {
+        let response = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(self.llm_client.chat(request))
-        }) {
-            Ok(resp) => resp,
-            Err(_) => return false,
-        };
+        })?;
 
-        let info: BuildSystemInfo = match serde_json::from_str(&response.content) {
-            Ok(i) => i,
-            Err(_) => return false,
-        };
+        let json_str = strip_markdown_fences(&response.content);
+        let manifests: Vec<ManifestInfo> = serde_json::from_str(&json_str)?;
 
-        if info.confidence < 0.5 {
-            return false;
+        let mut detections = Vec::new();
+        for manifest in manifests {
+            if manifest.confidence >= 0.5 {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Custom(manifest.build_system),
+                    LanguageId::Custom(manifest.language),
+                    PathBuf::from(manifest.manifest_path),
+                ));
+            }
         }
 
-        *self.detected_info.lock().unwrap() = Some(info);
-        true
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {
@@ -148,9 +158,53 @@ Response format:
     }
 }
 
+fn strip_markdown_fences(content: &str) -> &str {
+    let trimmed = content.trim();
+    if trimmed.starts_with("```json") {
+        trimmed
+            .strip_prefix("```json")
+            .unwrap_or(trimmed)
+            .strip_suffix("```")
+            .unwrap_or(trimmed)
+            .trim()
+    } else if trimmed.starts_with("```") {
+        trimmed
+            .strip_prefix("```")
+            .unwrap_or(trimmed)
+            .strip_suffix("```")
+            .unwrap_or(trimmed)
+            .trim()
+    } else {
+        trimmed
+    }
+}
+
+fn create_file_tree_summary(file_tree: &[PathBuf]) -> String {
+    let root_files: Vec<_> = file_tree
+        .iter()
+        .filter(|p| p.components().count() == 1)
+        .take(50)
+        .map(|p| p.display().to_string())
+        .collect();
+
+    let mut ext_counts = HashMap::new();
+    for path in file_tree {
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            *ext_counts.entry(ext).or_insert(0) += 1;
+        }
+    }
+
+    format!(
+        "Root files: {}\nExtensions: {:?}",
+        root_files.join(", "),
+        ext_counts
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fs::RealFileSystem;
     use crate::llm::{MockLLMClient, MockResponse};
 
     #[test]
@@ -164,59 +218,73 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_llm_build_system_detect_success() {
-        let info = BuildSystemInfo {
-            name: "Bazel".to_string(),
-            manifest_files: vec!["BUILD".to_string()],
-            build_commands: vec!["bazel build".to_string()],
-            cache_dirs: vec!["bazel-out".to_string()],
-            build_image: "ubuntu:22.04".to_string(),
-            runtime_image: "ubuntu:22.04".to_string(),
-            build_packages: vec!["bazel".to_string()],
-            runtime_packages: vec![],
-            artifacts: vec!["/app/bazel-bin/*".to_string()],
-            common_ports: vec![8080],
+    async fn test_llm_build_system_detect_all() {
+        let manifests = vec![ManifestInfo {
+            manifest_path: "build.zig".to_string(),
+            build_system: "zig".to_string(),
+            language: "Zig".to_string(),
             confidence: 0.9,
-        };
+        }];
 
-        let json = serde_json::to_string(&info).unwrap();
+        let json = serde_json::to_string(&manifests).unwrap();
         let client = Arc::new(MockLLMClient::new());
         client.add_response(MockResponse::text(json));
 
         let build_system = LLMBuildSystem::new(client);
-        let result = build_system.detect("BUILD", Some("load(\"@bazel_tools\")"));
+        let file_tree = vec![PathBuf::from("build.zig"), PathBuf::from("src/main.zig")];
+        let fs = RealFileSystem;
 
-        assert!(result);
+        let result = build_system
+            .detect_all(Path::new("/tmp"), &file_tree, &fs)
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
         assert_eq!(
-            build_system.id(),
-            BuildSystemId::Custom("Bazel".to_string())
+            result[0].build_system,
+            BuildSystemId::Custom("zig".to_string())
         );
-        assert_eq!(build_system.cache_dirs(), vec!["bazel-out"]);
+        assert_eq!(
+            result[0].language,
+            LanguageId::Custom("Zig".to_string())
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_confidence_validation() {
-        let low_confidence = BuildSystemInfo {
-            name: "Unknown".to_string(),
-            manifest_files: vec![],
-            build_commands: vec![],
-            cache_dirs: vec![],
-            build_image: "alpine:latest".to_string(),
-            runtime_image: "alpine:latest".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
-            artifacts: vec![],
-            common_ports: vec![],
-            confidence: 0.2,
-        };
+    async fn test_confidence_filtering() {
+        let manifests = vec![
+            ManifestInfo {
+                manifest_path: "build.zig".to_string(),
+                build_system: "zig".to_string(),
+                language: "Zig".to_string(),
+                confidence: 0.9,
+            },
+            ManifestInfo {
+                manifest_path: "unknown.txt".to_string(),
+                build_system: "Unknown".to_string(),
+                language: "Unknown".to_string(),
+                confidence: 0.2,
+            },
+        ];
 
-        let json = serde_json::to_string(&low_confidence).unwrap();
+        let json = serde_json::to_string(&manifests).unwrap();
         let client = Arc::new(MockLLMClient::new());
         client.add_response(MockResponse::text(json));
 
         let build_system = LLMBuildSystem::new(client);
-        let result = build_system.detect("unknown.txt", Some("content"));
+        let file_tree = vec![
+            PathBuf::from("build.zig"),
+            PathBuf::from("unknown.txt"),
+        ];
+        let fs = RealFileSystem;
 
-        assert!(!result);
+        let result = build_system
+            .detect_all(Path::new("/tmp"), &file_tree, &fs)
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result[0].build_system,
+            BuildSystemId::Custom("zig".to_string())
+        );
     }
 }

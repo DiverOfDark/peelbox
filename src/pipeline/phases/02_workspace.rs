@@ -214,7 +214,7 @@ mod tests {
     use super::*;
     use crate::stack::BuildSystemId;
     use crate::stack::LanguageId;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
     use std::path::PathBuf;
 
     #[test]
@@ -238,7 +238,7 @@ mod tests {
             )],
             workspace: super::super::scan::WorkspaceInfo {
                 root_manifests: vec!["package.json".to_string()],
-                nested_by_depth: HashMap::new(),
+                nested_by_depth: BTreeMap::new(),
                 max_depth: 0,
                 has_workspace_config: false,
             },

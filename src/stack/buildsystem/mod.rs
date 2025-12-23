@@ -4,7 +4,11 @@
 //! A language can be compatible with multiple build systems (e.g., JavaScript
 //! works with npm, yarn, pnpm, and Bun).
 
+use crate::fs::FileSystem;
+use crate::stack::DetectionStack;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 /// Build template for container image generation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,8 +37,13 @@ pub trait BuildSystem: Send + Sync {
     /// Manifest file patterns (e.g., "Cargo.toml", "package.json")
     fn manifest_patterns(&self) -> Vec<ManifestPattern>;
 
-    /// Detect if a manifest belongs to this build system
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool;
+    /// Detect all manifests for this build system in the repository
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>>;
 
     /// Get build template for this build system
     fn build_template(&self) -> BuildTemplate;

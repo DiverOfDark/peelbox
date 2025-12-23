@@ -1,12 +1,16 @@
 //! CMake build system (C++)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct CMakeBuildSystem;
 
 impl BuildSystem for CMakeBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::CMake
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::CMake
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,8 +20,25 @@ impl BuildSystem for CMakeBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, _manifest_content: Option<&str>) -> bool {
-        manifest_name == "CMakeLists.txt"
+    fn detect_all(
+        &self,
+        _repo_root: &Path,
+        file_tree: &[PathBuf],
+        _fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for path in file_tree {
+            if path.file_name().and_then(|n| n.to_str()) == Some("CMakeLists.txt") {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::CMake,
+                    LanguageId::Cpp,
+                    path.clone(),
+                ));
+            }
+        }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

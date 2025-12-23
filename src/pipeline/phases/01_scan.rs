@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -40,7 +40,7 @@ pub struct RepoSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
     pub root_manifests: Vec<String>,
-    pub nested_by_depth: HashMap<usize, Vec<String>>,
+    pub nested_by_depth: BTreeMap<usize, Vec<String>>,
     pub max_depth: usize,
     pub has_workspace_config: bool,
 }
@@ -168,7 +168,7 @@ Use these manifest files to guide your analysis. Read them directly without sear
         has_workspace_config: bool,
     ) -> WorkspaceInfo {
         let mut root_manifests = Vec::new();
-        let mut nested_by_depth: HashMap<usize, Vec<String>> = HashMap::new();
+        let mut nested_by_depth: BTreeMap<usize, Vec<String>> = BTreeMap::new();
         let mut max_depth = 0;
 
         for detection in detections {
@@ -182,6 +182,12 @@ Use these manifest files to guide your analysis. Read them directly without sear
                     .push(manifest_path);
                 max_depth = max_depth.max(detection.depth);
             }
+        }
+
+        // Sort for deterministic serialization
+        root_manifests.sort();
+        for paths in nested_by_depth.values_mut() {
+            paths.sort();
         }
 
         WorkspaceInfo {
@@ -258,49 +264,31 @@ fn deduplicate_detections(
         }
     }
 
+    // Sort by manifest path for deterministic ordering
+    deduplicated.sort_by(|a, b| a.manifest_path.cmp(&b.manifest_path));
+
     deduplicated
 }
 
-fn detect_language(
-    path: &Path,
-    filename: &str,
+fn enrich_detections(
+    detections: &mut [DetectionStack],
     repo_path: &Path,
     stack_registry: &Arc<StackRegistry>,
     read_content: bool,
-) -> Result<Option<DetectionStack>> {
-    let content = if read_content {
-        std::fs::read_to_string(path).ok()
-    } else {
-        None
-    };
+) -> Result<()> {
+    for detection in detections.iter_mut() {
+        let rel_path = detection.manifest_path.strip_prefix(repo_path).unwrap_or(&detection.manifest_path);
 
-    trace!(
-        file = filename,
-        has_content = content.is_some(),
-        "Read manifest content"
-    );
+        detection.depth = rel_path.to_string_lossy().matches('/').count();
 
-    let rel_path = path.strip_prefix(repo_path).unwrap_or(path);
-
-    let depth = rel_path.to_string_lossy().matches('/').count();
-
-    let detection_result = stack_registry.detect_stack_opt(rel_path, content.as_deref());
-    trace!(
-        file = filename,
-        detected = detection_result.is_some(),
-        "Stack detection result"
-    );
-
-    if let Some(mut detection_stack) = detection_result {
-        let is_workspace_root = stack_registry.is_workspace_root(filename, content.as_deref());
-
-        detection_stack.depth = depth;
-        detection_stack.is_workspace_root = is_workspace_root;
-
-        Ok(Some(detection_stack))
-    } else {
-        Ok(None)
+        if read_content {
+            if let Some(filename) = detection.manifest_path.file_name().and_then(|n| n.to_str()) {
+                let content = std::fs::read_to_string(&detection.manifest_path).ok();
+                detection.is_workspace_root = stack_registry.is_workspace_root(filename, content.as_deref());
+            }
+        }
     }
+    Ok(())
 }
 
 pub struct ScanPhase;
@@ -338,7 +326,7 @@ impl ScanPhase {
             .canonicalize()
             .context("Failed to canonicalize repository path")?;
 
-        let stack_registry = Arc::new(StackRegistry::with_defaults(None));
+        let stack_registry = Arc::clone(&context.stack_registry);
 
         debug!(
             repo_path = %repo_path.display(),
@@ -354,7 +342,6 @@ impl ScanPhase {
             "Starting repository scan"
         );
 
-        let mut detections = Vec::new();
         let mut file_tree = Vec::new();
         let mut files_scanned = 0;
         let mut has_workspace_config = false;
@@ -405,49 +392,33 @@ impl ScanPhase {
 
             file_tree.push(rel_path.clone());
 
-            if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                trace!(
-                    file = filename,
-                    path = %path.display(),
-                    "Checking file"
-                );
+            trace!(
+                path = %path.display(),
+                "Added file to tree"
+            );
+        }
 
-                let is_manifest = stack_registry.is_manifest(filename);
-                trace!(
-                    file = filename,
-                    is_manifest = is_manifest,
-                    "Manifest check result"
-                );
+        info!(
+            files_scanned,
+            "File tree scan complete, running batch detection"
+        );
 
-                if is_manifest {
-                    // Check if this manifest is a workspace root
-                    let content = if config.read_content {
-                        std::fs::read_to_string(path).ok()
-                    } else {
-                        None
-                    };
+        let fs = crate::fs::RealFileSystem;
+        let mut detections = stack_registry.detect_all_stacks(&repo_path, &file_tree, &fs)?;
 
-                    if stack_registry.is_workspace_root(filename, content.as_deref()) {
-                        has_workspace_config = true;
-                    }
+        enrich_detections(&mut detections, &repo_path, &stack_registry, config.read_content)?;
 
-                    if let Some(detection) = detect_language(
-                        path,
-                        filename,
-                        &repo_path,
-                        &stack_registry,
-                        config.read_content,
-                    )? {
-                        debug!(
-                            path = %path.display(),
-                            language = %detection.language.name(),
-                            build_system = %detection.build_system.name(),
-                            confidence = detection.confidence,
-                            "Detected language"
-                        );
-                        detections.push(detection);
-                    }
-                }
+        for detection in &detections {
+            debug!(
+                path = %detection.manifest_path.display(),
+                language = %detection.language.name(),
+                build_system = %detection.build_system.name(),
+                confidence = detection.confidence,
+                "Detected language"
+            );
+
+            if detection.is_workspace_root {
+                has_workspace_config = true;
             }
         }
 

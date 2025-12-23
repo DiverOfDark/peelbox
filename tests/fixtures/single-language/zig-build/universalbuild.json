@@ -1,0 +1,52 @@
+[
+  {
+    "build": {
+      "artifacts": [
+        "zig-out/bin/hello"
+      ],
+      "base": "alpine:latest",
+      "cache": [
+        "zig-cache",
+        ".zig-cache"
+      ],
+      "commands": [
+        "zig build -Doptimize=ReleaseSafe"
+      ],
+      "context": [
+        {
+          "from": "",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "zig"
+      ]
+    },
+    "metadata": {
+      "build_system": "zig",
+      "confidence": 0.85,
+      "framework": "",
+      "language": "Zig",
+      "project_name": "hello",
+      "reasoning": "Detected Zig language from build.zig file"
+    },
+    "runtime": {
+      "base": "alpine:latest",
+      "command": [
+        "/app/hello"
+      ],
+      "copy": [
+        {
+          "from": "zig-out/bin/hello",
+          "to": "/app/hello"
+        }
+      ],
+      "env": {},
+      "health": {},
+      "packages": [],
+      "ports": []
+    },
+    "version": "1.0"
+  }
+]

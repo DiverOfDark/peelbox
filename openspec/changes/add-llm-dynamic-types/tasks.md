@@ -107,17 +107,17 @@
 
 ## Phase 7: Update Tests
 
-- [x] 7.1 Add fixture for unknown build system (e.g., Bazel) - DEFERRED to future PR
-  - [ ] 7.1.1 Create `tests/fixtures/edge-cases/bazel-build/`
-  - [ ] 7.1.2 Add BUILD file and minimal source
-  - [ ] 7.1.3 Create expected JSON with `Custom("Bazel")` output
-- [x] 7.2 Add fixture for unknown language (e.g., Zig) - DEFERRED to future PR
-  - [ ] 7.2.1 Create `tests/fixtures/single-language/zig-build/`
-  - [ ] 7.2.2 Add build.zig and source file
-  - [ ] 7.2.3 Create expected JSON with custom type
-- [x] 7.3 Add fixture for unknown framework (e.g., Fresh) - DEFERRED to future PR
-  - [ ] 7.3.1 Create `tests/fixtures/single-language/deno-fresh/`
-  - [ ] 7.3.2 Add deno.json with Fresh dependency
+- [x] 7.1 Add fixture for unknown build system (e.g., Bazel)
+  - [x] 7.1.1 Create `tests/fixtures/edge-cases/bazel-build/`
+  - [x] 7.1.2 Add BUILD file and minimal source
+  - [x] 7.1.3 Create expected JSON with `Custom("Bazel")` output
+- [x] 7.2 Add fixture for unknown language (e.g., Zig)
+  - [x] 7.2.1 Create `tests/fixtures/single-language/zig-build/`
+  - [x] 7.2.2 Add build.zig and source file
+  - [x] 7.2.3 Create expected JSON with custom type
+- [x] 7.3 Add fixture for unknown framework (e.g., Fresh)
+  - [x] 7.3.1 Create `tests/fixtures/single-language/deno-fresh/`
+  - [x] 7.3.2 Add deno.json with Fresh dependency
 - [x] 7.4 Update MockLLMClient to return structured responses for LLM* implementations
 - [x] 7.5 Add test: LLM* implementations trigger when pattern detection fails
 - [x] 7.6 Add test: Pattern match bypasses LLM* for known tech

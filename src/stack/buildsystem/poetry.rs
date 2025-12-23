@@ -1,12 +1,16 @@
 //! Poetry build system (Python)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct PoetryBuildSystem;
 
 impl BuildSystem for PoetryBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Poetry
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Poetry
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,16 +20,36 @@ impl BuildSystem for PoetryBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        if manifest_name != "pyproject.toml" {
-            return false;
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for rel_path in file_tree {
+            if rel_path.file_name().and_then(|n| n.to_str()) == Some("pyproject.toml") {
+                let abs_path = repo_root.join(rel_path);
+                let content = fs.read_to_string(&abs_path).ok();
+
+                let is_valid = if let Some(c) = content.as_deref() {
+                    c.contains("[tool.poetry]")
+                } else {
+                    true
+                };
+
+                if is_valid {
+                    detections.push(DetectionStack::new(
+                        BuildSystemId::Poetry,
+                        LanguageId::Python,
+                        repo_root.join(rel_path),
+                    ));
+                }
+            }
         }
 
-        if let Some(content) = manifest_content {
-            content.contains("[tool.poetry]")
-        } else {
-            true
-        }
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

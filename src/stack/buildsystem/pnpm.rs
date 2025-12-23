@@ -1,13 +1,16 @@
 //! pnpm build system (JavaScript/TypeScript)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct PnpmBuildSystem;
 
 impl BuildSystem for PnpmBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Pnpm
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Pnpm
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -23,18 +26,41 @@ impl BuildSystem for PnpmBuildSystem {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        match manifest_name {
-            "pnpm-lock.yaml" => true,
-            "package.json" => {
-                if let Some(content) = manifest_content {
-                    content.contains("\"packageManager\": \"pnpm")
-                } else {
-                    false
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for rel_path in file_tree {
+            let filename = rel_path.file_name().and_then(|n| n.to_str());
+
+            let is_match = match filename {
+                Some("pnpm-lock.yaml") => true,
+                Some("package.json") => {
+                    let abs_path = repo_root.join(rel_path);
+                    let content = fs.read_to_string(&abs_path).ok();
+                    if let Some(c) = content.as_deref() {
+                        c.contains("\"packageManager\": \"pnpm")
+                    } else {
+                        false
+                    }
                 }
+                _ => false,
+            };
+
+            if is_match {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Pnpm,
+                    LanguageId::JavaScript,
+                    repo_root.join(rel_path),
+                ));
             }
-            _ => false,
         }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

@@ -1,12 +1,16 @@
 //! Bundler build system (Ruby)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct BundlerBuildSystem;
 
 impl BuildSystem for BundlerBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Bundler
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Bundler
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,8 +20,25 @@ impl BuildSystem for BundlerBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, _manifest_content: Option<&str>) -> bool {
-        manifest_name == "Gemfile"
+    fn detect_all(
+        &self,
+        _repo_root: &Path,
+        file_tree: &[PathBuf],
+        _fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for path in file_tree {
+            if path.file_name().and_then(|n| n.to_str()) == Some("Gemfile") {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Bundler,
+                    LanguageId::Ruby,
+                    path.clone(),
+                ));
+            }
+        }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

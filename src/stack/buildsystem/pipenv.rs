@@ -1,12 +1,16 @@
 //! Pipenv build system (Python)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct PipenvBuildSystem;
 
 impl BuildSystem for PipenvBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Pipenv
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Pipenv
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,8 +20,25 @@ impl BuildSystem for PipenvBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, _manifest_content: Option<&str>) -> bool {
-        manifest_name == "Pipfile"
+    fn detect_all(
+        &self,
+        _repo_root: &Path,
+        file_tree: &[PathBuf],
+        _fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for path in file_tree {
+            if path.file_name().and_then(|n| n.to_str()) == Some("Pipfile") {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Pipenv,
+                    LanguageId::Python,
+                    path.clone(),
+                ));
+            }
+        }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

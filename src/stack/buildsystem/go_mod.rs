@@ -1,12 +1,16 @@
 //! Go modules build system
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct GoModBuildSystem;
 
 impl BuildSystem for GoModBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::GoMod
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::GoMod
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,16 +20,36 @@ impl BuildSystem for GoModBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        if manifest_name != "go.mod" {
-            return false;
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for rel_path in file_tree {
+            if rel_path.file_name().and_then(|n| n.to_str()) == Some("go.mod") {
+                let abs_path = repo_root.join(rel_path);
+                let content = fs.read_to_string(&abs_path).ok();
+
+                let is_valid = if let Some(c) = content.as_deref() {
+                    c.contains("module ")
+                } else {
+                    true
+                };
+
+                if is_valid {
+                    detections.push(DetectionStack::new(
+                        BuildSystemId::GoMod,
+                        LanguageId::Go,
+                        repo_root.join(rel_path),
+                    ));
+                }
+            }
         }
 
-        if let Some(content) = manifest_content {
-            content.contains("module ")
-        } else {
-            true
-        }
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

@@ -1,12 +1,16 @@
 //! Make build system
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct MakeBuildSystem;
 
 impl BuildSystem for MakeBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Make
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Make
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,8 +20,26 @@ impl BuildSystem for MakeBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, _manifest_content: Option<&str>) -> bool {
-        manifest_name == "Makefile" || manifest_name == "makefile"
+    fn detect_all(
+        &self,
+        _repo_root: &Path,
+        file_tree: &[PathBuf],
+        _fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for path in file_tree {
+            let filename = path.file_name().and_then(|n| n.to_str());
+            if filename == Some("Makefile") || filename == Some("makefile") {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Make,
+                    LanguageId::Cpp,
+                    path.clone(),
+                ));
+            }
+        }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

@@ -197,83 +197,22 @@ impl StackRegistry {
         self.orchestrators.values().map(|o| o.as_ref()).collect()
     }
 
-    pub fn detect_build_system_opt(
+    pub fn detect_all_stacks(
         &self,
-        manifest_path: &Path,
-        content: Option<&str>,
-    ) -> Option<BuildSystemId> {
-        let filename = manifest_path.file_name()?.to_str()?;
+        repo_root: &Path,
+        file_tree: &[std::path::PathBuf],
+        fs: &dyn crate::fs::FileSystem,
+    ) -> anyhow::Result<Vec<DetectionStack>> {
+        let mut all_detections = Vec::new();
 
-        for (id, build_system) in &self.build_systems {
-            if build_system.detect(filename, content) {
-                return Some(id.clone());
-            }
-        }
-        None
-    }
-
-    pub fn detect_build_system(
-        &self,
-        manifest_path: &Path,
-        content: &str,
-    ) -> Option<BuildSystemId> {
-        self.detect_build_system_opt(manifest_path, Some(content))
-    }
-
-    pub fn detect_language_opt(
-        &self,
-        manifest_path: &Path,
-        content: Option<&str>,
-        build_system: BuildSystemId,
-    ) -> Option<LanguageId> {
-        let filename = manifest_path.file_name()?.to_str()?;
-
-        for (id, language) in &self.languages {
-            if let Some(result) = language.detect(filename, content) {
-                if result.build_system == build_system {
-                    return Some(id.clone());
-                }
-            }
-        }
-        None
-    }
-
-    pub fn detect_language(
-        &self,
-        manifest_path: &Path,
-        content: &str,
-        build_system: BuildSystemId,
-    ) -> Option<LanguageId> {
-        self.detect_language_opt(manifest_path, Some(content), build_system)
-    }
-
-    pub fn detect_stack_opt(
-        &self,
-        manifest_path: &Path,
-        content: Option<&str>,
-    ) -> Option<DetectionStack> {
-        let build_system = self.detect_build_system_opt(manifest_path, content)?;
-        let language = self.detect_language_opt(manifest_path, content, build_system.clone())?;
-
-        Some(DetectionStack::new(
-            build_system,
-            language,
-            manifest_path.to_path_buf(),
-        ))
-    }
-
-    pub fn detect_stack(&self, manifest_path: &Path, content: &str) -> Option<DetectionStack> {
-        self.detect_stack_opt(manifest_path, Some(content))
-    }
-
-    pub fn is_manifest(&self, filename: &str) -> bool {
         for build_system in self.build_systems.values() {
-            if build_system.detect(filename, None) {
-                return true;
-            }
+            let detections = build_system.detect_all(repo_root, file_tree, fs)?;
+            all_detections.extend(detections);
         }
-        false
+
+        Ok(all_detections)
     }
+
 
     pub fn all_excluded_dirs(&self) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();

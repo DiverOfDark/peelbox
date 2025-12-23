@@ -64,8 +64,9 @@ impl LLMClient for LazyLLMClient {
     }
 
     fn model_info(&self) -> Option<String> {
-        let lock = self.client.lock().unwrap();
-        lock.as_ref().and_then(|c| c.model_info())
+        // Return model from config - this is deterministic and doesn't require initialization
+        // The actual client will use the same model from the same config
+        Some(self.config.model.clone())
     }
 }
 
@@ -84,9 +85,10 @@ mod tests {
     #[tokio::test]
     async fn test_lazy_client_model_info_before_init() {
         let config = AipackConfig::default();
+        let expected_model = config.model.clone();
         let client = LazyLLMClient::new(config, false);
 
-        // Before initialization, model_info should return None
-        assert!(client.model_info().is_none());
+        // model_info should return the model from config, even before initialization
+        assert_eq!(client.model_info(), Some(expected_model));
     }
 }

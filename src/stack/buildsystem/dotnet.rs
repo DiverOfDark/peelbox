@@ -1,14 +1,16 @@
 //! .NET build system (C#, F#, VB)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub struct DotNetBuildSystem;
 
 impl BuildSystem for DotNetBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::DotNet
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::DotNet
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -32,21 +34,45 @@ impl BuildSystem for DotNetBuildSystem {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        let is_dotnet = manifest_name.ends_with(".csproj")
-            || manifest_name.ends_with(".fsproj")
-            || manifest_name.ends_with(".vbproj")
-            || manifest_name.ends_with(".sln");
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
 
-        if !is_dotnet {
-            return false;
+        for rel_path in file_tree {
+            let filename = rel_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            let is_dotnet = filename.ends_with(".csproj")
+                || filename.ends_with(".fsproj")
+                || filename.ends_with(".vbproj")
+                || filename.ends_with(".sln");
+
+            if !is_dotnet {
+                continue;
+            }
+
+            let abs_path = repo_root.join(rel_path);
+            let content = fs.read_to_string(&abs_path).ok();
+
+            let is_valid = if let Some(c) = content.as_deref() {
+                c.contains("<Project") || c.contains("Microsoft.NET.Sdk")
+            } else {
+                true
+            };
+
+            if is_valid {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::DotNet,
+                    LanguageId::CSharp,
+                    repo_root.join(rel_path),
+                ));
+            }
         }
 
-        if let Some(content) = manifest_content {
-            content.contains("<Project") || content.contains("Microsoft.NET.Sdk")
-        } else {
-            true
-        }
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

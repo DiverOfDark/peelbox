@@ -92,7 +92,7 @@ mod tests {
     use crate::pipeline::Confidence;
     use crate::stack::orchestrator::{OrchestratorId, WorkspaceStructure};
     use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     #[tokio::test]
     async fn test_root_cache_pnpm() {
@@ -246,7 +246,7 @@ mod tests {
             .with_workspace_root(false)],
             workspace: WorkspaceInfo {
                 root_manifests: vec![],
-                nested_by_depth: HashMap::new(),
+                nested_by_depth: BTreeMap::new(),
                 max_depth: 0,
                 has_workspace_config: false,
             },

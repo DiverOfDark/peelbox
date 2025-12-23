@@ -1,12 +1,16 @@
 //! Meson build system
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct MesonBuildSystem;
 
 impl BuildSystem for MesonBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Meson
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Meson
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,16 +20,36 @@ impl BuildSystem for MesonBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        if manifest_name != "meson.build" {
-            return false;
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for rel_path in file_tree {
+            if rel_path.file_name().and_then(|n| n.to_str()) == Some("meson.build") {
+                let abs_path = repo_root.join(rel_path);
+                let content = fs.read_to_string(&abs_path).ok();
+
+                let is_valid = if let Some(c) = content.as_deref() {
+                    c.contains("project(")
+                } else {
+                    true
+                };
+
+                if is_valid {
+                    detections.push(DetectionStack::new(
+                        BuildSystemId::Meson,
+                        LanguageId::Cpp,
+                        repo_root.join(rel_path),
+                    ));
+                }
+            }
         }
 
-        if let Some(content) = manifest_content {
-            content.contains("project(")
-        } else {
-            true
-        }
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

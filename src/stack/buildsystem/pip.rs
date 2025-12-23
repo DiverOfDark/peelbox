@@ -1,12 +1,16 @@
 //! pip build system (Python)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct PipBuildSystem;
 
 impl BuildSystem for PipBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Pip
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Pip
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -26,20 +30,42 @@ impl BuildSystem for PipBuildSystem {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        match manifest_name {
-            "requirements.txt" => {
-                if let Some(content) = manifest_content {
-                    content
-                        .lines()
-                        .any(|l| !l.trim().is_empty() && !l.starts_with('#'))
-                } else {
-                    true
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for rel_path in file_tree {
+            let filename = rel_path.file_name().and_then(|n| n.to_str());
+
+            let is_match = match filename {
+                Some("requirements.txt") => {
+                    let abs_path = repo_root.join(rel_path);
+                    let content = fs.read_to_string(&abs_path).ok();
+                    if let Some(c) = content.as_deref() {
+                        c.lines()
+                            .any(|l| !l.trim().is_empty() && !l.starts_with('#'))
+                    } else {
+                        true
+                    }
                 }
+                Some("setup.py") | Some("setup.cfg") => true,
+                _ => false,
+            };
+
+            if is_match {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Pip,
+                    LanguageId::Python,
+                    repo_root.join(rel_path),
+                ));
             }
-            "setup.py" | "setup.cfg" => true,
-            _ => false,
         }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

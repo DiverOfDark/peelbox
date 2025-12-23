@@ -1,12 +1,16 @@
 //! Mix build system (Elixir)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
+use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct MixBuildSystem;
 
 impl BuildSystem for MixBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Mix
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Mix
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -16,8 +20,25 @@ impl BuildSystem for MixBuildSystem {
         }]
     }
 
-    fn detect(&self, manifest_name: &str, _manifest_content: Option<&str>) -> bool {
-        manifest_name == "mix.exs"
+    fn detect_all(
+        &self,
+        _repo_root: &Path,
+        file_tree: &[PathBuf],
+        _fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for path in file_tree {
+            if path.file_name().and_then(|n| n.to_str()) == Some("mix.exs") {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Mix,
+                    LanguageId::Elixir,
+                    path.clone(),
+                ));
+            }
+        }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {

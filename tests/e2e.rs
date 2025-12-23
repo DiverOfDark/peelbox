@@ -244,6 +244,8 @@ fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixtur
     elixir_mix_full = { "elixir-mix", None },
     elixir_mix_llm = { "elixir-mix", Some("llm") },
     elixir_mix_static = { "elixir-mix", Some("static") },
+    zig_build_llm = { "zig-build", Some("llm") },
+    deno_fresh_llm = { "deno-fresh", Some("llm") },
 )]
 #[serial]
 fn test_single_language(fixture_name: &str, mode: Option<&str>) {
@@ -290,4 +292,21 @@ fn test_monorepo(fixture_name: &str, mode: Option<&str>) {
     );
     let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
     assert_detection_with_mode(&results, "monorepo", fixture_name, mode);
+}
+
+// Edge-cases fixtures - LLM mode only for unknown technologies
+#[parameterized(
+    bazel_build_llm = { "bazel-build", Some("llm") },
+)]
+#[serial]
+fn test_edge_cases(fixture_name: &str, mode: Option<&str>) {
+    let fixture = fixture_path("edge-cases", fixture_name);
+    let mode_suffix = mode.unwrap_or("detection");
+    let test_name = format!(
+        "e2e_test_{}_{}",
+        fixture_name.replace("-", "_"),
+        mode_suffix.replace("-", "_")
+    );
+    let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
+    assert_detection_with_mode(&results, "edge-cases", fixture_name, mode);
 }

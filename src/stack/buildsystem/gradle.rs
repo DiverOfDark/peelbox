@@ -1,13 +1,16 @@
 //! Gradle build system (Java/Kotlin)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::fs::FileSystem;
+use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
+use std::path::{Path, PathBuf};
 
 pub struct GradleBuildSystem;
 
 impl BuildSystem for GradleBuildSystem {
-    fn id(&self) -> crate::stack::BuildSystemId {
-        crate::stack::BuildSystemId::Gradle
+    fn id(&self) -> BuildSystemId {
+        BuildSystemId::Gradle
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
@@ -31,18 +34,41 @@ impl BuildSystem for GradleBuildSystem {
         ]
     }
 
-    fn detect(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        match manifest_name {
-            "build.gradle" | "build.gradle.kts" => {
-                if let Some(content) = manifest_content {
-                    content.contains("plugins") || content.contains("dependencies")
-                } else {
-                    true
+    fn detect_all(
+        &self,
+        repo_root: &Path,
+        file_tree: &[PathBuf],
+        fs: &dyn FileSystem,
+    ) -> Result<Vec<DetectionStack>> {
+        let mut detections = Vec::new();
+
+        for rel_path in file_tree {
+            let filename = rel_path.file_name().and_then(|n| n.to_str());
+
+            let is_match = match filename {
+                Some("build.gradle") | Some("build.gradle.kts") => {
+                    let abs_path = repo_root.join(rel_path);
+                    let content = fs.read_to_string(&abs_path).ok();
+                    if let Some(c) = content.as_deref() {
+                        c.contains("plugins") || c.contains("dependencies")
+                    } else {
+                        true
+                    }
                 }
+                Some("settings.gradle") | Some("settings.gradle.kts") => true,
+                _ => false,
+            };
+
+            if is_match {
+                detections.push(DetectionStack::new(
+                    BuildSystemId::Gradle,
+                    LanguageId::Java,
+                    repo_root.join(rel_path),
+                ));
             }
-            "settings.gradle" | "settings.gradle.kts" => true,
-            _ => false,
         }
+
+        Ok(detections)
     }
 
     fn build_template(&self) -> BuildTemplate {
