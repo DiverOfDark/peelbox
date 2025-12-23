@@ -21,22 +21,25 @@ impl ServicePhase for CachePhase {
     }
 
     async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
-        let build_system = context
+        let cache_dirs: Vec<PathBuf> = if let Some(build_system) = context
             .stack_registry()
             .get_build_system(context.service.build_system.clone())
-            .ok_or_else(|| {
-                anyhow::anyhow!("Unknown build system: {:?}", context.service.build_system)
-            })?;
+        {
+            build_system.cache_dirs().into_iter().map(PathBuf::from).collect()
+        } else {
+            // Unknown/LLM-detected build system - no cache dirs
+            vec![]
+        };
 
-        let cache_dirs = build_system
-            .cache_dirs()
-            .into_iter()
-            .map(PathBuf::from)
-            .collect();
+        let is_empty = cache_dirs.is_empty();
 
         context.cache = Some(CacheInfo {
             cache_dirs,
-            confidence: Confidence::High,
+            confidence: if is_empty {
+                Confidence::Low
+            } else {
+                Confidence::High
+            },
         });
         Ok(())
     }

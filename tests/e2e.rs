@@ -54,19 +54,23 @@ fn load_expected(category: &str, fixture_name: &str, _mode: Option<&str>) -> Opt
         .unwrap_or_else(|_| panic!("Failed to read expected JSON: {}", expected_path.display()));
 
     // Try parsing as array of UniversalBuild first (for monorepos)
-    if let Ok(multi) = serde_json::from_str::<Vec<UniversalBuild>>(&content) {
-        return Some(multi);
+    match serde_json::from_str::<Vec<UniversalBuild>>(&content) {
+        Ok(multi) => return Some(multi),
+        Err(e1) => {
+            // Try parsing as single UniversalBuild
+            match serde_json::from_str::<UniversalBuild>(&content) {
+                Ok(single) => return Some(vec![single]),
+                Err(e2) => {
+                    panic!(
+                        "Failed to parse expected JSON: {}\nAs Vec<UniversalBuild>: {}\nAs UniversalBuild: {}",
+                        expected_path.display(),
+                        e1,
+                        e2
+                    );
+                }
+            }
+        }
     }
-
-    // Try parsing as single UniversalBuild
-    if let Ok(single) = serde_json::from_str::<UniversalBuild>(&content) {
-        return Some(vec![single]);
-    }
-
-    panic!(
-        "Failed to parse expected JSON as UniversalBuild or Vec<UniversalBuild>: {}",
-        expected_path.display()
-    )
 }
 
 /// Helper to run detection with specified mode

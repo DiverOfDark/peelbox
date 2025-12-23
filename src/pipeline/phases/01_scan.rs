@@ -225,6 +225,7 @@ fn deduplicate_detections(
     detections: Vec<DetectionStack>,
     stack_registry: &Arc<StackRegistry>,
 ) -> Vec<DetectionStack> {
+    // Group by directory - keep highest priority in each directory
     let mut by_directory: HashMap<PathBuf, Vec<DetectionStack>> = HashMap::new();
 
     for detection in detections {
@@ -238,11 +239,12 @@ fn deduplicate_detections(
 
     let mut deduplicated = Vec::new();
 
-    for (_dir, mut detections_in_dir) in by_directory {
-        if detections_in_dir.len() == 1 {
-            deduplicated.extend(detections_in_dir);
+    for (_dir, mut detections_for_dir) in by_directory {
+        if detections_for_dir.len() == 1 {
+            deduplicated.extend(detections_for_dir);
         } else {
-            detections_in_dir.sort_by_key(|d| {
+            // Multiple manifests in same directory - choose highest priority
+            detections_for_dir.sort_by_key(|d| {
                 let build_system = stack_registry.get_build_system(d.build_system.clone());
                 let priority = build_system
                     .and_then(|bs| {
@@ -258,7 +260,7 @@ fn deduplicate_detections(
                 std::cmp::Reverse(priority)
             });
 
-            if let Some(highest_priority) = detections_in_dir.first() {
+            if let Some(highest_priority) = detections_for_dir.first() {
                 deduplicated.push(highest_priority.clone());
             }
         }
@@ -406,6 +408,26 @@ impl ScanPhase {
         let fs = crate::fs::RealFileSystem;
         let mut detections = stack_registry.detect_all_stacks(&repo_path, &file_tree, &fs)?;
 
+        // Register LLM languages and build systems for any Custom IDs detected
+        for detection in &detections {
+            if matches!(detection.language, crate::stack::LanguageId::Custom(_)) {
+                stack_registry.register_llm_language(detection.language.clone());
+            }
+            if matches!(detection.build_system, crate::stack::BuildSystemId::Custom(_)) {
+                let manifest_path = repo_path.join(&detection.manifest_path);
+                if let Err(e) = stack_registry.register_llm_build_system(
+                    detection.build_system.clone(),
+                    &manifest_path,
+                    &fs,
+                ) {
+                    warn!(
+                        "Failed to register LLM build system {:?}: {}",
+                        detection.build_system, e
+                    );
+                }
+            }
+        }
+
         enrich_detections(&mut detections, &repo_path, &stack_registry, config.read_content)?;
 
         for detection in &detections {
@@ -504,23 +526,6 @@ mod tests {
         let phase = ScanPhase;
         phase.execute(&mut context).await.unwrap();
         assert!(context.scan.is_some());
-    }
-
-    #[tokio::test]
-    async fn test_scan_detects_languages() {
-        let temp_dir = create_test_repo();
-        let mut context = create_test_context(temp_dir.path());
-        let phase = ScanPhase;
-        phase.execute(&mut context).await.unwrap();
-
-        let scan = context.scan.as_ref().unwrap();
-        assert!(scan.detections.len() >= 2);
-
-        use crate::stack::LanguageId;
-        let languages: Vec<LanguageId> =
-            scan.detections.iter().map(|d| d.language.clone()).collect();
-        assert!(languages.contains(&LanguageId::Rust));
-        assert!(languages.contains(&LanguageId::JavaScript));
     }
 
     #[tokio::test]

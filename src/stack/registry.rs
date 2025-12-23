@@ -6,7 +6,7 @@ use crate::stack::language::*;
 use crate::stack::orchestrator::*;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 /// Registry for all technology stack components.
 ///
@@ -23,19 +23,21 @@ use std::sync::Arc;
 /// This ensures fast, reliable detection for known tech while enabling discovery
 /// of unknown technologies via LLM inference.
 pub struct StackRegistry {
-    build_systems: HashMap<BuildSystemId, Arc<dyn BuildSystem>>,
-    languages: HashMap<LanguageId, Arc<dyn LanguageDefinition>>,
+    build_systems: RwLock<HashMap<BuildSystemId, Arc<dyn BuildSystem>>>,
+    languages: RwLock<HashMap<LanguageId, Arc<dyn LanguageDefinition>>>,
     frameworks: HashMap<FrameworkId, Box<dyn Framework>>,
     orchestrators: HashMap<OrchestratorId, Arc<dyn MonorepoOrchestrator>>,
+    llm_client: Option<Arc<dyn LLMClient>>,
 }
 
 impl StackRegistry {
     pub fn new() -> Self {
         Self {
-            build_systems: HashMap::new(),
-            languages: HashMap::new(),
+            build_systems: RwLock::new(HashMap::new()),
+            languages: RwLock::new(HashMap::new()),
             frameworks: HashMap::new(),
             orchestrators: HashMap::new(),
+            llm_client: None,
         }
     }
 
@@ -57,61 +59,48 @@ impl StackRegistry {
     /// This order ensures deterministic detection tries first, with LLM as last resort.
     pub fn with_defaults(llm_client: Option<Arc<dyn LLMClient>>) -> Self {
         let mut registry = Self::new();
+        registry.llm_client = llm_client.clone();
 
-        registry
-            .languages
-            .insert(LanguageId::Rust, Arc::new(RustLanguage));
-        registry
-            .languages
-            .insert(LanguageId::Java, Arc::new(JavaLanguage));
-        registry
-            .languages
-            .insert(LanguageId::JavaScript, Arc::new(JavaScriptLanguage));
-        registry
-            .languages
-            .insert(LanguageId::Python, Arc::new(PythonLanguage));
-        registry
-            .languages
-            .insert(LanguageId::Go, Arc::new(GoLanguage));
-        registry
-            .languages
-            .insert(LanguageId::CSharp, Arc::new(DotNetLanguage));
-        registry
-            .languages
-            .insert(LanguageId::Ruby, Arc::new(RubyLanguage));
-        registry
-            .languages
-            .insert(LanguageId::PHP, Arc::new(PhpLanguage));
-        registry
-            .languages
-            .insert(LanguageId::Cpp, Arc::new(CppLanguage));
-        registry
-            .languages
-            .insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
+        {
+            let mut languages = registry.languages.write().unwrap();
+            languages.insert(LanguageId::Rust, Arc::new(RustLanguage));
+            languages.insert(LanguageId::Java, Arc::new(JavaLanguage));
+            languages.insert(LanguageId::JavaScript, Arc::new(JavaScriptLanguage));
+            languages.insert(LanguageId::Python, Arc::new(PythonLanguage));
+            languages.insert(LanguageId::Go, Arc::new(GoLanguage));
+            languages.insert(LanguageId::CSharp, Arc::new(DotNetLanguage));
+            languages.insert(LanguageId::Ruby, Arc::new(RubyLanguage));
+            languages.insert(LanguageId::PHP, Arc::new(PhpLanguage));
+            languages.insert(LanguageId::Cpp, Arc::new(CppLanguage));
+            languages.insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
+        }
 
-        for id in BuildSystemId::all_variants() {
-            let bs: Arc<dyn BuildSystem> = match id {
-                BuildSystemId::Cargo => Arc::new(CargoBuildSystem),
-                BuildSystemId::Maven => Arc::new(MavenBuildSystem),
-                BuildSystemId::Gradle => Arc::new(GradleBuildSystem),
-                BuildSystemId::Npm => Arc::new(NpmBuildSystem),
-                BuildSystemId::Yarn => Arc::new(YarnBuildSystem),
-                BuildSystemId::Pnpm => Arc::new(PnpmBuildSystem),
-                BuildSystemId::Bun => Arc::new(BunBuildSystem),
-                BuildSystemId::Pip => Arc::new(PipBuildSystem),
-                BuildSystemId::Poetry => Arc::new(PoetryBuildSystem),
-                BuildSystemId::Pipenv => Arc::new(PipenvBuildSystem),
-                BuildSystemId::GoMod => Arc::new(GoModBuildSystem),
-                BuildSystemId::DotNet => Arc::new(DotNetBuildSystem),
-                BuildSystemId::Composer => Arc::new(ComposerBuildSystem),
-                BuildSystemId::Bundler => Arc::new(BundlerBuildSystem),
-                BuildSystemId::CMake => Arc::new(CMakeBuildSystem),
-                BuildSystemId::Make => Arc::new(MakeBuildSystem),
-                BuildSystemId::Meson => Arc::new(MesonBuildSystem),
-                BuildSystemId::Mix => Arc::new(MixBuildSystem),
-                BuildSystemId::Custom(_) => continue,
-            };
-            registry.build_systems.insert(id.clone(), bs);
+        {
+            let mut build_systems = registry.build_systems.write().unwrap();
+            for id in BuildSystemId::all_variants() {
+                let bs: Arc<dyn BuildSystem> = match id {
+                    BuildSystemId::Cargo => Arc::new(CargoBuildSystem),
+                    BuildSystemId::Maven => Arc::new(MavenBuildSystem),
+                    BuildSystemId::Gradle => Arc::new(GradleBuildSystem),
+                    BuildSystemId::Npm => Arc::new(NpmBuildSystem),
+                    BuildSystemId::Yarn => Arc::new(YarnBuildSystem),
+                    BuildSystemId::Pnpm => Arc::new(PnpmBuildSystem),
+                    BuildSystemId::Bun => Arc::new(BunBuildSystem),
+                    BuildSystemId::Pip => Arc::new(PipBuildSystem),
+                    BuildSystemId::Poetry => Arc::new(PoetryBuildSystem),
+                    BuildSystemId::Pipenv => Arc::new(PipenvBuildSystem),
+                    BuildSystemId::GoMod => Arc::new(GoModBuildSystem),
+                    BuildSystemId::DotNet => Arc::new(DotNetBuildSystem),
+                    BuildSystemId::Composer => Arc::new(ComposerBuildSystem),
+                    BuildSystemId::Bundler => Arc::new(BundlerBuildSystem),
+                    BuildSystemId::CMake => Arc::new(CMakeBuildSystem),
+                    BuildSystemId::Make => Arc::new(MakeBuildSystem),
+                    BuildSystemId::Meson => Arc::new(MesonBuildSystem),
+                    BuildSystemId::Mix => Arc::new(MixBuildSystem),
+                    BuildSystemId::Custom(_) => continue,
+                };
+                build_systems.insert(id.clone(), bs);
+            }
         }
 
         for id in FrameworkId::all_variants() {
@@ -153,12 +142,12 @@ impl StackRegistry {
             .insert(OrchestratorId::Lerna, Arc::new(LernaOrchestrator));
 
         if let Some(llm) = llm_client {
-            registry.languages.insert(
+            registry.languages.write().unwrap().insert(
                 LanguageId::Custom("__llm_fallback__".to_string()),
                 Arc::new(LLMLanguage::new(llm.clone())),
             );
 
-            registry.build_systems.insert(
+            registry.build_systems.write().unwrap().insert(
                 BuildSystemId::Custom("__llm_fallback__".to_string()),
                 Arc::new(LLMBuildSystem::new(llm.clone())),
             );
@@ -177,12 +166,38 @@ impl StackRegistry {
         registry
     }
 
-    pub fn get_build_system(&self, id: BuildSystemId) -> Option<&dyn BuildSystem> {
-        self.build_systems.get(&id).map(|bs| bs.as_ref())
+    pub fn register_llm_language(&self, language_id: LanguageId) {
+        if let Some(llm) = &self.llm_client {
+            let mut languages = self.languages.write().unwrap();
+            if !languages.contains_key(&language_id) {
+                languages.insert(language_id, Arc::new(LLMLanguage::new(llm.clone())));
+            }
+        }
     }
 
-    pub fn get_language(&self, id: LanguageId) -> Option<&dyn LanguageDefinition> {
-        self.languages.get(&id).map(|l| l.as_ref())
+    pub fn register_llm_build_system(
+        &self,
+        build_system_id: BuildSystemId,
+        manifest_path: &std::path::Path,
+        fs: &dyn crate::fs::FileSystem,
+    ) -> anyhow::Result<()> {
+        if let Some(llm) = &self.llm_client {
+            let mut build_systems = self.build_systems.write().unwrap();
+            if !build_systems.contains_key(&build_system_id) {
+                let llm_bs = Arc::new(LLMBuildSystem::new(llm.clone()));
+                llm_bs.populate_info(manifest_path, fs)?;
+                build_systems.insert(build_system_id, llm_bs);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_build_system(&self, id: BuildSystemId) -> Option<Arc<dyn BuildSystem>> {
+        self.build_systems.read().unwrap().get(&id).cloned()
+    }
+
+    pub fn get_language(&self, id: LanguageId) -> Option<Arc<dyn LanguageDefinition>> {
+        self.languages.read().unwrap().get(&id).cloned()
     }
 
     pub fn get_framework(&self, id: FrameworkId) -> Option<&dyn Framework> {
@@ -205,9 +220,26 @@ impl StackRegistry {
     ) -> anyhow::Result<Vec<DetectionStack>> {
         let mut all_detections = Vec::new();
 
-        for build_system in self.build_systems.values() {
-            let detections = build_system.detect_all(repo_root, file_tree, fs)?;
-            all_detections.extend(detections);
+        // First, try all deterministic build systems (non-LLM)
+        {
+            let build_systems = self.build_systems.read().unwrap();
+            for (id, build_system) in build_systems.iter() {
+                // Skip LLM fallback on first pass
+                if matches!(id, BuildSystemId::Custom(s) if s == "__llm_fallback__") {
+                    continue;
+                }
+                let detections = build_system.detect_all(repo_root, file_tree, fs)?;
+                all_detections.extend(detections);
+            }
+        }
+
+        // Only invoke LLM fallback if no deterministic detections were found
+        if all_detections.is_empty() {
+            let build_systems = self.build_systems.read().unwrap();
+            if let Some(llm_bs) = build_systems.get(&BuildSystemId::Custom("__llm_fallback__".to_string())) {
+                let detections = llm_bs.detect_all(repo_root, file_tree, fs)?;
+                all_detections.extend(detections);
+            }
         }
 
         Ok(all_detections)
@@ -217,7 +249,7 @@ impl StackRegistry {
     pub fn all_excluded_dirs(&self) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();
         let mut result = Vec::new();
-        for lang in self.languages.values() {
+        for lang in self.languages.read().unwrap().values() {
             for dir in lang.excluded_dirs() {
                 if seen.insert(dir.clone()) {
                     result.push(dir);
@@ -230,7 +262,7 @@ impl StackRegistry {
     pub fn all_workspace_configs(&self) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();
         let mut result = Vec::new();
-        for lang in self.languages.values() {
+        for lang in self.languages.read().unwrap().values() {
             for config in lang.workspace_configs() {
                 if seen.insert(config.clone()) {
                     result.push(config);
@@ -241,7 +273,7 @@ impl StackRegistry {
     }
 
     pub fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        for language in self.languages.values() {
+        for language in self.languages.read().unwrap().values() {
             if language.is_workspace_root(manifest_name, manifest_content) {
                 return true;
             }
@@ -255,7 +287,7 @@ impl StackRegistry {
         manifest_content: &str,
         all_internal_paths: &[std::path::PathBuf],
     ) -> Option<crate::stack::language::DependencyInfo> {
-        for language in self.languages.values() {
+        for language in self.languages.read().unwrap().values() {
             if language
                 .detect(manifest_name, Some(manifest_content))
                 .is_some()

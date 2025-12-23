@@ -86,7 +86,7 @@ impl<F: FileSystem> HealthCheckExtractor<F> {
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
-            lang,
+            lang.as_ref(),
             |file_path| {
                 self.extract_health_checks_from_file(file_path, &pattern_refs, health_checks, seen);
             },

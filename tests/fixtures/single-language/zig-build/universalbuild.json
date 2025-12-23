@@ -25,27 +25,27 @@
     },
     "metadata": {
       "build_system": "zig",
-      "confidence": 0.85,
-      "framework": "",
+      "confidence": 0.95,
       "language": "Zig",
-      "project_name": "hello",
-      "reasoning": "Detected Zig language from build.zig file"
+      "project_name": "app",
+      "reasoning": "Detected from build.zig in "
     },
     "runtime": {
       "base": "alpine:latest",
       "command": [
-        "/app/hello"
+        "bin/app"
       ],
       "copy": [
         {
           "from": "zig-out/bin/hello",
-          "to": "/app/hello"
+          "to": "/usr/local/bin/app"
         }
       ],
       "env": {},
-      "health": {},
       "packages": [],
-      "ports": []
+      "ports": [
+        8080
+      ]
     },
     "version": "1.0"
   }

@@ -67,7 +67,7 @@ impl BuildSystem for DotNetBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::DotNet,
                     LanguageId::CSharp,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

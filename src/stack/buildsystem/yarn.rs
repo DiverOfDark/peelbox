@@ -55,7 +55,7 @@ impl BuildSystem for YarnBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Yarn,
                     LanguageId::JavaScript,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

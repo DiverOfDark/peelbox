@@ -22,7 +22,7 @@ impl BuildSystem for MesonBuildSystem {
 
     fn detect_all(
         &self,
-        repo_root: &Path,
+        _repo_root: &Path,
         file_tree: &[PathBuf],
         fs: &dyn FileSystem,
     ) -> Result<Vec<DetectionStack>> {
@@ -30,7 +30,7 @@ impl BuildSystem for MesonBuildSystem {
 
         for rel_path in file_tree {
             if rel_path.file_name().and_then(|n| n.to_str()) == Some("meson.build") {
-                let abs_path = repo_root.join(rel_path);
+                let abs_path = rel_path.clone();
                 let content = fs.read_to_string(&abs_path).ok();
 
                 let is_valid = if let Some(c) = content.as_deref() {
@@ -43,7 +43,7 @@ impl BuildSystem for MesonBuildSystem {
                     detections.push(DetectionStack::new(
                         BuildSystemId::Meson,
                         LanguageId::Cpp,
-                        repo_root.join(rel_path),
+                        rel_path.clone(),
                     ));
                 }
             }

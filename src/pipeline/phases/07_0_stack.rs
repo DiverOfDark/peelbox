@@ -38,8 +38,14 @@ fn try_detect_stack(
     stack_registry: &Arc<StackRegistry>,
 ) -> Option<Stack> {
     let language_def = stack_registry.get_language(language.clone())?;
-    let runtime_name = language_def.runtime_name()?;
-    let runtime = RuntimeId::from_name(&runtime_name)?;
+
+    // For LLM-detected languages, runtime_name() may return None
+    // Use Native as default for custom/unknown languages
+    let runtime = if let Some(runtime_name) = language_def.runtime_name() {
+        RuntimeId::from_name(&runtime_name).unwrap_or(RuntimeId::Native)
+    } else {
+        RuntimeId::Native
+    };
 
     let framework = detect_framework(service_path, manifest_name, repo_path, stack_registry);
 

@@ -44,7 +44,7 @@ impl BuildSystem for MavenBuildSystem {
                     detections.push(DetectionStack::new(
                         BuildSystemId::Maven,
                         LanguageId::Java,
-                        repo_root.join(rel_path),
+                        rel_path.clone(),
                     ));
                 }
             }

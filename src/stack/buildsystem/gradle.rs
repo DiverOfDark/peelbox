@@ -63,7 +63,7 @@ impl BuildSystem for GradleBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Gradle,
                     LanguageId::Java,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

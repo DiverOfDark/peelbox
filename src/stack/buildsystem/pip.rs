@@ -60,7 +60,7 @@ impl BuildSystem for PipBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Pip,
                     LanguageId::Python,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

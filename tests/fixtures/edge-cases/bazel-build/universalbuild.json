@@ -4,7 +4,7 @@
       "artifacts": [
         "bazel-bin/hello"
       ],
-      "base": "ubuntu:22.04",
+      "base": "bazel:latest",
       "cache": [
         "bazel-out"
       ],
@@ -18,33 +18,31 @@
         }
       ],
       "env": {},
-      "packages": [
-        "bazel"
-      ]
+      "packages": []
     },
     "metadata": {
-      "build_system": "Bazel",
-      "confidence": 0.85,
-      "framework": "",
-      "language": "C++",
-      "project_name": "example",
-      "reasoning": "Detected Bazel build system from WORKSPACE and BUILD files"
+      "build_system": "bazel",
+      "confidence": 0.95,
+      "language": "Bazel",
+      "project_name": "app",
+      "reasoning": "Detected from BUILD in "
     },
     "runtime": {
-      "base": "ubuntu:22.04",
+      "base": "bazel:latest",
       "command": [
-        "/app/hello"
+        "bin/app"
       ],
       "copy": [
         {
           "from": "bazel-bin/hello",
-          "to": "/app/hello"
+          "to": "/usr/local/bin/app"
         }
       ],
       "env": {},
-      "health": {},
       "packages": [],
-      "ports": []
+      "ports": [
+        8080
+      ]
     },
     "version": "1.0"
   }

@@ -95,7 +95,7 @@ impl<F: FileSystem> PortExtractor<F> {
         crate::extractors::common::scan_directory_with_language_filter(
             &self.fs,
             dir_path,
-            lang,
+            lang.as_ref(),
             |file_path| {
                 self.extract_ports_from_file(file_path, &pattern_refs, ports, seen);
             },

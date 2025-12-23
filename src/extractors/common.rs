@@ -65,7 +65,7 @@ mod tests {
             .unwrap();
 
         let mut found_files = Vec::new();
-        scan_directory_with_language_filter(&fs, Path::new("."), lang, |path| {
+        scan_directory_with_language_filter(&fs, Path::new("."), lang.as_ref(), |path| {
             found_files.push(path.to_path_buf());
         });
 
@@ -82,7 +82,7 @@ mod tests {
             .unwrap();
 
         let mut found_files: Vec<PathBuf> = Vec::new();
-        scan_directory_with_language_filter(&fs, Path::new("."), lang, |path| {
+        scan_directory_with_language_filter(&fs, Path::new("."), lang.as_ref(), |path| {
             found_files.push(path.to_path_buf());
         });
 
@@ -98,7 +98,7 @@ mod tests {
             .unwrap();
 
         let mut found_files: Vec<PathBuf> = Vec::new();
-        scan_directory_with_language_filter(&fs, Path::new("nonexistent"), lang, |path| {
+        scan_directory_with_language_filter(&fs, Path::new("nonexistent"), lang.as_ref(), |path| {
             found_files.push(path.to_path_buf());
         });
 

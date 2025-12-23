@@ -43,7 +43,7 @@ impl BuildSystem for PoetryBuildSystem {
                     detections.push(DetectionStack::new(
                         BuildSystemId::Poetry,
                         LanguageId::Python,
-                        repo_root.join(rel_path),
+                        rel_path.clone(),
                     ));
                 }
             }

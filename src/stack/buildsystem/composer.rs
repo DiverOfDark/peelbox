@@ -55,7 +55,7 @@ impl BuildSystem for ComposerBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Composer,
                     LanguageId::PHP,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

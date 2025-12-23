@@ -57,7 +57,7 @@ impl BuildSystem for NpmBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Npm,
                     LanguageId::JavaScript,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

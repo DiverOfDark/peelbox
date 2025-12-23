@@ -55,7 +55,7 @@ impl BuildSystem for BunBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Bun,
                     LanguageId::JavaScript,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }

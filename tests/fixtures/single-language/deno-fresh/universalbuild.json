@@ -2,13 +2,10 @@
   {
     "build": {
       "artifacts": [],
-      "base": "denoland/deno:alpine",
-      "cache": [
-        ".deno",
-        "deno.lock"
-      ],
+      "base": "",
+      "cache": [],
       "commands": [
-        "deno task build"
+        "deno run -A dev.ts build"
       ],
       "context": [
         {
@@ -21,33 +18,26 @@
     },
     "metadata": {
       "build_system": "deno",
-      "confidence": 0.85,
-      "framework": "Fresh",
+      "confidence": 0.77,
       "language": "TypeScript",
-      "project_name": "fresh-app",
-      "reasoning": "Detected Fresh framework from deno.json with $fresh imports"
+      "project_name": "app",
+      "reasoning": "Detected from deno.json in "
     },
     "runtime": {
-      "base": "denoland/deno:alpine",
+      "base": "",
       "command": [
-        "deno",
-        "run",
-        "-A",
-        "main.ts"
+        "bin/app"
       ],
       "copy": [
         {
-          "from": ".",
-          "to": "/app"
+          "from": "/app",
+          "to": "/usr/local/bin/app"
         }
       ],
-      "env": {
-        "PORT": "8000"
-      },
-      "health": {},
+      "env": {},
       "packages": [],
       "ports": [
-        8000
+        8080
       ]
     },
     "version": "1.0"

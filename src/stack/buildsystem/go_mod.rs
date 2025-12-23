@@ -43,7 +43,7 @@ impl BuildSystem for GoModBuildSystem {
                     detections.push(DetectionStack::new(
                         BuildSystemId::GoMod,
                         LanguageId::Go,
-                        repo_root.join(rel_path),
+                        rel_path.clone(),
                     ));
                 }
             }

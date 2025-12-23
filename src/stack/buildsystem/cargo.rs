@@ -44,7 +44,7 @@ impl BuildSystem for CargoBuildSystem {
                     detections.push(DetectionStack::new(
                         BuildSystemId::Cargo,
                         LanguageId::Rust,
-                        repo_root.join(rel_path),
+                        rel_path.clone(),
                     ));
                 }
             }

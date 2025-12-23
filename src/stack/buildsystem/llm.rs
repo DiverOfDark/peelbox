@@ -43,6 +43,58 @@ impl LLMBuildSystem {
             detected_info: Arc::new(Mutex::new(None)),
         }
     }
+
+    pub fn populate_info(
+        &self,
+        manifest_path: &Path,
+        fs: &dyn FileSystem,
+    ) -> Result<()> {
+        let manifest_name = manifest_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown");
+
+        let content = fs.read_to_string(manifest_path)
+            .unwrap_or_else(|_| String::new());
+
+        let prompt = format!(
+            r#"Analyze this build manifest and extract build system information.
+
+Manifest: {}
+Content:
+{}
+
+Return JSON with build configuration:
+{{
+  "name": "zig",
+  "manifest_files": ["build.zig"],
+  "build_commands": ["zig build -Doptimize=ReleaseSafe"],
+  "cache_dirs": ["zig-cache", ".zig-cache"],
+  "build_image": "alpine:latest",
+  "runtime_image": "alpine:latest",
+  "build_packages": [],
+  "runtime_packages": [],
+  "artifacts": ["zig-out/bin/hello"],
+  "common_ports": [],
+  "confidence": 0.9
+}}
+"#,
+            manifest_name,
+            content
+        );
+
+        let request = LLMRequest::new(vec![ChatMessage::user(prompt)]);
+        let response = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(self.llm_client.chat(request))
+        })?;
+
+        let json_str = strip_markdown_fences(&response.content);
+        let info: BuildSystemInfo = serde_json::from_str(&json_str)?;
+
+        *self.detected_info.lock().unwrap() = Some(info);
+
+        Ok(())
+    }
 }
 
 impl BuildSystem for LLMBuildSystem {

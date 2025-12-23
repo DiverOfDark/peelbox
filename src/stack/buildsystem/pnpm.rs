@@ -55,7 +55,7 @@ impl BuildSystem for PnpmBuildSystem {
                 detections.push(DetectionStack::new(
                     BuildSystemId::Pnpm,
                     LanguageId::JavaScript,
-                    repo_root.join(rel_path),
+                    rel_path.clone(),
                 ));
             }
         }
