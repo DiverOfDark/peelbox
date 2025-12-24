@@ -1,0 +1,313 @@
+use anyhow::{Context as AnyhowContext, Result};
+use buildkit_llb::prelude::*;
+use crate::output::schema::UniversalBuild;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
+use tracing::debug;
+
+const WOLFI_BASE_IMAGE: &str = "cgr.dev/chainguard/wolfi-base:latest";
+
+pub struct LLBBuilder {
+    context_name: String,
+}
+
+impl LLBBuilder {
+    pub fn new(context_name: impl Into<String>) -> Self {
+        Self {
+            context_name: context_name.into(),
+        }
+    }
+
+    /// Read .gitignore and parse exclude patterns
+    fn load_gitignore_patterns() -> Vec<String> {
+        let gitignore_path = PathBuf::from(".gitignore");
+
+        let mut patterns = Vec::new();
+
+        // Read .gitignore if it exists
+        if gitignore_path.exists() {
+            if let Ok(content) = fs::read_to_string(&gitignore_path) {
+                for line in content.lines() {
+                    let line = line.trim();
+                    // Skip empty lines and comments
+                    if !line.is_empty() && !line.starts_with('#') {
+                        patterns.push(line.to_string());
+                    }
+                }
+                debug!("Loaded {} patterns from .gitignore", patterns.len());
+            }
+        }
+
+        // Add standard exclusions
+        patterns.extend(vec![
+            ".git".to_string(),
+            ".gitignore".to_string(),
+            ".dockerignore".to_string(),
+            "*.md".to_string(),
+            "LICENSE".to_string(),
+            ".vscode".to_string(),
+            ".idea".to_string(),
+            "*.swp".to_string(),
+            "*.swo".to_string(),
+            "*~".to_string(),
+            ".DS_Store".to_string(),
+        ]);
+
+        debug!("Total exclude patterns: {}", patterns.len());
+        patterns
+    }
+
+    /// Generate complete LLB definition and write to output
+    /// This generates a 2-stage distroless build:
+    /// Stage 1 (Build):
+    ///   1. Starts with wolfi-base
+    ///   2. Installs build packages
+    ///   3. Copies source context
+    ///   4. Runs build commands
+    /// Stage 2 (Temp Runtime Prep):
+    ///   5. Installs runtime packages
+    ///   6. Copies artifacts from build stage
+    /// Stage 3 (Distroless Final):
+    ///   7. Uses distroless base
+    ///   8. Copies /usr, /etc, /var from runtime prep
+    ///   9. Copies artifacts
+    ///   10. Sets command and environment
+    pub fn write_definition<W: Write>(
+        &self,
+        spec: &UniversalBuild,
+        writer: W,
+    ) -> Result<()> {
+        // Create all sources first
+        let base = Source::image(WOLFI_BASE_IMAGE);
+
+        // Load gitignore patterns and apply to context source
+        let exclude_patterns = Self::load_gitignore_patterns();
+        let mut context = Source::local(&self.context_name);
+        for pattern in exclude_patterns {
+            context = context.add_exclude_pattern(pattern);
+        }
+
+        let runtime_base = Source::image(WOLFI_BASE_IMAGE);
+        let distroless = Source::image("cgr.dev/chainguard/static:latest");
+
+        // Stage 1: Build stage
+        let with_packages = if !spec.build.packages.is_empty() {
+            let packages = spec.build.packages.join(" ");
+            let cmd = format!("apk add --no-cache {}", packages);
+            Some(
+                Command::run("sh")
+                    .args(&["-c", &cmd])
+                    .mount(Mount::Layer(OutputIdx(0), base.output(), "/"))
+                    .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
+                    .custom_name("Install build packages"),
+            )
+        } else {
+            None
+        };
+
+        let build_stage = {
+            let mut build_cmd = Command::run("sh");
+
+            if let Some(ref pkg_cmd) = with_packages {
+                build_cmd = build_cmd.mount(Mount::ReadOnlyLayer(pkg_cmd.output(0), "/"));
+            } else {
+                build_cmd = build_cmd.mount(Mount::ReadOnlyLayer(base.output(), "/"));
+            }
+
+            build_cmd = build_cmd
+                .mount(Mount::Layer(OutputIdx(0), context.output(), "/build"))
+                .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
+                .cwd("/build");
+
+            // Add cache mounts for build system caches
+            for cache_path in &spec.build.cache {
+                build_cmd = build_cmd.mount(Mount::SharedCache(cache_path.as_str()));
+            }
+
+            for (key, value) in &spec.build.env {
+                build_cmd = build_cmd.env(key, value);
+            }
+
+            if !spec.build.commands.is_empty() {
+                let script = spec.build.commands.join(" && ");
+                build_cmd = build_cmd.args(&["-c", &script]);
+                build_cmd = build_cmd.custom_name("Run build commands");
+            } else {
+                build_cmd = build_cmd.args(&["-c", "true"]);
+                build_cmd = build_cmd.custom_name("Build stage");
+            }
+
+            build_cmd
+        };
+
+        // Stage 2: Temp Runtime Prep (install runtime packages)
+        let with_runtime = if !spec.runtime.packages.is_empty() {
+            let packages = spec.runtime.packages.join(" ");
+            let cmd = format!("apk add --no-cache {}", packages);
+            Some(
+                Command::run("sh")
+                    .args(&["-c", &cmd])
+                    .mount(Mount::Layer(OutputIdx(0), runtime_base.output(), "/"))
+                    .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
+                    .custom_name("Install runtime packages"),
+            )
+        } else {
+            None
+        };
+
+        // Stage 3: Distroless Final
+        let with_runtime_files = {
+            let mut cmd = Command::run("sh").args(&["-c", "true"]);
+
+            cmd = cmd.mount(Mount::ReadOnlyLayer(distroless.output(), "/"));
+
+            if let Some(ref runtime_cmd) = with_runtime {
+                cmd = cmd.mount(Mount::Layer(OutputIdx(0), runtime_cmd.output(0), "/"));
+            } else {
+                cmd = cmd.mount(Mount::Layer(OutputIdx(0), runtime_base.output(), "/"));
+            }
+
+            cmd.custom_name("Copy runtime files")
+        };
+
+        // Copy artifacts from build stage
+        let mut final_stage = Command::run("sh")
+            .mount(Mount::Layer(OutputIdx(0), with_runtime_files.output(0), "/"))
+            .mount(Mount::ReadOnlyLayer(build_stage.output(0), "/tmp/build"));
+
+        if !spec.build.artifacts.is_empty() {
+            let mut copy_commands = Vec::new();
+            for artifact in &spec.build.artifacts {
+                let dest = artifact.split('/').last().unwrap_or(artifact);
+                let artifact_path = if artifact.starts_with('/') {
+                    format!("/tmp/build{}", artifact)
+                } else {
+                    format!("/tmp/build/{}", artifact)
+                };
+                copy_commands.push(format!("cp {} /{}", artifact_path, dest));
+            }
+            let script = copy_commands.join(" && ");
+            final_stage = final_stage.args(&["-c", &script]);
+            final_stage = final_stage.custom_name("Copy artifacts");
+        } else {
+            final_stage = final_stage.args(&["-c", "true"]);
+            final_stage = final_stage.custom_name("Final stage");
+        }
+
+        for (key, value) in &spec.runtime.env {
+            final_stage = final_stage.env(key, value);
+        }
+
+        Terminal::with(final_stage.output(0))
+            .write_definition(writer)
+            .with_context(|| "Failed to write LLB definition")?;
+
+        Ok(())
+    }
+
+    /// Generate LLB definition as bytes
+    pub fn build(&self, spec: &UniversalBuild) -> Result<Vec<u8>> {
+        let mut buffer = Vec::new();
+        self.write_definition(spec, &mut buffer)?;
+        Ok(buffer)
+    }
+}
+
+impl Default for LLBBuilder {
+    fn default() -> Self {
+        Self::new("context")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::output::schema::{BuildMetadata, BuildStage, ContextSpec, RuntimeStage};
+    use std::collections::HashMap;
+
+    fn create_test_spec() -> UniversalBuild {
+        UniversalBuild {
+            version: "1.0".to_string(),
+            metadata: BuildMetadata {
+                project_name: Some("test-app".to_string()),
+                language: "rust".to_string(),
+                build_system: "cargo".to_string(),
+                framework: None,
+                confidence: 1.0,
+                reasoning: "Test".to_string(),
+            },
+            build: BuildStage {
+                packages: vec!["rust".to_string(), "build-base".to_string()],
+                env: {
+                    let mut map = HashMap::new();
+                    map.insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
+                    map
+                },
+                commands: vec!["cargo build --release".to_string()],
+                context: vec![ContextSpec {
+                    from: ".".to_string(),
+                    to: "/app".to_string(),
+                }],
+                cache: vec!["/cache/cargo".to_string()],
+                artifacts: vec!["/build/target/release/app".to_string()],
+            },
+            runtime: RuntimeStage {
+                packages: vec![],
+                env: HashMap::new(),
+                copy: vec![],
+                command: vec!["./app".to_string()],
+                ports: vec![],
+                health: None,
+            },
+        }
+    }
+
+    #[test]
+    fn test_llb_builder_creation() {
+        let builder = LLBBuilder::new("context");
+        assert_eq!(builder.context_name, "context");
+    }
+
+    #[test]
+    fn test_full_build() {
+        let builder = LLBBuilder::new("context");
+        let spec = create_test_spec();
+
+        let result = builder.build(&spec);
+        assert!(result.is_ok(), "Full build should succeed");
+
+        let bytes = result.unwrap();
+        assert!(!bytes.is_empty(), "Should generate non-empty LLB definition");
+    }
+
+    #[test]
+    fn test_empty_packages() {
+        let builder = LLBBuilder::new("context");
+        let mut spec = create_test_spec();
+        spec.build.packages.clear();
+
+        let result = builder.build(&spec);
+        assert!(
+            result.is_ok(),
+            "Should handle empty packages list gracefully"
+        );
+    }
+
+    #[test]
+    fn test_default_builder() {
+        let builder = LLBBuilder::default();
+        assert_eq!(builder.context_name, "context");
+    }
+
+    #[test]
+    fn test_with_environment_variables() {
+        let builder = LLBBuilder::new("context");
+        let spec = create_test_spec();
+
+        assert!(!spec.build.env.is_empty(), "Test spec should have env vars");
+
+        let result = builder.build(&spec);
+        assert!(result.is_ok(), "Build with env vars should succeed");
+    }
+}

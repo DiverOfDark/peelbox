@@ -1,0 +1,55 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "aipack",
+    "language": "Rust",
+    "build_system": "Cargo",
+    "confidence": 1.0,
+    "reasoning": "Manual spec for aipack binary"
+  },
+  "build": {
+    "packages": [
+      "rust-1.92",
+      "build-base",
+      "openssl-dev"
+    ],
+    "env": {
+      "CARGO_HOME": "/build/.cargo"
+    },
+    "commands": [
+      "cargo build --release --bin aipack --no-default-features"
+    ],
+    "context": [
+      {
+        "from": ".",
+        "to": "/app"
+      }
+    ],
+    "cache": [
+      "/build/target",
+      "/build/.cargo"
+    ],
+    "artifacts": [
+      "target/release/aipack"
+    ]
+  },
+  "runtime": {
+    "packages": [
+      "glibc",
+      "ca-certificates"
+    ],
+    "env": {},
+    "copy": [
+      {
+        "from": "target/release/aipack",
+        "to": "/usr/local/bin/aipack"
+      }
+    ],
+    "command": [
+      "/usr/local/bin/aipack",
+      "--help"
+    ],
+    "ports": [],
+    "healthcheck": null
+  }
+}

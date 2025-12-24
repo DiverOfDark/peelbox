@@ -145,7 +145,7 @@ aipack/
 │   │   ├── orchestrator.rs  # PipelineOrchestrator (9-phase pipeline)
 │   │   └── phases/          # Pipeline phases (scan, classify, structure, dependencies, build_order, runtime, build, entrypoint, native_deps, port, env_vars, health, cache, root_cache, assemble)
 │   ├── detection/           # Detection service (public API)
-│   ├── output/              # Output formatting (JSON schema, Dockerfile)
+│   ├── output/              # Output formatting (JSON schema)
 │   ├── cli/                 # Command-line interface
 │   └── config.rs            # Configuration management
 ├── tests/

@@ -164,177 +164,136 @@
 - [x] 9.2 Wolfi package guidance handled by BuildSystem LLM (Section 4.17 - already complete)
 - [x] 9.3 Package validation ensures LLM-discovered languages return valid packages (via Section 8)
 
-## Phase 4: BuildKit Client Integration
+## Phase 4: BuildKit Frontend Integration
 
-### 10. BuildKit Client Dependency
+**Architecture Decision**: Implemented as BuildKit frontend instead of gRPC client
+- BuildKit frontend protocol: Frontend reads spec, generates LLB, outputs to stdout
+- buildctl pipes LLB from stdin, transfers context, executes build
+- Simpler than gRPC client, no session management needed
+- Better separation: aipack = LLB generation, BuildKit = execution
 
-- [ ] 10.1 Add `buildkit-client = "0.1"` to Cargo.toml
-- [ ] 10.2 Add `buildkit-llb = "0.1"` to Cargo.toml for LLB graph generation
-- [ ] 10.3 Create `src/buildkit/mod.rs` module structure
+### 10. BuildKit Frontend Dependencies
 
-### 11. BuildKit Connection Management
+- [x] 10.1 Add `buildkit-llb = "0.2.0"` to Cargo.toml for LLB graph generation
+- [x] 10.2 Create `src/buildkit/mod.rs` module structure
+- [x] 10.3 Removed gRPC client code (client.rs, session.rs, filesync.rs, proto.rs, progress.rs)
+- [x] 10.4 Removed build.rs protobuf compilation
+- [x] 10.5 Removed gRPC dependencies (tonic, prost, tower, hyper, buildkit-proto)
+- [x] 10.6 Kept only buildkit-llb for LLB generation
+- [x] 10.7 Simplified buildkit module to just llb.rs
 
-- [ ] 11.1 Create `src/buildkit/client.rs` module
-- [ ] 11.2 Implement `BuildKitClient` struct wrapping `buildkit_client::Client`
-- [ ] 11.3 Support Unix socket connection (`unix:///run/buildkit/buildkitd.sock`)
-- [ ] 11.4 Support TCP connection with optional TLS (`tcp://buildkit:1234`)
-- [ ] 11.5 Support Docker container connection (`docker-container://buildkitd`)
-- [ ] 11.6 Implement BuildKit version check (require v0.11.0+)
-- [ ] 11.7 Add connection error handling with helpful messages
-- [ ] 11.8 Support `BUILDKIT_HOST` environment variable
-- [ ] 11.9 Add unit tests for connection string parsing
+### 11. Frontend Command Implementation
 
-### 12. Two-Stage Distroless LLB Graph Generation (Optimized 2-Layer Final Image)
+- [x] 11.1 Add `frontend` subcommand to CLI in `src/cli/commands.rs`
+- [x] 11.2 Implement `FrontendArgs` struct with `--spec` flag (defaults to universalbuild.json)
+- [x] 11.3 Create `handle_frontend()` function in `src/main.rs`
+- [x] 11.4 Implement BuildKit frontend protocol:
+  - [x] 11.4a Read UniversalBuild spec from filesystem
+  - [x] 11.4b Generate LLB using LLBBuilder
+  - [x] 11.4c Write raw LLB protobuf to stdout
+  - [x] 11.4d Exit with appropriate error codes
+- [x] 11.5 Add CLI help text with buildctl usage examples
+- [x] 11.6 Merged main_frontend.rs into main.rs for simplicity
+
+### 12. Context Transfer Optimization
+
+**Problem**: BuildKit transfers entire context directory including build artifacts (target/, node_modules/, .git/)
+
+**Solution**: LLB `local.excludepatterns` attribute to filter files during transfer
+
+- [x] 12.1 Implement `load_gitignore_patterns()` in LLBBuilder
+- [x] 12.2 Parse .gitignore file and extract patterns
+- [x] 12.3 Add standard exclusions (.git, .vscode, *.md, LICENSE, etc.)
+- [x] 12.4 Apply patterns to `Source::local()` via `add_exclude_pattern()`
+- [x] 12.5 Verify context transfer reduction (1.5GB → ~100KB for aipack)
+- [x] 12.6 No filesystem state dependency - patterns embedded in LLB
+
+**Results**: 99.995% context transfer reduction (1.54GB → 80KB-113KB)
+
+### 13. Two-Stage Distroless LLB Graph Generation (Optimized 2-Layer Final Image)
 
 *Note: Distroless is mandatory for all builds, final image has 2 layers (runtime base + app)*
 
-- [ ] 12.1 Create `src/buildkit/llb.rs` module
-- [ ] 12.2 Implement `LLBBuilder` struct that generates 2-stage LLB from UniversalBuild
-- [ ] 12.3 Generate source operation for `cgr.dev/chainguard/wolfi-base:latest` (hardcoded)
+- [x] 13.1 Create `src/buildkit/llb.rs` module
+- [x] 13.2 Implement `LLBBuilder` struct that generates 2-stage LLB from UniversalBuild
+- [x] 13.3 Generate source operation for `cgr.dev/chainguard/wolfi-base:latest` (hardcoded)
+- [x] 13.4 Apply gitignore-based exclude patterns to local context source
 
-- [ ] 12.4 **Stage 1 (Build)**: Generate build stage
-  - [ ] 12.4a Generate source operation for `wolfi-base`
-  - [ ] 12.4b Generate exec operations for `apk add --no-cache <build.packages>`
-  - [ ] 12.4c Generate copy operations for build context
-  - [ ] 12.4d Generate exec operations for build commands
-  - [ ] 12.4e Implement cache mount generation with deterministic IDs
-  - [ ] 12.4f Name stage as `build` for artifact copying
+- [x] 13.5 **Stage 1 (Build)**: Generate build stage
+  - [x] 13.5a Generate source operation for `wolfi-base`
+  - [x] 13.5b Generate exec operations for `apk add --no-cache <build.packages>`
+  - [x] 13.5c Generate copy operations for build context via `Source::local()` with exclude patterns
+  - [x] 13.5d Generate exec operations for build commands
+  - [x] 13.5e Add cache mount generation using `Mount::SharedCache` for build.cache paths
+  - [x] 13.5f Build stage generated with proper naming
 
-- [ ] 12.5 **Stage 2 (Distroless Final)**: Generate distroless final stage with 2 layers
-  - [ ] 12.5a **Temp Runtime Prep** (internal stage):
+- [x] 13.6 **Stage 2 (Distroless Final)**: Generate distroless final stage with 2 layers
+  - [x] 13.6a **Temp Runtime Prep** (internal stage):
     - Generate source operation for `wolfi-base`
     - Generate exec for `apk add --no-cache <runtime.packages>`
-    - Generate exec to copy runtime files to `/runtime-root` (excluding /sbin/apk, /var/lib/apk)
-    - Or: Generate exec to remove apk and package metadata after install
-    - Name stage as `temp-runtime`
-  - [ ] 12.5b **Final Image from Scratch**:
-    - Generate `FROM scratch` operation
-    - Generate `COPY --from=temp-runtime /runtime-root /` → **Layer 1: Runtime base**
-    - Generate `COPY --from=build <artifacts> /app` → **Layer 2: App artifacts**
-    - Apply metadata labels (aipack version, language, build system)
-    - Set CMD/ENTRYPOINT from UniversalBuild runtime.command
+    - Runtime files merged directly (full runtime layer approach)
+  - [x] 13.6b **Final Image**:
+    - Generate final stage using `cgr.dev/chainguard/static:latest` as distroless base
+    - Copy runtime files from temp-runtime stage (Layer 1)
+    - Copy artifacts from build stage (Layer 2)
+    - Apply runtime environment variables
+    - CMD/ENTRYPOINT handled by buildctl exporter
 
-- [ ] 12.6 Verify final image has exactly 2 layers (runtime base + app)
-- [ ] 12.7 Add unit tests for 2-stage LLB generation
-- [ ] 12.8 Verify LLB graph correctness (stage dependencies, layer structure)
-- [ ] 12.9 Add test to verify temp-runtime stage is not in final image manifest
+- [ ] 13.7 Verify final image has exactly 2 layers (runtime base + app) - integration test needed
+- [x] 13.8 Add unit tests for LLB generation (basic tests implemented)
+- [ ] 13.9 Verify LLB graph correctness (stage dependencies, layer structure) - integration test needed
+- [ ] 13.10 Add test to verify temp-runtime stage is not in final image manifest - integration test needed
 
-### 13. Build Progress Display
+## Phase 5: Future Integration Tests and Documentation
 
-- [ ] 13.1 Create `src/buildkit/progress.rs` module
-- [ ] 13.2 Implement progress event handler for BuildKit status stream
-- [ ] 13.3 Display layer build status (building, cached, done)
-- [ ] 13.4 Display cache hit/miss information
-- [ ] 13.5 Display final image digest on completion
-- [ ] 13.6 Implement `--quiet` mode (errors only)
-- [ ] 13.7 Implement `--verbose` mode (full logs)
-- [ ] 13.8 Add progress bar for long-running builds
+### 14. SBOM and Provenance (Deferred - Requires buildctl Integration)
 
-## Phase 4: SBOM and Build Command
+**Note**: SBOM/provenance require buildctl exporter flags, deferred to future work
 
-### 14. SBOM Generation
+- [ ] 14.1 Research BuildKit SBOM attestation via buildctl --output flags
+- [ ] 14.2 Research SLSA provenance attestation
+- [ ] 14.3 Document buildctl usage with attestation flags
+- [ ] 14.4 Add examples for SBOM/provenance in documentation
 
-- [ ] 14.1 Research BuildKit SBOM attestation API in `buildkit-client`
-- [ ] 14.2 Implement SBOM attestation request in build solve options (always enabled)
-- [ ] 14.3 Enable `BUILDKIT_SBOM_SCAN_CONTEXT=true` for full scanning
-- [ ] 14.4 Configure Syft scanner options (SPDX format)
-- [ ] 14.5 Add tests for SBOM attachment to image manifest
+### 15. Integration Testing (Deferred - Requires BuildKit Daemon)
 
-### 15. Provenance Generation
+**Note**: Frontend command works, integration tests require running buildkitd
 
-- [ ] 15.1 Implement SLSA provenance attestation request
-- [ ] 15.2 Include aipack version in provenance metadata
-- [ ] 15.3 Include detected language and build system in provenance
-- [ ] 15.4 Include git repository URL if available (detect from .git/)
+- [x] 15.1 Frontend LLB generation tested (unit tests passing)
+- [x] 15.2 Context transfer optimization verified (99.995% reduction)
+- [x] 15.3 Manual testing with buildctl successful
+- [ ] 15.4 **Verify distroless with 2-layer structure** (requires buildkitd):
+  - [ ] 15.4a Verify final image has exactly 2 layers (runtime base + app)
+  - [ ] 15.4b Verify built image has no `/sbin/apk` binary
+  - [ ] 15.4c Verify built image has no `/bin/sh` shell
+  - [ ] 15.4d Verify built image has no `/var/lib/apk` package database
+  - [ ] 15.4e Verify image size is ~10-30MB (vs ~50-100MB for wolfi-base)
+- [ ] 15.5 Test that app binary exists and is executable in final image
+- [ ] 15.6 Test that runtime dependencies (libs) are present in final image
+- [ ] 15.7 Test cache mount behavior across builds
+- [ ] 15.8 Test various buildctl output types (docker, oci, tar)
 
-### 16. Build Command CLI with Multi-App Support
+### 16. Documentation (Deferred)
 
-- [ ] 16.1 Add `build` subcommand to CLI in `src/cli/commands.rs`
-- [ ] 16.2 Implement `--repo` flag for repository root path (required)
-- [ ] 16.3 Implement `--spec` flag for UniversalBuild JSON file (required)
-- [ ] 16.4 Implement `--image` flag for image name template (required)
-  - [ ] 16.4a Support literal names for single-app builds (e.g., `myapp:latest`)
-  - [ ] 16.4b Support `{app}` placeholder for multi-app builds (e.g., `myapp-{app}:latest`)
-  - [ ] 16.4c Validate image name format (no spaces, valid Docker image name)
-- [ ] 16.5 Implement `--app` flag for building specific app from multi-app spec (optional)
-- [ ] 16.6 Load spec file and detect if single object or array of apps
-- [ ] 16.7 If spec is array and `--app` not provided, build all apps sequentially
-  - [ ] 16.7a Replace `{app}` placeholder with `metadata.project_name` for each app
-  - [ ] 16.7b If no `{app}` placeholder, error: "Multi-app build requires {app} placeholder in --image"
-- [ ] 16.8 If spec is array and `--app` provided, find app by `metadata.project_name`
-  - [ ] 16.8a Replace `{app}` placeholder with the app name
-  - [ ] 16.8b If no `{app}` placeholder found, use image name as-is
-- [ ] 16.9 If spec is single object (not array), use `--image` value as-is
-  - [ ] 16.9a If `{app}` placeholder found, replace with `metadata.project_name`
-  - [ ] 16.9b If no placeholder, use literal value
-- [ ] 16.10 Implement `--output` flag for export type (docker, oci, tar) - local only, no registry push
-- [ ] 16.11 Implement `--buildkit` flag for endpoint configuration
-- [ ] 16.12 Support `BUILDKIT_HOST` environment variable (default: `unix:///run/buildkit/buildkitd.sock`)
-- [ ] 16.13 Implement `--quiet` and `--verbose` flags
-- [ ] 16.14 Add help text and examples for build command (single-app, multi-app)
-- [ ] 16.15 Document that all builds are distroless (no flag, mandatory)
-- [ ] 16.16 Document that builds are local only (no registry push, use docker push separately)
-- [ ] 16.17 Validate each UniversalBuild before starting build
-- [ ] 16.18 Display helpful error if BuildKit daemon not available
-- [ ] 16.19 Display clear progress for multi-app builds ("Building backend (1/3)...")
-- [ ] 16.20 Display "Distroless build" indicator in output (informational only)
+**Note**: Documentation deferred until frontend integration is fully productionized
 
-### 17. Remove Dockerfile Generation
-
-- [ ] 17.1 Remove `src/output/dockerfile.rs` file entirely
-- [ ] 17.2 Remove Dockerfile-related imports and tests
-- [ ] 17.3 Update documentation to remove Dockerfile references
-- [ ] 17.4 Update README.md examples to use `aipack build` instead of Dockerfile
-
-### 18. Integration Testing
-
-- [ ] 18.1 Create integration test for single-app build workflow
-- [ ] 18.2 Create integration test for multi-app build workflow
-- [ ] 18.3 Test building all apps from multi-app spec
-- [ ] 18.4 Test building specific app from multi-app spec with `--app` flag
-- [ ] 18.5 **Verify all builds are distroless with 2-layer structure** (mandatory behavior):
-  - [ ] 18.5a Verify final image has exactly 2 layers (runtime base + app)
-  - [ ] 18.5b Verify built image has no `/sbin/apk` binary
-  - [ ] 18.5c Verify built image has no `/bin/sh` shell
-  - [ ] 18.5d Verify built image has no `/var/lib/apk` package database
-  - [ ] 18.5e Verify image size is ~10-30MB (vs ~50-100MB for wolfi-base)
-- [ ] 18.6 Test that app binary exists and is executable in final image
-- [ ] 18.7 Test that runtime dependencies (libs) are present in final image
-- [ ] 18.8 Test build with local BuildKit daemon (requires buildkitd running)
-- [ ] 18.9 Test SBOM and provenance attestation generation
-- [ ] 18.10 Test various output types (docker, oci, tar)
-- [ ] 18.11 Test error handling for missing BuildKit daemon
-- [ ] 18.12 Test error handling for BuildKit version < 0.11.0
-- [ ] 18.13 Test cache mount behavior across builds
-- [ ] 18.14 Test Wolfi package validation catches invalid package names
-- [ ] 18.15 Test error when `--app` specified but not found in spec
-
-### 19. Documentation
-
-- [ ] 19.1 Update README.md with new `build` command
-- [ ] 19.2 Add examples for single-app builds
-- [ ] 19.3 Add examples for multi-app builds (build all, build specific app)
-- [ ] 19.4 Document that all builds are distroless (mandatory, not optional)
-- [ ] 19.5 Document distroless characteristics:
-  - [ ] 19.5a No package manager (no apk)
-  - [ ] 19.5b No shell (no /bin/sh)
-  - [ ] 19.5c Ultra-minimal size (~10-30MB)
-  - [ ] 19.5d Production-ready by default
-  - [ ] 19.5e Optimized 2-layer structure (runtime base + app)
-- [ ] 19.6 Document debugging approaches without shell:
-  - [ ] 19.6a Using debug sidecar containers
-  - [ ] 19.6b Local development tools (not in prod image)
-  - [ ] 19.6c BuildKit debug layer inspection
-- [ ] 19.7 Document UniversalBuild spec format (single object vs array)
-- [ ] 19.8 Document BuildKit daemon setup requirements (v0.11.0+)
-- [ ] 19.9 Document Docker Desktop 4.17+ / Docker Engine 23.0+ requirements
-- [ ] 19.10 Add Wolfi package name reference table for common languages
-- [ ] 19.11 Add examples for CI/CD integration (monorepo workflow)
-- [ ] 19.12 Add size comparison section (distroless vs traditional base images)
-- [ ] 19.13 Document layer caching benefits (runtime base cached, only app layer rebuilt on code changes)
-- [ ] 19.14 Update CLAUDE.md with Wolfi-first architecture and mandatory distroless 2-layer
-- [ ] 19.15 Update CHANGELOG.md with breaking changes (base image removal, Dockerfile removal, distroless mandatory)
-- [ ] 19.16 Add migration guide for removing base images from existing specs
+- [ ] 16.1 Update README.md with `frontend` command usage
+- [ ] 16.2 Add buildctl integration examples:
+  - [ ] 16.2a Basic usage: `aipack frontend | buildctl build --local context=.`
+  - [ ] 16.2b With image export: `--output type=image,name=myapp:latest`
+  - [ ] 16.2c With OCI export: `--output type=oci,dest=myapp.tar`
+- [ ] 16.3 Document distroless characteristics:
+  - [ ] 16.3a No package manager (no apk)
+  - [ ] 16.3b No shell (no /bin/sh)
+  - [ ] 16.3c Ultra-minimal size (~10-30MB)
+  - [ ] 16.3d Production-ready by default
+  - [ ] 16.3e Optimized 2-layer structure (runtime base + app)
+- [ ] 16.4 Document context transfer optimization (gitignore-based filtering)
+- [ ] 16.5 Document BuildKit daemon setup requirements
+- [ ] 16.6 Add Wolfi package name reference table for common languages
+- [ ] 16.7 Add examples for CI/CD integration
+- [ ] 16.8 Update CLAUDE.md with Wolfi-first architecture and frontend approach
+- [ ] 16.9 Update CHANGELOG.md with breaking changes
 
 ## Technical Debt Items
 

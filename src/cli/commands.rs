@@ -60,6 +60,20 @@ pub enum Commands {
                       aipack health --backend ollama"
     )]
     Health(HealthArgs),
+
+    #[command(
+        about = "BuildKit frontend mode - output LLB to stdout",
+        long_about = "Runs as a BuildKit frontend, reading UniversalBuild spec and outputting LLB.\n\
+                      This is the standard BuildKit frontend protocol.\n\n\
+                      Examples:\n  \
+                      # Via buildctl\n  \
+                      buildctl build --frontend=gateway.v0 --opt source=local://aipack \\\n  \
+                        --local aipack=/path/to/aipack-binary \\\n  \
+                        --local context=/path/to/build/context \\\n  \
+                        --opt spec=universalbuild.json \\\n  \
+                        --output type=docker,name=myapp:latest"
+    )]
+    Frontend(FrontendArgs),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -136,6 +150,16 @@ pub struct HealthArgs {
         help = "Output format"
     )]
     pub format: OutputFormatArg,
+}
+
+#[derive(Parser, Debug, Clone)]
+pub struct FrontendArgs {
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Path to UniversalBuild JSON file (relative to build context)"
+    )]
+    pub spec: Option<PathBuf>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
