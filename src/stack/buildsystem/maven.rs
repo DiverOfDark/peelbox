@@ -65,8 +65,12 @@ impl BuildSystem for MavenBuildSystem {
 
         let runtime_version = format!("{}-jre", java_version);
 
+        let maven_version = wolfi_index
+            .get_latest_version("maven")
+            .unwrap_or_else(|| "maven-3.9".to_string());
+
         BuildTemplate {
-            build_packages: vec![java_version, "maven".to_string()],
+            build_packages: vec![java_version, maven_version],
             runtime_packages: vec![runtime_version],
             build_commands: vec!["mvn clean package -DskipTests".to_string()],
             cache_paths: vec!["/root/.m2/repository/".to_string()],

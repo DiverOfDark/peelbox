@@ -13,14 +13,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
       "packages": [
         "openjdk-25",
-        "gradle"
+        "gradle-9"
       ]
     },
     "metadata": {

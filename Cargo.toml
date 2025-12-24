@@ -38,6 +38,7 @@ md5 = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
 tar = "0.4"
 flate2 = "1.0"
+strsim = "0.11"
 
 # Embedded LLM dependencies (base)
 hf-hub = "0.4"

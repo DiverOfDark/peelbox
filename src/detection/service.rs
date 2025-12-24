@@ -280,6 +280,17 @@ impl DetectionService {
                 })
             })?;
 
+        // Validate all builds with Wolfi package index
+        let validator = crate::validation::Validator::with_wolfi_index(context.wolfi_index.clone());
+        for build in &results {
+            validator.validate(build).map_err(|e| {
+                use crate::llm::BackendError;
+                ServiceError::BackendError(BackendError::Other {
+                    message: format!("Package validation failed: {}", e),
+                })
+            })?;
+        }
+
         let elapsed = start.elapsed();
 
         info!(

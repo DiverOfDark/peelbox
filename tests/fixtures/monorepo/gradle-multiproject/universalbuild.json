@@ -20,7 +20,7 @@
       "env": {},
       "packages": [
         "openjdk-17",
-        "gradle"
+        "gradle-9"
       ]
     },
     "metadata": {
@@ -77,7 +77,7 @@
       "env": {},
       "packages": [
         "openjdk-17",
-        "gradle"
+        "gradle-9"
       ]
     },
     "metadata": {
@@ -130,7 +130,7 @@
       "env": {},
       "packages": [
         "openjdk-17",
-        "gradle"
+        "gradle-9"
       ]
     },
     "metadata": {

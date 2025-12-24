@@ -131,7 +131,14 @@ fn assemble_single_service(
         env: HashMap::new(),
         commands: build_info.build_cmd.clone().into_iter().collect::<Vec<_>>(),
         context: vec![ContextSpec {
-            from: result.service.path.display().to_string(),
+            from: {
+                let path_str = result.service.path.display().to_string();
+                if path_str.is_empty() {
+                    ".".to_string()
+                } else {
+                    path_str
+                }
+            },
             to: "/app".to_string(),
         }],
         cache: cache_paths,

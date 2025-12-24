@@ -11,13 +11,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
       "packages": [
-        "ruby-3.4"
+        "ruby-3.4",
+        "ruby3.4-bundler"
       ]
     },
     "metadata": {

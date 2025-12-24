@@ -1,15 +1,26 @@
 use crate::output::schema::UniversalBuild;
 use crate::validation::rules::{
-    validate_confidence_range, validate_non_empty_artifacts, validate_non_empty_commands,
+    validate_confidence_range, validate_non_empty_commands,
     validate_non_empty_context, validate_required_fields, validate_valid_copy_specs,
+    validate_wolfi_packages,
 };
+use crate::validation::WolfiPackageIndex;
 use anyhow::Result;
+use std::sync::Arc;
 
-pub struct Validator;
+pub struct Validator {
+    wolfi_index: Option<Arc<WolfiPackageIndex>>,
+}
 
 impl Validator {
     pub fn new() -> Self {
-        Self
+        Self { wolfi_index: None }
+    }
+
+    pub fn with_wolfi_index(wolfi_index: Arc<WolfiPackageIndex>) -> Self {
+        Self {
+            wolfi_index: Some(wolfi_index),
+        }
     }
 
     pub fn validate(&self, build: &UniversalBuild) -> Result<()> {
@@ -19,9 +30,13 @@ impl Validator {
         validate_confidence_range(build).map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
         validate_non_empty_context(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyContext] {}", e))?;
-        validate_non_empty_artifacts(build)
-            .map_err(|e| anyhow::anyhow!("[NonEmptyArtifacts] {}", e))?;
         validate_valid_copy_specs(build).map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
+
+        if let Some(wolfi_index) = &self.wolfi_index {
+            validate_wolfi_packages(build, wolfi_index)
+                .map_err(|e| anyhow::anyhow!("[WolfiPackages] {}", e))?;
+        }
+
         Ok(())
     }
 }

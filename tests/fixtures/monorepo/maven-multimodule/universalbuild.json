@@ -22,7 +22,7 @@
       "env": {},
       "packages": [
         "openjdk-25",
-        "maven"
+        "maven-3.9"
       ]
     },
     "metadata": {
@@ -77,7 +77,7 @@
       "env": {},
       "packages": [
         "openjdk-25",
-        "maven"
+        "maven-3.9"
       ]
     },
     "metadata": {
@@ -136,7 +136,7 @@
       "env": {},
       "packages": [
         "openjdk-25",
-        "maven"
+        "maven-3.9"
       ]
     },
     "metadata": {
@@ -195,7 +195,7 @@
       "env": {},
       "packages": [
         "openjdk-25",
-        "maven"
+        "maven-3.9"
       ]
     },
     "metadata": {

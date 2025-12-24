@@ -50,8 +50,19 @@ impl BuildSystem for BundlerBuildSystem {
             .get_latest_version("ruby")
             .unwrap_or_else(|| "ruby-3.3".to_string());
 
+        // Extract ruby version number (e.g., "ruby-3.3" -> "3.3")
+        let ruby_ver_num = ruby_version.trim_start_matches("ruby-");
+        let bundler_package = format!("ruby{}-bundler", ruby_ver_num);
+
+        // Check if the bundler package exists, fall back to just ruby if not
+        let build_packages = if wolfi_index.has_package(&bundler_package) {
+            vec![ruby_version.clone(), bundler_package]
+        } else {
+            vec![ruby_version.clone()]
+        };
+
         BuildTemplate {
-            build_packages: vec![ruby_version.clone()],
+            build_packages,
             runtime_packages: vec![ruby_version],
             build_commands: vec!["bundle install".to_string()],
             cache_paths: vec!["vendor/bundle/".to_string()],

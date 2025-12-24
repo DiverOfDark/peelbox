@@ -13,14 +13,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
       "packages": [
         "openjdk-17",
-        "maven"
+        "maven-3.9"
       ]
     },
     "metadata": {

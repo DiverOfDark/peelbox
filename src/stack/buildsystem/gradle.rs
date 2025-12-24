@@ -83,8 +83,12 @@ impl BuildSystem for GradleBuildSystem {
 
         let runtime_version = format!("{}-jre", java_version);
 
+        let gradle_version = wolfi_index
+            .get_latest_version("gradle")
+            .unwrap_or_else(|| "gradle-8".to_string());
+
         BuildTemplate {
-            build_packages: vec![java_version, "gradle".to_string()],
+            build_packages: vec![java_version, gradle_version],
             runtime_packages: vec![runtime_version],
             build_commands: vec!["gradle build -x test".to_string()],
             cache_paths: vec![
