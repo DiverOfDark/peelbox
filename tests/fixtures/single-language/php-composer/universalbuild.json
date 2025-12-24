@@ -5,7 +5,6 @@
         "vendor/",
         "public/"
       ],
-      "base": "composer:2",
       "cache": [
         ".composer/cache",
         "vendor"
@@ -20,7 +19,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "php-8.5",
+        "composer"
+      ]
     },
     "metadata": {
       "build_system": "Composer",
@@ -30,7 +32,6 @@
       "reasoning": "Detected from composer.json in "
     },
     "runtime": {
-      "base": "php:8.2-fpm",
       "command": [
         "bin/app"
       ],
@@ -41,7 +42,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "php-8.5"
+      ],
       "ports": [
         8000
       ]

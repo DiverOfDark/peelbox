@@ -2,7 +2,6 @@
   {
     "build": {
       "artifacts": [],
-      "base": "",
       "cache": [],
       "commands": [
         "deno run -A dev.ts build"
@@ -14,7 +13,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-22"
+      ]
     },
     "metadata": {
       "build_system": "deno",
@@ -24,7 +25,6 @@
       "reasoning": "Detected from deno.json in "
     },
     "runtime": {
-      "base": "",
       "command": [
         "bin/app"
       ],
@@ -35,7 +35,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "nodejs-22"
+      ],
       "ports": [
         8080
       ]

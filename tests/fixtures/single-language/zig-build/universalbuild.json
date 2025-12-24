@@ -4,7 +4,6 @@
       "artifacts": [
         "zig-out/bin/hello"
       ],
-      "base": "alpine:latest",
       "cache": [
         "zig-cache",
         ".zig-cache"
@@ -31,7 +30,6 @@
       "reasoning": "Detected from build.zig in "
     },
     "runtime": {
-      "base": "alpine:latest",
       "command": [
         "bin/app"
       ],

@@ -41,12 +41,18 @@ impl BuildSystem for PipenvBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let python_version = wolfi_index
+            .get_latest_version("python")
+            .unwrap_or_else(|| "python-3.12".to_string());
+
         BuildTemplate {
-            build_image: "python:3.11".to_string(),
-            runtime_image: "python:3.11-slim".to_string(),
-            build_packages: vec!["build-essential".to_string()],
-            runtime_packages: vec![],
+            build_packages: vec![python_version.clone(), "build-base".to_string()],
+            runtime_packages: vec![python_version],
             build_commands: vec![
                 "pip install pipenv".to_string(),
                 "pipenv install --deploy".to_string(),

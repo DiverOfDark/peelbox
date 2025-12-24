@@ -4,7 +4,6 @@
       "artifacts": [
         "target/release/cli"
       ],
-      "base": "rust:1.75",
       "cache": [
         "target",
         ".cargo"
@@ -20,8 +19,8 @@
       ],
       "env": {},
       "packages": [
-        "pkg-config",
-        "libssl-dev"
+        "rust-1.92",
+        "build-base"
       ]
     },
     "metadata": {
@@ -33,7 +32,6 @@
       "reasoning": "Detected from Cargo.toml in cli"
     },
     "runtime": {
-      "base": "debian:bookworm-slim",
       "command": [
         "bin/app"
       ],
@@ -48,8 +46,8 @@
         "endpoint": "/health"
       },
       "packages": [
-        "ca-certificates",
-        "libssl3"
+        "glibc",
+        "ca-certificates"
       ],
       "ports": [
         8080
@@ -63,7 +61,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".npm"
@@ -78,7 +75,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "npm",
@@ -89,7 +88,6 @@
       "reasoning": "Detected from package.json in frontend"
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -103,7 +101,9 @@
       "health": {
         "endpoint": "/health"
       },
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]
@@ -115,7 +115,6 @@
       "artifacts": [
         "target/*.jar"
       ],
-      "base": "maven:3.9-eclipse-temurin-21",
       "cache": [
         ".m2/repository",
         "target"
@@ -130,7 +129,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "openjdk-17",
+        "maven"
+      ]
     },
     "metadata": {
       "build_system": "Maven",
@@ -141,7 +143,6 @@
       "reasoning": "Detected from pom.xml in backend"
     },
     "runtime": {
-      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
@@ -157,7 +158,9 @@
       "health": {
         "endpoint": "/actuator/health"
       },
-      "packages": [],
+      "packages": [
+        "openjdk-17-jre"
+      ],
       "ports": [
         8080
       ]

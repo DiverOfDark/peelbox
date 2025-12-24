@@ -63,12 +63,18 @@ impl BuildSystem for ComposerBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let php_version = wolfi_index
+            .get_latest_version("php")
+            .unwrap_or_else(|| "php-8.3".to_string());
+
         BuildTemplate {
-            build_image: "composer:2".to_string(),
-            runtime_image: "php:8.2-fpm".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![php_version.clone(), "composer".to_string()],
+            runtime_packages: vec![php_version],
             build_commands: vec!["composer install --no-dev --optimize-autoloader".to_string()],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
             artifacts: vec!["vendor/".to_string(), "public/".to_string()],

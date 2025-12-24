@@ -53,12 +53,21 @@ impl BuildSystem for MavenBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let java_version = manifest_content
+            .and_then(|c| parse_java_version(c))
+            .or_else(|| wolfi_index.get_latest_version("openjdk"))
+            .unwrap_or_else(|| "openjdk-21".to_string());
+
+        let runtime_version = format!("{}-jre", java_version);
+
         BuildTemplate {
-            build_image: "maven:3.9-eclipse-temurin-21".to_string(),
-            runtime_image: "eclipse-temurin:21-jre".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![java_version, "maven".to_string()],
+            runtime_packages: vec![runtime_version],
             build_commands: vec!["mvn clean package -DskipTests".to_string()],
             cache_paths: vec!["/root/.m2/repository/".to_string()],
             artifacts: vec!["target/*.jar".to_string()],
@@ -95,4 +104,19 @@ impl BuildSystem for MavenBuildSystem {
 
         Ok(patterns)
     }
+}
+
+fn parse_java_version(manifest_content: &str) -> Option<String> {
+    let doc = Document::parse(manifest_content).ok()?;
+
+    for node in doc.descendants() {
+        if node.has_tag_name("maven.compiler.source") || node.has_tag_name("java.version") {
+            if let Some(version) = node.text() {
+                let version_num = version.trim();
+                return Some(format!("openjdk-{}", version_num));
+            }
+        }
+    }
+
+    None
 }

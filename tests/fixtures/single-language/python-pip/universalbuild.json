@@ -2,10 +2,8 @@
   {
     "build": {
       "artifacts": [
-        "/usr/local/lib/python3.11/site-packages",
         "app/"
       ],
-      "base": "python:3.11",
       "cache": [
         ".cache/pip"
       ],
@@ -20,7 +18,8 @@
       ],
       "env": {},
       "packages": [
-        "build-essential"
+        "python-3.14",
+        "build-base"
       ]
     },
     "metadata": {
@@ -32,13 +31,12 @@
       "reasoning": "Detected from requirements.txt in "
     },
     "runtime": {
-      "base": "python:3.11-slim",
       "command": [
         "bin/app"
       ],
       "copy": [
         {
-          "from": "/usr/local/lib/python3.11/site-packages",
+          "from": "app/",
           "to": "/usr/local/bin/app"
         }
       ],
@@ -46,7 +44,9 @@
       "health": {
         "endpoint": "/health"
       },
-      "packages": [],
+      "packages": [
+        "python-3.14"
+      ],
       "ports": [
         5000
       ]

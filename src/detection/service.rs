@@ -251,9 +251,18 @@ impl DetectionService {
             None
         };
 
+        let wolfi_index = crate::validation::WolfiPackageIndex::fetch()
+            .map_err(|e| {
+                use crate::llm::BackendError;
+                ServiceError::BackendError(BackendError::Other {
+                    message: format!("Failed to fetch Wolfi package index: {}", e),
+                })
+            })?;
+
         let mut context = AnalysisContext::new(
             &repo_path,
             Arc::new(StackRegistry::with_defaults(Some(self.client.clone()))),
+            Arc::new(wolfi_index),
             None,
             Arc::new(HeuristicLogger::disabled()),
             mode,

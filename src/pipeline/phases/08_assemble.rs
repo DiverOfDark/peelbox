@@ -28,6 +28,7 @@ impl WorkflowPhase for AssemblePhase {
             &context.service_analyses,
             root_cache,
             &context.stack_registry,
+            &context.wolfi_index,
         )?;
         context.builds = builds;
         Ok(())
@@ -38,11 +39,12 @@ fn execute_assemble(
     analysis_results: &[ServiceContext],
     root_cache: &RootCacheInfo,
     registry: &std::sync::Arc<StackRegistry>,
+    wolfi_index: &std::sync::Arc<crate::validation::WolfiPackageIndex>,
 ) -> Result<Vec<UniversalBuild>> {
     let mut builds = Vec::new();
 
     for result in analysis_results {
-        let build = assemble_single_service(result, root_cache, registry)?;
+        let build = assemble_single_service(result, root_cache, registry, wolfi_index)?;
         builds.push(build);
     }
 
@@ -53,12 +55,17 @@ fn assemble_single_service(
     result: &ServiceContext,
     root_cache: &RootCacheInfo,
     registry: &StackRegistry,
+    wolfi_index: &crate::validation::WolfiPackageIndex,
 ) -> Result<UniversalBuild> {
     let _language_def = registry.get_language(result.service.language.clone());
 
+    // Read manifest content for version parsing
+    let manifest_path = result.repo_path().join(&result.service.path).join(&result.service.manifest);
+    let manifest_content = std::fs::read_to_string(&manifest_path).ok();
+
     let template = registry
         .get_build_system(result.service.build_system.clone())
-        .map(|bs| bs.build_template());
+        .map(|bs| bs.build_template(wolfi_index, manifest_content.as_deref()));
 
     let project_name = extract_project_name(&result.service);
 
@@ -117,10 +124,6 @@ fn assemble_single_service(
     );
 
     let build = BuildStage {
-        base: template
-            .as_ref()
-            .map(|t| t.build_image.clone())
-            .unwrap_or_else(|| format!("{}:latest", stack.runtime)),
         packages: template
             .as_ref()
             .map(|t| t.build_packages.clone())
@@ -153,10 +156,6 @@ fn assemble_single_service(
         .collect();
 
     let runtime = RuntimeStage {
-        base: template
-            .as_ref()
-            .map(|t| t.runtime_image.clone())
-            .unwrap_or_else(|| "debian:bookworm-slim".to_string()),
         packages: template
             .as_ref()
             .map(|t| t.runtime_packages.clone())
@@ -261,11 +260,13 @@ mod tests {
         };
 
         let stack_registry = Arc::new(crate::stack::StackRegistry::with_defaults(None));
+        let wolfi_index = Arc::new(crate::validation::WolfiPackageIndex::for_tests());
         let heuristic_logger = Arc::new(crate::heuristics::HeuristicLogger::new(None));
 
         let analysis_context = crate::pipeline::context::AnalysisContext::new(
             &PathBuf::from("."),
             stack_registry,
+            wolfi_index,
             None,
             heuristic_logger,
             crate::config::DetectionMode::Full,

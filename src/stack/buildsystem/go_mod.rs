@@ -52,11 +52,21 @@ impl BuildSystem for GoModBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let go_package = if wolfi_index.has_package("go") {
+            "go".to_string()
+        } else {
+            wolfi_index
+                .get_latest_version("go")
+                .unwrap_or_else(|| "go".to_string())
+        };
+
         BuildTemplate {
-            build_image: "golang:1.21".to_string(),
-            runtime_image: "alpine:3.19".to_string(),
-            build_packages: vec![],
+            build_packages: vec![go_package],
             runtime_packages: vec!["ca-certificates".to_string()],
             build_commands: vec!["go build -o app .".to_string()],
             cache_paths: vec![

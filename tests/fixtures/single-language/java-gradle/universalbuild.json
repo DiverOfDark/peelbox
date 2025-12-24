@@ -4,7 +4,6 @@
       "artifacts": [
         "build/libs/*.jar"
       ],
-      "base": "gradle:8.5-jdk21",
       "cache": [
         ".gradle",
         "build"
@@ -19,7 +18,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "openjdk-25",
+        "gradle"
+      ]
     },
     "metadata": {
       "build_system": "Gradle",
@@ -29,7 +31,6 @@
       "reasoning": "Detected from settings.gradle in "
     },
     "runtime": {
-      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
@@ -42,7 +43,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "openjdk-25-jre"
+      ],
       "ports": [
         8080
       ]

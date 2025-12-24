@@ -11,12 +11,6 @@ pub fn validate_required_fields(build: &UniversalBuild) -> Result<()> {
     if build.metadata.build_system.is_empty() {
         anyhow::bail!("Build system cannot be empty");
     }
-    if build.build.base.is_empty() {
-        anyhow::bail!("Build base image cannot be empty");
-    }
-    if build.runtime.base.is_empty() {
-        anyhow::bail!("Runtime base image cannot be empty");
-    }
     Ok(())
 }
 
@@ -30,15 +24,6 @@ pub fn validate_non_empty_commands(build: &UniversalBuild) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_valid_image_name(build: &UniversalBuild) -> Result<()> {
-    if build.build.base.is_empty() {
-        anyhow::bail!("Build base image cannot be empty");
-    }
-    if build.runtime.base.is_empty() {
-        anyhow::bail!("Runtime base image cannot be empty");
-    }
-    Ok(())
-}
 
 pub fn validate_confidence_range(build: &UniversalBuild) -> Result<()> {
     if !(0.0..=1.0).contains(&build.metadata.confidence) {
@@ -105,8 +90,7 @@ mod tests {
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
-                base: "rust:1.75".to_string(),
-                packages: vec![],
+                packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 context: vec![ContextSpec {
@@ -117,8 +101,7 @@ mod tests {
                 artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
-                base: "debian:bookworm-slim".to_string(),
-                packages: vec![],
+                packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
                 env: HashMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),

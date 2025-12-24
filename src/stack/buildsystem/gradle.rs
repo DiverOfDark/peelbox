@@ -71,12 +71,21 @@ impl BuildSystem for GradleBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let java_version = manifest_content
+            .and_then(|c| parse_java_version(c))
+            .or_else(|| wolfi_index.get_latest_version("openjdk"))
+            .unwrap_or_else(|| "openjdk-21".to_string());
+
+        let runtime_version = format!("{}-jre", java_version);
+
         BuildTemplate {
-            build_image: "gradle:8.5-jdk21".to_string(),
-            runtime_image: "eclipse-temurin:21-jre".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![java_version, "gradle".to_string()],
+            runtime_packages: vec![runtime_version],
             build_commands: vec!["gradle build -x test".to_string()],
             cache_paths: vec![
                 "/root/.gradle/caches/".to_string(),
@@ -128,4 +137,24 @@ impl BuildSystem for GradleBuildSystem {
 
         Ok(patterns)
     }
+}
+
+fn parse_java_version(manifest_content: &str) -> Option<String> {
+    for line in manifest_content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.contains("sourceCompatibility") || trimmed.contains("targetCompatibility") {
+            if let Some(version) = trimmed.split('=').nth(1) {
+                let version_num = version
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .replace("JavaVersion.VERSION_", "")
+                    .replace('_', ".");
+                return Some(format!("openjdk-{}", version_num));
+            }
+        }
+    }
+
+    None
 }

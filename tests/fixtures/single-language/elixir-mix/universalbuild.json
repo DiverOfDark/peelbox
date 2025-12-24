@@ -2,7 +2,6 @@
   {
     "build": {
       "artifacts": [],
-      "base": "elixir:1.15",
       "cache": [
         "_build",
         "deps"
@@ -17,7 +16,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "elixir-1.18"
+      ]
     },
     "metadata": {
       "build_system": "Mix",
@@ -27,7 +28,6 @@
       "reasoning": "Detected from mix.exs in "
     },
     "runtime": {
-      "base": "elixir:1.15-slim",
       "command": [
         "bin/app"
       ],
@@ -38,7 +38,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "elixir-1.18"
+      ],
       "ports": [
         4000
       ]

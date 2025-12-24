@@ -22,8 +22,6 @@ struct BuildSystemInfo {
     manifest_files: Vec<String>,
     build_commands: Vec<String>,
     cache_dirs: Vec<String>,
-    build_image: String,
-    runtime_image: String,
     build_packages: Vec<String>,
     runtime_packages: Vec<String>,
     artifacts: Vec<String>,
@@ -173,24 +171,32 @@ Identify manifest files and their build systems. Return JSON array:
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
         self.detected_info
             .lock()
             .unwrap()
             .as_ref()
-            .map(|info| BuildTemplate {
-                build_image: info.build_image.clone(),
-                runtime_image: info.runtime_image.clone(),
-                build_packages: info.build_packages.clone(),
-                runtime_packages: info.runtime_packages.clone(),
-                build_commands: info.build_commands.clone(),
-                cache_paths: info.cache_dirs.clone(),
-                artifacts: info.artifacts.clone(),
-                common_ports: info.common_ports.clone(),
+            .map(|info| {
+                let mut build_packages = info.build_packages.clone();
+                let mut runtime_packages = info.runtime_packages.clone();
+
+                build_packages.retain(|p| wolfi_index.has_package(p));
+                runtime_packages.retain(|p| wolfi_index.has_package(p));
+
+                BuildTemplate {
+                    build_packages,
+                    runtime_packages,
+                    build_commands: info.build_commands.clone(),
+                    cache_paths: info.cache_dirs.clone(),
+                    artifacts: info.artifacts.clone(),
+                    common_ports: info.common_ports.clone(),
+                }
             })
             .unwrap_or_else(|| BuildTemplate {
-                build_image: "alpine:latest".to_string(),
-                runtime_image: "alpine:latest".to_string(),
                 build_packages: vec![],
                 runtime_packages: vec![],
                 build_commands: vec![],

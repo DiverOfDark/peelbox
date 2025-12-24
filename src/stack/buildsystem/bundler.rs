@@ -41,12 +41,18 @@ impl BuildSystem for BundlerBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let ruby_version = wolfi_index
+            .get_latest_version("ruby")
+            .unwrap_or_else(|| "ruby-3.3".to_string());
+
         BuildTemplate {
-            build_image: "ruby:3.2".to_string(),
-            runtime_image: "ruby:3.2-slim".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![ruby_version.clone()],
+            runtime_packages: vec![ruby_version],
             build_commands: vec!["bundle install".to_string()],
             cache_paths: vec!["vendor/bundle/".to_string()],
             artifacts: vec![],

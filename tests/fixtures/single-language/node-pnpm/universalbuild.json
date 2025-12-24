@@ -5,7 +5,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".pnpm-store"
@@ -20,7 +19,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "pnpm",
@@ -30,7 +31,6 @@
       "reasoning": "Detected from pnpm-lock.yaml in "
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -41,7 +41,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]

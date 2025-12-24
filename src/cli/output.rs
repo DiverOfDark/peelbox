@@ -170,8 +170,7 @@ mod tests {
                 reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
             },
             build: BuildStage {
-                base: "rust:1.75".to_string(),
-                packages: vec![],
+                packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 context: vec![ContextSpec {
@@ -182,8 +181,7 @@ mod tests {
                 artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
-                base: "debian:bookworm-slim".to_string(),
-                packages: vec![],
+                packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
                 env: HashMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),

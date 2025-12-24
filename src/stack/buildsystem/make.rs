@@ -42,11 +42,22 @@ impl BuildSystem for MakeBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let mut build_packages = vec!["build-base".to_string()];
+
+        if wolfi_index.has_package("make") {
+            build_packages.push("make".to_string());
+        }
+        if wolfi_index.has_package("gcc") {
+            build_packages.push("gcc".to_string());
+        }
+
         BuildTemplate {
-            build_image: "gcc:latest".to_string(),
-            runtime_image: "alpine:3.19".to_string(),
-            build_packages: vec!["make".to_string(), "build-essential".to_string()],
+            build_packages,
             runtime_packages: vec![],
             build_commands: vec!["make".to_string()],
             cache_paths: vec![],

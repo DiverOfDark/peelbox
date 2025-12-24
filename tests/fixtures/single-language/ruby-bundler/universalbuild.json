@@ -2,7 +2,6 @@
   {
     "build": {
       "artifacts": [],
-      "base": "ruby:3.2",
       "cache": [
         "vendor",
         ".bundle"
@@ -17,7 +16,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "ruby-3.4"
+      ]
     },
     "metadata": {
       "build_system": "Bundler",
@@ -28,7 +29,6 @@
       "reasoning": "Detected from Gemfile in "
     },
     "runtime": {
-      "base": "ruby:3.2-slim",
       "command": [
         "bin/app"
       ],
@@ -42,7 +42,9 @@
       "health": {
         "endpoint": "/health"
       },
-      "packages": [],
+      "packages": [
+        "ruby-3.4"
+      ],
       "ports": [
         4567
       ]

@@ -4,7 +4,6 @@
       "artifacts": [
         "bazel-bin/hello"
       ],
-      "base": "bazel:latest",
       "cache": [
         "bazel-out"
       ],
@@ -28,7 +27,6 @@
       "reasoning": "Detected from BUILD in "
     },
     "runtime": {
-      "base": "bazel:latest",
       "command": [
         "bin/app"
       ],

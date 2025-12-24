@@ -4,7 +4,6 @@
       "artifacts": [
         "target/release/app"
       ],
-      "base": "rust:1.75",
       "cache": [
         "target",
         ".cargo"
@@ -20,8 +19,8 @@
       ],
       "env": {},
       "packages": [
-        "pkg-config",
-        "libssl-dev"
+        "rust-1.92",
+        "build-base"
       ]
     },
     "metadata": {
@@ -33,7 +32,6 @@
       "reasoning": "Detected from Cargo.toml in "
     },
     "runtime": {
-      "base": "debian:bookworm-slim",
       "command": [
         "bin/app"
       ],
@@ -48,8 +46,8 @@
         "endpoint": "/health"
       },
       "packages": [
-        "ca-certificates",
-        "libssl3"
+        "glibc",
+        "ca-certificates"
       ],
       "ports": [
         8080

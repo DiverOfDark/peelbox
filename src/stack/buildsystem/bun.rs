@@ -63,12 +63,23 @@ impl BuildSystem for BunBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let runtime = if wolfi_index.has_package("bun") {
+            vec!["bun".to_string()]
+        } else {
+            wolfi_index
+                .get_latest_version("nodejs")
+                .map(|v| vec![v])
+                .unwrap_or_else(|| vec!["nodejs-22".to_string()])
+        };
+
         BuildTemplate {
-            build_image: "oven/bun:1".to_string(),
-            runtime_image: "oven/bun:1-slim".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: runtime.clone(),
+            runtime_packages: runtime,
             build_commands: vec!["bun install".to_string(), "bun run build".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".bun/".to_string()],
             artifacts: vec!["dist/".to_string(), "build/".to_string()],

@@ -14,6 +14,47 @@ use std::path::PathBuf;
 use std::process::Command;
 use yare::parameterized;
 
+/// Setup test APKINDEX cache from committed snapshot
+/// This ensures tests use a consistent set of package versions
+fn setup_test_apkindex_cache() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+
+    INIT.call_once(|| {
+        let test_apkindex = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/data/APKINDEX.tar.gz");
+
+        if !test_apkindex.exists() {
+            eprintln!("WARNING: Test APKINDEX not found at {:?}", test_apkindex);
+            return;
+        }
+
+        let cache_dir = dirs::cache_dir()
+            .expect("Failed to get cache dir")
+            .join("aipack")
+            .join("apkindex");
+
+        std::fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
+
+        let cache_apkindex = cache_dir.join("APKINDEX.tar.gz");
+        std::fs::copy(&test_apkindex, &cache_apkindex)
+            .expect("Failed to copy test APKINDEX to cache");
+
+        // Update modification time to prevent cache expiry (24h TTL)
+        let now = std::time::SystemTime::now();
+        filetime::set_file_mtime(&cache_apkindex, filetime::FileTime::from_system_time(now))
+            .expect("Failed to update cache file modification time");
+
+        // Remove parsed cache to force re-parsing with test APKINDEX
+        let parsed_cache = cache_dir.join("packages.bin");
+        if parsed_cache.exists() {
+            std::fs::remove_file(&parsed_cache).ok();
+        }
+
+        eprintln!("✓ Test APKINDEX cache setup complete");
+    });
+}
+
 /// Helper to get the path to the aipack binary
 fn aipack_bin() -> PathBuf {
     // In tests, the binary should be at target/debug/aipack
@@ -79,6 +120,9 @@ fn run_detection_with_mode(
     test_name: &str,
     mode: Option<&str>,
 ) -> Result<Vec<UniversalBuild>, String> {
+    // Setup: Copy test APKINDEX snapshot to cache so tests use consistent package versions
+    setup_test_apkindex_cache();
+
     // Create .git directory in fixture to prevent WalkBuilder from looking up the tree
     let git_dir = fixture.join(".git");
     if !git_dir.exists() {
@@ -181,15 +225,17 @@ fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixtur
             "Build system mismatch for project '{}': expected '{}', got '{}'",
             project_name, expected_build.metadata.build_system, detected.metadata.build_system
         );
+        // Wolfi-first architecture - base images removed from schema
+        // Packages are now validated instead
         assert_eq!(
-            detected.build.base, expected_build.build.base,
-            "Build base image mismatch for project '{}': expected '{}', got '{}'",
-            project_name, expected_build.build.base, detected.build.base
+            detected.build.packages, expected_build.build.packages,
+            "Build packages mismatch for project '{}': expected {:?}, got {:?}",
+            project_name, expected_build.build.packages, detected.build.packages
         );
         assert_eq!(
-            detected.runtime.base, expected_build.runtime.base,
-            "Runtime base image mismatch for project '{}': expected '{}', got '{}'",
-            project_name, expected_build.runtime.base, detected.runtime.base
+            detected.runtime.packages, expected_build.runtime.packages,
+            "Runtime packages mismatch for project '{}': expected {:?}, got {:?}",
+            project_name, expected_build.runtime.packages, detected.runtime.packages
         );
     }
 }

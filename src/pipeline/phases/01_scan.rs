@@ -509,10 +509,12 @@ mod tests {
     fn create_test_context(repo_path: &Path) -> AnalysisContext {
         use crate::config::DetectionMode;
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
+        let wolfi_index = Arc::new(crate::validation::WolfiPackageIndex::for_tests());
         let heuristic_logger = Arc::new(HeuristicLogger::disabled());
         AnalysisContext::new(
             repo_path,
             stack_registry,
+            wolfi_index,
             None,
             heuristic_logger,
             DetectionMode::Full,

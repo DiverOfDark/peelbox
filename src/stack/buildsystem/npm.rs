@@ -65,12 +65,24 @@ impl BuildSystem for NpmBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let node_version = manifest_content
+            .and_then(|c| parse_node_version(c))
+            .unwrap_or_else(|| {
+                wolfi_index
+                    .get_versions("nodejs")
+                    .first()
+                    .map(|v| format!("nodejs-{}", v))
+                    .unwrap_or_else(|| "nodejs-22".to_string())
+            });
+
         BuildTemplate {
-            build_image: "node:20".to_string(),
-            runtime_image: "node:20-slim".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![node_version.clone()],
+            runtime_packages: vec![node_version],
             build_commands: vec!["npm ci".to_string(), "npm run build".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".npm/".to_string()],
             artifacts: vec!["dist/".to_string(), "build/".to_string()],
@@ -120,4 +132,18 @@ impl BuildSystem for NpmBuildSystem {
     ) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
         super::glob_package_json_workspace_pattern(repo_path, pattern)
     }
+}
+
+fn parse_node_version(manifest_content: &str) -> Option<String> {
+    let package: serde_json::Value = serde_json::from_str(manifest_content).ok()?;
+    let node_version = package["engines"]["node"].as_str()?;
+
+    let version = node_version
+        .trim_start_matches(">=")
+        .trim_start_matches("^")
+        .trim_start_matches("~")
+        .split('.')
+        .next()?;
+
+    Some(format!("nodejs-{}", version))
 }

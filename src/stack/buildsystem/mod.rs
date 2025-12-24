@@ -10,11 +10,9 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Build template for container image generation
+/// Build template for container image generation (Wolfi-only)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildTemplate {
-    pub build_image: String,
-    pub runtime_image: String,
     pub build_packages: Vec<String>,
     pub runtime_packages: Vec<String>,
     pub build_commands: Vec<String>,
@@ -46,7 +44,12 @@ pub trait BuildSystem: Send + Sync {
     ) -> Result<Vec<DetectionStack>>;
 
     /// Get build template for this build system
-    fn build_template(&self) -> BuildTemplate;
+    /// Uses WolfiPackageIndex for dynamic version discovery
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate;
 
     /// Cache directories for this build system
     fn cache_dirs(&self) -> Vec<String>;

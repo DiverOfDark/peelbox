@@ -4,32 +4,37 @@
 
 **Critical: Must be completed first - all other phases depend on WolfiPackageIndex**
 
-- [ ] 1.1 Create `src/validation/wolfi_index.rs` module
-- [ ] 1.2 Implement `fetch_apkindex()` - Download APKINDEX.tar.gz from `packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz`
-- [ ] 1.3 Implement local caching with 24-hour TTL (use `~/.cache/aipack/apkindex/`)
-- [ ] 1.4 Implement `parse_apkindex()` - Extract tar.gz → tar → APKINDEX file
-- [ ] 1.5 Parse APK index format to extract package names (format: `P:package-name`)
-- [ ] 1.6 Implement `WolfiPackageIndex` struct:
-  - [ ] 1.6a Add `packages: HashSet<String>` field
-  - [ ] 1.6b Implement `get_versions(&self, package_prefix: &str) -> Vec<String>`
+- [x] 1.1 Create `src/validation/wolfi_index.rs` module
+- [x] 1.2 Implement `fetch_apkindex()` - Download APKINDEX.tar.gz from `packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz`
+- [x] 1.3 Implement local caching with 24-hour TTL (use `~/.cache/aipack/apkindex/`)
+- [x] 1.4 Implement `parse_apkindex()` - Extract tar.gz → tar → APKINDEX file
+- [x] 1.5 Parse APK index format to extract package names (format: `P:package-name`)
+- [x] 1.6 Implement `WolfiPackageIndex` struct:
+  - [x] 1.6a Add `packages: HashSet<String>` field
+  - [x] 1.6b Implement `get_versions(&self, package_prefix: &str) -> Vec<String>`
     - Parse versioned packages matching prefix (e.g., "nodejs" → ["22", "20", "18"])
     - Extract version numbers from package names (e.g., "nodejs-22" → "22")
-    - Sort versions in descending order (highest first)
-  - [ ] 1.6c Implement `get_latest_version(&self, package_prefix: &str) -> Option<String>`
+    - Sort versions in descending order (highest first) - **FIXED: Proper semantic version comparison**
+  - [x] 1.6c Implement `get_latest_version(&self, package_prefix: &str) -> Option<String>`
     - Return highest available version for prefix
     - Return full package name (e.g., "nodejs-22")
-  - [ ] 1.6d Implement `has_package(&self, package_name: &str) -> bool`
+  - [x] 1.6d Implement `has_package(&self, package_name: &str) -> bool`
     - Check if exact package name exists in index
-  - [ ] 1.6e Implement `match_version(&self, package_prefix: &str, requested: &str, available: &[String]) -> Option<String>`
+  - [x] 1.6e Implement `match_version(&self, package_prefix: &str, requested: &str, available: &[String]) -> Option<String>`
     - Find best match for requested version (e.g., "18" matches "nodejs-18")
     - Support major version matching (e.g., "3.11" matches "python-3.11")
-- [ ] 1.7 Add dependency: `tar = "0.4"` to Cargo.toml for APKINDEX extraction
-- [ ] 1.8 Add unit tests:
-  - [ ] 1.8a Test `get_versions()` with mock APKINDEX (nodejs-22, nodejs-20, nodejs-18)
-  - [ ] 1.8b Test `get_latest_version()` returns highest version
-  - [ ] 1.8c Test `has_package()` for exact matches
-  - [ ] 1.8d Test `match_version()` with various version formats
-  - [ ] 1.8e Test version parsing edge cases (e.g., "python-3.12", "dotnet-8-runtime")
+- [x] 1.7 Add dependency: `tar = "0.4"` to Cargo.toml for APKINDEX extraction
+- [x] 1.8 Add unit tests:
+  - [x] 1.8a Test `get_versions()` with mock APKINDEX (nodejs-22, nodejs-20, nodejs-18)
+  - [x] 1.8b Test `get_latest_version()` returns highest version
+  - [x] 1.8c Test `has_package()` for exact matches
+  - [x] 1.8d Test `match_version()` with various version formats
+  - [x] 1.8e Test version parsing edge cases (e.g., "python-3.12", "dotnet-8-runtime")
+
+**Additional Improvements:**
+- [x] Added binary cache with bincode for 30x performance improvement (70ms with warm cache)
+- [x] Implemented proper semantic version sorting to handle multi-component versions (1.92 > 1.81 > 1.75)
+- [x] Added test APKINDEX cache setup for e2e tests with filetime to prevent cache expiry
 
 ## Phase 2: Schema Breaking Changes
 
@@ -368,3 +373,85 @@
 - [ ] 19.14 Update CLAUDE.md with Wolfi-first architecture and mandatory distroless 2-layer
 - [ ] 19.15 Update CHANGELOG.md with breaking changes (base image removal, Dockerfile removal, distroless mandatory)
 - [ ] 19.16 Add migration guide for removing base images from existing specs
+
+## Technical Debt Items
+
+### Version Detection Improvements
+
+- [ ] TD-1 Add .nvmrc/.node-version support for deterministic Node.js version detection
+  - Current: Node.js build systems use latest version from APKINDEX
+  - Improvement: Parse `.nvmrc` or `.node-version` files to select specific Node version
+  - Files to update: `src/stack/buildsystem/npm.rs`, `yarn.rs`, `pnpm.rs`, `bun.rs`
+  - Benefit: Developers can pin Node.js version in their repository
+
+- [ ] TD-2 Add runtime version detection for each language from manifest files
+  - Current: Runtime versions default to latest from APKINDEX
+  - Improvement: Parse version constraints from:
+    - PHP: `composer.json` → `require.php` field
+    - Python: `pyproject.toml` → `requires-python`, `runtime.txt`
+    - Ruby: `.ruby-version`, `Gemfile` → `ruby "x.y.z"`
+    - Go: `go.mod` → `go 1.21`
+    - Java: Already implemented via `pom.xml`/`build.gradle.kts`
+  - Files to update: Language-specific build systems in `src/stack/buildsystem/`
+  - Benefit: Reproducible builds with exact runtime versions
+
+### Gradle Manifest Priority Fix
+
+- [ ] TD-3 Fix Gradle detection to prefer build.gradle.kts over settings.gradle.kts for version parsing
+  - Current: Detection creates entries for both files, sometimes picks wrong one
+  - Issue: `settings.gradle.kts` doesn't contain Java version info, only `build.gradle.kts` does
+  - Root cause: Manifest selection logic doesn't prioritize by content relevance
+  - Files to update: `src/stack/buildsystem/gradle.rs`, detection/structure phases
+  - Benefit: Correct Java version detection for all Gradle projects
+
+### Package Validation
+
+- [ ] TD-4 Verify that packages from RuntimeTrait are actually used in final output
+  - Current: RuntimeTrait may suggest packages that aren't included in UniversalBuild
+  - Investigation needed: Check if `RuntimeTrait::runtime_packages()` is consulted during assembly
+  - Files to check: `src/pipeline/phases/08_assemble.rs`, `src/stack/language/mod.rs`
+  - Benefit: Ensure all necessary runtime dependencies are present
+
+### Test Infrastructure
+
+- [ ] TD-5 Add LLM backend support for LLM-only tests (deno-fresh, zig-build)
+  - Current: 2/69 e2e tests fail because they require LLM backend
+  - Missing: Expected JSON files need to be generated with actual LLM output
+  - Files affected: `tests/fixtures/single-language/deno-fresh/`, `zig-build/`
+  - Options: Either add expected JSONs from LLM run, or mark as `#[ignore]` without LLM
+  - Benefit: 100% test pass rate
+
+### Code Quality and Cleanup
+
+- [ ] TD-6 Review and cleanup wolfi_index.rs implementation
+  - Current: Functional implementation completed during Phase 1
+  - Areas for improvement:
+    - [ ] TD-6a Review error handling patterns (currently uses anyhow, consider custom error types)
+    - [ ] TD-6b Review code organization (fetch, parse, cache logic could be separated)
+    - [ ] TD-6c Add documentation comments for public API methods
+    - [ ] TD-6d Review version sorting edge cases (currently handles semantic versions, test with pre-release/build metadata)
+    - [ ] TD-6e Consider adding metrics/logging for cache hit rates
+    - [ ] TD-6f Review binary cache format (bincode works but consider versioning for future schema changes)
+    - [ ] TD-6g Add integration tests with real APKINDEX download (currently unit tests only)
+  - Files: `src/validation/wolfi_index.rs`
+  - Benefit: Maintainable, well-documented code with better observability
+
+### Architecture Improvements
+
+- [ ] TD-7 Move runtime_packages from BuildSystemTrait to RuntimeTrait
+  - Current: BuildTemplate includes both `build_packages` and `runtime_packages`
+  - Issue: Runtime packages are a property of the language/runtime, not the build system
+  - Architectural concern: Build systems should only know about build-time dependencies
+  - Proposed change:
+    - [ ] TD-7a Remove `runtime_packages` field from `BuildTemplate` struct
+    - [ ] TD-7b Add `runtime_packages(&self, wolfi_index: &WolfiPackageIndex) -> Vec<String>` to `RuntimeTrait`
+    - [ ] TD-7c Update `LanguageTrait` implementations to provide runtime packages
+    - [ ] TD-7d Update assemble phase to get runtime packages from language trait, not build system
+    - [ ] TD-7e Update all BuildSystem implementations to remove runtime_packages
+  - Files affected:
+    - `src/stack/buildsystem/mod.rs` (BuildTemplate struct)
+    - `src/stack/language/mod.rs` (RuntimeTrait)
+    - `src/stack/language/*.rs` (all language implementations)
+    - `src/pipeline/phases/08_assemble.rs`
+  - Benefit: Cleaner separation of concerns, language-specific runtime dependencies
+  - Example: Python runtime needs `python-3.14`, Node.js runtime needs `nodejs-25`, independent of build system (pip/poetry vs npm/yarn)
