@@ -62,20 +62,26 @@ Manifest: {}
 Content:
 {}
 
-Return JSON with build configuration:
+Return JSON with build configuration using Wolfi package names:
 {{
   "name": "zig",
   "manifest_files": ["build.zig"],
   "build_commands": ["zig build -Doptimize=ReleaseSafe"],
   "cache_dirs": ["zig-cache", ".zig-cache"],
-  "build_image": "alpine:latest",
-  "runtime_image": "alpine:latest",
-  "build_packages": [],
-  "runtime_packages": [],
+  "build_packages": ["zig"],
+  "runtime_packages": ["glibc", "ca-certificates"],
   "artifacts": ["zig-out/bin/hello"],
   "common_ports": [],
   "confidence": 0.9
 }}
+
+Wolfi package name guidance:
+- Always specify version-specific packages (e.g., nodejs-22, not nodejs)
+- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18
+- For Python, use packages like: python-3.12, python-3.11, python-3.10
+- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11
+- For common packages: glibc, ca-certificates, build-base, gcc
+- Leave packages empty if you're unsure - the build system will validate
 "#,
             manifest_name,
             content
