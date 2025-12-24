@@ -73,9 +73,7 @@ When the method is called
 Then it panics with error message
 And suggests using `register_language()` instead
 
-## MODIFIED Requirements
-
-### Requirement: Type Enumeration (stack-registry)
+### Requirement: Type Enumeration
 
 All ID enums SHALL support custom variants for LLM-discovered types.
 

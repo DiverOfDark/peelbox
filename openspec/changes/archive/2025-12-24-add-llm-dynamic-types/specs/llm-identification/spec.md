@@ -123,29 +123,6 @@ When validating
 Then system normalizes to kebab-case or rejects
 And logs warning about format
 
-## MODIFIED Requirements
-
-### Requirement: LLM Client Interface (from ai-pipeline spec)
-
-The LLMClient trait SHALL be extended with type identification methods.
-
-#### Scenario: New methods added to trait
-
-Given `LLMClient` trait definition
-When compiling
-Then trait includes:
-- `identify_build_system(path, content) -> Result<BuildSystemIdentification>`
-- `identify_language(path, content, build_system) -> Result<LanguageIdentification>`
-- `identify_framework(deps, lang) -> Result<Vec<FrameworkIdentification>>`
-- `identify_orchestrator(configs) -> Result<Option<OrchestratorIdentification>>`
-
-#### Scenario: MockLLMClient implementation
-
-Given test code using `MockLLMClient`
-When identification methods are called
-Then mock returns predefined responses
-And tests run without live LLM calls
-
 ## REMOVED Requirements
 
 None - this is new functionality.
