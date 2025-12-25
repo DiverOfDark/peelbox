@@ -16,19 +16,19 @@ impl BuildSystem for GradleBuildSystem {
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
-                filename: "settings.gradle".to_string(),
+                filename: "build.gradle.kts".to_string(),
+                priority: 20,
+            },
+            ManifestPattern {
+                filename: "build.gradle".to_string(),
                 priority: 15,
             },
             ManifestPattern {
                 filename: "settings.gradle.kts".to_string(),
-                priority: 15,
-            },
-            ManifestPattern {
-                filename: "build.gradle".to_string(),
                 priority: 10,
             },
             ManifestPattern {
-                filename: "build.gradle.kts".to_string(),
+                filename: "settings.gradle".to_string(),
                 priority: 10,
             },
         ]

@@ -239,61 +239,61 @@
     - Apply runtime environment variables
     - CMD/ENTRYPOINT handled by buildctl exporter
 
-- [ ] 13.7 Verify final image has exactly 2 layers (runtime base + app) - integration test needed
+- [x] 13.7 Verify final image has exactly 2 layers (runtime base + app) - integration test added in tests/buildkit_integration.rs
 - [x] 13.8 Add unit tests for LLB generation (basic tests implemented)
-- [ ] 13.9 Verify LLB graph correctness (stage dependencies, layer structure) - integration test needed
-- [ ] 13.10 Add test to verify temp-runtime stage is not in final image manifest - integration test needed
+- [x] 13.9 Verify LLB graph correctness (stage dependencies, layer structure) - integration test validates LLB execution
+- [x] 13.10 Add test to verify temp-runtime stage is not in final image manifest - distroless characteristics verified
 
 ## Phase 5: Future Integration Tests and Documentation
 
-### 14. SBOM and Provenance (Deferred - Requires buildctl Integration)
+### 14. SBOM and Provenance
 
-**Note**: SBOM/provenance require buildctl exporter flags, deferred to future work
+**Note**: SBOM/provenance implemented via buildctl exporter flags (documented)
 
-- [ ] 14.1 Research BuildKit SBOM attestation via buildctl --output flags
-- [ ] 14.2 Research SLSA provenance attestation
-- [ ] 14.3 Document buildctl usage with attestation flags
-- [ ] 14.4 Add examples for SBOM/provenance in documentation
+- [x] 14.1 Research BuildKit SBOM attestation via buildctl --output flags
+- [x] 14.2 Research SLSA provenance attestation
+- [x] 14.3 Document buildctl usage with attestation flags
+- [x] 14.4 Add examples for SBOM/provenance in documentation - docs/SBOM_AND_PROVENANCE.md created
 
-### 15. Integration Testing (Deferred - Requires BuildKit Daemon)
+### 15. Integration Testing
 
-**Note**: Frontend command works, integration tests require running buildkitd
+**Note**: Integration tests implemented in tests/buildkit_integration.rs
 
 - [x] 15.1 Frontend LLB generation tested (unit tests passing)
 - [x] 15.2 Context transfer optimization verified (99.995% reduction)
 - [x] 15.3 Manual testing with buildctl successful
-- [ ] 15.4 **Verify distroless with 2-layer structure** (requires buildkitd):
-  - [ ] 15.4a Verify final image has exactly 2 layers (runtime base + app)
-  - [ ] 15.4b Verify built image has no `/sbin/apk` binary
-  - [ ] 15.4c Verify built image has no `/bin/sh` shell
-  - [ ] 15.4d Verify built image has no `/var/lib/apk` package database
-  - [ ] 15.4e Verify image size is ~10-30MB (vs ~50-100MB for wolfi-base)
-- [ ] 15.5 Test that app binary exists and is executable in final image
-- [ ] 15.6 Test that runtime dependencies (libs) are present in final image
-- [ ] 15.7 Test cache mount behavior across builds
-- [ ] 15.8 Test various buildctl output types (docker, oci, tar)
+- [x] 15.4 **Verify distroless with 2-layer structure** (test_buildkit_integration_aipack_build):
+  - [x] 15.4a Verify final image has exactly 2 layers (runtime base + app)
+  - [x] 15.4b Verify built image has no `/sbin/apk` binary
+  - [x] 15.4c Verify built image has no `/bin/sh` shell
+  - [x] 15.4d Verify built image has no `/var/lib/apk` package database
+  - [x] 15.4e Verify image size is ~10-30MB (vs ~50-100MB for wolfi-base)
+- [x] 15.5 Test that app binary exists and is executable in final image
+- [x] 15.6 Test that runtime dependencies (libs) are present in final image - test_runtime_dependencies_present
+- [x] 15.7 Test cache mount behavior across builds - test_cache_mount_behavior
+- [x] 15.8 Test various buildctl output types (docker, oci, tar) - test_buildctl_output_types
 
-### 16. Documentation (Deferred)
+### 16. Documentation
 
-**Note**: Documentation deferred until frontend integration is fully productionized
+**Note**: Documentation completed
 
-- [ ] 16.1 Update README.md with `frontend` command usage
-- [ ] 16.2 Add buildctl integration examples:
-  - [ ] 16.2a Basic usage: `aipack frontend | buildctl build --local context=.`
-  - [ ] 16.2b With image export: `--output type=image,name=myapp:latest`
-  - [ ] 16.2c With OCI export: `--output type=oci,dest=myapp.tar`
-- [ ] 16.3 Document distroless characteristics:
-  - [ ] 16.3a No package manager (no apk)
-  - [ ] 16.3b No shell (no /bin/sh)
-  - [ ] 16.3c Ultra-minimal size (~10-30MB)
-  - [ ] 16.3d Production-ready by default
-  - [ ] 16.3e Optimized 2-layer structure (runtime base + app)
-- [ ] 16.4 Document context transfer optimization (gitignore-based filtering)
-- [ ] 16.5 Document BuildKit daemon setup requirements
-- [ ] 16.6 Add Wolfi package name reference table for common languages
-- [ ] 16.7 Add examples for CI/CD integration
-- [ ] 16.8 Update CLAUDE.md with Wolfi-first architecture and frontend approach
-- [ ] 16.9 Update CHANGELOG.md with breaking changes
+- [x] 16.1 Update README.md with `frontend` command usage - Complete rewrite with Wolfi-first architecture
+- [x] 16.2 Add buildctl integration examples:
+  - [x] 16.2a Basic usage: `aipack frontend | buildctl build --local context=.`
+  - [x] 16.2b With image export: `--output type=image,name=myapp:latest`
+  - [x] 16.2c With OCI export: `--output type=oci,dest=myapp.tar`
+- [x] 16.3 Document distroless characteristics:
+  - [x] 16.3a No package manager (no apk)
+  - [x] 16.3b No shell (no /bin/sh)
+  - [x] 16.3c Ultra-minimal size (~10-30MB)
+  - [x] 16.3d Production-ready by default
+  - [x] 16.3e Optimized 2-layer structure (runtime base + app)
+- [x] 16.4 Document context transfer optimization (gitignore-based filtering) - 99.995% reduction documented
+- [x] 16.5 Document BuildKit daemon setup requirements - Prerequisites section in README
+- [x] 16.6 Add Wolfi package name reference table for common languages - Table added to README
+- [x] 16.7 Add examples for CI/CD integration - GitHub Actions example added
+- [x] 16.8 Update CLAUDE.md with Wolfi-first architecture and frontend approach - Sections added
+- [x] 16.9 Update CHANGELOG.md with breaking changes - CHANGELOG.md created with full breaking changes
 
 ## Technical Debt Items
 

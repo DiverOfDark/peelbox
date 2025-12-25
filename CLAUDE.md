@@ -104,6 +104,7 @@ If ANY checkbox fails → You violated a rule → Fix it before claiming complet
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
 - **Build System**: Cargo (standard commands: `build`, `test`, `fmt`, `clippy`)
+- **Container Platform**: BuildKit (LLB generation for distroless Wolfi images)
 - **AI Backends**: GenAI (unified multi-provider client)
   - Ollama (local inference)
   - Anthropic Claude
@@ -111,11 +112,166 @@ If ANY checkbox fails → You violated a rule → Fix it before claiming complet
   - Google Gemini
   - xAI Grok
   - Groq
+  - Embedded (zero-config local inference with Qwen2.5-Coder GGUF)
+- **BuildKit Integration**: buildkit-llb (LLB graph generation)
 - **HTTP Client**: reqwest (async), genai (multi-provider)
 - **CLI Framework**: clap (derive macros)
 - **Error Handling**: anyhow, thiserror
 - **Async Runtime**: tokio
 - **Serialization**: serde, serde_json
+
+## Wolfi-First Architecture
+
+**BREAKING CHANGE:** aipack uses Wolfi packages exclusively for all container images.
+
+### Core Principles
+
+1. **No Base Image Configuration**: Base image is always `cgr.dev/chainguard/wolfi-base` (hardcoded in LLB generation)
+2. **Package-Only Specification**: UniversalBuild schema contains only `packages` fields (build and runtime)
+3. **Dynamic Version Discovery**: Wolfi package versions discovered from APKINDEX at runtime (24h cache)
+4. **Version-Specific Packages**: All packages must be version-specific (e.g., `nodejs-22`, not `nodejs`)
+5. **Package Validation**: Fuzzy matching and version-aware validation against Wolfi APKINDEX
+
+### Wolfi Package Index
+
+Located at `src/validation/wolfi_index.rs`, provides:
+
+- **`fetch_apkindex()`**: Downloads APKINDEX.tar.gz from packages.wolfi.dev
+- **`WolfiPackageIndex`**: In-memory index with fast lookups
+  - `get_versions(prefix)`: Find all versions (e.g., "nodejs" → ["22", "20", "18"])
+  - `get_latest_version(prefix)`: Get highest version
+  - `has_package(name)`: Check exact package exists
+  - `match_version(prefix, requested, available)`: Best version match
+- **Binary Cache**: 30x performance improvement (70ms with warm cache)
+- **Proper Semantic Versioning**: Handles multi-component versions correctly
+
+### BuildSystem Integration
+
+All `BuildSystem` implementations query `WolfiPackageIndex` for dynamic version discovery:
+
+```rust
+fn build_template(&self, wolfi_index: &WolfiPackageIndex, manifest_content: Option<&str>) -> BuildTemplate {
+    // Parse version from manifest (e.g., package.json engines.node)
+    let requested = parse_version(manifest_content);
+
+    // Query available versions from Wolfi
+    let available = wolfi_index.get_versions("nodejs");
+
+    // Select best match or latest
+    let version = wolfi_index.match_version("nodejs", &requested, &available)
+        .or_else(|| wolfi_index.get_latest_version("nodejs"))
+        .unwrap_or("nodejs-22");
+
+    BuildTemplate {
+        build_packages: vec![version.clone()],
+        runtime_packages: vec![version],
+        ...
+    }
+}
+```
+
+### Schema Changes
+
+**UniversalBuild Schema (version 1.0):**
+- **REMOVED**: `build.base` field (no base image configuration)
+- **REMOVED**: `runtime.base` field (no base image configuration)
+- **KEPT**: `build.packages` (Wolfi package names, version-specific)
+- **KEPT**: `runtime.packages` (Wolfi package names, version-specific)
+- **KEPT**: `version` field (remains "1.0" - removal is simplification, not breaking addition)
+
+**BuildTemplate Struct:**
+- **REMOVED**: `build_image` field
+- **REMOVED**: `runtime_image` field
+- **KEPT**: `build_packages` field
+- **KEPT**: `runtime_packages` field
+
+## BuildKit Frontend Architecture
+
+aipack acts as a BuildKit frontend, generating Low-Level Build (LLB) definitions for image building.
+
+### Frontend Workflow
+
+1. **Detection** (`aipack detect`): Analyze repository → Generate UniversalBuild JSON
+2. **LLB Generation** (`aipack frontend`): Read UniversalBuild → Generate LLB protobuf
+3. **Build** (`buildctl build`): Execute LLB with BuildKit daemon
+
+### LLB Generation
+
+Located at `src/buildkit/llb.rs`, implements:
+
+- **2-Stage Distroless Build**: Build stage + distroless final stage
+- **Gitignore Filtering**: 99.995% context transfer reduction (1.5GB → 80-113KB)
+- **Cache Mount Support**: Shared caches for build artifacts
+- **Hardcoded Wolfi Base**: Always uses `cgr.dev/chainguard/wolfi-base:latest`
+
+### Distroless 2-Layer Architecture
+
+Final images have exactly 2 non-empty layers:
+
+```
+Stage 1 (Build):
+  wolfi-base + build packages → build app → artifacts
+
+Stage 2 (Temp Runtime) - BuildKit internal:
+  wolfi-base + runtime packages → prepare /runtime-root
+
+Stage 3 (Final):
+  FROM cgr.dev/chainguard/static:latest  # Distroless base
+  COPY --from=temp-runtime /runtime-root /    # Layer 1: Runtime base
+  COPY --from=build /artifacts /app           # Layer 2: Application
+```
+
+**Characteristics:**
+- No `/sbin/apk` (package manager removed)
+- No `/bin/sh` (no shell)
+- No `/var/lib/apk` (package database removed)
+- Optimized size: ~10-30MB (vs ~50-100MB for wolfi-base)
+- Production-ready by default (mandatory, no opt-out)
+
+### Context Transfer Optimization
+
+Located in `LLBBuilder::load_gitignore_patterns()`:
+
+- Parses `.gitignore` file and extracts patterns
+- Adds standard exclusions (`.git`, `.vscode`, `*.md`, `LICENSE`)
+- Applies to `Source::local()` via `add_exclude_pattern()`
+- Results in 99.995% reduction (1.54GB → 80-113KB for aipack itself)
+- No filesystem state dependency - patterns embedded in LLB
+
+### CLI Commands
+
+**`aipack detect <repo>`**: Analyze repository and generate UniversalBuild JSON
+- Runs 9-phase pipeline
+- Validates packages against Wolfi APKINDEX
+- Outputs JSON to stdout
+
+**`aipack frontend --spec <file>`**: Generate LLB from UniversalBuild spec
+- Reads UniversalBuild JSON
+- Generates BuildKit LLB protobuf
+- Outputs raw LLB to stdout for buildctl
+
+### BuildKit Integration
+
+Users pipe frontend output to `buildctl`:
+
+```bash
+# Basic build
+aipack frontend --spec universalbuild.json | \
+  buildctl build \
+    --local context=. \
+    --output type=docker,name=myapp:latest
+
+# With SBOM and provenance
+aipack frontend | buildctl build \
+  --local context=. \
+  --output type=docker,name=myapp:latest \
+  --opt attest:sbom= \
+  --opt attest:provenance=mode=max
+```
+
+**Requirements:**
+- BuildKit v0.11.0+ (Docker Desktop 4.17+, Docker Engine 23.0+)
+- buildctl CLI tool
 
 ## Project Structure
 
