@@ -63,8 +63,6 @@ pub struct BuildStage {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub commands: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub context: Vec<ContextSpec>,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub artifacts: Vec<String>,
@@ -87,14 +85,6 @@ pub struct RuntimeStage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CopySpec {
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub from: String,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub to: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ContextSpec {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -135,10 +125,6 @@ mod tests {
                 packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
@@ -261,7 +247,6 @@ mod tests {
         assert_eq!(build.metadata.confidence, 0.0);
         assert_eq!(build.metadata.reasoning, "");
         assert!(build.build.commands.is_empty());
-        assert!(build.build.context.is_empty());
         assert!(build.build.artifacts.is_empty());
         assert!(build.runtime.copy.is_empty());
         assert!(build.runtime.command.is_empty());
@@ -368,7 +353,6 @@ mod tests {
                 packages: vec![],
                 env: HashMap::new(),
                 commands: vec![],
-                context: vec![],
                 cache: vec![],
                 artifacts: vec![],
             },

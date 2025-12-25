@@ -14,20 +14,14 @@
       "openssl-dev"
     ],
     "env": {
-      "CARGO_HOME": "/build/.cargo"
+      "CARGO_HOME": ".cargo"
     },
     "commands": [
       "cargo build --release --bin aipack --no-default-features"
     ],
-    "context": [
-      {
-        "from": ".",
-        "to": "/app"
-      }
-    ],
     "cache": [
-      "/build/target",
-      "/build/.cargo"
+      "target",
+      ".cargo"
     ],
     "artifacts": [
       "target/release/aipack"

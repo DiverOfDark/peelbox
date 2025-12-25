@@ -61,6 +61,9 @@ tempfile = "3.8"
 serial_test = "3.0"
 yare = "3.0.0"
 filetime = "0.2"
+testcontainers = "0.23"
+bollard = "0.18"
+futures-util = "0.3"
 
 [profile.release]
 opt-level = 3

@@ -1,6 +1,6 @@
 use super::root_cache::RootCacheInfo;
 use crate::output::schema::{
-    BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
+    BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild,
 };
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::WorkflowPhase;
@@ -130,17 +130,6 @@ fn assemble_single_service(
             .unwrap_or_default(),
         env: HashMap::new(),
         commands: build_info.build_cmd.clone().into_iter().collect::<Vec<_>>(),
-        context: vec![ContextSpec {
-            from: {
-                let path_str = result.service.path.display().to_string();
-                if path_str.is_empty() {
-                    ".".to_string()
-                } else {
-                    path_str
-                }
-            },
-            to: "/app".to_string(),
-        }],
         cache: cache_paths,
         artifacts: template
             .as_ref()

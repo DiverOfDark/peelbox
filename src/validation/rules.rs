@@ -36,21 +36,6 @@ pub fn validate_confidence_range(build: &UniversalBuild) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_non_empty_context(build: &UniversalBuild) -> Result<()> {
-    if build.build.context.is_empty() {
-        anyhow::bail!("Build context cannot be empty");
-    }
-    for (i, context_spec) in build.build.context.iter().enumerate() {
-        if context_spec.from.is_empty() {
-            anyhow::bail!("Build context[{}] 'from' path cannot be empty", i);
-        }
-        if context_spec.to.is_empty() {
-            anyhow::bail!("Build context[{}] 'to' path cannot be empty", i);
-        }
-    }
-    Ok(())
-}
-
 pub fn validate_non_empty_artifacts(build: &UniversalBuild) -> Result<()> {
     if build.build.artifacts.is_empty() {
         anyhow::bail!("Build artifacts cannot be empty");
@@ -176,7 +161,7 @@ fn find_similar_packages(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::schema::{BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage};
+    use crate::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage};
     use std::collections::HashMap;
 
     fn create_minimal_valid_build() -> UniversalBuild {
@@ -200,10 +185,6 @@ mod tests {
                 packages: vec![rust_package, "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
@@ -258,12 +239,6 @@ mod tests {
         let mut build = create_minimal_valid_build();
         build.metadata.confidence = 1.5;
         assert!(validate_confidence_range(&build).is_err());
-    }
-
-    #[test]
-    fn test_validate_non_empty_context_valid() {
-        let build = create_minimal_valid_build();
-        assert!(validate_non_empty_context(&build).is_ok());
     }
 
     #[test]

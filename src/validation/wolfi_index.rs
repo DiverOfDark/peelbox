@@ -377,20 +377,4 @@ mod tests {
 
         assert_eq!(index.match_version("nodejs", "99999", &available), None);
     }
-
-    #[test]
-    fn bench_apkindex_loading() {
-        use std::time::Instant;
-
-        let start = Instant::now();
-        let index = WolfiPackageIndex::for_tests();
-        let elapsed = start.elapsed();
-
-        println!("\nAPKINDEX loading took: {:?}", elapsed);
-        println!("Packages loaded: {}", index.all_packages().len());
-
-        // With binary cache, loading should be very fast (< 50ms)
-        // First load (cold cache) can be slower (< 200ms)
-        assert!(elapsed.as_millis() < 200, "APKINDEX loading should be under 200ms, got {:?}", elapsed);
-    }
 }

@@ -1,7 +1,7 @@
 use crate::output::schema::UniversalBuild;
 use crate::validation::rules::{
     validate_confidence_range, validate_non_empty_commands,
-    validate_non_empty_context, validate_required_fields, validate_valid_copy_specs,
+    validate_required_fields, validate_valid_copy_specs,
     validate_wolfi_packages,
 };
 use crate::validation::WolfiPackageIndex;
@@ -28,8 +28,6 @@ impl Validator {
         validate_non_empty_commands(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyCommands] {}", e))?;
         validate_confidence_range(build).map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
-        validate_non_empty_context(build)
-            .map_err(|e| anyhow::anyhow!("[NonEmptyContext] {}", e))?;
         validate_valid_copy_specs(build).map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
 
         if let Some(wolfi_index) = &self.wolfi_index {
@@ -50,7 +48,7 @@ impl Default for Validator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::schema::{BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage};
+    use crate::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage};
     use std::collections::HashMap;
 
     fn create_minimal_valid_build() -> UniversalBuild {
@@ -68,10 +66,6 @@ mod tests {
                 packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },

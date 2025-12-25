@@ -120,17 +120,41 @@ impl LLBBuilder {
                 .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
                 .cwd("/build");
 
-            // Add cache mounts for build system caches
+            // Add cache mounts for build system caches (resolve relative to /build)
             for cache_path in &spec.build.cache {
-                build_cmd = build_cmd.mount(Mount::SharedCache(cache_path.as_str()));
+                let absolute_cache_path = if cache_path.starts_with('/') {
+                    cache_path.clone()
+                } else {
+                    format!("/build/{}", cache_path)
+                };
+                build_cmd = build_cmd.mount(Mount::SharedCache(&absolute_cache_path));
             }
 
+            // Set environment variables (resolve relative paths to /build)
             for (key, value) in &spec.build.env {
-                build_cmd = build_cmd.env(key, value);
+                let resolved_value = if value.starts_with('/') || value.starts_with('$') {
+                    value.clone()
+                } else if value.starts_with('.') {
+                    format!("/build/{}", value)
+                } else {
+                    value.clone()
+                };
+                build_cmd = build_cmd.env(key, &resolved_value);
             }
 
             if !spec.build.commands.is_empty() {
-                let script = spec.build.commands.join(" && ");
+                // Build commands + copy artifacts out of cache mounts
+                let mut script_parts = vec![spec.build.commands.join(" && ")];
+
+                // Copy artifacts from cache mounts to output filesystem
+                if !spec.build.artifacts.is_empty() {
+                    script_parts.push("mkdir -p /tmp/artifacts".to_string());
+                    for artifact in &spec.build.artifacts {
+                        script_parts.push(format!("cp {} /tmp/artifacts/", artifact));
+                    }
+                }
+
+                let script = script_parts.join(" && ");
                 build_cmd = build_cmd.args(&["-c", &script]);
                 build_cmd = build_cmd.custom_name("Run build commands");
             } else {
@@ -174,18 +198,20 @@ impl LLBBuilder {
         // Copy artifacts from build stage
         let mut final_stage = Command::run("sh")
             .mount(Mount::Layer(OutputIdx(0), with_runtime_files.output(0), "/"))
-            .mount(Mount::ReadOnlyLayer(build_stage.output(0), "/tmp/build"));
+            .mount(Mount::ReadOnlyLayer(build_stage.output(1), "/tmp/build-tmp"));
 
-        if !spec.build.artifacts.is_empty() {
+        if !spec.runtime.copy.is_empty() {
             let mut copy_commands = Vec::new();
-            for artifact in &spec.build.artifacts {
-                let dest = artifact.split('/').last().unwrap_or(artifact);
-                let artifact_path = if artifact.starts_with('/') {
-                    format!("/tmp/build{}", artifact)
-                } else {
-                    format!("/tmp/build/{}", artifact)
-                };
-                copy_commands.push(format!("cp {} /{}", artifact_path, dest));
+            for copy_spec in &spec.runtime.copy {
+                let filename = copy_spec.from.split('/').last().unwrap_or(&copy_spec.from);
+                // Create parent directory if needed
+                let parent_dir = copy_spec.to.rsplitn(2, '/').nth(1);
+                if let Some(dir) = parent_dir {
+                    if !dir.is_empty() {
+                        copy_commands.push(format!("mkdir -p {}", dir));
+                    }
+                }
+                copy_commands.push(format!("cp /tmp/build-tmp/artifacts/{} {}", filename, copy_spec.to));
             }
             let script = copy_commands.join(" && ");
             final_stage = final_stage.args(&["-c", &script]);
@@ -223,7 +249,7 @@ impl Default for LLBBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::schema::{BuildMetadata, BuildStage, ContextSpec, RuntimeStage};
+    use crate::output::schema::{BuildMetadata, BuildStage, RuntimeStage};
     use std::collections::HashMap;
 
     fn create_test_spec() -> UniversalBuild {
@@ -245,10 +271,6 @@ mod tests {
                     map
                 },
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec!["/cache/cargo".to_string()],
                 artifacts: vec!["/build/target/release/app".to_string()],
             },

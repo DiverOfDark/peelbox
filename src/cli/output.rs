@@ -155,7 +155,7 @@ impl HealthStatus {
 mod tests {
     use super::*;
     use crate::output::schema::{
-        BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage, UniversalBuild,
+        BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild,
     };
 
     fn create_test_result() -> UniversalBuild {
@@ -173,10 +173,6 @@ mod tests {
                 packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
