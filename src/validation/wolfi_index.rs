@@ -1,3 +1,7 @@
+//! Wolfi package index for dynamic package version discovery.
+//!
+//! Two-tier caching: raw tar.gz (24h TTL) + parsed binary cache (30x faster).
+
 use anyhow::{Context, Result};
 use std::collections::HashSet;
 use std::fs;
@@ -6,7 +10,7 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 const APKINDEX_URL: &str = "https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz";
-const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours
+const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Clone)]
 pub struct WolfiPackageIndex {
@@ -14,120 +18,134 @@ pub struct WolfiPackageIndex {
 }
 
 impl WolfiPackageIndex {
-    /// Fetch and parse APKINDEX with 24-hour cache
-    /// Also caches the parsed packages list to avoid re-parsing
+    /// Fetch and parse APKINDEX with two-tier caching (binary cache → tar.gz cache → download).
     pub fn fetch() -> Result<Self> {
         let tar_gz_cache = Self::cache_path()?;
         let parsed_cache = Self::parsed_cache_path()?;
 
-        // Try to load from parsed cache first (much faster)
         if let Ok(index) = Self::load_parsed_cache(&parsed_cache, &tar_gz_cache) {
             return Ok(index);
         }
 
-        // Check if tar.gz cache is valid
-        let content = if tar_gz_cache.exists() {
-            if let Ok(metadata) = fs::metadata(&tar_gz_cache) {
-                if let Ok(modified) = metadata.modified() {
-                    if let Ok(elapsed) = SystemTime::now().duration_since(modified) {
-                        if elapsed < CACHE_TTL {
-                            // Use cached tar.gz
-                            fs::read(&tar_gz_cache)
-                                .context("Failed to read cached APKINDEX")?
-                        } else {
-                            // Expired, fetch new
-                            Self::fetch_and_save_tar_gz(&tar_gz_cache)?
-                        }
-                    } else {
-                        Self::fetch_and_save_tar_gz(&tar_gz_cache)?
-                    }
-                } else {
-                    Self::fetch_and_save_tar_gz(&tar_gz_cache)?
-                }
-            } else {
-                Self::fetch_and_save_tar_gz(&tar_gz_cache)?
-            }
-        } else {
-            Self::fetch_and_save_tar_gz(&tar_gz_cache)?
-        };
-
-        // Parse and save to parsed cache
+        let content = Self::get_tar_gz_content(&tar_gz_cache)?;
         let index = Self::parse_apkindex(&content)?;
         Self::save_parsed_cache(&parsed_cache, &index)?;
 
         Ok(index)
     }
 
-    /// Fetch APKINDEX and save to cache
+    fn get_tar_gz_content(tar_gz_cache: &std::path::Path) -> Result<Vec<u8>> {
+        if Self::is_cache_fresh(tar_gz_cache)? {
+            return fs::read(tar_gz_cache)
+                .with_context(|| format!("Failed to read cached APKINDEX from {}", tar_gz_cache.display()));
+        }
+
+        Self::fetch_and_save_tar_gz(tar_gz_cache)
+    }
+
+    fn is_cache_fresh(cache_path: &std::path::Path) -> Result<bool> {
+        if !cache_path.exists() {
+            return Ok(false);
+        }
+
+        let metadata = fs::metadata(cache_path)
+            .context("Failed to read cache metadata")?;
+        let modified = metadata.modified()
+            .context("Failed to get cache modification time")?;
+        let elapsed = SystemTime::now().duration_since(modified)
+            .context("System time is before cache modification time")?;
+
+        Ok(elapsed < CACHE_TTL)
+    }
+
     fn fetch_and_save_tar_gz(cache_path: &std::path::Path) -> Result<Vec<u8>> {
         let content = Self::fetch_apkindex()?;
 
-        if let Some(parent) = cache_path.parent() {
-            fs::create_dir_all(parent).context("Failed to create cache directory")?;
+        if content.is_empty() {
+            anyhow::bail!("Downloaded APKINDEX is empty (0 bytes)");
         }
-        fs::write(cache_path, &content).context("Failed to write cache file")?;
+
+        if let Some(parent) = cache_path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create cache directory: {}", parent.display()))?;
+        }
+
+        fs::write(cache_path, &content)
+            .with_context(|| format!("Failed to write APKINDEX cache to {}", cache_path.display()))?;
 
         Ok(content)
     }
 
-    /// Load APKINDEX from a file (for testing with committed snapshot)
     pub fn from_file(path: &std::path::Path) -> Result<Self> {
         let content = fs::read(path)
-            .context("Failed to read APKINDEX file")?;
+            .with_context(|| format!("Failed to read APKINDEX from {}", path.display()))?;
+
+        if content.is_empty() {
+            anyhow::bail!("APKINDEX file is empty: {}", path.display());
+        }
+
         Self::parse_apkindex(&content)
     }
 
-    /// Download APKINDEX.tar.gz from Wolfi repository (blocking)
     fn fetch_apkindex() -> Result<Vec<u8>> {
         let response = reqwest::blocking::get(APKINDEX_URL)
-            .context("Failed to download APKINDEX")?;
+            .with_context(|| format!("Failed to download APKINDEX from {} (check network connectivity)", APKINDEX_URL))?;
 
         if !response.status().is_success() {
-            anyhow::bail!("Failed to download APKINDEX: HTTP {}", response.status());
+            anyhow::bail!(
+                "APKINDEX download failed with HTTP {} from {}",
+                response.status(),
+                APKINDEX_URL
+            );
         }
 
         let bytes = response.bytes()
-            .context("Failed to read APKINDEX response")?;
+            .context("Failed to read APKINDEX response body")?;
+
+        if bytes.is_empty() {
+            anyhow::bail!("Downloaded APKINDEX is empty (HTTP 200 but 0 bytes)");
+        }
 
         Ok(bytes.to_vec())
     }
 
-    /// Parse APKINDEX.tar.gz file
     fn parse_apkindex(data: &[u8]) -> Result<Self> {
-        // Decompress gzip (use MultiGzDecoder to handle multi-member gzip streams)
+        if data.is_empty() {
+            anyhow::bail!("Cannot parse empty APKINDEX data");
+        }
+
         let mut decoder = flate2::read::MultiGzDecoder::new(data);
         let mut tar_data = Vec::new();
         decoder.read_to_end(&mut tar_data)
-            .context("Failed to decompress APKINDEX.tar.gz")?;
+            .context("Failed to decompress APKINDEX.tar.gz (invalid gzip format)")?;
 
-        // Extract tar archive
+        if tar_data.is_empty() {
+            anyhow::bail!("APKINDEX.tar.gz decompressed to empty data");
+        }
+
         let mut archive = tar::Archive::new(&tar_data[..]);
         let mut packages = HashSet::new();
 
-        for entry in archive.entries().context("Failed to read tar entries")? {
+        for entry in archive.entries().context("Failed to read tar entries (invalid tar format)")? {
             let mut entry = entry.context("Failed to read tar entry")?;
             let path = entry.path().context("Failed to get entry path")?;
 
-            // Look for APKINDEX file (typically just "APKINDEX")
             if path.to_str().unwrap_or("") == "APKINDEX" {
                 let mut content = Vec::new();
                 entry.read_to_end(&mut content)
-                    .context("Failed to read APKINDEX content")?;
+                    .context("Failed to read APKINDEX content from tar")?;
 
-                // Parse APK index format efficiently using byte slices
-                // Format: Each package separated by blank line, fields start with single letter + colon
-                // P:package-name
-                // V:version
-                // ...
                 let content_str = std::str::from_utf8(&content)
-                    .context("APKINDEX contains invalid UTF-8")?;
+                    .context("APKINDEX contains invalid UTF-8 (expected ASCII text)")?;
 
-                // Pre-allocate HashSet with estimated capacity
-                packages.reserve(content_str.len() / 200); // Rough estimate: ~200 bytes per package entry
+                packages.reserve(content_str.len() / 200);
 
                 for line in content_str.lines() {
                     if let Some(package_name) = line.strip_prefix("P:") {
-                        packages.insert(package_name.trim().to_string());
+                        let trimmed = package_name.trim();
+                        if !trimmed.is_empty() {
+                            packages.insert(trimmed.to_string());
+                        }
                     }
                 }
 
@@ -136,13 +154,15 @@ impl WolfiPackageIndex {
         }
 
         if packages.is_empty() {
-            anyhow::bail!("No packages found in APKINDEX");
+            anyhow::bail!(
+                "No packages found in APKINDEX (file may be empty or malformed). \
+                Expected format: 'P:package-name' lines."
+            );
         }
 
         Ok(Self { packages })
     }
 
-    /// Get cache file path (~/.cache/aipack/apkindex/APKINDEX.tar.gz)
     fn cache_path() -> Result<PathBuf> {
         let cache_dir = dirs::cache_dir()
             .context("Failed to get user cache directory")?
@@ -152,7 +172,6 @@ impl WolfiPackageIndex {
         Ok(cache_dir.join("APKINDEX.tar.gz"))
     }
 
-    /// Get parsed cache file path (~/.cache/aipack/apkindex/packages.bin)
     fn parsed_cache_path() -> Result<PathBuf> {
         let cache_dir = dirs::cache_dir()
             .context("Failed to get user cache directory")?
@@ -162,7 +181,6 @@ impl WolfiPackageIndex {
         Ok(cache_dir.join("packages.bin"))
     }
 
-    /// Load parsed cache if it exists and is newer than tar.gz
     fn load_parsed_cache(parsed_path: &std::path::Path, tar_gz_path: &std::path::Path) -> Result<Self> {
         if !parsed_path.exists() {
             anyhow::bail!("Parsed cache does not exist");
@@ -186,7 +204,6 @@ impl WolfiPackageIndex {
         Ok(Self { packages })
     }
 
-    /// Save parsed packages to binary cache
     fn save_parsed_cache(parsed_path: &std::path::Path, index: &Self) -> Result<()> {
         if let Some(parent) = parsed_path.parent() {
             fs::create_dir_all(parent).context("Failed to create cache directory")?;
@@ -200,40 +217,27 @@ impl WolfiPackageIndex {
         Ok(())
     }
 
-    /// Get all available versions for a package prefix
-    /// Example: get_versions("nodejs") -> ["22", "20", "18"]
-    /// Filters out non-numeric versions (e.g., "stage0", "doc")
+    /// Get versions for package prefix, sorted descending with semantic versioning.
+    /// Filters out non-numeric versions and package variants.
     pub fn get_versions(&self, package_prefix: &str) -> Vec<String> {
         let mut versions = Vec::new();
         let prefix_with_dash = format!("{}-", package_prefix);
 
         for package in &self.packages {
-            if package.starts_with(&prefix_with_dash) {
-                // Extract version from package name (e.g., "nodejs-22" -> "22")
-                if let Some(version) = package.strip_prefix(&prefix_with_dash) {
-                    // Filter out non-numeric versions (stage0, doc, dev, etc.)
-                    // Only include versions that start with a digit
-                    if !version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
-                        continue;
-                    }
-
-                    // Filter out package variants (e.g., "openjdk-9-jre-base" -> skip)
-                    // Only include base version packages (e.g., "openjdk-9" -> "9")
-                    // Version should be: digits optionally followed by dots and more digits
-                    // but NOT followed by hyphens (which indicate variants like -jre, -doc, etc.)
-                    if version.contains('-') {
-                        continue;
-                    }
-
-                    versions.push(version.to_string());
+            if let Some(version) = package.strip_prefix(&prefix_with_dash) {
+                if !version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                    continue;
                 }
+
+                if version.contains('-') {
+                    continue;
+                }
+
+                versions.push(version.to_string());
             }
         }
 
-        // Sort versions in descending order (highest first)
-        // Use numeric comparison for version numbers to handle "21" > "9" and "1.92" > "1.75" correctly
         versions.sort_by(|a, b| {
-            // Parse version components (e.g., "1.92" -> [1, 92])
             let parse_version = |v: &str| -> Vec<u32> {
                 v.split('.').filter_map(|s| s.parse::<u32>().ok()).collect()
             };
@@ -241,7 +245,6 @@ impl WolfiPackageIndex {
             let a_parts = parse_version(a);
             let b_parts = parse_version(b);
 
-            // Compare component by component (major, minor, patch, etc.)
             for i in 0..a_parts.len().max(b_parts.len()) {
                 let a_part = a_parts.get(i).copied().unwrap_or(0);
                 let b_part = b_parts.get(i).copied().unwrap_or(0);
@@ -258,33 +261,29 @@ impl WolfiPackageIndex {
         versions
     }
 
-    /// Get latest (highest) version for a package prefix
-    /// Returns full package name (e.g., "nodejs-22")
+    /// Get latest version for package prefix (e.g., "nodejs" → "nodejs-22").
     pub fn get_latest_version(&self, package_prefix: &str) -> Option<String> {
         self.get_versions(package_prefix)
             .first()
             .map(|version| format!("{}-{}", package_prefix, version))
     }
 
-    /// Check if exact package name exists in index
+    /// Check if exact package name exists (e.g., "build-base", "nodejs-22").
     pub fn has_package(&self, package_name: &str) -> bool {
         self.packages.contains(package_name)
     }
 
-    /// Find best version match for requested version
-    /// Example: match_version("nodejs", "18", &["22", "20", "18"]) -> Some("nodejs-18")
+    /// Find best version match (exact or prefix match).
     pub fn match_version(
         &self,
         package_prefix: &str,
         requested: &str,
         available: &[String],
     ) -> Option<String> {
-        // Try exact match first
         if available.contains(&requested.to_string()) {
             return Some(format!("{}-{}", package_prefix, requested));
         }
 
-        // Try prefix match (e.g., "3.11" matches "3.11.5")
         for version in available {
             if version.starts_with(requested) {
                 return Some(format!("{}-{}", package_prefix, version));
@@ -294,15 +293,12 @@ impl WolfiPackageIndex {
         None
     }
 
-    /// Get all package names (for testing and debugging)
     pub fn all_packages(&self) -> Vec<String> {
         let mut packages: Vec<_> = self.packages.iter().cloned().collect();
         packages.sort();
         packages
     }
 
-    /// Load test APKINDEX for unit tests (from committed snapshot)
-    /// Uses a static cache to avoid re-parsing in tests
     #[cfg(test)]
     pub fn for_tests() -> Self {
         use std::sync::{Arc, OnceLock};
