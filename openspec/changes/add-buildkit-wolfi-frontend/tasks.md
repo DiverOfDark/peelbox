@@ -357,20 +357,23 @@
 
 ### Architecture Improvements
 
-- [ ] TD-7 Move runtime_packages from BuildSystemTrait to RuntimeTrait
-  - Current: BuildTemplate includes both `build_packages` and `runtime_packages`
-  - Issue: Runtime packages are a property of the language/runtime, not the build system
-  - Architectural concern: Build systems should only know about build-time dependencies
-  - Proposed change:
-    - [ ] TD-7a Remove `runtime_packages` field from `BuildTemplate` struct
-    - [ ] TD-7b Add `runtime_packages(&self, wolfi_index: &WolfiPackageIndex) -> Vec<String>` to `RuntimeTrait`
-    - [ ] TD-7c Update `LanguageTrait` implementations to provide runtime packages
-    - [ ] TD-7d Update assemble phase to get runtime packages from language trait, not build system
-    - [ ] TD-7e Update all BuildSystem implementations to remove runtime_packages
-  - Files affected:
+- [x] TD-7 Move runtime_packages from BuildSystemTrait to RuntimeTrait
+  - ✅ Current: BuildTemplate includes both `build_packages` and `runtime_packages`
+  - ✅ Issue: Runtime packages are a property of the language/runtime, not the build system
+  - ✅ Architectural concern: Build systems should only know about build-time dependencies
+  - ✅ Implemented changes:
+    - [x] TD-7a Remove `runtime_packages` field from `BuildTemplate` struct
+    - [x] TD-7b Add `runtime_packages(&self, wolfi_index: &WolfiPackageIndex, service_path: &Path, manifest_content: Option<&str>) -> Vec<String>` to `Runtime` trait
+    - [x] TD-7c Implement runtime_packages in all 9 Runtime implementations
+    - [x] TD-7d Update assemble phase to get runtime packages from Runtime trait via RuntimeId
+    - [x] TD-7e Update all 19 BuildSystem implementations to remove runtime_packages
+  - Files changed:
+    - `src/stack/runtime/mod.rs` (Runtime trait)
+    - `src/stack/runtime/*.rs` (all 9 runtime implementations)
     - `src/stack/buildsystem/mod.rs` (BuildTemplate struct)
-    - `src/stack/language/mod.rs` (RuntimeTrait)
-    - `src/stack/language/*.rs` (all language implementations)
+    - `src/stack/buildsystem/*.rs` (all 19 build system implementations)
     - `src/pipeline/phases/08_assemble.rs`
-  - Benefit: Cleaner separation of concerns, language-specific runtime dependencies
-  - Example: Python runtime needs `python-3.14`, Node.js runtime needs `nodejs-25`, independent of build system (pip/poetry vs npm/yarn)
+  - ✅ Benefit: Cleaner separation of concerns, language-specific runtime dependencies
+  - ✅ Fixed PHP version detection to parse major.minor (8.1) not just major (8)
+  - ✅ Simplified NativeRuntime to always return ["glibc", "ca-certificates"]
+  - ✅ All 69 e2e tests passing
