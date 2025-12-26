@@ -83,13 +83,8 @@ impl BuildSystem for DotNetBuildSystem {
     ) -> BuildTemplate {
         let dotnet_version = manifest_content
             .and_then(|c| parse_dotnet_version(c))
-            .or_else(|| {
-                wolfi_index
-                    .get_versions("dotnet")
-                    .first()
-                    .map(|v| format!("dotnet-{}", v))
-            })
-            .unwrap_or_else(|| "dotnet-8".to_string());
+            .or_else(|| wolfi_index.get_latest_version("dotnet"))
+            .expect("Failed to get dotnet version from Wolfi index");
 
         let runtime_version = format!("{}-runtime", dotnet_version);
 

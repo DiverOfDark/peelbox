@@ -142,6 +142,8 @@ pub(crate) fn glob_package_json_workspace_pattern(
 }
 
 mod node_common;
+mod python_common;
+mod ruby_common;
 
 pub mod bun;
 pub mod bundler;

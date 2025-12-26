@@ -1,5 +1,6 @@
 //! Bun build system (JavaScript/TypeScript)
 
+use super::node_common::{parse_node_version, read_node_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
 use crate::fs::FileSystem;
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
@@ -66,16 +67,17 @@ impl BuildSystem for BunBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
-        _service_path: &Path,
-        _manifest_content: Option<&str>,
+        service_path: &Path,
+        manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let runtime = if wolfi_index.has_package("bun") {
             vec!["bun".to_string()]
         } else {
-            wolfi_index
-                .get_latest_version("nodejs")
-                .map(|v| vec![v])
-                .unwrap_or_else(|| vec!["nodejs-22".to_string()])
+            let node_version = read_node_version_file(service_path)
+                .or_else(|| manifest_content.and_then(|c| parse_node_version(c)))
+                .or_else(|| wolfi_index.get_latest_version("nodejs"))
+                .expect("Failed to get nodejs version from Wolfi index");
+            vec![node_version]
         };
 
         BuildTemplate {

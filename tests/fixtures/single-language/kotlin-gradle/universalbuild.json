@@ -19,7 +19,7 @@
       ],
       "env": {},
       "packages": [
-        "openjdk-25",
+        "openjdk-17",
         "gradle-9"
       ]
     },
@@ -28,7 +28,7 @@
       "confidence": 0.949999988079071,
       "language": "Java",
       "project_name": "app",
-      "reasoning": "Detected from settings.gradle.kts in "
+      "reasoning": "Detected from build.gradle.kts in "
     },
     "runtime": {
       "command": [
@@ -44,7 +44,7 @@
       ],
       "env": {},
       "packages": [
-        "openjdk-25-jre"
+        "openjdk-17-jre"
       ],
       "ports": [
         8080

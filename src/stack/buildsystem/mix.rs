@@ -49,7 +49,7 @@ impl BuildSystem for MixBuildSystem {
     ) -> BuildTemplate {
         let elixir_version = wolfi_index
             .get_latest_version("elixir")
-            .unwrap_or_else(|| "elixir-1.17".to_string());
+            .expect("Failed to get elixir version from Wolfi index");
 
         BuildTemplate {
             build_packages: vec![elixir_version.clone()],

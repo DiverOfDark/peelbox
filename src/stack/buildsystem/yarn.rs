@@ -72,13 +72,8 @@ impl BuildSystem for YarnBuildSystem {
     ) -> BuildTemplate {
         let node_version = read_node_version_file(service_path)
             .or_else(|| manifest_content.and_then(|c| parse_node_version(c)))
-            .unwrap_or_else(|| {
-                wolfi_index
-                    .get_versions("nodejs")
-                    .first()
-                    .map(|v| format!("nodejs-{}", v))
-                    .unwrap_or_else(|| "nodejs-22".to_string())
-            });
+            .or_else(|| wolfi_index.get_latest_version("nodejs"))
+            .expect("Failed to get nodejs version from Wolfi index");
 
         BuildTemplate {
             build_packages: vec![node_version.clone()],

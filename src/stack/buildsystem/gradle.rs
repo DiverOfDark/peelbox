@@ -41,30 +41,46 @@ impl BuildSystem for GradleBuildSystem {
         fs: &dyn FileSystem,
     ) -> Result<Vec<DetectionStack>> {
         let mut detections = Vec::new();
+        let mut dir_has_build_file = std::collections::HashSet::new();
 
         for rel_path in file_tree {
             let filename = rel_path.file_name().and_then(|n| n.to_str());
 
-            let is_match = match filename {
-                Some("build.gradle") | Some("build.gradle.kts") => {
-                    let abs_path = repo_root.join(rel_path);
-                    let content = fs.read_to_string(&abs_path).ok();
-                    if let Some(c) = content.as_deref() {
-                        c.contains("plugins") || c.contains("dependencies")
-                    } else {
-                        true
+            if matches!(filename, Some("build.gradle") | Some("build.gradle.kts")) {
+                let abs_path = repo_root.join(rel_path);
+                let content = fs.read_to_string(&abs_path).ok();
+                let has_build_content = if let Some(c) = content.as_deref() {
+                    c.contains("plugins") || c.contains("dependencies")
+                } else {
+                    true
+                };
+
+                if has_build_content {
+                    if let Some(parent) = rel_path.parent() {
+                        dir_has_build_file.insert(parent.to_path_buf());
+                    }
+                    detections.push(DetectionStack::new(
+                        BuildSystemId::Gradle,
+                        LanguageId::Java,
+                        rel_path.clone(),
+                    ));
+                }
+            }
+        }
+
+        for rel_path in file_tree {
+            let filename = rel_path.file_name().and_then(|n| n.to_str());
+
+            if matches!(filename, Some("settings.gradle") | Some("settings.gradle.kts")) {
+                if let Some(parent) = rel_path.parent() {
+                    if !dir_has_build_file.contains(parent) {
+                        detections.push(DetectionStack::new(
+                            BuildSystemId::Gradle,
+                            LanguageId::Java,
+                            rel_path.clone(),
+                        ));
                     }
                 }
-                Some("settings.gradle") | Some("settings.gradle.kts") => true,
-                _ => false,
-            };
-
-            if is_match {
-                detections.push(DetectionStack::new(
-                    BuildSystemId::Gradle,
-                    LanguageId::Java,
-                    rel_path.clone(),
-                ));
             }
         }
 
@@ -80,13 +96,13 @@ impl BuildSystem for GradleBuildSystem {
         let java_version = manifest_content
             .and_then(|c| parse_java_version(c))
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
-            .unwrap_or_else(|| "openjdk-21".to_string());
+            .expect("Failed to get openjdk version from Wolfi index");
 
         let runtime_version = format!("{}-jre", java_version);
 
         let gradle_version = wolfi_index
             .get_latest_version("gradle")
-            .unwrap_or_else(|| "gradle-8".to_string());
+            .expect("Failed to get gradle version from Wolfi index");
 
         BuildTemplate {
             build_packages: vec![java_version, gradle_version],

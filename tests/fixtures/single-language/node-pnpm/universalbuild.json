@@ -20,7 +20,7 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-22"
       ]
     },
     "metadata": {
@@ -42,7 +42,7 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-22"
       ],
       "ports": [
         3000

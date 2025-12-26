@@ -1,5 +1,6 @@
 //! Bundler build system (Ruby)
 
+use super::ruby_common::{parse_gemfile_version, read_ruby_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
 use crate::fs::FileSystem;
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
@@ -44,18 +45,17 @@ impl BuildSystem for BundlerBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
-        _service_path: &Path,
-        _manifest_content: Option<&str>,
+        service_path: &Path,
+        manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let ruby_version = wolfi_index
-            .get_latest_version("ruby")
-            .unwrap_or_else(|| "ruby-3.3".to_string());
+        let ruby_version = read_ruby_version_file(service_path)
+            .or_else(|| manifest_content.and_then(|c| parse_gemfile_version(c)))
+            .or_else(|| wolfi_index.get_latest_version("ruby"))
+            .expect("Failed to get ruby version from Wolfi index");
 
-        // Extract ruby version number (e.g., "ruby-3.3" -> "3.3")
         let ruby_ver_num = ruby_version.trim_start_matches("ruby-");
         let bundler_package = format!("ruby{}-bundler", ruby_ver_num);
 
-        // Check if the bundler package exists, fall back to just ruby if not
         let build_packages = if wolfi_index.has_package(&bundler_package) {
             vec![ruby_version.clone(), bundler_package]
         } else {

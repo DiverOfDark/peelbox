@@ -6,6 +6,27 @@ use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+fn parse_php_version(manifest_content: &str) -> Option<String> {
+    let composer: serde_json::Value = serde_json::from_str(manifest_content).ok()?;
+    let php_constraint = composer["require"]["php"].as_str()?;
+
+    let version_str = php_constraint
+        .trim()
+        .trim_start_matches(">=")
+        .trim_start_matches("^")
+        .trim_start_matches("~")
+        .split('.')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(".");
+
+    if !version_str.is_empty() {
+        Some(format!("php-{}", version_str))
+    } else {
+        None
+    }
+}
+
 pub struct ComposerBuildSystem;
 
 impl BuildSystem for ComposerBuildSystem {
@@ -67,11 +88,12 @@ impl BuildSystem for ComposerBuildSystem {
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
         _service_path: &Path,
-        _manifest_content: Option<&str>,
+        manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let php_version = wolfi_index
-            .get_latest_version("php")
-            .unwrap_or_else(|| "php-8.3".to_string());
+        let php_version = manifest_content
+            .and_then(|c| parse_php_version(c))
+            .or_else(|| wolfi_index.get_latest_version("php"))
+            .expect("Failed to get php version from Wolfi index");
 
         BuildTemplate {
             build_packages: vec![php_version.clone(), "composer".to_string()],

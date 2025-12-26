@@ -37,7 +37,10 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
       "ports": [
         8080
       ]

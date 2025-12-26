@@ -20,7 +20,7 @@
       ],
       "env": {},
       "packages": [
-        "php-8.5",
+        "php-8.1",
         "composer"
       ]
     },
@@ -43,7 +43,7 @@
       ],
       "env": {},
       "packages": [
-        "php-8.5"
+        "php-8.1"
       ],
       "ports": [
         8000

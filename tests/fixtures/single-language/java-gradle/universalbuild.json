@@ -19,16 +19,17 @@
       ],
       "env": {},
       "packages": [
-        "openjdk-25",
+        "openjdk-17",
         "gradle-9"
       ]
     },
     "metadata": {
       "build_system": "Gradle",
       "confidence": 0.949999988079071,
+      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "app",
-      "reasoning": "Detected from settings.gradle in "
+      "reasoning": "Detected from build.gradle in "
     },
     "runtime": {
       "command": [
@@ -43,8 +44,11 @@
         }
       ],
       "env": {},
+      "health": {
+        "endpoint": "/actuator/health"
+      },
       "packages": [
-        "openjdk-25-jre"
+        "openjdk-17-jre"
       ],
       "ports": [
         8080

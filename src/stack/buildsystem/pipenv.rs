@@ -1,5 +1,6 @@
 //! Pipenv build system (Python)
 
+use super::python_common::{parse_pyproject_toml_version, read_python_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
 use crate::fs::FileSystem;
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
@@ -44,12 +45,13 @@ impl BuildSystem for PipenvBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
-        _service_path: &Path,
-        _manifest_content: Option<&str>,
+        service_path: &Path,
+        manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let python_version = wolfi_index
-            .get_latest_version("python")
-            .unwrap_or_else(|| "python-3.12".to_string());
+        let python_version = read_python_version_file(service_path)
+            .or_else(|| manifest_content.and_then(|c| parse_pyproject_toml_version(c)))
+            .or_else(|| wolfi_index.get_latest_version("python"))
+            .expect("Failed to get python version from Wolfi index");
 
         BuildTemplate {
             build_packages: vec![python_version.clone(), "build-base".to_string()],

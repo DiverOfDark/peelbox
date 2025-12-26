@@ -70,6 +70,59 @@
       ],
       "context": [
         {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "openjdk-25",
+        "gradle-9"
+      ]
+    },
+    "metadata": {
+      "build_system": "Gradle",
+      "confidence": 0.949999988079071,
+      "language": "Java",
+      "project_name": "app",
+      "reasoning": "Detected from build.gradle in "
+    },
+    "runtime": {
+      "command": [
+        "java",
+        "-jar",
+        "app.jar"
+      ],
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "openjdk-25-jre"
+      ],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  },
+  {
+    "build": {
+      "artifacts": [
+        "build/libs/*.jar"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
+      ],
+      "commands": [
+        "gradle build -x test"
+      ],
+      "context": [
+        {
           "from": "lib",
           "to": "/app"
         }

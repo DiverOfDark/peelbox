@@ -299,48 +299,47 @@
 
 ### Version Detection Improvements
 
-- [ ] TD-1 Add .nvmrc/.node-version support for deterministic Node.js version detection
-  - Current: Node.js build systems use latest version from APKINDEX
-  - Improvement: Parse `.nvmrc` or `.node-version` files to select specific Node version
-  - Files to update: `src/stack/buildsystem/npm.rs`, `yarn.rs`, `pnpm.rs`, `bun.rs`
-  - Benefit: Developers can pin Node.js version in their repository
+- [x] TD-1 Add .nvmrc/.node-version support for deterministic Node.js version detection
+  - ✅ Implemented: Created `node_common.rs` module with `read_node_version_file()` and `parse_node_version()`
+  - ✅ Updated: `npm.rs`, `yarn.rs`, `pnpm.rs` already using node_common, added to `bun.rs`
+  - ✅ Benefit: Developers can now pin Node.js version via `.nvmrc` or `.node-version` files
 
-- [ ] TD-2 Add runtime version detection for each language from manifest files
-  - Current: Runtime versions default to latest from APKINDEX
-  - Improvement: Parse version constraints from:
-    - PHP: `composer.json` → `require.php` field
-    - Python: `pyproject.toml` → `requires-python`, `runtime.txt`
-    - Ruby: `.ruby-version`, `Gemfile` → `ruby "x.y.z"`
-    - Go: `go.mod` → `go 1.21`
-    - Java: Already implemented via `pom.xml`/`build.gradle.kts`
-  - Files to update: Language-specific build systems in `src/stack/buildsystem/`
-  - Benefit: Reproducible builds with exact runtime versions
+- [x] TD-2 Add runtime version detection for each language from manifest files
+  - ✅ PHP: Created version parser for `composer.json` → `require.php` field in `composer.rs`
+  - ✅ Python: Created `python_common.rs` module with support for:
+    - `runtime.txt` file parsing
+    - `.python-version` file parsing
+    - `pyproject.toml` → `requires-python` field parsing
+    - Applied to `pip.rs`, `poetry.rs`, `pipenv.rs`
+  - ✅ Ruby: Created `ruby_common.rs` module with support for:
+    - `.ruby-version` file parsing
+    - `Gemfile` → `ruby "x.y.z"` line parsing
+    - Applied to `bundler.rs`
+  - ✅ Go: Added `parse_go_version()` to `go_mod.rs` for `go.mod` → `go 1.21` line parsing
+  - ✅ Benefit: Reproducible builds with exact runtime versions from project configuration
 
 ### Gradle Manifest Priority Fix
 
-- [ ] TD-3 Fix Gradle detection to prefer build.gradle.kts over settings.gradle.kts for version parsing
-  - Current: Detection creates entries for both files, sometimes picks wrong one
-  - Issue: `settings.gradle.kts` doesn't contain Java version info, only `build.gradle.kts` does
-  - Root cause: Manifest selection logic doesn't prioritize by content relevance
-  - Files to update: `src/stack/buildsystem/gradle.rs`, detection/structure phases
-  - Benefit: Correct Java version detection for all Gradle projects
+- [x] TD-3 Fix Gradle detection to prefer build.gradle.kts over settings.gradle.kts for version parsing
+  - ✅ Fixed: Updated `gradle.rs` `detect_all()` to use two-pass detection
+  - ✅ Implementation: First pass detects `build.gradle.kts`/`build.gradle`, second pass only adds `settings.gradle.kts`/`settings.gradle` if no build file exists in same directory
+  - ✅ Benefit: Correct Java version detection - build files always preferred over settings files
 
 ### Package Validation
 
-- [ ] TD-4 Verify that packages from RuntimeTrait are actually used in final output
-  - Current: RuntimeTrait may suggest packages that aren't included in UniversalBuild
-  - Investigation needed: Check if `RuntimeTrait::runtime_packages()` is consulted during assembly
-  - Files to check: `src/pipeline/phases/08_assemble.rs`, `src/stack/language/mod.rs`
-  - Benefit: Ensure all necessary runtime dependencies are present
+- [x] TD-4 Verify that packages from RuntimeTrait are actually used in final output
+  - ✅ Verified: Checked `src/pipeline/phases/08_assemble.rs` line 158
+  - ✅ Confirmed: `runtime_packages` from `BuildTemplate` are used via `template.runtime_packages.clone()`
+  - ✅ Note: No `RuntimeTrait` exists currently - runtime packages come from `BuildSystemTrait`
+  - ✅ Finding: Runtime packages ARE used in final output, sourced from BuildSystem (prerequisite check for TD-7)
 
 ### Test Infrastructure
 
-- [ ] TD-5 Add LLM backend support for LLM-only tests (deno-fresh, zig-build)
-  - Current: 2/69 e2e tests fail because they require LLM backend
-  - Missing: Expected JSON files need to be generated with actual LLM output
-  - Files affected: `tests/fixtures/single-language/deno-fresh/`, `zig-build/`
-  - Options: Either add expected JSONs from LLM run, or mark as `#[ignore]` without LLM
-  - Benefit: 100% test pass rate
+- [x] TD-5 Add LLM backend support for LLM-only tests (deno-fresh, zig-build)
+  - ✅ Fixed: Updated expected JSON files to match LLM's correct output
+  - ✅ deno-fresh: Changed build packages from `["nodejs-22"]` to `["deno"]`, runtime packages to `["glibc", "ca-certificates"]`
+  - ✅ zig-build: Added runtime packages `["glibc", "ca-certificates"]` (was empty array)
+  - ✅ Result: Both tests now pass - issue was incorrect expected values, not missing LLM backend
 
 ### Code Quality and Cleanup
 

@@ -62,13 +62,13 @@ impl BuildSystem for MavenBuildSystem {
         let java_version = manifest_content
             .and_then(|c| parse_java_version(c))
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
-            .unwrap_or_else(|| "openjdk-21".to_string());
+            .expect("Failed to get openjdk version from Wolfi index");
 
         let runtime_version = format!("{}-jre", java_version);
 
         let maven_version = wolfi_index
             .get_latest_version("maven")
-            .unwrap_or_else(|| "maven-3.9".to_string());
+            .expect("Failed to get maven version from Wolfi index");
 
         BuildTemplate {
             build_packages: vec![java_version, maven_version],
