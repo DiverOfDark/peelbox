@@ -77,7 +77,6 @@ impl BuildSystem for YarnBuildSystem {
 
         BuildTemplate {
             build_packages: vec![node_version.clone()],
-            runtime_packages: vec![node_version],
             build_commands: vec![
                 "yarn install --frozen-lockfile".to_string(),
                 "yarn build".to_string(),

@@ -44,6 +44,7 @@
         "endpoint": "/health"
       },
       "packages": [
+        "glibc",
         "ca-certificates"
       ],
       "ports": [

@@ -14,7 +14,6 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildTemplate {
     pub build_packages: Vec<String>,
-    pub runtime_packages: Vec<String>,
     pub build_commands: Vec<String>,
     pub cache_paths: Vec<String>,
     pub artifacts: Vec<String>,

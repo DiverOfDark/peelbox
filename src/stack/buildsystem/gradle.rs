@@ -98,7 +98,7 @@ impl BuildSystem for GradleBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
             .expect("Failed to get openjdk version from Wolfi index");
 
-        let runtime_version = format!("{}-jre", java_version);
+        let _runtime_version = format!("{}-jre", java_version);
 
         let gradle_version = wolfi_index
             .get_latest_version("gradle")
@@ -106,7 +106,6 @@ impl BuildSystem for GradleBuildSystem {
 
         BuildTemplate {
             build_packages: vec![java_version, gradle_version],
-            runtime_packages: vec![runtime_version],
             build_commands: vec!["gradle build -x test".to_string()],
             cache_paths: vec![
                 "/root/.gradle/caches/".to_string(),

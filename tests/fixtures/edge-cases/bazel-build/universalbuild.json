@@ -5,23 +5,18 @@
         "bazel-bin/hello"
       ],
       "cache": [
-        "bazel-out"
+        "bazel-cache",
+        ".bazel-cache"
       ],
       "commands": [
         "bazel build //:hello"
-      ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {},
       "packages": []
     },
     "metadata": {
       "build_system": "bazel",
-      "confidence": 0.95,
+      "confidence": 0.949999988079071,
       "language": "Bazel",
       "project_name": "app",
       "reasoning": "Detected from BUILD in "

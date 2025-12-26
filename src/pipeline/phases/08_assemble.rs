@@ -152,11 +152,13 @@ fn assemble_single_service(
         .map(String::from)
         .collect();
 
+    let runtime_packages = {
+        let runtime = registry.get_runtime(stack.runtime.clone(), None);
+        runtime.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref())
+    };
+
     let runtime = RuntimeStage {
-        packages: template
-            .as_ref()
-            .map(|t| t.runtime_packages.clone())
-            .unwrap_or_default(),
+        packages: runtime_packages,
         env: env_map,
         copy: vec![CopySpec {
             from: build

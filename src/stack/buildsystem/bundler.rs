@@ -64,7 +64,6 @@ impl BuildSystem for BundlerBuildSystem {
 
         BuildTemplate {
             build_packages,
-            runtime_packages: vec![ruby_version],
             build_commands: vec!["bundle install".to_string()],
             cache_paths: vec!["vendor/bundle/".to_string()],
             artifacts: vec![],

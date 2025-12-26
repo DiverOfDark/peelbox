@@ -58,7 +58,6 @@ impl BuildSystem for CMakeBuildSystem {
 
         BuildTemplate {
             build_packages,
-            runtime_packages: vec!["glibc".to_string()],
             build_commands: vec![
                 "cmake -B build -DCMAKE_BUILD_TYPE=Release".to_string(),
                 "cmake --build build --config Release".to_string(),

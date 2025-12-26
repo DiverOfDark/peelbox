@@ -77,7 +77,6 @@ impl BuildSystem for PnpmBuildSystem {
 
         BuildTemplate {
             build_packages: vec![node_version.clone()],
-            runtime_packages: vec![node_version],
             build_commands: vec![
                 "corepack enable".to_string(),
                 "pnpm install --frozen-lockfile".to_string(),

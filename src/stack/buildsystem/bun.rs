@@ -70,7 +70,7 @@ impl BuildSystem for BunBuildSystem {
         service_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let runtime = if wolfi_index.has_package("bun") {
+        let build_packages = if wolfi_index.has_package("bun") {
             vec!["bun".to_string()]
         } else {
             let node_version = read_node_version_file(service_path)
@@ -81,8 +81,7 @@ impl BuildSystem for BunBuildSystem {
         };
 
         BuildTemplate {
-            build_packages: runtime.clone(),
-            runtime_packages: runtime,
+            build_packages,
             build_commands: vec!["bun install".to_string(), "bun run build".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".bun/".to_string()],
             artifacts: vec!["dist/".to_string(), "build/".to_string()],

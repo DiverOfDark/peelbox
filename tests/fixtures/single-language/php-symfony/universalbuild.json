@@ -12,12 +12,6 @@
       "commands": [
         "composer install --no-dev --optimize-autoloader"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
       "env": {},
       "packages": [
         "php-8.1",

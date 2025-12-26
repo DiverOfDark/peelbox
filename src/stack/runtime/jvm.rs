@@ -134,6 +134,75 @@ impl Runtime for JvmRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("java -jar {}", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("openjdk");
+
+        let base_version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("openjdk", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("openjdk"))
+            .unwrap_or_else(|| "openjdk-21".to_string());
+
+        let version = format!("{}-jre", base_version);
+        vec![version]
+    }
+}
+
+impl JvmRuntime {
+    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+        if let Some(content) = manifest_content {
+            let pom_path = service_path.join("pom.xml");
+            if pom_path.exists() {
+                return self.parse_pom_version(content);
+            }
+
+            let gradle_path = service_path.join("build.gradle");
+            let gradle_kts_path = service_path.join("build.gradle.kts");
+            if gradle_path.exists() || gradle_kts_path.exists() {
+                return self.parse_gradle_version(content);
+            }
+        }
+
+        None
+    }
+
+    fn parse_pom_version(&self, content: &str) -> Option<String> {
+        if let Ok(doc) = roxmltree::Document::parse(content) {
+            for node in doc.descendants() {
+                if node.has_tag_name("maven.compiler.source") || node.has_tag_name("java.version") {
+                    if let Some(version) = node.text() {
+                        return Some(version.trim().to_string());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn parse_gradle_version(&self, content: &str) -> Option<String> {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.contains("sourceCompatibility") || trimmed.contains("targetCompatibility") {
+                if let Some(version) = trimmed.split('=').nth(1) {
+                    let version_num = version
+                        .trim()
+                        .trim_matches('"')
+                        .trim_matches('\'')
+                        .replace("JavaVersion.VERSION_", "")
+                        .replace('_', ".");
+                    return Some(version_num);
+                }
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]

@@ -105,6 +105,61 @@ impl Runtime for NodeRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("node {}", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("nodejs");
+
+        let version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("nodejs", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("nodejs"))
+            .unwrap_or_else(|| "nodejs-22".to_string());
+
+        vec![version]
+    }
+}
+
+impl NodeRuntime {
+    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+        for file_name in [".nvmrc", ".node-version"] {
+            let path = service_path.join(file_name);
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Some(ver) = self.normalize_version(&content) {
+                    return Some(ver);
+                }
+            }
+        }
+
+        if let Some(content) = manifest_content {
+            if let Ok(package) = serde_json::from_str::<serde_json::Value>(content) {
+                if let Some(node_version) = package["engines"]["node"].as_str() {
+                    if let Some(ver) = self.normalize_version(node_version) {
+                        return Some(ver);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    fn normalize_version(&self, version_str: &str) -> Option<String> {
+        let ver_num = version_str
+            .trim()
+            .trim_start_matches("v")
+            .trim_start_matches(">=")
+            .trim_start_matches("^")
+            .trim_start_matches("~")
+            .split('.')
+            .next()?;
+        Some(ver_num.to_string())
+    }
 }
 
 #[cfg(test)]

@@ -64,7 +64,7 @@ impl BuildSystem for MavenBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
             .expect("Failed to get openjdk version from Wolfi index");
 
-        let runtime_version = format!("{}-jre", java_version);
+        let _runtime_version = format!("{}-jre", java_version);
 
         let maven_version = wolfi_index
             .get_latest_version("maven")
@@ -72,7 +72,6 @@ impl BuildSystem for MavenBuildSystem {
 
         BuildTemplate {
             build_packages: vec![java_version, maven_version],
-            runtime_packages: vec![runtime_version],
             build_commands: vec!["mvn clean package -DskipTests".to_string()],
             cache_paths: vec!["/root/.m2/repository/".to_string()],
             artifacts: vec!["target/*.jar".to_string()],

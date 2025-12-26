@@ -97,7 +97,6 @@ impl BuildSystem for ComposerBuildSystem {
 
         BuildTemplate {
             build_packages: vec![php_version.clone(), "composer".to_string()],
-            runtime_packages: vec![php_version],
             build_commands: vec!["composer install --no-dev --optimize-autoloader".to_string()],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
             artifacts: vec!["vendor/".to_string(), "public/".to_string()],

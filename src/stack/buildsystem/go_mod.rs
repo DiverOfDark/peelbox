@@ -86,7 +86,6 @@ impl BuildSystem for GoModBuildSystem {
 
         BuildTemplate {
             build_packages: vec![go_package],
-            runtime_packages: vec!["ca-certificates".to_string()],
             build_commands: vec!["go build -o app .".to_string()],
             cache_paths: vec![
                 "/go/pkg/mod/".to_string(),

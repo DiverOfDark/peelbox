@@ -142,6 +142,15 @@ Response format:
             .map(|info| info.start_command.clone())
             .unwrap_or_else(|| format!("./{}", entrypoint.display()))
     }
+
+    fn runtime_packages(
+        &self,
+        _wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        vec!["glibc".to_string(), "ca-certificates".to_string()]
+    }
 }
 
 #[cfg(test)]

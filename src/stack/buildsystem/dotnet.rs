@@ -86,11 +86,10 @@ impl BuildSystem for DotNetBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("dotnet"))
             .expect("Failed to get dotnet version from Wolfi index");
 
-        let runtime_version = format!("{}-runtime", dotnet_version);
+        let _runtime_version = format!("{}-runtime", dotnet_version);
 
         BuildTemplate {
             build_packages: vec![dotnet_version],
-            runtime_packages: vec![runtime_version],
             build_commands: vec![
                 "dotnet restore".to_string(),
                 "dotnet publish -c Release -o out".to_string(),

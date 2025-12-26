@@ -55,7 +55,6 @@ impl BuildSystem for PipenvBuildSystem {
 
         BuildTemplate {
             build_packages: vec![python_version.clone(), "build-base".to_string()],
-            runtime_packages: vec![python_version],
             build_commands: vec![
                 "pip install pipenv".to_string(),
                 "pipenv install --deploy".to_string(),

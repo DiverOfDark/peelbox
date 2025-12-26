@@ -135,6 +135,86 @@ impl Runtime for PythonRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("python {}", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("python");
+
+        let version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("python", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("python"))
+            .unwrap_or_else(|| "python-3.12".to_string());
+
+        vec![version]
+    }
+}
+
+impl PythonRuntime {
+    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+        let runtime_txt = service_path.join("runtime.txt");
+        if let Ok(content) = std::fs::read_to_string(&runtime_txt) {
+            if let Some(ver) = self.normalize_version(&content) {
+                return Some(ver);
+            }
+        }
+
+        let python_version = service_path.join(".python-version");
+        if let Ok(content) = std::fs::read_to_string(&python_version) {
+            if let Some(ver) = self.normalize_version(&content) {
+                return Some(ver);
+            }
+        }
+
+        if let Some(content) = manifest_content {
+            if let Some(ver) = self.parse_pyproject_version(content) {
+                return Some(ver);
+            }
+        }
+
+        None
+    }
+
+    fn normalize_version(&self, version_str: &str) -> Option<String> {
+        let ver = version_str
+            .trim()
+            .trim_start_matches(">=")
+            .trim_start_matches("^")
+            .trim_start_matches("~")
+            .trim_start_matches("python")
+            .trim()
+            .split('.')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(".");
+
+        if !ver.is_empty() {
+            Some(ver)
+        } else {
+            None
+        }
+    }
+
+    fn parse_pyproject_version(&self, content: &str) -> Option<String> {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("requires-python") {
+                if let Some(eq_pos) = trimmed.find('=') {
+                    let value = &trimmed[eq_pos + 1..]
+                        .trim()
+                        .trim_matches('"')
+                        .trim_matches('\'');
+                    return self.normalize_version(value);
+                }
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]

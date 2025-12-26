@@ -6,12 +6,6 @@
       "commands": [
         "deno run -A dev.ts build"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
       "env": {},
       "packages": [
         "deno"
@@ -19,7 +13,7 @@
     },
     "metadata": {
       "build_system": "deno",
-      "confidence": 0.77,
+      "confidence": 0.7666666507720947,
       "language": "TypeScript",
       "project_name": "app",
       "reasoning": "Detected from deno.json in "

@@ -93,6 +93,53 @@ impl Runtime for PhpRuntime {
     fn start_command(&self, _entrypoint: &Path) -> String {
         "php-fpm".to_string()
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("php");
+
+        let version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("php", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("php"))
+            .unwrap_or_else(|| "php-8.3".to_string());
+
+        vec![version]
+    }
+}
+
+impl PhpRuntime {
+    fn detect_version(&self, _service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+        if let Some(content) = manifest_content {
+            return self.parse_composer_version(content);
+        }
+        None
+    }
+
+    fn parse_composer_version(&self, content: &str) -> Option<String> {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
+            if let Some(php_req) = json["require"]["php"].as_str() {
+                let ver = php_req
+                    .trim()
+                    .trim_start_matches(">=")
+                    .trim_start_matches("^")
+                    .trim_start_matches("~")
+                    .split('.')
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .join(".");
+                if !ver.is_empty() {
+                    return Some(ver);
+                }
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]

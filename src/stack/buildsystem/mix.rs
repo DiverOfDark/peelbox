@@ -53,7 +53,6 @@ impl BuildSystem for MixBuildSystem {
 
         BuildTemplate {
             build_packages: vec![elixir_version.clone()],
-            runtime_packages: vec![elixir_version],
             build_commands: vec![
                 "mix local.hex --force".to_string(),
                 "mix local.rebar --force".to_string(),

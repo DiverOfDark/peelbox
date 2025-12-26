@@ -23,7 +23,6 @@ struct BuildSystemInfo {
     build_commands: Vec<String>,
     cache_dirs: Vec<String>,
     build_packages: Vec<String>,
-    runtime_packages: Vec<String>,
     artifacts: Vec<String>,
     common_ports: Vec<u16>,
     confidence: f32,
@@ -189,14 +188,10 @@ Identify manifest files and their build systems. Return JSON array:
             .as_ref()
             .map(|info| {
                 let mut build_packages = info.build_packages.clone();
-                let mut runtime_packages = info.runtime_packages.clone();
-
                 build_packages.retain(|p| wolfi_index.has_package(p));
-                runtime_packages.retain(|p| wolfi_index.has_package(p));
 
                 BuildTemplate {
                     build_packages,
-                    runtime_packages,
                     build_commands: info.build_commands.clone(),
                     cache_paths: info.cache_dirs.clone(),
                     artifacts: info.artifacts.clone(),
@@ -205,7 +200,6 @@ Identify manifest files and their build systems. Return JSON array:
             })
             .unwrap_or_else(|| BuildTemplate {
                 build_packages: vec![],
-                runtime_packages: vec![],
                 build_commands: vec![],
                 cache_paths: vec![],
                 artifacts: vec![],

@@ -59,7 +59,6 @@ impl BuildSystem for MakeBuildSystem {
 
         BuildTemplate {
             build_packages,
-            runtime_packages: vec![],
             build_commands: vec!["make".to_string()],
             cache_paths: vec![],
             artifacts: vec!["app".to_string()],

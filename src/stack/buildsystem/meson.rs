@@ -69,7 +69,6 @@ impl BuildSystem for MesonBuildSystem {
 
         BuildTemplate {
             build_packages,
-            runtime_packages: vec![],
             build_commands: vec![
                 "meson setup builddir".to_string(),
                 "meson compile -C builddir".to_string(),

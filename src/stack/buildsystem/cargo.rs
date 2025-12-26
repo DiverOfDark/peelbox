@@ -70,7 +70,6 @@ impl BuildSystem for CargoBuildSystem {
 
         BuildTemplate {
             build_packages,
-            runtime_packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
             build_commands: vec!["cargo build --release".to_string()],
             cache_paths: vec![
                 "target/".to_string(),
