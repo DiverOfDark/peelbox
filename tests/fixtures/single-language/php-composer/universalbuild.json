@@ -5,7 +5,6 @@
         "vendor/",
         "public/"
       ],
-      "base": "composer:2",
       "cache": [
         ".composer/cache",
         "vendor"
@@ -13,14 +12,11 @@
       "commands": [
         "composer install --no-dev --optimize-autoloader"
       ],
-      "context": [
-        {
-          "from": "",
-          "to": "/app"
-        }
-      ],
       "env": {},
-      "packages": []
+      "packages": [
+        "php-8.1",
+        "composer"
+      ]
     },
     "metadata": {
       "build_system": "Composer",
@@ -30,7 +26,6 @@
       "reasoning": "Detected from composer.json in "
     },
     "runtime": {
-      "base": "php:8.2-fpm",
       "command": [
         "bin/app"
       ],
@@ -41,7 +36,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "php-8.1"
+      ],
       "ports": [
         8000
       ]

@@ -1,29 +1,40 @@
 use crate::output::schema::UniversalBuild;
 use crate::validation::rules::{
-    validate_confidence_range, validate_non_empty_artifacts, validate_non_empty_commands,
-    validate_non_empty_context, validate_required_fields, validate_valid_copy_specs,
-    validate_valid_image_name,
+    validate_confidence_range, validate_non_empty_commands,
+    validate_required_fields, validate_valid_copy_specs,
+    validate_wolfi_packages,
 };
+use crate::validation::WolfiPackageIndex;
 use anyhow::Result;
+use std::sync::Arc;
 
-pub struct Validator;
+pub struct Validator {
+    wolfi_index: Option<Arc<WolfiPackageIndex>>,
+}
 
 impl Validator {
     pub fn new() -> Self {
-        Self
+        Self { wolfi_index: None }
+    }
+
+    pub fn with_wolfi_index(wolfi_index: Arc<WolfiPackageIndex>) -> Self {
+        Self {
+            wolfi_index: Some(wolfi_index),
+        }
     }
 
     pub fn validate(&self, build: &UniversalBuild) -> Result<()> {
         validate_required_fields(build).map_err(|e| anyhow::anyhow!("[RequiredFields] {}", e))?;
         validate_non_empty_commands(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyCommands] {}", e))?;
-        validate_valid_image_name(build).map_err(|e| anyhow::anyhow!("[ValidImageName] {}", e))?;
         validate_confidence_range(build).map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
-        validate_non_empty_context(build)
-            .map_err(|e| anyhow::anyhow!("[NonEmptyContext] {}", e))?;
-        validate_non_empty_artifacts(build)
-            .map_err(|e| anyhow::anyhow!("[NonEmptyArtifacts] {}", e))?;
         validate_valid_copy_specs(build).map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
+
+        if let Some(wolfi_index) = &self.wolfi_index {
+            validate_wolfi_packages(build, wolfi_index)
+                .map_err(|e| anyhow::anyhow!("[WolfiPackages] {}", e))?;
+        }
+
         Ok(())
     }
 }
@@ -37,7 +48,7 @@ impl Default for Validator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::output::schema::{BuildMetadata, BuildStage, ContextSpec, CopySpec, RuntimeStage};
+    use crate::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage};
     use std::collections::HashMap;
 
     fn create_minimal_valid_build() -> UniversalBuild {
@@ -52,20 +63,14 @@ mod tests {
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
-                base: "rust:1.75".to_string(),
-                packages: vec![],
+                packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
-                base: "debian:bookworm-slim".to_string(),
-                packages: vec![],
+                packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
                 env: HashMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),

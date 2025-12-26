@@ -53,12 +53,23 @@ impl BuildSystem for CargoBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let mut build_packages = Vec::new();
+
+        // Wolfi uses versioned rust packages (rust-1.92, rust-1.91, etc.)
+        if let Some(rust_package) = wolfi_index.get_latest_version("rust") {
+            build_packages.push(rust_package);
+        }
+
+        build_packages.push("build-base".to_string());
+
         BuildTemplate {
-            build_image: "rust:1.75".to_string(),
-            runtime_image: "debian:bookworm-slim".to_string(),
-            build_packages: vec!["pkg-config".to_string(), "libssl-dev".to_string()],
-            runtime_packages: vec!["ca-certificates".to_string(), "libssl3".to_string()],
+            build_packages,
             build_commands: vec!["cargo build --release".to_string()],
             cache_paths: vec![
                 "target/".to_string(),

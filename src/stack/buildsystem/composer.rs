@@ -6,6 +6,27 @@ use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+fn parse_php_version(manifest_content: &str) -> Option<String> {
+    let composer: serde_json::Value = serde_json::from_str(manifest_content).ok()?;
+    let php_constraint = composer["require"]["php"].as_str()?;
+
+    let version_str = php_constraint
+        .trim()
+        .trim_start_matches(">=")
+        .trim_start_matches("^")
+        .trim_start_matches("~")
+        .split('.')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(".");
+
+    if !version_str.is_empty() {
+        Some(format!("php-{}", version_str))
+    } else {
+        None
+    }
+}
+
 pub struct ComposerBuildSystem;
 
 impl BuildSystem for ComposerBuildSystem {
@@ -63,12 +84,19 @@ impl BuildSystem for ComposerBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let php_version = manifest_content
+            .and_then(|c| parse_php_version(c))
+            .or_else(|| wolfi_index.get_latest_version("php"))
+            .expect("Failed to get php version from Wolfi index");
+
         BuildTemplate {
-            build_image: "composer:2".to_string(),
-            runtime_image: "php:8.2-fpm".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![php_version.clone(), "composer".to_string()],
             build_commands: vec!["composer install --no-dev --optimize-autoloader".to_string()],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
             artifacts: vec!["vendor/".to_string(), "public/".to_string()],

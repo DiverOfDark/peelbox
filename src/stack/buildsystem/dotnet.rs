@@ -75,12 +75,21 @@ impl BuildSystem for DotNetBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let dotnet_version = manifest_content
+            .and_then(|c| parse_dotnet_version(c))
+            .or_else(|| wolfi_index.get_latest_version("dotnet"))
+            .expect("Failed to get dotnet version from Wolfi index");
+
+        let _runtime_version = format!("{}-runtime", dotnet_version);
+
         BuildTemplate {
-            build_image: "mcr.microsoft.com/dotnet/sdk:8.0".to_string(),
-            runtime_image: "mcr.microsoft.com/dotnet/aspnet:8.0".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![dotnet_version],
             build_commands: vec![
                 "dotnet restore".to_string(),
                 "dotnet publish -c Release -o out".to_string(),
@@ -138,4 +147,26 @@ impl BuildSystem for DotNetBuildSystem {
 
         Ok(patterns)
     }
+}
+
+fn parse_dotnet_version(manifest_content: &str) -> Option<String> {
+    for line in manifest_content.lines() {
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("<TargetFramework>") {
+            if let Some(framework) = trimmed
+                .strip_prefix("<TargetFramework>")?
+                .strip_suffix("</TargetFramework>")
+            {
+                if framework.starts_with("net") {
+                    let version = framework.trim_start_matches("net");
+                    if let Some(major) = version.chars().next() {
+                        return Some(format!("dotnet-{}", major));
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }

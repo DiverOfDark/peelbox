@@ -41,12 +41,18 @@ impl BuildSystem for MixBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let elixir_version = wolfi_index
+            .get_latest_version("elixir")
+            .expect("Failed to get elixir version from Wolfi index");
+
         BuildTemplate {
-            build_image: "elixir:1.15".to_string(),
-            runtime_image: "elixir:1.15-slim".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages: vec![elixir_version.clone()],
             build_commands: vec![
                 "mix local.hex --force".to_string(),
                 "mix local.rebar --force".to_string(),

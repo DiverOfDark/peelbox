@@ -6,6 +6,20 @@ use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 
+fn parse_go_version(manifest_content: &str) -> Option<String> {
+    for line in manifest_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("go ") {
+            let version = trimmed.strip_prefix("go ")?.trim();
+            let ver_num = version.split('.').take(2).collect::<Vec<_>>().join(".");
+            if !ver_num.is_empty() {
+                return Some(format!("go-{}", ver_num));
+            }
+        }
+    }
+    None
+}
+
 pub struct GoModBuildSystem;
 
 impl BuildSystem for GoModBuildSystem {
@@ -52,12 +66,26 @@ impl BuildSystem for GoModBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let go_package = manifest_content
+            .and_then(|c| parse_go_version(c))
+            .or_else(|| wolfi_index.get_latest_version("go"))
+            .or_else(|| {
+                if wolfi_index.has_package("go") {
+                    Some("go".to_string())
+                } else {
+                    None
+                }
+            })
+            .expect("Failed to get go version from Wolfi index");
+
         BuildTemplate {
-            build_image: "golang:1.21".to_string(),
-            runtime_image: "alpine:3.19".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec!["ca-certificates".to_string()],
+            build_packages: vec![go_package],
             build_commands: vec!["go build -o app .".to_string()],
             cache_paths: vec![
                 "/go/pkg/mod/".to_string(),

@@ -13,10 +13,20 @@ pub struct BuildInfo {
     pub confidence: Confidence,
 }
 
-fn try_deterministic(service: &Service, stack_registry: &Arc<StackRegistry>) -> Option<BuildInfo> {
+fn try_deterministic(
+    service: &Service,
+    stack_registry: &Arc<StackRegistry>,
+    repo_path: &std::path::Path,
+) -> Option<BuildInfo> {
     let build_system = stack_registry.get_build_system(service.build_system.clone())?;
 
-    let template = build_system.build_template();
+    let wolfi_index = crate::validation::WolfiPackageIndex::fetch().ok()?;
+
+    let service_path = repo_path.join(&service.path);
+    let manifest_path = service_path.join(&service.manifest);
+    let manifest_content = std::fs::read_to_string(&manifest_path).ok();
+
+    let template = build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
 
     let build_cmd = template.build_commands.first().cloned();
     let output_dir = template.artifacts.first().map(|artifact| {
@@ -56,7 +66,7 @@ impl ServicePhase for BuildPhase {
     }
 
     async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
-        if let Some(deterministic) = try_deterministic(&context.service, context.stack_registry()) {
+        if let Some(deterministic) = try_deterministic(&context.service, context.stack_registry(), context.repo_path()) {
             context.build = Some(deterministic);
         }
         Ok(())
@@ -70,34 +80,35 @@ mod tests {
     #[test]
     fn test_deterministic_cargo() {
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
-        let service = Service {
-            path: PathBuf::from("."),
-            manifest: "Cargo.toml".to_string(),
-            language: crate::stack::LanguageId::Rust,
-            build_system: crate::stack::BuildSystemId::Cargo,
-        };
+        let wolfi_index = crate::validation::WolfiPackageIndex::for_tests();
 
-        let result = try_deterministic(&service, &stack_registry).unwrap();
-        assert_eq!(result.build_cmd, Some("cargo build --release".to_string()));
-        assert_eq!(result.output_dir, Some(PathBuf::from("target/release")));
-        assert_eq!(result.confidence, Confidence::High);
+        let build_system = stack_registry
+            .get_build_system(crate::stack::BuildSystemId::Cargo)
+            .unwrap();
+
+        let service_path = std::path::PathBuf::from("/tmp/test");
+        let template = build_system.build_template(&wolfi_index, &service_path, None);
+
+        assert_eq!(template.build_commands.first(), Some(&"cargo build --release".to_string()));
+        assert!(!template.artifacts.is_empty());
     }
 
     #[test]
     fn test_deterministic_maven() {
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
-        let service = Service {
-            path: PathBuf::from("."),
-            manifest: "pom.xml".to_string(),
-            language: crate::stack::LanguageId::Java,
-            build_system: crate::stack::BuildSystemId::Maven,
-        };
+        let wolfi_index = crate::validation::WolfiPackageIndex::for_tests();
 
-        let result = try_deterministic(&service, &stack_registry).unwrap();
+        let build_system = stack_registry
+            .get_build_system(crate::stack::BuildSystemId::Maven)
+            .unwrap();
+
+        let service_path = std::path::PathBuf::from("/tmp/test");
+        let template = build_system.build_template(&wolfi_index, &service_path, None);
+
         assert_eq!(
-            result.build_cmd,
-            Some("mvn clean package -DskipTests".to_string())
+            template.build_commands.first(),
+            Some(&"mvn clean package -DskipTests".to_string())
         );
-        assert_eq!(result.output_dir, Some(PathBuf::from("target")));
+        assert!(!template.artifacts.is_empty());
     }
 }

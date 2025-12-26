@@ -41,12 +41,23 @@ impl BuildSystem for CMakeBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let mut build_packages = vec!["build-base".to_string()];
+
+        if wolfi_index.has_package("cmake") {
+            build_packages.push("cmake".to_string());
+        }
+        if wolfi_index.has_package("gcc") {
+            build_packages.push("gcc".to_string());
+        }
+
         BuildTemplate {
-            build_image: "gcc:12".to_string(),
-            runtime_image: "ubuntu:22.04".to_string(),
-            build_packages: vec!["cmake".to_string(), "make".to_string()],
-            runtime_packages: vec!["libstdc++6".to_string()],
+            build_packages,
             build_commands: vec![
                 "cmake -B build -DCMAKE_BUILD_TYPE=Release".to_string(),
                 "cmake --build build --config Release".to_string(),

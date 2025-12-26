@@ -1,5 +1,6 @@
 //! Bun build system (JavaScript/TypeScript)
 
+use super::node_common::{parse_node_version, read_node_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
 use crate::fs::FileSystem;
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
@@ -63,12 +64,24 @@ impl BuildSystem for BunBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let build_packages = if wolfi_index.has_package("bun") {
+            vec!["bun".to_string()]
+        } else {
+            let node_version = read_node_version_file(service_path)
+                .or_else(|| manifest_content.and_then(|c| parse_node_version(c)))
+                .or_else(|| wolfi_index.get_latest_version("nodejs"))
+                .expect("Failed to get nodejs version from Wolfi index");
+            vec![node_version]
+        };
+
         BuildTemplate {
-            build_image: "oven/bun:1".to_string(),
-            runtime_image: "oven/bun:1-slim".to_string(),
-            build_packages: vec![],
-            runtime_packages: vec![],
+            build_packages,
             build_commands: vec!["bun install".to_string(), "bun run build".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".bun/".to_string()],
             artifacts: vec!["dist/".to_string(), "build/".to_string()],

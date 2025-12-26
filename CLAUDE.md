@@ -104,6 +104,7 @@ If ANY checkbox fails → You violated a rule → Fix it before claiming complet
 **Key Tech Stack:**
 - **Language**: Rust 1.70+
 - **Build System**: Cargo (standard commands: `build`, `test`, `fmt`, `clippy`)
+- **Container Platform**: BuildKit (LLB generation for distroless Wolfi images)
 - **AI Backends**: GenAI (unified multi-provider client)
   - Ollama (local inference)
   - Anthropic Claude
@@ -111,11 +112,214 @@ If ANY checkbox fails → You violated a rule → Fix it before claiming complet
   - Google Gemini
   - xAI Grok
   - Groq
+  - Embedded (zero-config local inference with Qwen2.5-Coder GGUF)
+- **BuildKit Integration**: buildkit-llb (LLB graph generation)
 - **HTTP Client**: reqwest (async), genai (multi-provider)
 - **CLI Framework**: clap (derive macros)
 - **Error Handling**: anyhow, thiserror
 - **Async Runtime**: tokio
 - **Serialization**: serde, serde_json
+
+## Wolfi-First Architecture
+
+**BREAKING CHANGE:** aipack uses Wolfi packages exclusively for all container images.
+
+### Core Principles
+
+1. **No Base Image Configuration**: Base image is always `cgr.dev/chainguard/wolfi-base` (hardcoded in LLB generation)
+2. **Package-Only Specification**: UniversalBuild schema contains only `packages` fields (build and runtime)
+3. **Dynamic Version Discovery**: Wolfi package versions discovered from APKINDEX at runtime (24h cache)
+4. **Version-Specific Packages**: All packages must be version-specific (e.g., `nodejs-22`, not `nodejs`)
+5. **Package Validation**: Fuzzy matching and version-aware validation against Wolfi APKINDEX
+
+### Wolfi Package Index
+
+Located at `src/validation/wolfi_index.rs`, provides:
+
+- **`fetch_apkindex()`**: Downloads APKINDEX.tar.gz from packages.wolfi.dev
+- **`WolfiPackageIndex`**: In-memory index with fast lookups
+  - `get_versions(prefix)`: Find all versions (e.g., "nodejs" → ["22", "20", "18"])
+  - `get_latest_version(prefix)`: Get highest version
+  - `has_package(name)`: Check exact package exists
+  - `match_version(prefix, requested, available)`: Best version match
+- **Binary Cache**: 30x performance improvement (70ms with warm cache)
+- **Proper Semantic Versioning**: Handles multi-component versions correctly
+
+### BuildSystem Integration
+
+All `BuildSystem` implementations query `WolfiPackageIndex` for dynamic version discovery:
+
+```rust
+fn build_template(&self, wolfi_index: &WolfiPackageIndex, manifest_content: Option<&str>) -> BuildTemplate {
+    // Parse version from manifest (e.g., package.json engines.node)
+    let requested = parse_version(manifest_content);
+
+    // Query available versions from Wolfi
+    let available = wolfi_index.get_versions("nodejs");
+
+    // Select best match or latest
+    let version = wolfi_index.match_version("nodejs", &requested, &available)
+        .or_else(|| wolfi_index.get_latest_version("nodejs"))
+        .unwrap_or("nodejs-22");
+
+    BuildTemplate {
+        build_packages: vec![version.clone()],
+        runtime_packages: vec![version],
+        ...
+    }
+}
+```
+
+### Schema Changes
+
+**UniversalBuild Schema (version 1.0):**
+- **REMOVED**: `build.base` field (no base image configuration)
+- **REMOVED**: `runtime.base` field (no base image configuration)
+- **KEPT**: `build.packages` (Wolfi package names, version-specific)
+- **KEPT**: `runtime.packages` (Wolfi package names, version-specific)
+- **KEPT**: `version` field (remains "1.0" - removal is simplification, not breaking addition)
+
+**BuildTemplate Struct:**
+- **REMOVED**: `build_image` field
+- **REMOVED**: `runtime_image` field
+- **KEPT**: `build_packages` field
+- **KEPT**: `runtime_packages` field
+
+## BuildKit Frontend Architecture
+
+aipack acts as a BuildKit frontend, generating Low-Level Build (LLB) definitions for image building.
+
+### Frontend Workflow
+
+1. **Detection** (`aipack detect`): Analyze repository → Generate UniversalBuild JSON
+2. **LLB Generation** (`aipack frontend`): Read UniversalBuild → Generate LLB protobuf
+3. **Build** (`buildctl build`): Execute LLB with BuildKit daemon
+
+### LLB Generation
+
+Located at `src/buildkit/llb.rs`, implements:
+
+- **2-Stage Distroless Build**: Build stage + distroless final stage
+- **Gitignore Filtering**: 99.995% context transfer reduction (1.5GB → 80-113KB)
+- **Cache Mount Support**: Shared caches for build artifacts
+- **Hardcoded Wolfi Base**: Always uses `cgr.dev/chainguard/wolfi-base:latest`
+
+### Distroless Squashed Architecture
+
+Final images use a 4-stage build with squashed runtime layer (no wolfi-base in history):
+
+```
+Stage 1 (Build):
+  wolfi-base + build packages → build app → artifacts
+
+Stage 2 (Runtime Prep):
+  wolfi-base + runtime packages → remove apk
+
+Stage 3 (Squash to Clean Base):
+  glibc-dynamic (clean base, no apk) + copy runtime prep → squashed layer
+
+Stage 4 (Final):
+  squashed runtime + copy artifacts → final image
+```
+
+**Result:**
+- Layer 1-5: `glibc-dynamic:latest` (clean base, ~11MB, no apk ever existed)
+- Layer 6: Squashed runtime (~10MB, packages installed, apk removed)
+- Layer 7: Application layer (~16MB, binary)
+- Layer metadata: Clean descriptions (`: aipack <name> runtime`)
+
+**Characteristics:**
+- No `/sbin/apk` in filesystem (package manager removed)
+- No `wolfi-base` in layer history (squashed to clean base)
+- Truly distroless: apk never existed in any layer
+- Optimized size: ~13MB total (aipack example)
+- Production-ready by default (mandatory, no opt-out)
+
+### Context Transfer Optimization
+
+Located in `LLBBuilder::load_gitignore_patterns()`:
+
+- Parses `.gitignore` file and extracts patterns
+- Adds standard exclusions (`.git`, `.vscode`, `*.md`, `LICENSE`)
+- Applies to `Source::local()` via `add_exclude_pattern()`
+- Results in 99.995% reduction (1.54GB → 80-113KB for aipack itself)
+- No filesystem state dependency - patterns embedded in LLB
+
+### CLI Commands
+
+**`aipack detect <repo>`**: Analyze repository and generate UniversalBuild JSON
+- Runs 9-phase pipeline
+- Validates packages against Wolfi APKINDEX
+- Outputs JSON to stdout
+
+**`aipack frontend --spec <file>`**: Generate LLB from UniversalBuild spec
+- Reads UniversalBuild JSON
+- Generates BuildKit LLB protobuf
+- Outputs raw LLB to stdout for buildctl
+
+### BuildKit Integration
+
+#### Building Distroless Images
+
+**Step 1: Generate LLB**
+```bash
+# Auto-detect and generate LLB (uses static detection by default)
+AIPACK_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
+
+# Or use full detection with LLM
+cargo run --release -- frontend > /tmp/llb.pb
+```
+
+**Step 2: Start BuildKit**
+```bash
+# Using Docker container
+docker run -d --rm --name buildkitd --privileged -p 127.0.0.1:1234:1234 \
+  moby/buildkit:latest --addr tcp://0.0.0.0:1234
+```
+
+**Step 3: Build with buildctl**
+```bash
+# Build and export to Docker tar
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/repo \
+  --output type=docker,name=localhost/myapp:latest > /tmp/myapp.tar
+
+# Load into Docker
+docker load < /tmp/myapp.tar
+
+# Or build and pipe directly to docker load
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/repo \
+  --output type=docker,name=localhost/myapp:latest | docker load
+```
+
+**Step 4: Verify**
+```bash
+# Check no apk in filesystem
+docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
+
+# Check no wolfi-base in history
+docker history localhost/myapp:latest | grep wolfi-base && echo "FAIL" || echo "PASS"
+
+# View layer metadata
+docker history localhost/myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
+```
+
+#### With SBOM and Provenance
+
+```bash
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/repo \
+  --output type=docker,name=localhost/myapp:latest \
+  --opt attest:sbom= \
+  --opt attest:provenance=mode=max \
+  | docker load
+```
+
+**Requirements:**
+- BuildKit v0.11.0+ (Docker Desktop 4.17+, Docker Engine 23.0+)
+- buildctl CLI tool
+- Docker or Podman for loading images
 
 ## Project Structure
 
@@ -145,7 +349,7 @@ aipack/
 │   │   ├── orchestrator.rs  # PipelineOrchestrator (9-phase pipeline)
 │   │   └── phases/          # Pipeline phases (scan, classify, structure, dependencies, build_order, runtime, build, entrypoint, native_deps, port, env_vars, health, cache, root_cache, assemble)
 │   ├── detection/           # Detection service (public API)
-│   ├── output/              # Output formatting (JSON schema, Dockerfile)
+│   ├── output/              # Output formatting (JSON schema)
 │   ├── cli/                 # Command-line interface
 │   └── config.rs            # Configuration management
 ├── tests/

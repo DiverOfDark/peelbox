@@ -4,7 +4,6 @@
       "artifacts": [
         "build/app"
       ],
-      "base": "gcc:12",
       "cache": [
         "build",
         "CMakeCache.txt"
@@ -14,14 +13,15 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
       "packages": [
+        "build-base",
         "cmake",
-        "make"
+        "gcc"
       ]
     },
     "metadata": {
@@ -32,7 +32,6 @@
       "reasoning": "Detected from CMakeLists.txt in "
     },
     "runtime": {
-      "base": "ubuntu:22.04",
       "command": [
         "bin/app"
       ],
@@ -44,7 +43,8 @@
       ],
       "env": {},
       "packages": [
-        "libstdc++6"
+        "glibc",
+        "ca-certificates"
       ],
       "ports": [
         8080

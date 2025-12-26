@@ -4,7 +4,6 @@
       "artifacts": [
         "out/"
       ],
-      "base": "mcr.microsoft.com/dotnet/sdk:8.0",
       "cache": [
         ".nuget/packages",
         "bin",
@@ -15,12 +14,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "dotnet-8"
+      ]
     },
     "metadata": {
       "build_system": ".NET",
@@ -31,7 +32,6 @@
       "reasoning": "Detected from App.csproj in "
     },
     "runtime": {
-      "base": "mcr.microsoft.com/dotnet/aspnet:8.0",
       "command": [
         "bin/app"
       ],
@@ -45,7 +45,9 @@
       "health": {
         "endpoint": "/health"
       },
-      "packages": [],
+      "packages": [
+        "dotnet-8-runtime"
+      ],
       "ports": [
         5000
       ]

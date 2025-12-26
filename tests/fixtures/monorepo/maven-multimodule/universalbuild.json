@@ -4,7 +4,6 @@
       "artifacts": [
         "target/*.jar"
       ],
-      "base": "maven:3.9-eclipse-temurin-21",
       "cache": [
         ".m2/repository",
         "target",
@@ -21,7 +20,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "openjdk-25",
+        "maven-3.9"
+      ]
     },
     "metadata": {
       "build_system": "Maven",
@@ -31,7 +33,6 @@
       "reasoning": "Detected from pom.xml in lib"
     },
     "runtime": {
-      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
@@ -44,7 +45,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "openjdk-25-jre"
+      ],
       "ports": [
         8080
       ]
@@ -56,7 +59,6 @@
       "artifacts": [
         "target/*.jar"
       ],
-      "base": "maven:3.9-eclipse-temurin-21",
       "cache": [
         ".m2/repository",
         "target",
@@ -73,7 +75,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "openjdk-25",
+        "maven-3.9"
+      ]
     },
     "metadata": {
       "build_system": "Maven",
@@ -84,7 +89,6 @@
       "reasoning": "Detected from pom.xml in api-service"
     },
     "runtime": {
-      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
@@ -100,7 +104,9 @@
       "health": {
         "endpoint": "/actuator/health"
       },
-      "packages": [],
+      "packages": [
+        "openjdk-25-jre"
+      ],
       "ports": [
         8080
       ]
@@ -112,7 +118,6 @@
       "artifacts": [
         "target/*.jar"
       ],
-      "base": "maven:3.9-eclipse-temurin-21",
       "cache": [
         ".m2/repository",
         "target",
@@ -129,7 +134,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "openjdk-25",
+        "maven-3.9"
+      ]
     },
     "metadata": {
       "build_system": "Maven",
@@ -140,7 +148,6 @@
       "reasoning": "Detected from pom.xml in web-service"
     },
     "runtime": {
-      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
@@ -156,7 +163,9 @@
       "health": {
         "endpoint": "/actuator/health"
       },
-      "packages": [],
+      "packages": [
+        "openjdk-25-jre"
+      ],
       "ports": [
         8080
       ]
@@ -168,7 +177,6 @@
       "artifacts": [
         "target/*.jar"
       ],
-      "base": "maven:3.9-eclipse-temurin-21",
       "cache": [
         ".m2/repository",
         "target",
@@ -185,7 +193,10 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "openjdk-25",
+        "maven-3.9"
+      ]
     },
     "metadata": {
       "build_system": "Maven",
@@ -195,7 +206,6 @@
       "reasoning": "Detected from pom.xml in app"
     },
     "runtime": {
-      "base": "eclipse-temurin:21-jre",
       "command": [
         "java",
         "-jar",
@@ -208,7 +218,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "openjdk-25-jre"
+      ],
       "ports": [
         8080
       ]

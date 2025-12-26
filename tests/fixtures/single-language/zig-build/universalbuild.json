@@ -4,19 +4,12 @@
       "artifacts": [
         "zig-out/bin/hello"
       ],
-      "base": "alpine:latest",
       "cache": [
         "zig-cache",
         ".zig-cache"
       ],
       "commands": [
         "zig build -Doptimize=ReleaseSafe"
-      ],
-      "context": [
-        {
-          "from": "",
-          "to": "/app"
-        }
       ],
       "env": {},
       "packages": [
@@ -25,13 +18,12 @@
     },
     "metadata": {
       "build_system": "zig",
-      "confidence": 0.95,
+      "confidence": 0.949999988079071,
       "language": "Zig",
       "project_name": "app",
       "reasoning": "Detected from build.zig in "
     },
     "runtime": {
-      "base": "alpine:latest",
       "command": [
         "bin/app"
       ],
@@ -42,7 +34,10 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
       "ports": [
         8080
       ]

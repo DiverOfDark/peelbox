@@ -45,6 +45,15 @@ pub trait Runtime: Send + Sync {
 
     /// Generate start command for the given entrypoint
     fn start_command(&self, entrypoint: &Path) -> String;
+
+    /// Get runtime packages for Wolfi distroless images
+    /// Queries WolfiPackageIndex for dynamic version discovery
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String>;
 }
 
 pub use beam::BeamRuntime;

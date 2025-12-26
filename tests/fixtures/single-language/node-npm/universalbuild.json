@@ -5,7 +5,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".npm"
@@ -15,12 +14,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "npm",
@@ -31,7 +32,6 @@
       "reasoning": "Detected from package.json in "
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -45,7 +45,9 @@
       "health": {
         "endpoint": "/health"
       },
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]

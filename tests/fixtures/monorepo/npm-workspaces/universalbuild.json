@@ -5,7 +5,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".npm",
@@ -22,7 +21,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "npm",
@@ -32,7 +33,6 @@
       "reasoning": "Detected from package.json in packages/ui"
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -43,7 +43,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]
@@ -56,7 +58,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".npm",
@@ -73,7 +74,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "npm",
@@ -83,7 +86,6 @@
       "reasoning": "Detected from package.json in packages/api"
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -94,7 +96,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]
@@ -107,7 +111,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".npm",
@@ -124,7 +127,9 @@
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "npm",
@@ -135,7 +140,6 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -149,7 +153,9 @@
       "health": {
         "endpoint": "/health"
       },
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]

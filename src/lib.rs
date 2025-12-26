@@ -1,3 +1,4 @@
+pub mod buildkit;
 pub mod cli;
 pub mod config;
 pub mod detection;

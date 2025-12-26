@@ -4,7 +4,6 @@
       "artifacts": [
         "app"
       ],
-      "base": "golang:1.21",
       "cache": [
         ".cache/go-build"
       ],
@@ -13,12 +12,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "go-1.21"
+      ]
     },
     "metadata": {
       "build_system": "go mod",
@@ -29,7 +30,6 @@
       "reasoning": "Detected from go.mod in "
     },
     "runtime": {
-      "base": "alpine:3.19",
       "command": [
         "bin/app"
       ],
@@ -44,6 +44,7 @@
         "endpoint": "/health"
       },
       "packages": [
+        "glibc",
         "ca-certificates"
       ],
       "ports": [

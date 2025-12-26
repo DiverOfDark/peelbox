@@ -52,12 +52,23 @@ impl BuildSystem for MesonBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let mut build_packages = vec!["build-base".to_string()];
+
+        if wolfi_index.has_package("meson") {
+            build_packages.push("meson".to_string());
+        }
+        if wolfi_index.has_package("ninja") {
+            build_packages.push("ninja".to_string());
+        }
+
         BuildTemplate {
-            build_image: "gcc:latest".to_string(),
-            runtime_image: "alpine:3.19".to_string(),
-            build_packages: vec!["meson".to_string(), "ninja-build".to_string()],
-            runtime_packages: vec![],
+            build_packages,
             build_commands: vec![
                 "meson setup builddir".to_string(),
                 "meson compile -C builddir".to_string(),

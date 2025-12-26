@@ -251,9 +251,18 @@ impl DetectionService {
             None
         };
 
+        let wolfi_index = crate::validation::WolfiPackageIndex::fetch()
+            .map_err(|e| {
+                use crate::llm::BackendError;
+                ServiceError::BackendError(BackendError::Other {
+                    message: format!("Failed to fetch Wolfi package index: {}", e),
+                })
+            })?;
+
         let mut context = AnalysisContext::new(
             &repo_path,
             Arc::new(StackRegistry::with_defaults(Some(self.client.clone()))),
+            Arc::new(wolfi_index),
             None,
             Arc::new(HeuristicLogger::disabled()),
             mode,
@@ -270,6 +279,17 @@ impl DetectionService {
                     message: e.to_string(),
                 })
             })?;
+
+        // Validate all builds with Wolfi package index
+        let validator = crate::validation::Validator::with_wolfi_index(context.wolfi_index.clone());
+        for build in &results {
+            validator.validate(build).map_err(|e| {
+                use crate::llm::BackendError;
+                ServiceError::BackendError(BackendError::Other {
+                    message: format!("Package validation failed: {}", e),
+                })
+            })?;
+        }
 
         let elapsed = start.elapsed();
 

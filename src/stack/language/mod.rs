@@ -23,18 +23,6 @@ pub use python::PythonLanguage;
 pub use ruby::RubyLanguage;
 pub use rust::RustLanguage;
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct BuildTemplate {
-    pub build_image: String,
-    pub runtime_image: String,
-    pub build_packages: Vec<String>,
-    pub runtime_packages: Vec<String>,
-    pub build_commands: Vec<String>,
-    pub cache_paths: Vec<String>,
-    pub artifacts: Vec<String>,
-    pub common_ports: Vec<u16>,
-}
-
 pub trait LanguageDefinition: Send + Sync {
     fn id(&self) -> crate::stack::LanguageId;
     fn extensions(&self) -> Vec<String>;

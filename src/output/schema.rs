@@ -57,15 +57,11 @@ pub struct BuildMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildStage {
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub base: String,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub env: HashMap<String, String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub commands: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub context: Vec<ContextSpec>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -73,8 +69,6 @@ pub struct BuildStage {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub base: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -91,14 +85,6 @@ pub struct RuntimeStage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CopySpec {
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub from: String,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub to: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ContextSpec {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -136,20 +122,14 @@ mod tests {
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
-                base: "rust:1.75".to_string(),
-                packages: vec![],
+                packages: vec!["rust".to_string(), "build-base".to_string()],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
-                context: vec![ContextSpec {
-                    from: ".".to_string(),
-                    to: "/app".to_string(),
-                }],
                 cache: vec![],
                 artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
-                base: "debian:bookworm-slim".to_string(),
-                packages: vec![],
+                packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
                 env: HashMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),
@@ -187,8 +167,8 @@ mod tests {
         let deserialized: UniversalBuild = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(build.version, deserialized.version);
         assert_eq!(build.metadata.language, deserialized.metadata.language);
-        assert_eq!(build.build.base, deserialized.build.base);
-        assert_eq!(build.runtime.base, deserialized.runtime.base);
+        assert_eq!(build.build.packages, deserialized.build.packages);
+        assert_eq!(build.runtime.packages, deserialized.runtime.packages);
     }
 
     #[test]
@@ -203,10 +183,9 @@ mod tests {
         assert!(display.contains("build_system: cargo"));
         assert!(display.contains("confidence: 0.95"));
         assert!(display.contains("build:"));
-        assert!(display.contains("base: rust:1.75"));
+        assert!(display.contains("packages:"));
         assert!(display.contains("cargo build --release"));
         assert!(display.contains("runtime:"));
-        assert!(display.contains("base: debian:bookworm-slim"));
         assert!(display.contains("reasoning: Detected Cargo.toml"));
     }
 
@@ -268,7 +247,6 @@ mod tests {
         assert_eq!(build.metadata.confidence, 0.0);
         assert_eq!(build.metadata.reasoning, "");
         assert!(build.build.commands.is_empty());
-        assert!(build.build.context.is_empty());
         assert!(build.build.artifacts.is_empty());
         assert!(build.runtime.copy.is_empty());
         assert!(build.runtime.command.is_empty());
@@ -285,13 +263,13 @@ mod tests {
                 "reasoning": null
             },
             "build": {
-                "base": null,
+                "packages": null,
                 "commands": null,
                 "context": null,
                 "artifacts": null
             },
             "runtime": {
-                "base": null,
+                "packages": null,
                 "copy": null,
                 "command": null
             }
@@ -303,7 +281,7 @@ mod tests {
         let build = result.unwrap();
         assert_eq!(build.version, "1.0");
         assert_eq!(build.metadata.language, "");
-        assert_eq!(build.build.base, "");
+        assert!(build.build.packages.is_empty());
         assert!(build.build.commands.is_empty());
         assert!(build.runtime.copy.is_empty());
     }
@@ -316,11 +294,11 @@ mod tests {
                 "build_system": "cargo"
             },
             "build": {
-                "base": "rust:1.75",
+                "packages": ["rust", "build-base"],
                 "commands": ["cargo build --release"]
             },
             "runtime": {
-                "base": "debian:bookworm-slim",
+                "packages": ["glibc"],
                 "command": ["./app"]
             }
         }"#;
@@ -333,10 +311,10 @@ mod tests {
         assert_eq!(build.metadata.project_name, None);
         assert_eq!(build.metadata.confidence, 0.0);
         assert_eq!(build.metadata.reasoning, "");
-        assert!(build.build.packages.is_empty());
+        assert_eq!(build.build.packages, vec!["rust", "build-base"]);
         assert!(build.build.env.is_empty());
         assert!(build.build.cache.is_empty());
-        assert!(build.runtime.packages.is_empty());
+        assert_eq!(build.runtime.packages, vec!["glibc"]);
         assert!(build.runtime.ports.is_empty());
     }
 
@@ -372,16 +350,13 @@ mod tests {
                 reasoning: "".to_string(),
             },
             build: BuildStage {
-                base: "".to_string(),
                 packages: vec![],
                 env: HashMap::new(),
                 commands: vec![],
-                context: vec![],
                 cache: vec![],
                 artifacts: vec![],
             },
             runtime: RuntimeStage {
-                base: "".to_string(),
                 packages: vec![],
                 env: HashMap::new(),
                 copy: vec![],
@@ -405,13 +380,13 @@ mod tests {
                 "confidence": 0.95
             },
             "build": {
-                "base": "rust:1.75",
+                "packages": ["rust", "build-base"],
                 "commands": ["cargo build --release"],
                 "context": [{"from": ".", "to": "/app"}],
                 "artifacts": ["target/release/app"]
             },
             "runtime": {
-                "base": "debian:bookworm-slim",
+                "packages": ["glibc", "ca-certificates"],
                 "copy": [
                     {
                         "from": "target/release/app",
@@ -428,7 +403,7 @@ mod tests {
         let build = result.unwrap();
         assert!(crate::validation::Validator::new().validate(&build).is_ok());
         assert_eq!(build.metadata.reasoning, "");
-        assert!(build.build.packages.is_empty());
+        assert_eq!(build.build.packages, vec!["rust", "build-base"]);
         assert!(build.runtime.ports.is_empty());
     }
 }

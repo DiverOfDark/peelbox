@@ -1,14 +1,19 @@
-use aipack::cli::commands::{CliArgs, Commands, DetectArgs, HealthArgs};
+use aipack::buildkit::llb::LLBBuilder;
+use aipack::cli::commands::{CliArgs, Commands, DetectArgs, FrontendArgs, HealthArgs};
 use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use aipack::config::AipackConfig;
 use aipack::detection::service::DetectionService;
 use aipack::llm::{RecordingLLMClient, RecordingMode};
+use aipack::output::schema::UniversalBuild;
 use aipack::VERSION;
 use genai::adapter::AdapterKind;
 
 use clap::Parser;
 use std::collections::HashMap;
 use std::env;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn, Level};
@@ -25,6 +30,7 @@ async fn main() {
     let exit_code = match &args.command {
         Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet, args.verbose).await,
         Commands::Health(health_args) => handle_health(health_args).await,
+        Commands::Frontend(frontend_args) => handle_frontend(frontend_args).await,
     };
 
     process::exit(exit_code);
@@ -545,3 +551,62 @@ async fn handle_health(args: &HealthArgs) -> i32 {
         1
     }
 }
+
+async fn handle_frontend(_args: &FrontendArgs) -> i32 {
+    // BuildKit frontend protocol:
+    // - Read spec from build context
+    // - Generate LLB with exclude patterns from .gitignore
+    // - Write LLB Definition protobuf to stdout
+    // - Exit
+
+    debug!("Running in BuildKit frontend mode");
+
+    // Default spec path
+    let spec_path = _args.spec.clone().unwrap_or_else(|| PathBuf::from("universalbuild.json"));
+
+    // Load spec file from build context
+    let spec_content = match fs::read_to_string(&spec_path) {
+        Ok(content) => content,
+        Err(e) => {
+            error!("Failed to read spec file {}: {}", spec_path.display(), e);
+            eprintln!("Error: Failed to read spec file {}: {}", spec_path.display(), e);
+            return 1;
+        }
+    };
+
+    // Parse spec
+    let spec: UniversalBuild = match serde_json::from_str(&spec_content) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("Failed to parse spec file: {}", e);
+            eprintln!("Error: Failed to parse spec file: {}", e);
+            return 1;
+        }
+    };
+
+    debug!("Loaded spec for project: {:?}", spec.metadata.project_name);
+
+    // Generate LLB
+    let llb_builder = LLBBuilder::new("context");
+    let llb_bytes = match llb_builder.build(&spec) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            error!("Failed to generate LLB: {}", e);
+            eprintln!("Error: Failed to generate LLB: {}", e);
+            return 1;
+        }
+    };
+
+    debug!("Generated LLB definition: {} bytes", llb_bytes.len());
+
+    // Write LLB to stdout (this is the BuildKit frontend protocol)
+    if let Err(e) = std::io::stdout().write_all(&llb_bytes) {
+        error!("Failed to write LLB to stdout: {}", e);
+        eprintln!("Error: Failed to write LLB to stdout: {}", e);
+        return 1;
+    }
+
+    debug!("LLB written to stdout successfully");
+    0
+}
+

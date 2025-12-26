@@ -115,6 +115,15 @@ impl Runtime for NativeRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("./{}", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        _wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        vec!["glibc".to_string(), "ca-certificates".to_string()]
+    }
 }
 
 #[cfg(test)]

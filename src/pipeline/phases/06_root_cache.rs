@@ -208,11 +208,13 @@ mod tests {
 
         use crate::config::DetectionMode;
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
+        let wolfi_index = Arc::new(crate::validation::WolfiPackageIndex::for_tests());
         let heuristic_logger = Arc::new(HeuristicLogger::new(None));
 
         let mut context = AnalysisContext::new(
             &PathBuf::from("."),
             stack_registry,
+            wolfi_index,
             None,
             heuristic_logger,
             DetectionMode::Full,

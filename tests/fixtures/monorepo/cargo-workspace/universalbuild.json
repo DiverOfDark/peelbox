@@ -4,7 +4,6 @@
       "artifacts": [
         "target/release/lib-a"
       ],
-      "base": "rust:1.75",
       "cache": [
         "target",
         ".cargo",
@@ -22,8 +21,8 @@
       ],
       "env": {},
       "packages": [
-        "pkg-config",
-        "libssl-dev"
+        "rust-1.92",
+        "build-base"
       ]
     },
     "metadata": {
@@ -34,7 +33,6 @@
       "reasoning": "Detected from Cargo.toml in lib-a"
     },
     "runtime": {
-      "base": "debian:bookworm-slim",
       "command": [
         "bin/app"
       ],
@@ -46,8 +44,8 @@
       ],
       "env": {},
       "packages": [
-        "ca-certificates",
-        "libssl3"
+        "glibc",
+        "ca-certificates"
       ],
       "ports": [
         8080
@@ -60,7 +58,6 @@
       "artifacts": [
         "target/release/lib-b"
       ],
-      "base": "rust:1.75",
       "cache": [
         "target",
         ".cargo",
@@ -78,8 +75,8 @@
       ],
       "env": {},
       "packages": [
-        "pkg-config",
-        "libssl-dev"
+        "rust-1.92",
+        "build-base"
       ]
     },
     "metadata": {
@@ -90,7 +87,6 @@
       "reasoning": "Detected from Cargo.toml in lib-b"
     },
     "runtime": {
-      "base": "debian:bookworm-slim",
       "command": [
         "bin/app"
       ],
@@ -102,8 +98,8 @@
       ],
       "env": {},
       "packages": [
-        "ca-certificates",
-        "libssl3"
+        "glibc",
+        "ca-certificates"
       ],
       "ports": [
         8080
@@ -116,7 +112,6 @@
       "artifacts": [
         "target/release/app"
       ],
-      "base": "rust:1.75",
       "cache": [
         "target",
         ".cargo",
@@ -134,8 +129,8 @@
       ],
       "env": {},
       "packages": [
-        "pkg-config",
-        "libssl-dev"
+        "rust-1.92",
+        "build-base"
       ]
     },
     "metadata": {
@@ -146,7 +141,6 @@
       "reasoning": "Detected from Cargo.toml in app"
     },
     "runtime": {
-      "base": "debian:bookworm-slim",
       "command": [
         "bin/app"
       ],
@@ -158,8 +152,8 @@
       ],
       "env": {},
       "packages": [
-        "ca-certificates",
-        "libssl3"
+        "glibc",
+        "ca-certificates"
       ],
       "ports": [
         8080

@@ -128,6 +128,59 @@ impl Runtime for DotNetRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("dotnet {}", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("dotnet");
+
+        let base_version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("dotnet", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("dotnet"))
+            .unwrap_or_else(|| "dotnet-8".to_string());
+
+        let version = format!("{}-runtime", base_version);
+        vec![version]
+    }
+}
+
+impl DotNetRuntime {
+    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+        if let Some(content) = manifest_content {
+            for csproj in ["*.csproj", "*.fsproj", "*.vbproj"] {
+                let pattern_path = service_path.join(csproj);
+                if pattern_path.parent().map(|p| p.exists()).unwrap_or(false) {
+                    return self.parse_target_framework(content);
+                }
+            }
+        }
+        None
+    }
+
+    fn parse_target_framework(&self, content: &str) -> Option<String> {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("<TargetFramework>") {
+                if let Some(framework) = trimmed
+                    .strip_prefix("<TargetFramework>")?
+                    .strip_suffix("</TargetFramework>")
+                {
+                    if framework.starts_with("net") {
+                        let version = framework.trim_start_matches("net");
+                        if let Some(major) = version.chars().next() {
+                            return Some(major.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]

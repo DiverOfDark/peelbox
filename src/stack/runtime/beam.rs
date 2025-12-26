@@ -121,6 +121,22 @@ impl Runtime for BeamRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("{} start", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let available = wolfi_index.get_versions("elixir");
+
+        let version = wolfi_index
+            .get_latest_version("elixir")
+            .or_else(|| available.first().map(|v| format!("elixir-{}", v)))
+            .unwrap_or_else(|| "elixir-1.16".to_string());
+
+        vec![version]
+    }
 }
 
 #[cfg(test)]

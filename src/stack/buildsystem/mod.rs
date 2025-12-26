@@ -10,13 +10,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Build template for container image generation
+/// Build template for container image generation (Wolfi-only)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildTemplate {
-    pub build_image: String,
-    pub runtime_image: String,
     pub build_packages: Vec<String>,
-    pub runtime_packages: Vec<String>,
     pub build_commands: Vec<String>,
     pub cache_paths: Vec<String>,
     pub artifacts: Vec<String>,
@@ -46,7 +43,14 @@ pub trait BuildSystem: Send + Sync {
     ) -> Result<Vec<DetectionStack>>;
 
     /// Get build template for this build system
-    fn build_template(&self) -> BuildTemplate;
+    /// Uses WolfiPackageIndex for dynamic version discovery
+    /// service_path allows build systems to read version hint files (.nvmrc, .python-version, etc.)
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate;
 
     /// Cache directories for this build system
     fn cache_dirs(&self) -> Vec<String>;
@@ -135,6 +139,10 @@ pub(crate) fn glob_package_json_workspace_pattern(
 
     Ok(results)
 }
+
+mod node_common;
+mod python_common;
+mod ruby_common;
 
 pub mod bun;
 pub mod bundler;

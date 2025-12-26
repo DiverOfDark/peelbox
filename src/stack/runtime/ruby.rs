@@ -125,6 +125,73 @@ impl Runtime for RubyRuntime {
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("ruby {}", entrypoint.display())
     }
+
+    fn runtime_packages(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Vec<String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("ruby");
+
+        let version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("ruby", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("ruby"))
+            .unwrap_or_else(|| "ruby-3.2".to_string());
+
+        vec![version]
+    }
+}
+
+impl RubyRuntime {
+    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+        let ruby_version_file = service_path.join(".ruby-version");
+        if let Ok(content) = std::fs::read_to_string(&ruby_version_file) {
+            if let Some(ver) = self.normalize_version(&content) {
+                return Some(ver);
+            }
+        }
+
+        if let Some(content) = manifest_content {
+            if let Some(ver) = self.parse_gemfile_version(content) {
+                return Some(ver);
+            }
+        }
+
+        None
+    }
+
+    fn normalize_version(&self, version_str: &str) -> Option<String> {
+        let ver = version_str
+            .trim()
+            .trim_start_matches("ruby")
+            .trim()
+            .split('.')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(".");
+
+        if !ver.is_empty() {
+            Some(ver)
+        } else {
+            None
+        }
+    }
+
+    fn parse_gemfile_version(&self, content: &str) -> Option<String> {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("ruby") && trimmed.contains('"') {
+                let parts: Vec<&str> = trimmed.split('"').collect();
+                if parts.len() >= 2 {
+                    return self.normalize_version(parts[1]);
+                }
+            }
+        }
+        None
+    }
 }
 
 #[cfg(test)]

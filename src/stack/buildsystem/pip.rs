@@ -1,5 +1,6 @@
 //! pip build system (Python)
 
+use super::python_common::{parse_pyproject_toml_version, read_python_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
 use crate::fs::FileSystem;
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
@@ -68,18 +69,22 @@ impl BuildSystem for PipBuildSystem {
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> BuildTemplate {
+        let python_version = read_python_version_file(service_path)
+            .or_else(|| manifest_content.and_then(|c| parse_pyproject_toml_version(c)))
+            .or_else(|| wolfi_index.get_latest_version("python"))
+            .expect("Failed to get python version from Wolfi index");
+
         BuildTemplate {
-            build_image: "python:3.11".to_string(),
-            runtime_image: "python:3.11-slim".to_string(),
-            build_packages: vec!["build-essential".to_string()],
-            runtime_packages: vec![],
+            build_packages: vec![python_version.clone(), "build-base".to_string()],
             build_commands: vec!["pip install --no-cache-dir -r requirements.txt".to_string()],
             cache_paths: vec!["/root/.cache/pip/".to_string()],
-            artifacts: vec![
-                "/usr/local/lib/python3.11/site-packages".to_string(),
-                "app/".to_string(),
-            ],
+            artifacts: vec!["app/".to_string()],
             common_ports: vec![8000, 5000],
         }
     }

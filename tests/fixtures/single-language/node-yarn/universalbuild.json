@@ -5,7 +5,6 @@
         "dist/",
         "build/"
       ],
-      "base": "node:20",
       "cache": [
         "node_modules",
         ".yarn"
@@ -15,12 +14,14 @@
       ],
       "context": [
         {
-          "from": "",
+          "from": ".",
           "to": "/app"
         }
       ],
       "env": {},
-      "packages": []
+      "packages": [
+        "nodejs-25"
+      ]
     },
     "metadata": {
       "build_system": "Yarn",
@@ -30,7 +31,6 @@
       "reasoning": "Detected from yarn.lock in "
     },
     "runtime": {
-      "base": "node:20-slim",
       "command": [
         "bin/app"
       ],
@@ -41,7 +41,9 @@
         }
       ],
       "env": {},
-      "packages": [],
+      "packages": [
+        "nodejs-25"
+      ],
       "ports": [
         3000
       ]

@@ -22,10 +22,7 @@ struct BuildSystemInfo {
     manifest_files: Vec<String>,
     build_commands: Vec<String>,
     cache_dirs: Vec<String>,
-    build_image: String,
-    runtime_image: String,
     build_packages: Vec<String>,
-    runtime_packages: Vec<String>,
     artifacts: Vec<String>,
     common_ports: Vec<u16>,
     confidence: f32,
@@ -64,20 +61,26 @@ Manifest: {}
 Content:
 {}
 
-Return JSON with build configuration:
+Return JSON with build configuration using Wolfi package names:
 {{
   "name": "zig",
   "manifest_files": ["build.zig"],
   "build_commands": ["zig build -Doptimize=ReleaseSafe"],
   "cache_dirs": ["zig-cache", ".zig-cache"],
-  "build_image": "alpine:latest",
-  "runtime_image": "alpine:latest",
-  "build_packages": [],
-  "runtime_packages": [],
+  "build_packages": ["zig"],
+  "runtime_packages": ["glibc", "ca-certificates"],
   "artifacts": ["zig-out/bin/hello"],
   "common_ports": [],
   "confidence": 0.9
 }}
+
+Wolfi package name guidance:
+- Always specify version-specific packages (e.g., nodejs-22, not nodejs)
+- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18
+- For Python, use packages like: python-3.12, python-3.11, python-3.10
+- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11
+- For common packages: glibc, ca-certificates, build-base, gcc
+- Leave packages empty if you're unsure - the build system will validate
 "#,
             manifest_name,
             content
@@ -173,26 +176,30 @@ Identify manifest files and their build systems. Return JSON array:
         Ok(detections)
     }
 
-    fn build_template(&self) -> BuildTemplate {
+    fn build_template(
+        &self,
+        wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> BuildTemplate {
         self.detected_info
             .lock()
             .unwrap()
             .as_ref()
-            .map(|info| BuildTemplate {
-                build_image: info.build_image.clone(),
-                runtime_image: info.runtime_image.clone(),
-                build_packages: info.build_packages.clone(),
-                runtime_packages: info.runtime_packages.clone(),
-                build_commands: info.build_commands.clone(),
-                cache_paths: info.cache_dirs.clone(),
-                artifacts: info.artifacts.clone(),
-                common_ports: info.common_ports.clone(),
+            .map(|info| {
+                let mut build_packages = info.build_packages.clone();
+                build_packages.retain(|p| wolfi_index.has_package(p));
+
+                BuildTemplate {
+                    build_packages,
+                    build_commands: info.build_commands.clone(),
+                    cache_paths: info.cache_dirs.clone(),
+                    artifacts: info.artifacts.clone(),
+                    common_ports: info.common_ports.clone(),
+                }
             })
             .unwrap_or_else(|| BuildTemplate {
-                build_image: "alpine:latest".to_string(),
-                runtime_image: "alpine:latest".to_string(),
                 build_packages: vec![],
-                runtime_packages: vec![],
                 build_commands: vec![],
                 cache_paths: vec![],
                 artifacts: vec![],
