@@ -305,6 +305,7 @@ impl fmt::Display for AipackConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
     use std::env;
 
     struct EnvGuard {
@@ -490,6 +491,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_detection_mode_from_env_default() {
         env::remove_var("AIPACK_DETECTION_MODE");
 
@@ -498,6 +500,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_detection_mode_from_env_static() {
         let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "static");
 
@@ -506,6 +509,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_detection_mode_from_env_llm() {
         let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "llm");
 
@@ -514,6 +518,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_detection_mode_from_env_full() {
         let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "full");
 
@@ -522,6 +527,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_detection_mode_from_env_case_insensitive() {
         let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "STATIC");
 
@@ -530,6 +536,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_detection_mode_from_env_invalid_defaults_to_full() {
         let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "invalid");
 

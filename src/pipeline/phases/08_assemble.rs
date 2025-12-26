@@ -60,12 +60,13 @@ fn assemble_single_service(
     let _language_def = registry.get_language(result.service.language.clone());
 
     // Read manifest content for version parsing
-    let manifest_path = result.repo_path().join(&result.service.path).join(&result.service.manifest);
+    let service_path = result.repo_path().join(&result.service.path);
+    let manifest_path = service_path.join(&result.service.manifest);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok();
 
     let template = registry
         .get_build_system(result.service.build_system.clone())
-        .map(|bs| bs.build_template(wolfi_index, manifest_content.as_deref()));
+        .map(|bs| bs.build_template(wolfi_index, &service_path, manifest_content.as_deref()));
 
     let project_name = extract_project_name(&result.service);
 

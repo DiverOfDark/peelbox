@@ -74,6 +74,7 @@ impl BuildSystem for GradleBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let java_version = manifest_content

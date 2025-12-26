@@ -1,5 +1,6 @@
 //! pnpm build system (JavaScript/TypeScript)
 
+use super::node_common::{parse_node_version, read_node_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
 use crate::fs::FileSystem;
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
@@ -66,10 +67,11 @@ impl BuildSystem for PnpmBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let node_version = manifest_content
-            .and_then(|c| parse_node_version(c))
+        let node_version = read_node_version_file(service_path)
+            .or_else(|| manifest_content.and_then(|c| parse_node_version(c)))
             .unwrap_or_else(|| {
                 wolfi_index
                     .get_versions("nodejs")
@@ -118,18 +120,4 @@ impl BuildSystem for PnpmBuildSystem {
     ) -> Result<Vec<std::path::PathBuf>> {
         super::glob_package_json_workspace_pattern(repo_path, pattern)
     }
-}
-
-fn parse_node_version(manifest_content: &str) -> Option<String> {
-    let package: serde_json::Value = serde_json::from_str(manifest_content).ok()?;
-    let node_version = package["engines"]["node"].as_str()?;
-
-    let version = node_version
-        .trim_start_matches(">=")
-        .trim_start_matches("^")
-        .trim_start_matches("~")
-        .split('.')
-        .next()?;
-
-    Some(format!("nodejs-{}", version))
 }

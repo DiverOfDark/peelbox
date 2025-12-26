@@ -45,9 +45,11 @@ pub trait BuildSystem: Send + Sync {
 
     /// Get build template for this build system
     /// Uses WolfiPackageIndex for dynamic version discovery
+    /// service_path allows build systems to read version hint files (.nvmrc, .python-version, etc.)
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        service_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate;
 
@@ -138,6 +140,8 @@ pub(crate) fn glob_package_json_workspace_pattern(
 
     Ok(results)
 }
+
+mod node_common;
 
 pub mod bun;
 pub mod bundler;

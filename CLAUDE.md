@@ -204,28 +204,35 @@ Located at `src/buildkit/llb.rs`, implements:
 - **Cache Mount Support**: Shared caches for build artifacts
 - **Hardcoded Wolfi Base**: Always uses `cgr.dev/chainguard/wolfi-base:latest`
 
-### Distroless 2-Layer Architecture
+### Distroless Squashed Architecture
 
-Final images have exactly 2 non-empty layers:
+Final images use a 4-stage build with squashed runtime layer (no wolfi-base in history):
 
 ```
 Stage 1 (Build):
   wolfi-base + build packages → build app → artifacts
 
-Stage 2 (Temp Runtime) - BuildKit internal:
-  wolfi-base + runtime packages → prepare /runtime-root
+Stage 2 (Runtime Prep):
+  wolfi-base + runtime packages → remove apk
 
-Stage 3 (Final):
-  FROM cgr.dev/chainguard/static:latest  # Distroless base
-  COPY --from=temp-runtime /runtime-root /    # Layer 1: Runtime base
-  COPY --from=build /artifacts /app           # Layer 2: Application
+Stage 3 (Squash to Clean Base):
+  glibc-dynamic (clean base, no apk) + copy runtime prep → squashed layer
+
+Stage 4 (Final):
+  squashed runtime + copy artifacts → final image
 ```
 
+**Result:**
+- Layer 1-5: `glibc-dynamic:latest` (clean base, ~11MB, no apk ever existed)
+- Layer 6: Squashed runtime (~10MB, packages installed, apk removed)
+- Layer 7: Application layer (~16MB, binary)
+- Layer metadata: Clean descriptions (`: aipack <name> runtime`)
+
 **Characteristics:**
-- No `/sbin/apk` (package manager removed)
-- No `/bin/sh` (no shell)
-- No `/var/lib/apk` (package database removed)
-- Optimized size: ~10-30MB (vs ~50-100MB for wolfi-base)
+- No `/sbin/apk` in filesystem (package manager removed)
+- No `wolfi-base` in layer history (squashed to clean base)
+- Truly distroless: apk never existed in any layer
+- Optimized size: ~13MB total (aipack example)
 - Production-ready by default (mandatory, no opt-out)
 
 ### Context Transfer Optimization
@@ -252,26 +259,67 @@ Located in `LLBBuilder::load_gitignore_patterns()`:
 
 ### BuildKit Integration
 
-Users pipe frontend output to `buildctl`:
+#### Building Distroless Images
+
+**Step 1: Generate LLB**
+```bash
+# Auto-detect and generate LLB (uses static detection by default)
+AIPACK_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
+
+# Or use full detection with LLM
+cargo run --release -- frontend > /tmp/llb.pb
+```
+
+**Step 2: Start BuildKit**
+```bash
+# Using Docker container
+docker run -d --rm --name buildkitd --privileged -p 127.0.0.1:1234:1234 \
+  moby/buildkit:latest --addr tcp://0.0.0.0:1234
+```
+
+**Step 3: Build with buildctl**
+```bash
+# Build and export to Docker tar
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/repo \
+  --output type=docker,name=localhost/myapp:latest > /tmp/myapp.tar
+
+# Load into Docker
+docker load < /tmp/myapp.tar
+
+# Or build and pipe directly to docker load
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/repo \
+  --output type=docker,name=localhost/myapp:latest | docker load
+```
+
+**Step 4: Verify**
+```bash
+# Check no apk in filesystem
+docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
+
+# Check no wolfi-base in history
+docker history localhost/myapp:latest | grep wolfi-base && echo "FAIL" || echo "PASS"
+
+# View layer metadata
+docker history localhost/myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
+```
+
+#### With SBOM and Provenance
 
 ```bash
-# Basic build
-aipack frontend --spec universalbuild.json | \
-  buildctl build \
-    --local context=. \
-    --output type=docker,name=myapp:latest
-
-# With SBOM and provenance
-aipack frontend | buildctl build \
-  --local context=. \
-  --output type=docker,name=myapp:latest \
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/repo \
+  --output type=docker,name=localhost/myapp:latest \
   --opt attest:sbom= \
-  --opt attest:provenance=mode=max
+  --opt attest:provenance=mode=max \
+  | docker load
 ```
 
 **Requirements:**
 - BuildKit v0.11.0+ (Docker Desktop 4.17+, Docker Engine 23.0+)
 - buildctl CLI tool
+- Docker or Podman for loading images
 
 ## Project Structure
 

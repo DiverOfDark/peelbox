@@ -59,20 +59,24 @@ impl LLBBuilder {
     }
 
     /// Generate complete LLB definition and write to output
-    /// This generates a 2-stage distroless build:
+    /// This generates a 4-stage distroless build with squashed runtime:
     /// Stage 1 (Build):
     ///   1. Starts with wolfi-base
     ///   2. Installs build packages
     ///   3. Copies source context
     ///   4. Runs build commands
-    /// Stage 2 (Temp Runtime Prep):
-    ///   5. Installs runtime packages
-    ///   6. Copies artifacts from build stage
-    /// Stage 3 (Distroless Final):
-    ///   7. Uses distroless base
-    ///   8. Copies /usr, /etc, /var from runtime prep
-    ///   9. Copies artifacts
-    ///   10. Sets command and environment
+    ///   5. Outputs artifacts to /tmp/artifacts
+    /// Stage 2 (Runtime Prep):
+    ///   6. Install runtime packages on wolfi-base
+    ///   7. Remove apk tooling (/sbin/apk, /etc/apk, /lib/apk, /var/cache/apk)
+    /// Stage 3 (Squash to Clean Base):
+    ///   8. Start with glibc-dynamic (clean base, no apk in history)
+    ///   9. Copy all files from runtime prep (cp -a /source/. /)
+    ///   Result: Single squashed layer with packages but no apk in history
+    /// Stage 4 (Final):
+    ///   10. Copy artifacts from build stage
+    ///   11. Set command and environment
+    /// Result: No apk in any layer, truly distroless
     pub fn write_definition<W: Write>(
         &self,
         spec: &UniversalBuild,
@@ -89,7 +93,7 @@ impl LLBBuilder {
         }
 
         let runtime_base = Source::image(WOLFI_BASE_IMAGE);
-        let distroless = Source::image("cgr.dev/chainguard/static:latest");
+        let glibc_dynamic = Source::image("cgr.dev/chainguard/glibc-dynamic:latest");
 
         // Stage 1: Build stage
         let with_packages = if !spec.build.packages.is_empty() {
@@ -165,43 +169,51 @@ impl LLBBuilder {
             build_cmd
         };
 
-        // Stage 2: Temp Runtime Prep (install runtime packages)
-        let with_runtime = if !spec.runtime.packages.is_empty() {
+        // Stage 2: Runtime Prep (install runtime packages + remove apk)
+        let runtime_prep = if !spec.runtime.packages.is_empty() {
             let packages = spec.runtime.packages.join(" ");
-            let cmd = format!("apk add --no-cache {}", packages);
-            Some(
-                Command::run("sh")
-                    .args(&["-c", &cmd])
-                    .mount(Mount::Layer(OutputIdx(0), runtime_base.output(), "/"))
-                    .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
-                    .custom_name("Install runtime packages"),
-            )
+            let cmd = format!(
+                "apk add --no-cache {} && rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk",
+                packages
+            );
+            Command::run("sh")
+                .args(&["-c", &cmd])
+                .mount(Mount::Layer(OutputIdx(0), runtime_base.output(), "/"))
+                .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
+                .custom_name("Install runtime packages and remove apk")
         } else {
-            None
+            // No runtime packages - just use wolfi-base and remove apk
+            Command::run("sh")
+                .args(&["-c", "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk"])
+                .mount(Mount::Layer(OutputIdx(0), runtime_base.output(), "/"))
+                .custom_name("Remove apk from base")
         };
 
-        // Stage 3: Distroless Final
-        let with_runtime_files = {
-            let mut cmd = Command::run("sh").args(&["-c", "true"]);
-
-            cmd = cmd.mount(Mount::ReadOnlyLayer(distroless.output(), "/"));
-
-            if let Some(ref runtime_cmd) = with_runtime {
-                cmd = cmd.mount(Mount::Layer(OutputIdx(0), runtime_cmd.output(0), "/"));
-            } else {
-                cmd = cmd.mount(Mount::Layer(OutputIdx(0), runtime_base.output(), "/"));
-            }
-
-            cmd.custom_name("Copy runtime files")
+        // Stage 3: Squash to clean glibc-dynamic base (no apk in history)
+        // Use busybox to copy all files from runtime prep onto glibc-dynamic
+        // (can't use sh on glibc-dynamic itself as it's distroless)
+        let runtime_desc = if !spec.runtime.packages.is_empty() {
+            format!("aipack {} runtime", spec.runtime.packages.join(" "))
+        } else {
+            "aipack base runtime".to_string()
         };
+        let busybox = Source::image("cgr.dev/chainguard/busybox:latest");
+        let squashed_runtime = Command::run("sh")
+            .args(&["-c", &format!(": {}; cp -a /source/. /dest/", runtime_desc)])
+            .mount(Mount::ReadOnlyLayer(busybox.output(), "/"))
+            .mount(Mount::Layer(OutputIdx(0), glibc_dynamic.output(), "/dest"))
+            .mount(Mount::ReadOnlyLayer(runtime_prep.output(0), "/source"))
+            .custom_name(&runtime_desc);
 
-        // Copy artifacts from build stage
+        // Stage 4: Copy artifacts from build stage onto squashed runtime base
         let mut final_stage = Command::run("sh")
-            .mount(Mount::Layer(OutputIdx(0), with_runtime_files.output(0), "/"))
+            .mount(Mount::Layer(OutputIdx(0), squashed_runtime.output(0), "/"))
             .mount(Mount::ReadOnlyLayer(build_stage.output(1), "/tmp/build-tmp"));
 
+        let app_name = spec.metadata.project_name.as_deref().unwrap_or("app");
+
         if !spec.runtime.copy.is_empty() {
-            let mut copy_commands = Vec::new();
+            let mut copy_commands = vec![format!(": aipack {} application", app_name)];
             for copy_spec in &spec.runtime.copy {
                 let filename = copy_spec.from.split('/').last().unwrap_or(&copy_spec.from);
                 // Create parent directory if needed
@@ -215,10 +227,10 @@ impl LLBBuilder {
             }
             let script = copy_commands.join(" && ");
             final_stage = final_stage.args(&["-c", &script]);
-            final_stage = final_stage.custom_name("Copy artifacts");
+            final_stage = final_stage.custom_name(&format!("aipack {} application", app_name));
         } else {
-            final_stage = final_stage.args(&["-c", "true"]);
-            final_stage = final_stage.custom_name("Final stage");
+            final_stage = final_stage.args(&["-c", &format!(": aipack {} application", app_name)]);
+            final_stage = final_stage.custom_name(&format!("aipack {} application", app_name));
         }
 
         for (key, value) in &spec.runtime.env {

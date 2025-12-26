@@ -180,6 +180,7 @@ Identify manifest files and their build systems. Return JSON array:
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
         _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         self.detected_info

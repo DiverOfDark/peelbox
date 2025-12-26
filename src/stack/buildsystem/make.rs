@@ -45,6 +45,7 @@ impl BuildSystem for MakeBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
         _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let mut build_packages = vec!["build-base".to_string()];

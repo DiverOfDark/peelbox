@@ -87,22 +87,28 @@ cargo build --release
 sudo install -m 755 target/release/aipack /usr/local/bin/
 ```
 
-### 3. Detect and build your first image
+### 3. Build your first distroless image
 
 ```bash
 cd /path/to/your/project
 
-# Detect build configuration
-aipack detect . > universalbuild.json
+# Start BuildKit daemon
+docker run -d --rm --name buildkitd --privileged \
+  -p 127.0.0.1:1234:1234 \
+  moby/buildkit:latest --addr tcp://0.0.0.0:1234
 
-# Generate LLB and build with BuildKit
-aipack frontend --spec universalbuild.json | \
-  buildctl build \
-    --local context=. \
-    --output type=docker,name=myapp:latest
+# Generate LLB and build
+AIPACK_DETECTION_MODE=static cargo run --release -- frontend | \
+  buildctl --addr tcp://127.0.0.1:1234 build \
+    --local context=$(pwd) \
+    --output type=docker,name=localhost/myapp:latest | \
+  docker load
 
 # Run your distroless image
-docker run --rm myapp:latest
+docker run --rm localhost/myapp:latest
+
+# Verify it's truly distroless
+docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
 ```
 
 Example output from `aipack detect`:
@@ -214,43 +220,91 @@ The frontend command:
 
 ### Building Images
 
-Use `buildctl` to build images from aipack-generated LLB:
+#### Complete Build Workflow
+
+**Step 1: Generate LLB**
 
 ```bash
-# Basic build with Docker output
-aipack frontend | buildctl build \
-  --local context=. \
-  --output type=docker,name=myapp:latest
+cd /path/to/your/project
 
-# Load directly into Docker
-aipack frontend | buildctl build \
-  --local context=. \
-  --output type=docker,name=myapp:latest \
-  | docker load
+# Generate LLB using static detection (fast, no LLM needed)
+AIPACK_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
 
-# Save as OCI tarball
-aipack frontend | buildctl build \
-  --local context=. \
-  --output type=oci,dest=myapp.tar
-
-# Build with SBOM and provenance
-aipack frontend | buildctl build \
-  --local context=. \
-  --output type=docker,name=myapp:latest \
-  --opt attest:sbom= \
-  --opt attest:provenance=mode=max
+# Or use full detection with LLM for unknown build systems
+cargo run --release -- frontend > /tmp/llb.pb
 ```
 
-### Using Docker Buildx
-
-For Docker Desktop users, use `docker buildx` instead of `buildctl`:
+**Step 2: Start BuildKit daemon**
 
 ```bash
-# Build and load into Docker
-docker buildx build \
-  --build-context llb=<(aipack frontend) \
-  --output type=docker,name=myapp:latest \
-  .
+# Start BuildKit in Docker container
+docker run -d --rm --name buildkitd --privileged \
+  -p 127.0.0.1:1234:1234 \
+  moby/buildkit:latest --addr tcp://0.0.0.0:1234
+
+# BuildKit is now listening on tcp://127.0.0.1:1234
+```
+
+**Step 3: Build with buildctl**
+
+```bash
+# Build and export to tar
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/your/project \
+  --output type=docker,name=localhost/myapp:latest > /tmp/myapp.tar
+
+# Load into Docker
+docker load < /tmp/myapp.tar
+
+# Or pipe directly to docker load
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/your/project \
+  --output type=docker,name=localhost/myapp:latest | docker load
+```
+
+**Step 4: Verify distroless image**
+
+```bash
+# Run your application
+docker run --rm localhost/myapp:latest
+
+# Verify no package manager (should fail)
+docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
+
+# Check no wolfi-base in history (should output nothing)
+docker history localhost/myapp:latest | grep wolfi-base
+
+# View clean layer metadata
+docker history localhost/myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
+```
+
+Expected output:
+```
+SIZE      CREATED BY
+16.2MB    sh -c : aipack myapp application && ...
+10.2MB    sh -c : aipack glibc ca-certificates runtime; ...
+...       pulled from cgr.dev/chainguard/glibc-dynamic:latest
+```
+
+#### With SBOM and Provenance
+
+```bash
+cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/your/project \
+  --output type=docker,name=localhost/myapp:latest \
+  --opt attest:sbom= \
+  --opt attest:provenance=mode=max \
+  | docker load
+```
+
+#### One-Liner (for automation)
+
+```bash
+AIPACK_DETECTION_MODE=static cargo run --release -- frontend | \
+  buildctl --addr tcp://127.0.0.1:1234 build \
+    --local context=$(pwd) \
+    --output type=docker,name=localhost/myapp:latest | \
+  docker load
 ```
 
 ## Wolfi-First Architecture
@@ -323,29 +377,26 @@ They do NOT contain:
 - Package databases (`/var/lib/apk`)
 - Build tools or unnecessary utilities
 
-### 2-Layer Architecture
+### Squashed Distroless Architecture
 
-aipack generates optimized 2-layer final images:
+aipack generates truly distroless images with **no wolfi-base in layer history**:
 
 ```
-Layer 1: Runtime base (~5-20MB)
-  - Wolfi core + runtime packages (e.g., glibc, openssl)
-  - Installed via apk in temp stage, then copied
+Final Image Layers:
+Layer 1-5: glibc-dynamic:latest (~11MB)
+  - Clean distroless base (no apk ever existed)
 
-Layer 2: Application (~5-10MB)
+Layer 6: Squashed Runtime (~10MB)
+  - Runtime packages (glibc, ca-certificates, etc.)
+  - Package manager removed (no /sbin/apk)
+  - Clean metadata: ": aipack <packages> runtime"
+
+Layer 7: Application (~16MB)
   - Your compiled binary/artifacts
-  - Application-specific files
+  - Clean metadata: ": aipack <name> application"
 
-Total: ~10-30MB (vs ~50-100MB for wolfi-base)
+Total: ~13MB (aipack example)
 ```
-
-### Benefits
-
-- **Security**: No attack surface from shells or package managers
-- **Size**: 50-90% smaller than traditional images
-- **Performance**: Faster container starts, less network transfer
-- **Caching**: Runtime layer cached separately from app layer
-- **Production-Ready**: Industry best practice (Google Distroless, Chainguard)
 
 ### Build Process
 
@@ -353,16 +404,40 @@ Total: ~10-30MB (vs ~50-100MB for wolfi-base)
 Stage 1 (Build):
   wolfi-base + build packages → build app → artifacts
 
-Stage 2 (Temp Runtime) - BuildKit internal:
-  wolfi-base + runtime packages → prepare /runtime-root
+Stage 2 (Runtime Prep):
+  wolfi-base + runtime packages → remove apk
 
-Stage 3 (Final):
-  FROM scratch
-  COPY --from=temp-runtime /runtime-root /    # Layer 1
-  COPY --from=build /artifacts /app           # Layer 2
+Stage 3 (Squash to Clean Base):
+  glibc-dynamic (clean, no apk) + copy runtime prep → squashed layer
+
+Stage 4 (Final):
+  squashed runtime + copy artifacts → final image
 ```
 
-Result: Minimal, secure, cached, production-ready image.
+**Result**: No apk in filesystem, no wolfi-base in history - truly distroless.
+
+### Benefits
+
+- **True Distroless**: No package manager in any layer (including history)
+- **Security**: No attack surface from shells or package managers
+- **Clean History**: No wolfi-base layers (only glibc-dynamic)
+- **Size**: Optimized ~13MB total for Rust apps
+- **Performance**: Faster container starts, less network transfer
+- **Layer Metadata**: Clean descriptions for debugging
+- **Production-Ready**: Industry best practice (Google Distroless, Chainguard)
+
+### Verification
+
+```bash
+# Verify no apk in filesystem
+docker run --rm myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
+
+# Verify no wolfi-base in history
+docker history myapp:latest | grep wolfi-base && echo "FAIL" || echo "PASS"
+
+# View clean layer metadata
+docker history myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
+```
 
 ## Configuration
 

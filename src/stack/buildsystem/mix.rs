@@ -44,6 +44,7 @@ impl BuildSystem for MixBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
         _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let elixir_version = wolfi_index

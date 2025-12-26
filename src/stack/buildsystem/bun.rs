@@ -66,6 +66,7 @@ impl BuildSystem for BunBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
         _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let runtime = if wolfi_index.has_package("bun") {

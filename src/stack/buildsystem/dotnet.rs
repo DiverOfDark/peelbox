@@ -78,6 +78,7 @@ impl BuildSystem for DotNetBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &crate::validation::WolfiPackageIndex,
+        _service_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let dotnet_version = manifest_content

@@ -22,11 +22,11 @@ fn try_deterministic(
 
     let wolfi_index = crate::validation::WolfiPackageIndex::fetch().ok()?;
 
-    // Read manifest content to pass to build_template for version parsing
-    let manifest_path = repo_path.join(&service.path).join(&service.manifest);
+    let service_path = repo_path.join(&service.path);
+    let manifest_path = service_path.join(&service.manifest);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok();
 
-    let template = build_system.build_template(&wolfi_index, manifest_content.as_deref());
+    let template = build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
 
     let build_cmd = template.build_commands.first().cloned();
     let output_dir = template.artifacts.first().map(|artifact| {
@@ -79,9 +79,6 @@ mod tests {
 
     #[test]
     fn test_deterministic_cargo() {
-        // Tests use mock instead of fetching real APKINDEX
-        // In production, WolfiPackageIndex::fetch() is called inside try_deterministic
-        // For testing, we verify that the build system returns correct template
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let wolfi_index = crate::validation::WolfiPackageIndex::for_tests();
 
@@ -89,7 +86,8 @@ mod tests {
             .get_build_system(crate::stack::BuildSystemId::Cargo)
             .unwrap();
 
-        let template = build_system.build_template(&wolfi_index, None);
+        let service_path = std::path::PathBuf::from("/tmp/test");
+        let template = build_system.build_template(&wolfi_index, &service_path, None);
 
         assert_eq!(template.build_commands.first(), Some(&"cargo build --release".to_string()));
         assert!(!template.artifacts.is_empty());
@@ -104,7 +102,8 @@ mod tests {
             .get_build_system(crate::stack::BuildSystemId::Maven)
             .unwrap();
 
-        let template = build_system.build_template(&wolfi_index, None);
+        let service_path = std::path::PathBuf::from("/tmp/test");
+        let template = build_system.build_template(&wolfi_index, &service_path, None);
 
         assert_eq!(
             template.build_commands.first(),
