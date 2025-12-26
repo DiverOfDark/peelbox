@@ -20,19 +20,23 @@ use futures_util::stream::StreamExt;
 use serial_test::serial;
 use std::io::Write;
 use std::process::Stdio;
-use testcontainers::core::WaitFor;
+use testcontainers::core::{Mount, WaitFor};
 use testcontainers::runners::AsyncRunner;
 use testcontainers::{GenericImage, ImageExt};
 
 /// Shared test fixture: Build aipack image using BuildKit
 /// Returns (image_name, docker_client)
 async fn build_aipack_image(test_name: &str) -> Result<(String, Docker)> {
-    // Start BuildKit container
-    let buildkit_image = GenericImage::new("moby/buildkit", "latest")
+    // Start BuildKit container with persistent cache volume
+    // Note: testcontainers 0.23 uses Docker API which automatically creates a volume
+    // The volume persists between test runs for caching
+    let buildkit_container = GenericImage::new("moby/buildkit", "latest")
         .with_wait_for(WaitFor::message_on_stderr("running server on"))
-        .with_privileged(true);
+        .with_privileged(true)
+        .with_mount(Mount::volume_mount("buildkit-cache", "/var/lib/buildkit"))
+        .start()
+        .await?;
 
-    let buildkit_container = buildkit_image.start().await?;
     let container_id = buildkit_container.id();
 
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -406,11 +410,13 @@ async fn test_binary_exists_and_executable() -> Result<()> {
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
 
-    let buildkit_image = GenericImage::new("moby/buildkit", "latest")
+    let buildkit_container = GenericImage::new("moby/buildkit", "latest")
         .with_wait_for(WaitFor::message_on_stderr("running server on"))
-        .with_privileged(true);
+        .with_privileged(true)
+        .with_mount(Mount::volume_mount("buildkit-cache", "/var/lib/buildkit"))
+        .start()
+        .await?;
 
-    let buildkit_container = buildkit_image.start().await?;
     let container_id = buildkit_container.id();
 
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
