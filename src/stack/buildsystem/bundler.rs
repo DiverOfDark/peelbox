@@ -68,6 +68,8 @@ impl BuildSystem for BundlerBuildSystem {
             cache_paths: vec!["vendor/bundle/".to_string()],
             artifacts: vec![],
             common_ports: vec![3000],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

@@ -76,6 +76,8 @@ impl BuildSystem for MavenBuildSystem {
             cache_paths: vec!["/root/.m2/repository/".to_string()],
             artifacts: vec!["target/*.jar".to_string()],
             common_ports: vec![8080],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

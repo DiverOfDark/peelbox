@@ -574,20 +574,33 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
         }
     };
 
-    // Parse spec
-    let spec: UniversalBuild = match serde_json::from_str(&spec_content) {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Failed to parse spec file: {}", e);
-            eprintln!("Error: Failed to parse spec file: {}", e);
-            return 1;
+    // Parse spec (handle both single object and array formats)
+    let spec: UniversalBuild = match serde_json::from_str::<Vec<UniversalBuild>>(&spec_content) {
+        Ok(mut specs) => {
+            if specs.is_empty() {
+                error!("Spec file contains empty array");
+                eprintln!("Error: Spec file contains empty array");
+                return 1;
+            }
+            specs.remove(0)
+        }
+        Err(_) => {
+            // Try parsing as single object
+            match serde_json::from_str::<UniversalBuild>(&spec_content) {
+                Ok(s) => s,
+                Err(e) => {
+                    error!("Failed to parse spec file: {}", e);
+                    eprintln!("Error: Failed to parse spec file: {}", e);
+                    return 1;
+                }
+            }
         }
     };
 
     debug!("Loaded spec for project: {:?}", spec.metadata.project_name);
 
-    // Generate LLB
-    let llb_builder = LLBBuilder::new("context");
+    // Generate LLB with the specified context name
+    let llb_builder = LLBBuilder::new(&_args.context_name);
     let llb_bytes = match llb_builder.build(&spec) {
         Ok(bytes) => bytes,
         Err(e) => {

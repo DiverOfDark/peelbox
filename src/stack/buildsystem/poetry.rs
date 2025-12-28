@@ -73,6 +73,8 @@ impl BuildSystem for PoetryBuildSystem {
             cache_paths: vec![".venv/".to_string(), "/root/.cache/pypoetry/".to_string()],
             artifacts: vec!["dist/".to_string(), ".venv/".to_string()],
             common_ports: vec![8000, 5000],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

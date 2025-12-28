@@ -84,6 +84,8 @@ impl BuildSystem for YarnBuildSystem {
             cache_paths: vec!["node_modules/".to_string(), ".yarn/cache/".to_string()],
             artifacts: vec!["dist/".to_string(), "build/".to_string()],
             common_ports: vec![3000, 8080],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

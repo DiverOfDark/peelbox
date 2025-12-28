@@ -18,6 +18,12 @@ pub struct BuildTemplate {
     pub cache_paths: Vec<String>,
     pub artifacts: Vec<String>,
     pub common_ports: Vec<u16>,
+    #[serde(default)]
+    pub build_env: std::collections::HashMap<String, String>,
+    /// Runtime copy specifications: (artifact_pattern, destination_pattern)
+    /// Patterns support {project_name} placeholder
+    #[serde(default)]
+    pub runtime_copy: Vec<(String, String)>,
 }
 
 /// Manifest pattern for build system detection

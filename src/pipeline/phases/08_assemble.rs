@@ -64,11 +64,29 @@ fn assemble_single_service(
     let manifest_path = service_path.join(&result.service.manifest);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok();
 
-    let template = registry
-        .get_build_system(result.service.build_system.clone())
+    let build_system = registry.get_build_system(result.service.build_system.clone());
+
+    let template = build_system
+        .as_ref()
         .map(|bs| bs.build_template(wolfi_index, &service_path, manifest_content.as_deref()));
 
-    let project_name = extract_project_name(&result.service);
+    let project_name = manifest_content
+        .as_deref()
+        .and_then(|content| {
+            build_system
+                .as_ref()
+                .and_then(|bs| bs.parse_package_metadata(content).ok())
+                .map(|(name, _)| name)
+        })
+        .unwrap_or_else(|| {
+            // Fall back to directory name
+            result.service
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("app")
+                .to_string()
+        });
 
     let confidence = calculate_confidence(result);
 
@@ -80,7 +98,7 @@ fn assemble_single_service(
     let runtime_config = result.runtime_config.as_ref();
     let entrypoint_cmd = runtime_config
         .and_then(|rc| rc.entrypoint.clone())
-        .unwrap_or_else(|| "bin/app".to_string());
+        .unwrap_or_else(|| format!("/usr/local/bin/{{project_name}}"));
     let port = runtime_config
         .and_then(|rc| rc.port)
         .or_else(|| {
@@ -129,7 +147,10 @@ fn assemble_single_service(
             .as_ref()
             .map(|t| t.build_packages.clone())
             .unwrap_or_default(),
-        env: HashMap::new(),
+        env: template
+            .as_ref()
+            .map(|t| t.build_env.clone())
+            .unwrap_or_default(),
         commands: build_info.build_cmd.clone().into_iter().collect::<Vec<_>>(),
         cache: cache_paths,
         artifacts: template
@@ -157,17 +178,38 @@ fn assemble_single_service(
         runtime.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref())
     };
 
+    let runtime_copy = template
+        .as_ref()
+        .and_then(|t| {
+            let copy_specs: Vec<CopySpec> = t
+                .runtime_copy
+                .iter()
+                .map(|(from, to)| CopySpec {
+                    from: from.replace("{project_name}", &project_name),
+                    to: to.replace("{project_name}", &project_name),
+                })
+                .collect();
+            if copy_specs.is_empty() {
+                None
+            } else {
+                Some(copy_specs)
+            }
+        })
+        .unwrap_or_else(|| {
+            vec![CopySpec {
+                from: build
+                    .artifacts
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "/app".to_string()),
+                to: format!("/usr/local/bin/{}", project_name),
+            }]
+        });
+
     let runtime = RuntimeStage {
         packages: runtime_packages,
         env: env_map,
-        copy: vec![CopySpec {
-            from: build
-                .artifacts
-                .first()
-                .cloned()
-                .unwrap_or_else(|| "/app".to_string()),
-            to: "/usr/local/bin/app".to_string(),
-        }],
+        copy: runtime_copy,
         command: command_parts,
         ports: vec![port],
         health: runtime_config.and_then(|rc| rc.health.clone()),
@@ -179,15 +221,6 @@ fn assemble_single_service(
         build,
         runtime,
     })
-}
-
-fn extract_project_name(service: &super::service_analysis::Service) -> String {
-    service
-        .path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("app")
-        .to_string()
 }
 
 fn calculate_confidence(result: &ServiceContext) -> f32 {
@@ -224,30 +257,6 @@ mod tests {
     use crate::pipeline::Confidence;
     use std::path::PathBuf;
     use std::sync::Arc;
-
-    #[test]
-    fn test_extract_project_name() {
-        let service = Service {
-            path: PathBuf::from("apps/web"),
-            manifest: "package.json".to_string(),
-            language: crate::stack::LanguageId::JavaScript,
-            build_system: crate::stack::BuildSystemId::Npm,
-        };
-
-        assert_eq!(extract_project_name(&service), "web");
-    }
-
-    #[test]
-    fn test_extract_project_name_root() {
-        let service = Service {
-            path: PathBuf::from("."),
-            manifest: "Cargo.toml".to_string(),
-            language: crate::stack::LanguageId::Rust,
-            build_system: crate::stack::BuildSystemId::Cargo,
-        };
-
-        assert_eq!(extract_project_name(&service), "app");
-    }
 
     #[test]
     fn test_confidence_calculation() {

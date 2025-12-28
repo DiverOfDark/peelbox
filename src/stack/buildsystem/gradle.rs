@@ -113,6 +113,8 @@ impl BuildSystem for GradleBuildSystem {
             ],
             artifacts: vec!["build/libs/*.jar".to_string()],
             common_ports: vec![8080],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

@@ -86,6 +86,8 @@ impl BuildSystem for PipBuildSystem {
             cache_paths: vec!["/root/.cache/pip/".to_string()],
             artifacts: vec!["app/".to_string()],
             common_ports: vec![8000, 5000],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

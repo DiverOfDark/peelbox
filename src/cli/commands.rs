@@ -160,6 +160,14 @@ pub struct FrontendArgs {
         help = "Path to UniversalBuild JSON file (relative to build context)"
     )]
     pub spec: Option<PathBuf>,
+
+    #[arg(
+        long,
+        value_name = "NAME",
+        default_value = "context",
+        help = "Local context name for BuildKit (use unique names for parallel builds)"
+    )]
+    pub context_name: String,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

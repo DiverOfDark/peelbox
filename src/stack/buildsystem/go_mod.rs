@@ -93,6 +93,8 @@ impl BuildSystem for GoModBuildSystem {
             ],
             artifacts: vec!["app".to_string()],
             common_ports: vec![8080],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

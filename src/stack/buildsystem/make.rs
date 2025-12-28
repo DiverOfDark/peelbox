@@ -63,6 +63,8 @@ impl BuildSystem for MakeBuildSystem {
             cache_paths: vec![],
             artifacts: vec!["app".to_string()],
             common_ports: vec![],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

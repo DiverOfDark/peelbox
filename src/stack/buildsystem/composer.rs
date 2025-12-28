@@ -101,6 +101,8 @@ impl BuildSystem for ComposerBuildSystem {
             cache_paths: vec!["/root/.composer/cache/".to_string()],
             artifacts: vec!["vendor/".to_string(), "public/".to_string()],
             common_ports: vec![9000, 80],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 

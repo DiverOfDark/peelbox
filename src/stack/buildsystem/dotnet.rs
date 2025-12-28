@@ -97,6 +97,8 @@ impl BuildSystem for DotNetBuildSystem {
             cache_paths: vec!["/root/.nuget/packages/".to_string(), "obj/".to_string()],
             artifacts: vec!["out/".to_string()],
             common_ports: vec![8080, 5000],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
         }
     }
 
