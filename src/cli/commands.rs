@@ -168,6 +168,13 @@ pub struct FrontendArgs {
         help = "Local context name for BuildKit (use unique names for parallel builds)"
     )]
     pub context_name: String,
+
+    #[arg(
+        long,
+        value_name = "SERVICE",
+        help = "Service name to build (required for monorepos with multiple services)"
+    )]
+    pub service: Option<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

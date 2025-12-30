@@ -23,7 +23,6 @@ struct BuildSystemInfo {
     build_commands: Vec<String>,
     cache_dirs: Vec<String>,
     build_packages: Vec<String>,
-    artifacts: Vec<String>,
     common_ports: Vec<u16>,
     confidence: f32,
 }
@@ -194,18 +193,16 @@ Identify manifest files and their build systems. Return JSON array:
                     build_packages,
                     build_commands: info.build_commands.clone(),
                     cache_paths: info.cache_dirs.clone(),
-                    artifacts: info.artifacts.clone(),
                     common_ports: info.common_ports.clone(),
                     build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
-            runtime_env: std::collections::HashMap::new(),
+                    runtime_copy: vec![],
+                    runtime_env: std::collections::HashMap::new(),
                 }
             })
             .unwrap_or_else(|| BuildTemplate {
                 build_packages: vec![],
                 build_commands: vec![],
                 cache_paths: vec![],
-                artifacts: vec![],
                 common_ports: vec![],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],

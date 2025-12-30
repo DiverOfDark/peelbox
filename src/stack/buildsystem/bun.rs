@@ -84,10 +84,12 @@ impl BuildSystem for BunBuildSystem {
             build_packages,
             build_commands: vec!["bun install".to_string(), "bun run build".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".bun/".to_string()],
-            artifacts: vec!["dist/".to_string(), "build/".to_string()],
             common_ports: vec![3000, 8080],
             build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
+            runtime_copy: vec![
+                ("dist/".to_string(), "/app/dist/".to_string()),
+                ("build/".to_string(), "/app/build/".to_string()),
+            ],
             runtime_env: std::collections::HashMap::new(),
         }
     }

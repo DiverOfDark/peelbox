@@ -1,10 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "vendor/",
-        "public/"
-      ],
       "cache": [
         ".composer/cache",
         "vendor"
@@ -26,7 +22,6 @@
     },
     "metadata": {
       "build_system": "Composer",
-      "confidence": 0.949999988079071,
       "language": "PHP",
       "project_name": "app",
       "reasoning": "Detected from composer.json in "
@@ -49,7 +44,10 @@
         "php-8.1-openssl",
         "php-8.1-mbstring",
         "php-8.1-xml",
-        "php-8.1-dom"
+        "php-8.1-dom",
+        "php-8.1-curl",
+        "php-8.1-fileinfo",
+        "php-8.1-iconv"
       ],
       "ports": [
         8000

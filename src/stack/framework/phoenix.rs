@@ -29,7 +29,7 @@ impl Framework for PhoenixFramework {
         vec![4000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/api/health".to_string()]
     }
 

@@ -109,12 +109,12 @@ impl Runtime for PythonRuntime {
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });
 
-        let entrypoint = self.detect_framework_entrypoint(files, framework, port);
+        let entrypoint = framework.and_then(|f| f.entrypoint_command()).map(|cmd| cmd.join(" "));
 
         Some(RuntimeConfig {
             entrypoint,
@@ -158,79 +158,6 @@ impl Runtime for PythonRuntime {
 }
 
 impl PythonRuntime {
-    fn detect_framework_entrypoint(
-        &self,
-        files: &[PathBuf],
-        framework: Option<&dyn Framework>,
-        port: Option<u16>,
-    ) -> Option<String> {
-        tracing::debug!("detect_framework_entrypoint called with {} files, framework: {:?}", files.len(), framework.map(|f| f.id()));
-
-        if let Some(fw) = framework {
-            match fw.id() {
-                crate::stack::FrameworkId::Flask => {
-                    tracing::debug!("Flask framework detected, searching for Flask app in {} files", files.len());
-                    if let Some(app_file) = self.find_flask_app(files) {
-                        tracing::debug!("Found Flask app at: {:?}", app_file);
-                        let port_val = port.unwrap_or(5000);
-                        let cmd = format!(
-                            "python -m flask run --host=0.0.0.0 --port={}",
-                            port_val
-                        );
-                        tracing::debug!("Returning Flask entrypoint: {}", cmd);
-                        return Some(cmd);
-                    } else {
-                        tracing::debug!("No Flask app file found");
-                    }
-                }
-                crate::stack::FrameworkId::Django => {
-                    let port_val = port.unwrap_or(8000);
-                    return Some(format!(
-                        "python manage.py runserver 0.0.0.0:{}",
-                        port_val
-                    ));
-                }
-                crate::stack::FrameworkId::FastApi => {
-                    let port_val = port.unwrap_or(8000);
-                    return Some(format!(
-                        "uvicorn main:app --host 0.0.0.0 --port {}",
-                        port_val
-                    ));
-                }
-                _ => {}
-            }
-        } else {
-            tracing::debug!("No framework provided");
-        }
-        None
-    }
-
-    fn find_flask_app(&self, files: &[PathBuf]) -> Option<PathBuf> {
-        tracing::debug!("find_flask_app: scanning {} files", files.len());
-        for file in files {
-            tracing::debug!("Checking file: {:?}, ext: {:?}", file, file.extension());
-            if let Some(ext) = file.extension() {
-                if ext == "py" {
-                    tracing::debug!("Reading Python file: {:?}", file);
-                    match std::fs::read_to_string(file) {
-                        Ok(content) => {
-                            let has_flask = content.contains("from flask import") || content.contains("import flask");
-                            tracing::debug!("File {:?} has Flask imports: {}", file, has_flask);
-                            if has_flask {
-                                return Some(file.clone());
-                            }
-                        }
-                        Err(e) => {
-                            tracing::debug!("Failed to read {:?}: {}", file, e);
-                        }
-                    }
-                }
-            }
-        }
-        tracing::debug!("No Flask app found in {} files", files.len());
-        None
-    }
-
     fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
         let runtime_txt = service_path.join("runtime.txt");
         if let Ok(content) = std::fs::read_to_string(&runtime_txt) {

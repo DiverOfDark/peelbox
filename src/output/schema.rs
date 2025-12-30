@@ -49,8 +49,6 @@ pub struct BuildMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub framework: Option<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub confidence: f32,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub reasoning: String,
 }
 
@@ -64,8 +62,6 @@ pub struct BuildStage {
     pub commands: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
-    #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub artifacts: Vec<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
@@ -118,7 +114,6 @@ mod tests {
                 language: "rust".to_string(),
                 build_system: "cargo".to_string(),
                 framework: None,
-                confidence: 0.95,
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
@@ -126,7 +121,6 @@ mod tests {
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-                artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
@@ -181,7 +175,6 @@ mod tests {
         assert!(display.contains("metadata:"));
         assert!(display.contains("language: rust"));
         assert!(display.contains("build_system: cargo"));
-        assert!(display.contains("confidence: 0.95"));
         assert!(display.contains("build:"));
         assert!(display.contains("packages:"));
         assert!(display.contains("cargo build --release"));
@@ -244,10 +237,8 @@ mod tests {
         assert_eq!(build.version, "1.0");
         assert_eq!(build.metadata.language, "");
         assert_eq!(build.metadata.build_system, "");
-        assert_eq!(build.metadata.confidence, 0.0);
         assert_eq!(build.metadata.reasoning, "");
         assert!(build.build.commands.is_empty());
-        assert!(build.build.artifacts.is_empty());
         assert!(build.runtime.copy.is_empty());
         assert!(build.runtime.command.is_empty());
     }
@@ -259,7 +250,6 @@ mod tests {
             "metadata": {
                 "language": null,
                 "build_system": null,
-                "confidence": null,
                 "reasoning": null
             },
             "build": {
@@ -309,7 +299,6 @@ mod tests {
         let build = result.unwrap();
         assert_eq!(build.version, "1.0");
         assert_eq!(build.metadata.project_name, None);
-        assert_eq!(build.metadata.confidence, 0.0);
         assert_eq!(build.metadata.reasoning, "");
         assert_eq!(build.build.packages, vec!["rust", "build-base"]);
         assert!(build.build.env.is_empty());
@@ -346,7 +335,6 @@ mod tests {
                 language: "".to_string(),
                 build_system: "".to_string(),
                 framework: None,
-                confidence: 0.0,
                 reasoning: "".to_string(),
             },
             build: BuildStage {
@@ -354,7 +342,6 @@ mod tests {
                 env: HashMap::new(),
                 commands: vec![],
                 cache: vec![],
-                artifacts: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -376,14 +363,11 @@ mod tests {
             "version": "1.0",
             "metadata": {
                 "language": "rust",
-                "build_system": "cargo",
-                "confidence": 0.95
+                "build_system": "cargo"
             },
             "build": {
                 "packages": ["rust", "build-base"],
-                "commands": ["cargo build --release"],
-                "context": [{"from": ".", "to": "/app"}],
-                "artifacts": ["target/release/app"]
+                "commands": ["cargo build --release"]
             },
             "runtime": {
                 "packages": ["glibc", "ca-certificates"],
@@ -398,6 +382,9 @@ mod tests {
         }"#;
 
         let result: Result<UniversalBuild, _> = serde_json::from_str(json);
+        if let Err(e) = &result {
+            eprintln!("Deserialization error: {}", e);
+        }
         assert!(result.is_ok());
 
         let build = result.unwrap();

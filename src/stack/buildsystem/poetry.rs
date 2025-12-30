@@ -72,7 +72,7 @@ impl BuildSystem for PoetryBuildSystem {
             .unwrap_or_else(|| "py3-pip".to_string());
 
         let mut build_env = std::collections::HashMap::new();
-        build_env.insert("POETRY_CACHE_DIR".to_string(), "/tmp/poetry-cache".to_string());
+        build_env.insert("POETRY_CACHE_DIR".to_string(), "/root/.cache/pypoetry".to_string());
         build_env.insert("POETRY_VIRTUALENVS_IN_PROJECT".to_string(), "true".to_string());
 
         BuildTemplate {
@@ -85,8 +85,7 @@ impl BuildSystem for PoetryBuildSystem {
                 "pip install --user poetry".to_string(),
                 "/root/.local/bin/poetry install --compile --only main --no-root".to_string(),
             ],
-            cache_paths: vec!["/tmp/poetry-cache/".to_string()],
-            artifacts: vec![".".to_string(), ".venv/".to_string()],
+            cache_paths: vec!["/root/.cache/pypoetry/".to_string()],
             common_ports: vec![8000, 5000],
             build_env,
             runtime_copy: vec![

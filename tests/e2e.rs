@@ -181,12 +181,6 @@ fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixtur
         "Build commands should not be empty"
     );
 
-    assert!(
-        results[0].metadata.confidence >= 0.5,
-        "Confidence should be at least 0.5, got {}",
-        results[0].metadata.confidence
-    );
-
     // Load and validate against expected JSON (required, same for all modes)
     let mut expected = load_expected(category, fixture_name, mode).expect(&format!(
         "Expected JSON file not found for fixture '{}'. Expected file: tests/fixtures/{}/{}/universalbuild.json",

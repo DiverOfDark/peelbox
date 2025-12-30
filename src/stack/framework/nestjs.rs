@@ -36,7 +36,7 @@ impl Framework for NestJsFramework {
         vec![3000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/health/liveness".to_string(), "/health/readiness".to_string()]
     }
 
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_nestjs_health_endpoints() {
         let framework = NestJsFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health"));
         assert!(endpoints.iter().any(|s| s == "/health/liveness"));

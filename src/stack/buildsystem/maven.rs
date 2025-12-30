@@ -75,17 +75,25 @@ impl BuildSystem for MavenBuildSystem {
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
-        build_env.insert("MAVEN_OPTS".to_string(), "-Dmaven.repo.local=/tmp/maven-repo".to_string());
+        build_env.insert("MAVEN_OPTS".to_string(), "-Dmaven.repo.local=/root/.m2/repository".to_string());
+
+        let mut runtime_env = std::collections::HashMap::new();
+        runtime_env.insert("CLASSPATH".to_string(), "/app/*:/app/lib/*".to_string());
 
         BuildTemplate {
             build_packages: vec![java_version, maven_version],
-            build_commands: vec!["mvn package -DskipTests".to_string()],
+            build_commands: vec![
+                "mvn package -DskipTests".to_string(),
+                "mvn dependency:copy-dependencies -DoutputDirectory=target/lib".to_string(),
+            ],
             cache_paths: vec!["/root/.m2/repository/".to_string()],
-            artifacts: vec!["target/*.jar".to_string()],
             common_ports: vec![8080],
             build_env,
-            runtime_copy: vec![],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_copy: vec![
+                ("target/*.jar".to_string(), "/app/".to_string()),
+                ("target/lib/".to_string(), "/app/lib".to_string()),
+            ],
+            runtime_env,
         }
     }
 

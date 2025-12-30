@@ -75,7 +75,6 @@ impl BuildSystem for CargoBuildSystem {
             build_packages,
             build_commands: vec!["cargo build --release".to_string()],
             cache_paths: vec!["target".to_string(), ".cargo".to_string()],
-            artifacts: vec!["target/release/{project_name}".to_string()],
             common_ports: vec![8080],
             build_env,
             runtime_copy: vec![(

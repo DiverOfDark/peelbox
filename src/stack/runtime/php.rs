@@ -80,7 +80,7 @@ impl Runtime for PhpRuntime {
 
         let port = framework.and_then(|f| f.default_ports().first().copied());
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });
@@ -122,10 +122,21 @@ impl Runtime for PhpRuntime {
             .or_else(|| wolfi_index.get_latest_version("php"))
             .unwrap_or_else(|| "php-8.3".to_string());
 
-        let required_extensions = vec!["ctype", "phar", "openssl", "mbstring", "xml", "dom"];
+        let required_extensions = vec![
+            "ctype", "phar", "openssl", "mbstring", "xml", "dom",
+            "curl", "fileinfo", "iconv"
+        ];
+
+        let framework_extensions = self.detect_framework_extensions(manifest_content);
+
         let mut packages = vec![version.clone()];
         packages.extend(
             required_extensions
+                .iter()
+                .map(|ext| format!("{}-{}", version, ext))
+        );
+        packages.extend(
+            framework_extensions
                 .iter()
                 .map(|ext| format!("{}-{}", version, ext))
         );
@@ -135,6 +146,53 @@ impl Runtime for PhpRuntime {
 }
 
 impl PhpRuntime {
+    fn detect_framework_extensions(&self, manifest_content: Option<&str>) -> Vec<String> {
+        let mut extensions = HashSet::new();
+
+        if let Some(content) = manifest_content {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(content) {
+                // Check for Laravel
+                if json["require"].get("laravel/framework").is_some() {
+                    extensions.insert("pdo".to_string());
+                    extensions.insert("pdo_mysql".to_string());
+                    extensions.insert("redis".to_string());
+                    extensions.insert("zip".to_string());
+                }
+
+                // Check for Symfony
+                if json["require"].get("symfony/framework-bundle").is_some()
+                    || json["require"].get("symfony/symfony").is_some()
+                {
+                    extensions.insert("intl".to_string());
+                    extensions.insert("pdo".to_string());
+                }
+
+                // Check for WordPress (when using Bedrock or similar composer setups)
+                if json["require"].get("wordpress").is_some()
+                    || json["require"].get("roots/wordpress").is_some()
+                    || json["require"].get("johnpbloch/wordpress").is_some()
+                {
+                    extensions.insert("mysqli".to_string());
+                    extensions.insert("gd".to_string());
+                    extensions.insert("zip".to_string());
+                }
+
+                // Check for explicitly required extensions in composer.json
+                if let Some(require) = json["require"].as_object() {
+                    for key in require.keys() {
+                        if let Some(ext_name) = key.strip_prefix("ext-") {
+                            extensions.insert(ext_name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut result: Vec<String> = extensions.into_iter().collect();
+        result.sort();
+        result
+    }
+
     fn detect_version(&self, _service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
         if let Some(content) = manifest_content {
             return self.parse_composer_version(content);

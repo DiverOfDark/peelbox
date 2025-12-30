@@ -41,7 +41,7 @@
           "to": "/app"
         },
         {
-          "from": ".local/",
+          "from": "/root/.local/",
           "to": "/root/.local"
         }
       ],

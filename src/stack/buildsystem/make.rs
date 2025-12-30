@@ -61,10 +61,10 @@ impl BuildSystem for MakeBuildSystem {
             build_packages,
             build_commands: vec!["make".to_string()],
             cache_paths: vec![],
-            artifacts: vec!["app".to_string()],
+            
             common_ports: vec![],
             build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
+            runtime_copy: vec![("app".to_string(), "/usr/local/bin/app".to_string())],
             runtime_env: std::collections::HashMap::new(),
         }
     }

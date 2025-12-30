@@ -36,7 +36,7 @@ impl Framework for QuarkusFramework {
         vec![8080]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/q/health".to_string(), "/q/health/live".to_string(), "/q/health/ready".to_string()]
     }
 
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn test_quarkus_health_endpoints() {
         let framework = QuarkusFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/q/health"));
         assert!(endpoints.iter().any(|s| s == "/q/health/live"));

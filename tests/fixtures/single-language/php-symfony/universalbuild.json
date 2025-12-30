@@ -1,13 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "vendor/",
-        "bin/",
-        "public/",
-        "src/",
-        "config/"
-      ],
       "cache": [
         ".composer/cache",
         "vendor"
@@ -30,7 +23,6 @@
     },
     "metadata": {
       "build_system": "Composer",
-      "confidence": 0.949999988079071,
       "framework": "Symfony",
       "language": "PHP",
       "project_name": "app",
@@ -77,7 +69,12 @@
         "php-8.1-openssl",
         "php-8.1-mbstring",
         "php-8.1-xml",
-        "php-8.1-dom"
+        "php-8.1-dom",
+        "php-8.1-curl",
+        "php-8.1-fileinfo",
+        "php-8.1-iconv",
+        "php-8.1-intl",
+        "php-8.1-pdo"
       ],
       "ports": [
         8000

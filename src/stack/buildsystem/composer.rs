@@ -111,7 +111,6 @@ impl BuildSystem for ComposerBuildSystem {
                 "composer install --no-dev --optimize-autoloader --ignore-platform-reqs".to_string(),
             ],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
-            artifacts: vec!["vendor/".to_string(), "bin/".to_string(), "public/".to_string(), "src/".to_string(), "config/".to_string()],
             common_ports: vec![9000, 80],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![

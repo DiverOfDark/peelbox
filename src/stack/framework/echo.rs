@@ -29,7 +29,7 @@ impl Framework for EchoFramework {
         vec![1323]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string()]
     }
 

@@ -36,8 +36,14 @@ impl Framework for AspNetFramework {
         vec![5000, 5001]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string(), "/ready".to_string()]
+    }
+
+    fn runtime_env_vars(&self) -> HashMap<String, String> {
+        let mut env = HashMap::new();
+        env.insert("ASPNETCORE_URLS".to_string(), "http://+:8080".to_string());
+        env
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -159,7 +165,7 @@ mod tests {
     #[test]
     fn test_aspnet_health_endpoints() {
         let framework = AspNetFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health"));
         assert!(endpoints.iter().any(|s| s == "/ready"));

@@ -41,12 +41,24 @@ impl Framework for SpringBootFramework {
         vec![8080]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
-        vec![
-            "/actuator/health".to_string(),
-            "/actuator/health/liveness".to_string(),
-            "/actuator/health/readiness".to_string(),
-        ]
+    fn health_endpoints(&self, files: &[std::path::PathBuf]) -> Vec<String> {
+        // Check if actuator dependency exists (pom.xml or build.gradle containing actuator)
+        let has_actuator = files.iter().any(|path| {
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .map(|name| name == "pom.xml" || name.ends_with(".gradle") || name.ends_with(".gradle.kts"))
+                .unwrap_or(false)
+        });
+
+        if has_actuator {
+            vec![
+                "/actuator/health".to_string(),
+                "/actuator/health/liveness".to_string(),
+                "/actuator/health/readiness".to_string(),
+            ]
+        } else {
+            vec!["/health".to_string()]
+        }
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -85,8 +97,8 @@ impl Framework for SpringBootFramework {
     }
 
     fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
-        if template.artifacts.is_empty() || !template.artifacts.iter().any(|a| a.contains(".jar")) {
-            template.artifacts.push("target/*.jar".to_string());
+        if template.runtime_copy.is_empty() || !template.runtime_copy.iter().any(|(from, _)| from.contains(".jar")) {
+            template.runtime_copy.push(("target/*.jar".to_string(), "/app/".to_string()));
         }
         template
     }
@@ -221,7 +233,8 @@ mod tests {
     #[test]
     fn test_spring_boot_health_endpoints() {
         let framework = SpringBootFramework;
-        let endpoints = framework.health_endpoints();
+        let files = vec![std::path::PathBuf::from("pom.xml")];
+        let endpoints = framework.health_endpoints(&files);
 
         assert!(endpoints.iter().any(|s| s == "/actuator/health"));
         assert!(endpoints.iter().any(|s| s == "/actuator/health/liveness"));

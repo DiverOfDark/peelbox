@@ -109,7 +109,7 @@ impl BuildSystem for GradleBuildSystem {
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
-        build_env.insert("GRADLE_USER_HOME".to_string(), "/tmp/gradle-home".to_string());
+        build_env.insert("GRADLE_USER_HOME".to_string(), "/root/.gradle".to_string());
         build_env.insert("GRADLE_OPTS".to_string(), "-Dorg.gradle.native=false".to_string());
 
         BuildTemplate {
@@ -120,10 +120,9 @@ impl BuildSystem for GradleBuildSystem {
                 "/root/.gradle/wrapper/".to_string(),
                 "/root/.gradle/native/".to_string(),
             ],
-            artifacts: vec!["build/libs/*.jar".to_string()],
             common_ports: vec![8080],
             build_env,
-            runtime_copy: vec![],
+            runtime_copy: vec![("build/libs/*.jar".to_string(), "/app/".to_string())],
             runtime_env: std::collections::HashMap::new(),
         }
     }

@@ -186,7 +186,6 @@ async fn test_universal_build_validation() {
     // Check key fields
     assert_eq!(parsed.metadata.language, "rust");
     assert_eq!(parsed.metadata.build_system, "cargo");
-    assert!(parsed.metadata.confidence >= 0.0 && parsed.metadata.confidence <= 1.0);
 }
 
 #[test]

@@ -99,10 +99,10 @@ impl BuildSystem for GoModBuildSystem {
                 ".cache/go-build".to_string(),
                 ".cache/go-mod".to_string(),
             ],
-            artifacts: vec!["app".to_string()],
+            
             common_ports: vec![8080],
             build_env,
-            runtime_copy: vec![],
+            runtime_copy: vec![("app".to_string(), "/usr/local/bin/app".to_string())],
             runtime_env: std::collections::HashMap::new(),
         }
     }

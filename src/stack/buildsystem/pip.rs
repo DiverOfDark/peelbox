@@ -95,12 +95,11 @@ impl BuildSystem for PipBuildSystem {
             ],
             build_commands: vec!["pip install --user --no-cache-dir -r requirements.txt".to_string()],
             cache_paths: vec!["/root/.cache/pip/".to_string()],
-            artifacts: vec![".".to_string(), "/root/.local/".to_string()],
             common_ports: vec![8000, 5000],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![
-                (".".to_string(), "/app".to_string()),  // Copy source code
-                (".local/".to_string(), "/root/.local".to_string()),  // Copy pip packages
+                (".".to_string(), "/app".to_string()),
+                (".local/".to_string(), "/root/.local".to_string()),
             ],
             runtime_env: std::collections::HashMap::new(),
         }

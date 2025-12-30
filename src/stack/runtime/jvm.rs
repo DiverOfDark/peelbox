@@ -90,27 +90,6 @@ impl JvmRuntime {
         result
     }
 
-    fn has_spring_boot_actuator(&self, files: &[PathBuf]) -> bool {
-        for file in files {
-            if file.file_name().is_some_and(|n| n == "pom.xml") {
-                if let Ok(content) = std::fs::read_to_string(file) {
-                    if content.contains("spring-boot-starter-actuator") {
-                        return true;
-                    }
-                }
-            } else if file
-                .file_name()
-                .is_some_and(|n| n == "build.gradle" || n == "build.gradle.kts")
-            {
-                if let Ok(content) = std::fs::read_to_string(file) {
-                    if content.contains("spring-boot-starter-actuator") {
-                        return true;
-                    }
-                }
-            }
-        }
-        false
-    }
 }
 
 impl Runtime for JvmRuntime {
@@ -131,22 +110,9 @@ impl Runtime for JvmRuntime {
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
 
         let health = framework.and_then(|f| {
-            let is_spring_boot = f.id() == crate::stack::FrameworkId::SpringBoot;
-
-            if is_spring_boot {
-                let has_actuator = self.has_spring_boot_actuator(files);
-                if has_actuator {
-                    Some(HealthCheck {
-                        endpoint: "/actuator/health".to_string(),
-                    })
-                } else {
-                    None
-                }
-            } else {
-                f.health_endpoints().first().map(|endpoint| HealthCheck {
-                    endpoint: endpoint.to_string(),
-                })
-            }
+            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
+                endpoint: endpoint.to_string(),
+            })
         });
 
         Some(RuntimeConfig {
@@ -168,7 +134,7 @@ impl Runtime for JvmRuntime {
     }
 
     fn start_command(&self, entrypoint: &Path) -> String {
-        format!("/usr/lib/jvm/java-17-openjdk/bin/java -jar {}", entrypoint.display())
+        format!("java -jar {}", entrypoint.display())
     }
 
     fn runtime_packages(
@@ -281,7 +247,7 @@ mod tests {
     fn test_jvm_start_command() {
         let runtime = JvmRuntime;
         let entrypoint = Path::new("/usr/local/bin/app");
-        assert_eq!(runtime.start_command(entrypoint), "/usr/lib/jvm/java-17-openjdk/bin/java -jar /usr/local/bin/app");
+        assert_eq!(runtime.start_command(entrypoint), "java -jar /usr/local/bin/app");
     }
 
     #[test]

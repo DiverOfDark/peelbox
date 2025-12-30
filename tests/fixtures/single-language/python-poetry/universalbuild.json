@@ -43,10 +43,6 @@
         {
           "from": ".",
           "to": "/app"
-        },
-        {
-          "from": ".venv/",
-          "to": "/app/.venv"
         }
       ],
       "env": {

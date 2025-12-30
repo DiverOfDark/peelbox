@@ -29,8 +29,8 @@ fn try_deterministic(
     let template = build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
 
     let build_cmd = template.build_commands.clone();
-    let output_dir = template.artifacts.first().map(|artifact| {
-        let path = artifact
+    let output_dir = template.runtime_copy.first().map(|(from, _)| {
+        let path = from
             .replace("/{project_name}", "")
             .replace("{project_name}", "")
             .trim_end_matches('/')
@@ -90,7 +90,7 @@ mod tests {
         let template = build_system.build_template(&wolfi_index, &service_path, None);
 
         assert_eq!(template.build_commands.first(), Some(&"cargo build --release".to_string()));
-        assert!(!template.artifacts.is_empty());
+        assert!(!template.runtime_copy.is_empty());
     }
 
     #[test]
@@ -109,6 +109,6 @@ mod tests {
             template.build_commands.first(),
             Some(&"mvn package -DskipTests".to_string())
         );
-        assert!(!template.artifacts.is_empty());
+        assert!(!template.runtime_copy.is_empty());
     }
 }

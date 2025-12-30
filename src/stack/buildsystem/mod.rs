@@ -16,7 +16,6 @@ pub struct BuildTemplate {
     pub build_packages: Vec<String>,
     pub build_commands: Vec<String>,
     pub cache_paths: Vec<String>,
-    pub artifacts: Vec<String>,
     pub common_ports: Vec<u16>,
     #[serde(default)]
     pub build_env: std::collections::HashMap<String, String>,

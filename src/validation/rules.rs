@@ -26,15 +26,6 @@ pub fn validate_non_empty_commands(build: &UniversalBuild) -> Result<()> {
 }
 
 
-pub fn validate_confidence_range(build: &UniversalBuild) -> Result<()> {
-    if !(0.0..=1.0).contains(&build.metadata.confidence) {
-        anyhow::bail!(
-            "Confidence score must be between 0.0 and 1.0, got {}",
-            build.metadata.confidence
-        );
-    }
-    Ok(())
-}
 
 pub fn validate_non_empty_artifacts(_build: &UniversalBuild) -> Result<()> {
     // Empty artifacts is valid (e.g., Flask apps where build context contains everything)
@@ -173,7 +164,6 @@ mod tests {
                 language: "rust".to_string(),
                 build_system: "cargo".to_string(),
                 framework: None,
-                confidence: 0.95,
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
@@ -181,7 +171,6 @@ mod tests {
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-                artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
@@ -221,19 +210,6 @@ mod tests {
         let mut build = create_minimal_valid_build();
         build.build.commands = vec![];
         assert!(validate_non_empty_commands(&build).is_err());
-    }
-
-    #[test]
-    fn test_validate_confidence_range_valid() {
-        let build = create_minimal_valid_build();
-        assert!(validate_confidence_range(&build).is_ok());
-    }
-
-    #[test]
-    fn test_validate_confidence_range_invalid() {
-        let mut build = create_minimal_valid_build();
-        build.metadata.confidence = 1.5;
-        assert!(validate_confidence_range(&build).is_err());
     }
 
     #[test]

@@ -81,7 +81,7 @@ impl BuildSystem for BundlerBuildSystem {
             build_packages,
             build_commands: vec!["bundle install".to_string()],
             cache_paths: vec!["vendor/bundle/".to_string()],
-            artifacts: vec!["/build/".to_string()],
+            
             common_ports: vec![3000],
             build_env,
             runtime_copy: vec![("/build/".to_string(), "/app".to_string())],

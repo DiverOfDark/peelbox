@@ -75,17 +75,18 @@ impl BuildSystem for YarnBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .expect("Failed to get nodejs version from Wolfi index");
 
-        let mut build_env = std::collections::HashMap::new();
-        build_env.insert("HOME".to_string(), "/tmp".to_string());
+        let build_env = std::collections::HashMap::new();
 
         BuildTemplate {
             build_packages: vec![node_version.clone(), "yarn".to_string()],
             build_commands: vec!["yarn install --frozen-lockfile".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".yarn/cache/".to_string()],
-            artifacts: vec!["dist/".to_string(), "build/".to_string()],
             common_ports: vec![3000, 8080],
             build_env,
-            runtime_copy: vec![],
+            runtime_copy: vec![
+                ("dist/".to_string(), "/app/dist/".to_string()),
+                ("build/".to_string(), "/app/build/".to_string()),
+            ],
             runtime_env: std::collections::HashMap::new(),
         }
     }

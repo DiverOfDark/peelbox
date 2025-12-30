@@ -87,8 +87,6 @@ fn assemble_single_service(
                 .to_string()
         });
 
-    let confidence = calculate_confidence(result);
-
     let stack = result.stack.as_ref().expect("Stack must be set");
     let build_info = result.build.as_ref().expect("Build must be set");
     let cache_info = result.cache.as_ref().expect("Cache must be set");
@@ -120,7 +118,6 @@ fn assemble_single_service(
         language: stack.language.name().to_string(),
         build_system: stack.build_system.name().to_string(),
         framework: stack.framework.as_ref().map(|fw| fw.name().to_string()),
-        confidence,
         reasoning: format!(
             "Detected from {} in {}",
             result.service.manifest,
@@ -152,15 +149,6 @@ fn assemble_single_service(
             .unwrap_or_default(),
         commands: build_info.build_cmd.clone(),
         cache: cache_paths,
-        artifacts: template
-            .as_ref()
-            .map(|t| {
-                t.artifacts
-                    .iter()
-                    .map(|a| a.replace("{project_name}", &project_name))
-                    .collect()
-            })
-            .unwrap_or_default(),
     };
 
     let mut env_map = HashMap::new();
@@ -171,32 +159,9 @@ fn assemble_single_service(
     }
 
     // Add framework-specific runtime environment variables
-    if let Some(framework) = &stack.framework {
-        if *framework == crate::stack::FrameworkId::AspNetCore {
-            env_map.insert(
-                "ASPNETCORE_URLS".to_string(),
-                format!("http://0.0.0.0:{}", port)
-            );
-        } else if *framework == crate::stack::FrameworkId::Flask {
-            // Find the Flask app file (look for .py files with Flask imports)
-            if let Ok(entries) = std::fs::read_dir(&service_path) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.extension().and_then(|e| e.to_str()) == Some("py") {
-                        if let Ok(content) = std::fs::read_to_string(&path) {
-                            if content.contains("from flask import") || content.contains("import flask") {
-                                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
-                                    env_map.insert(
-                                        "FLASK_APP".to_string(),
-                                        format!("/app/{}", filename)
-                                    );
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    if let Some(framework_id) = &stack.framework {
+        if let Some(framework) = registry.get_framework(framework_id.clone()) {
+            env_map.extend(framework.runtime_env_vars());
         }
     }
 
@@ -213,32 +178,16 @@ fn assemble_single_service(
 
     let runtime_copy = template
         .as_ref()
-        .and_then(|t| {
-            let copy_specs: Vec<CopySpec> = t
-                .runtime_copy
+        .map(|t| {
+            t.runtime_copy
                 .iter()
                 .map(|(from, to)| CopySpec {
                     from: from.replace("{project_name}", &project_name),
                     to: to.replace("{project_name}", &project_name),
                 })
-                .collect();
-            if copy_specs.is_empty() {
-                None
-            } else {
-                Some(copy_specs)
-            }
+                .collect()
         })
-        .unwrap_or_else(|| {
-            // Only create default copy spec if there are artifacts to copy
-            if !build.artifacts.is_empty() {
-                vec![CopySpec {
-                    from: build.artifacts.first().cloned().unwrap(),
-                    to: format!("/usr/local/bin/{}", project_name),
-                }]
-            } else {
-                vec![]
-            }
-        });
+        .unwrap_or_default();
 
     let runtime = RuntimeStage {
         packages: runtime_packages,
@@ -257,30 +206,6 @@ fn assemble_single_service(
     })
 }
 
-fn calculate_confidence(result: &ServiceContext) -> f32 {
-    // Stack detection is always High confidence (deterministic)
-    let stack_confidence = crate::pipeline::Confidence::High.to_f32();
-
-    let mut scores = [
-        stack_confidence,
-        result
-            .build
-            .as_ref()
-            .expect("Build must be set")
-            .confidence
-            .to_f32(),
-        result
-            .cache
-            .as_ref()
-            .expect("Cache must be set")
-            .confidence
-            .to_f32(),
-    ];
-
-    scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
-
-    scores.iter().sum::<f32>() / scores.len() as f32
-}
 
 #[cfg(test)]
 mod tests {
@@ -314,7 +239,7 @@ mod tests {
             crate::config::DetectionMode::Full,
         );
 
-        let result = ServiceContext {
+        let _result = ServiceContext {
             service: Arc::new(service),
             analysis_context: Arc::new(analysis_context),
             stack: Some(crate::pipeline::service_context::Stack {
@@ -336,7 +261,5 @@ mod tests {
             }),
         };
 
-        let confidence = calculate_confidence(&result);
-        assert!(confidence >= 0.8);
     }
 }
