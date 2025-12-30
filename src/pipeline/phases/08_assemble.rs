@@ -64,13 +64,28 @@ fn assemble_single_service(
     let manifest_path = service_path.join(&result.service.manifest);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok();
 
-    let template = registry
-        .get_build_system(result.service.build_system.clone())
+    let build_system = registry.get_build_system(result.service.build_system.clone());
+
+    let template = build_system
+        .as_ref()
         .map(|bs| bs.build_template(wolfi_index, &service_path, manifest_content.as_deref()));
 
-    let project_name = extract_project_name(&result.service);
-
-    let confidence = calculate_confidence(result);
+    let project_name = manifest_content
+        .as_deref()
+        .and_then(|content| {
+            build_system
+                .as_ref()
+                .and_then(|bs| bs.parse_package_metadata(content).ok())
+                .map(|(name, _)| name)
+        })
+        .unwrap_or_else(|| {
+            // Fall back to directory name
+            let path = &result.service.path;
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("app")
+                .to_string()
+        });
 
     let stack = result.stack.as_ref().expect("Stack must be set");
     let build_info = result.build.as_ref().expect("Build must be set");
@@ -80,7 +95,7 @@ fn assemble_single_service(
     let runtime_config = result.runtime_config.as_ref();
     let entrypoint_cmd = runtime_config
         .and_then(|rc| rc.entrypoint.clone())
-        .unwrap_or_else(|| "bin/app".to_string());
+        .unwrap_or_else(|| format!("/usr/local/bin/{{project_name}}"));
     let port = runtime_config
         .and_then(|rc| rc.port)
         .or_else(|| {
@@ -103,7 +118,6 @@ fn assemble_single_service(
         language: stack.language.name().to_string(),
         build_system: stack.build_system.name().to_string(),
         framework: stack.framework.as_ref().map(|fw| fw.name().to_string()),
-        confidence,
         reasoning: format!(
             "Detected from {} in {}",
             result.service.manifest,
@@ -129,22 +143,27 @@ fn assemble_single_service(
             .as_ref()
             .map(|t| t.build_packages.clone())
             .unwrap_or_default(),
-        env: HashMap::new(),
-        commands: build_info.build_cmd.clone().into_iter().collect::<Vec<_>>(),
-        cache: cache_paths,
-        artifacts: template
+        env: template
             .as_ref()
-            .map(|t| {
-                t.artifacts
-                    .iter()
-                    .map(|a| a.replace("{project_name}", &project_name))
-                    .collect()
-            })
+            .map(|t| t.build_env.clone())
             .unwrap_or_default(),
+        commands: build_info.build_cmd.clone(),
+        cache: cache_paths,
     };
 
-    // Build env map from runtime_config env_vars (simplified - just var names, no defaults for now)
-    let env_map = HashMap::new(); // TODO: Parse env_vars into key=value pairs
+    let mut env_map = HashMap::new();
+
+    // Add build system runtime environment variables
+    if let Some(ref tmpl) = template {
+        env_map.extend(tmpl.runtime_env.clone());
+    }
+
+    // Add framework-specific runtime environment variables
+    if let Some(framework_id) = &stack.framework {
+        if let Some(framework) = registry.get_framework(framework_id.clone()) {
+            env_map.extend(framework.runtime_env_vars());
+        }
+    }
 
     let entrypoint_replaced = entrypoint_cmd.replace("{project_name}", &project_name);
     let command_parts: Vec<String> = entrypoint_replaced
@@ -157,17 +176,23 @@ fn assemble_single_service(
         runtime.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref())
     };
 
+    let runtime_copy = template
+        .as_ref()
+        .map(|t| {
+            t.runtime_copy
+                .iter()
+                .map(|(from, to)| CopySpec {
+                    from: from.replace("{project_name}", &project_name),
+                    to: to.replace("{project_name}", &project_name),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     let runtime = RuntimeStage {
         packages: runtime_packages,
         env: env_map,
-        copy: vec![CopySpec {
-            from: build
-                .artifacts
-                .first()
-                .cloned()
-                .unwrap_or_else(|| "/app".to_string()),
-            to: "/usr/local/bin/app".to_string(),
-        }],
+        copy: runtime_copy,
         command: command_parts,
         ports: vec![port],
         health: runtime_config.and_then(|rc| rc.health.clone()),
@@ -181,39 +206,6 @@ fn assemble_single_service(
     })
 }
 
-fn extract_project_name(service: &super::service_analysis::Service) -> String {
-    service
-        .path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("app")
-        .to_string()
-}
-
-fn calculate_confidence(result: &ServiceContext) -> f32 {
-    // Stack detection is always High confidence (deterministic)
-    let stack_confidence = crate::pipeline::Confidence::High.to_f32();
-
-    let mut scores = [
-        stack_confidence,
-        result
-            .build
-            .as_ref()
-            .expect("Build must be set")
-            .confidence
-            .to_f32(),
-        result
-            .cache
-            .as_ref()
-            .expect("Cache must be set")
-            .confidence
-            .to_f32(),
-    ];
-
-    scores.sort_by(|a, b| b.partial_cmp(a).unwrap());
-
-    scores.iter().sum::<f32>() / scores.len() as f32
-}
 
 #[cfg(test)]
 mod tests {
@@ -224,30 +216,6 @@ mod tests {
     use crate::pipeline::Confidence;
     use std::path::PathBuf;
     use std::sync::Arc;
-
-    #[test]
-    fn test_extract_project_name() {
-        let service = Service {
-            path: PathBuf::from("apps/web"),
-            manifest: "package.json".to_string(),
-            language: crate::stack::LanguageId::JavaScript,
-            build_system: crate::stack::BuildSystemId::Npm,
-        };
-
-        assert_eq!(extract_project_name(&service), "web");
-    }
-
-    #[test]
-    fn test_extract_project_name_root() {
-        let service = Service {
-            path: PathBuf::from("."),
-            manifest: "Cargo.toml".to_string(),
-            language: crate::stack::LanguageId::Rust,
-            build_system: crate::stack::BuildSystemId::Cargo,
-        };
-
-        assert_eq!(extract_project_name(&service), "app");
-    }
 
     #[test]
     fn test_confidence_calculation() {
@@ -271,7 +239,7 @@ mod tests {
             crate::config::DetectionMode::Full,
         );
 
-        let result = ServiceContext {
+        let _result = ServiceContext {
             service: Arc::new(service),
             analysis_context: Arc::new(analysis_context),
             stack: Some(crate::pipeline::service_context::Stack {
@@ -283,7 +251,7 @@ mod tests {
             }),
             runtime_config: None,
             build: Some(BuildInfo {
-                build_cmd: Some("npm run build".to_string()),
+                build_cmd: vec!["npm run build".to_string()],
                 output_dir: Some(PathBuf::from("dist")),
                 confidence: Confidence::High,
             }),
@@ -293,7 +261,5 @@ mod tests {
             }),
         };
 
-        let confidence = calculate_confidence(&result);
-        assert!(confidence >= 0.8);
     }
 }

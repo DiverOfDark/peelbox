@@ -29,7 +29,7 @@ impl Framework for ExpressFramework {
         vec![3000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string(), "/ping".to_string()]
     }
 
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn test_express_health_endpoints() {
         let framework = ExpressFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health"));
         assert!(endpoints.iter().any(|s| s == "/healthz"));

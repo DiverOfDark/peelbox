@@ -2,7 +2,58 @@
   {
     "build": {
       "artifacts": [
-        "target/release/cli"
+        "target/*.jar"
+      ],
+      "cache": [
+        ".m2/repository",
+        "target"
+      ],
+      "commands": [
+        "mvn package -DskipTests"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/tmp/maven-repo"
+      },
+      "packages": [
+        "openjdk-17",
+        "maven-3.9"
+      ]
+    },
+    "metadata": {
+      "build_system": "Maven",
+      "confidence": 0.949999988079071,
+      "framework": "Spring Boot",
+      "language": "Java",
+      "project_name": "backend",
+      "reasoning": "Detected from pom.xml in backend"
+    },
+    "runtime": {
+      "command": [
+        "/usr/lib/jvm/java-17-openjdk/bin/java",
+        "-jar",
+        "/usr/local/bin/app"
+      ],
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/usr/local/bin/backend"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "openjdk-17-jre"
+      ],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  },
+  {
+    "build": {
+      "artifacts": [
+        "target/release/admin-service"
       ],
       "cache": [
         "target",
@@ -11,13 +62,9 @@
       "commands": [
         "cargo build --release"
       ],
-      "context": [
-        {
-          "from": "cli",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
       "packages": [
         "rust-1.92",
         "build-base"
@@ -28,17 +75,17 @@
       "confidence": 0.949999988079071,
       "framework": "Actix Web",
       "language": "Rust",
-      "project_name": "cli",
+      "project_name": "admin-service",
       "reasoning": "Detected from Cargo.toml in cli"
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/admin-service"
       ],
       "copy": [
         {
-          "from": "target/release/cli",
-          "to": "/usr/local/bin/app"
+          "from": "target/release/admin-service",
+          "to": "/usr/local/bin/admin-service"
         }
       ],
       "env": {},
@@ -66,17 +113,14 @@
         ".npm"
       ],
       "commands": [
-        "npm ci"
+        "mkdir -p /root/.npm && npm ci --cache=/tmp/.npm"
       ],
-      "context": [
-        {
-          "from": "frontend",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "HOME": "/tmp"
+      },
       "packages": [
-        "nodejs-25"
+        "nodejs-25",
+        "npm"
       ]
     },
     "metadata": {
@@ -89,12 +133,12 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/frontend"
       ],
       "copy": [
         {
           "from": "dist/",
-          "to": "/usr/local/bin/app"
+          "to": "/usr/local/bin/frontend"
         }
       ],
       "env": {},
@@ -106,63 +150,6 @@
       ],
       "ports": [
         3000
-      ]
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "artifacts": [
-        "target/*.jar"
-      ],
-      "cache": [
-        ".m2/repository",
-        "target"
-      ],
-      "commands": [
-        "mvn clean package -DskipTests"
-      ],
-      "context": [
-        {
-          "from": "backend",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-17",
-        "maven-3.9"
-      ]
-    },
-    "metadata": {
-      "build_system": "Maven",
-      "confidence": 0.949999988079071,
-      "framework": "Spring Boot",
-      "language": "Java",
-      "project_name": "backend",
-      "reasoning": "Detected from pom.xml in backend"
-    },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "app.jar"
-      ],
-      "copy": [
-        {
-          "from": "target/*.jar",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
-      "packages": [
-        "openjdk-17-jre"
-      ],
-      "ports": [
-        8080
       ]
     },
     "version": "1.0"

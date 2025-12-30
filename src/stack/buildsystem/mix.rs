@@ -60,8 +60,11 @@ impl BuildSystem for MixBuildSystem {
                 "mix compile".to_string(),
             ],
             cache_paths: vec!["_build/".to_string(), "deps/".to_string()],
-            artifacts: vec![],
+            
             common_ports: vec![4000],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

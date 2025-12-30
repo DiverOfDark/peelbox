@@ -36,8 +36,20 @@ impl Framework for FlaskFramework {
         vec![5000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string()]
+    }
+
+    fn runtime_env_vars(&self) -> HashMap<String, String> {
+        let mut env = HashMap::new();
+        env.insert("FLASK_APP".to_string(), "app:app".to_string());
+        env.insert("FLASK_RUN_HOST".to_string(), "0.0.0.0".to_string());
+        env.insert("FLASK_RUN_PORT".to_string(), "8080".to_string());
+        env
+    }
+
+    fn entrypoint_command(&self) -> Option<Vec<String>> {
+        Some(vec!["python".to_string(), "-m".to_string(), "flask".to_string(), "run".to_string()])
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -143,7 +155,7 @@ mod tests {
     #[test]
     fn test_flask_health_endpoints() {
         let framework = FlaskFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health"));
         assert!(endpoints.iter().any(|s| s == "/healthz"));

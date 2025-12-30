@@ -6,6 +6,7 @@ use super::stack::StackIdentificationPhase;
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::{ServicePhase, WorkflowPhase};
 use crate::pipeline::service_context::ServiceContext;
+use crate::stack::detection::DetectionStack;
 use crate::stack::orchestrator::WorkspaceStructure;
 use crate::stack::{BuildSystemId, LanguageId};
 use anyhow::{Context as AnyhowContext, Result};
@@ -67,37 +68,57 @@ impl WorkflowPhase for ServiceAnalysisPhase {
 
 impl ServiceAnalysisPhase {
     /// Convert workspace packages into Service structs by matching with scan detections
+    fn service_from_detection(detection: &DetectionStack, service_path: PathBuf) -> Service {
+        Service {
+            path: service_path,
+            manifest: detection
+                .manifest_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string(),
+            language: detection.language.clone(),
+            build_system: detection.build_system.clone(),
+        }
+    }
+
     fn build_services_from_workspace(
         workspace: &WorkspaceStructure,
         scan: &ScanResult,
     ) -> Vec<Service> {
-        workspace
-            .packages
-            .iter()
-            .filter_map(|package| {
-                // Find detection for this package path
-                scan.detections
-                    .iter()
-                    .find(|detection| {
-                        detection
-                            .manifest_path
-                            .parent()
-                            .unwrap_or_else(|| std::path::Path::new(""))
-                            == package.path
-                    })
-                    .map(|detection| Service {
-                        path: package.path.clone(),
-                        manifest: detection
-                            .manifest_path
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("unknown")
-                            .to_string(),
-                        language: detection.language.clone(),
-                        build_system: detection.build_system.clone(),
-                    })
-            })
-            .collect()
+        // If workspace has packages, use them (workspace orchestrator detected)
+        if !workspace.packages.is_empty() {
+            workspace
+                .packages
+                .iter()
+                .filter_map(|package| {
+                    // Find detection for this package path
+                    scan.detections
+                        .iter()
+                        .find(|detection| {
+                            detection
+                                .manifest_path
+                                .parent()
+                                .unwrap_or_else(|| std::path::Path::new(""))
+                                == package.path
+                        })
+                        .map(|detection| Self::service_from_detection(detection, package.path.clone()))
+                })
+                .collect()
+        } else {
+            // No workspace orchestrator - build Services directly from scan detections
+            scan.detections
+                .iter()
+                .map(|detection| {
+                    let service_path = detection
+                        .manifest_path
+                        .parent()
+                        .unwrap_or_else(|| std::path::Path::new("."))
+                        .to_path_buf();
+                    Self::service_from_detection(detection, service_path)
+                })
+                .collect()
+        }
     }
 
     async fn analyze_service(

@@ -6,20 +6,14 @@
       ],
       "cache": [
         "target",
-        ".cargo",
-        ".cargo",
-        "target"
+        ".cargo"
       ],
       "commands": [
         "cargo build --release"
       ],
-      "context": [
-        {
-          "from": "lib-a",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
       "packages": [
         "rust-1.92",
         "build-base"
@@ -34,12 +28,12 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/lib-a"
       ],
       "copy": [
         {
           "from": "target/release/lib-a",
-          "to": "/usr/local/bin/app"
+          "to": "/usr/local/bin/lib-a"
         }
       ],
       "env": {},
@@ -60,20 +54,14 @@
       ],
       "cache": [
         "target",
-        ".cargo",
-        ".cargo",
-        "target"
+        ".cargo"
       ],
       "commands": [
         "cargo build --release"
       ],
-      "context": [
-        {
-          "from": "lib-b",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
       "packages": [
         "rust-1.92",
         "build-base"
@@ -88,12 +76,12 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/lib-b"
       ],
       "copy": [
         {
           "from": "target/release/lib-b",
-          "to": "/usr/local/bin/app"
+          "to": "/usr/local/bin/lib-b"
         }
       ],
       "env": {},
@@ -114,20 +102,14 @@
       ],
       "cache": [
         "target",
-        ".cargo",
-        ".cargo",
-        "target"
+        ".cargo"
       ],
       "commands": [
         "cargo build --release"
       ],
-      "context": [
-        {
-          "from": "app",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
       "packages": [
         "rust-1.92",
         "build-base"
@@ -142,7 +124,7 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {

@@ -48,7 +48,7 @@ async fn create_person(person: web::Json<Person>) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting server on http://127.0.0.1:8080");
+    println!("Starting server on http://0.0.0.0:8080");
 
     HttpServer::new(|| {
         App::new()
@@ -57,7 +57,7 @@ async fn main() -> std::io::Result<()> {
             .route("/api/person", web::get().to(get_person))
             .route("/api/person", web::post().to(create_person))
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", 8080))?
     .run()
     .await
 }

@@ -11,12 +11,6 @@
       "commands": [
         "cmake -B build -DCMAKE_BUILD_TYPE=Release"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
       "env": {},
       "packages": [
         "build-base",
@@ -33,7 +27,7 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {

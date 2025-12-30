@@ -101,9 +101,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
       "packages": [
         "openjdk-25-jre"
       ],
@@ -160,9 +157,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
       "packages": [
         "openjdk-25-jre"
       ],

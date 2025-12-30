@@ -109,13 +109,15 @@ impl Runtime for PythonRuntime {
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });
 
+        let entrypoint = framework.and_then(|f| f.entrypoint_command()).map(|cmd| cmd.join(" "));
+
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint,
             port,
             env_vars,
             health,

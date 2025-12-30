@@ -280,6 +280,9 @@ impl DetectionService {
                 })
             })?;
 
+        // Ensure unique service names
+        Self::ensure_unique_service_names(&results)?;
+
         // Validate all builds with Wolfi package index
         let validator = crate::validation::Validator::with_wolfi_index(context.wolfi_index.clone());
         for build in &results {
@@ -309,6 +312,31 @@ impl DetectionService {
 
         if !path.is_dir() {
             return Err(ServiceError::NotADirectory(path.to_path_buf()));
+        }
+
+        Ok(())
+    }
+
+    fn ensure_unique_service_names(builds: &[UniversalBuild]) -> Result<(), ServiceError> {
+        use std::collections::HashSet;
+
+        let mut seen_names: HashSet<String> = HashSet::new();
+        let mut duplicates: Vec<String> = Vec::new();
+
+        for build in builds {
+            if let Some(ref name) = build.metadata.project_name {
+                if !seen_names.insert(name.clone()) {
+                    duplicates.push(name.clone());
+                }
+            }
+        }
+
+        if !duplicates.is_empty() {
+            let duplicate_list = duplicates.join(", ");
+            return Err(ServiceError::ConfigError(format!(
+                "Duplicate service names detected: {}. Each service must have a unique name in monorepo.",
+                duplicate_list
+            )));
         }
 
         Ok(())

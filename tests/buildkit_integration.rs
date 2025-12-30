@@ -13,6 +13,8 @@
 /// Usage:
 ///   cargo test --test buildkit_integration -- --nocapture
 
+mod support;
+
 use anyhow::{Context, Result};
 use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
 use bollard::Docker;
@@ -20,134 +22,26 @@ use futures_util::stream::StreamExt;
 use serial_test::serial;
 use std::io::Write;
 use std::process::Stdio;
-use testcontainers::core::{Mount, WaitFor};
-use testcontainers::runners::AsyncRunner;
-use testcontainers::{GenericImage, ImageExt};
+use support::ContainerTestHarness;
 
 /// Shared test fixture: Build aipack image using BuildKit
 /// Returns (image_name, docker_client)
 async fn build_aipack_image(test_name: &str) -> Result<(String, Docker)> {
-    // Start BuildKit container with persistent cache volume
-    // Note: testcontainers 0.23 uses Docker API which automatically creates a volume
-    // The volume persists between test runs for caching
-    let buildkit_container = GenericImage::new("moby/buildkit", "latest")
-        .with_wait_for(WaitFor::message_on_stderr("running server on"))
-        .with_privileged(true)
-        .with_mount(Mount::volume_mount("buildkit-cache", "/var/lib/buildkit"))
-        .start()
-        .await?;
+    let harness = ContainerTestHarness::new()?;
 
-    let container_id = buildkit_container.id();
-
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-
-    // Build aipack binary if not already built
-    let aipack_binary = std::env::current_dir()
-        .context("Failed to get current directory")?
-        .join("target/release/aipack");
-
-    if !aipack_binary.exists() {
-        let build_status = std::process::Command::new("cargo")
-            .args(&["build", "--release", "--bin", "aipack", "--no-default-features"])
-            .status()
-            .context("Failed to build aipack")?;
-
-        if !build_status.success() {
-            anyhow::bail!("Failed to build aipack binary");
-        }
-    }
-
-    // Generate LLB
     let spec_path = std::env::current_dir()
         .context("Failed to get current directory")?
         .join("universalbuild.json");
 
-    let aipack_output = std::process::Command::new(&aipack_binary)
-        .args(&["frontend", "--spec", spec_path.to_str().unwrap()])
-        .output()
-        .context("Failed to run aipack frontend")?;
-
-    if !aipack_output.status.success() {
-        anyhow::bail!(
-            "aipack frontend failed: {}",
-            String::from_utf8_lossy(&aipack_output.stderr)
-        );
-    }
-
-    let llb_data = aipack_output.stdout;
-    assert!(!llb_data.is_empty(), "LLB data should not be empty");
-
-    // Build image with buildctl (unique name per test to avoid conflicts)
-    let image_name = format!("localhost/aipack-test-{}:latest", test_name);
-    let repo_path = std::env::current_dir()
+    let context_path = std::env::current_dir()
         .context("Failed to get current directory")?;
-    let buildkit_addr = format!("docker-container://{}", container_id);
 
-    let mut buildctl = std::process::Command::new("buildctl")
-        .args(&[
-            "--addr", &buildkit_addr,
-            "build",
-            "--progress=plain",
-            "--local", &format!("context={}", repo_path.display()),
-            "--output", &format!("type=docker,name={}", image_name),
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("Failed to spawn buildctl")?;
+    let image_name = format!("localhost/aipack-test-{}:latest", test_name);
 
-    if let Some(mut stdin) = buildctl.stdin.take() {
-        stdin.write_all(&llb_data).context("Failed to write LLB to buildctl stdin")?;
-    }
-
-    let buildctl_output = buildctl.wait_with_output()
-        .context("Failed to wait for buildctl")?;
-
-    if !buildctl_output.status.success() {
-        eprintln!("buildctl stdout:\n{}", String::from_utf8_lossy(&buildctl_output.stdout));
-        eprintln!("buildctl stderr:\n{}", String::from_utf8_lossy(&buildctl_output.stderr));
-        anyhow::bail!("buildctl failed");
-    }
-
-    // Load image into Docker/Podman
-    let cli_cmd = if std::process::Command::new("docker").arg("--version").output().is_ok() {
-        "docker"
-    } else if std::process::Command::new("podman").arg("--version").output().is_ok() {
-        "podman"
-    } else {
-        anyhow::bail!("Neither docker nor podman CLI found");
-    };
-
-    let mut docker_load = std::process::Command::new(cli_cmd)
-        .args(&["load"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("Failed to spawn docker load")?;
-
-    if let Some(mut stdin) = docker_load.stdin.take() {
-        stdin.write_all(&buildctl_output.stdout).context("Failed to write tar to docker load")?;
-    }
-
-    let load_output = docker_load.wait_with_output()
-        .context("Failed to wait for docker load")?;
-
-    if !load_output.status.success() {
-        anyhow::bail!(
-            "docker load failed: {}",
-            String::from_utf8_lossy(&load_output.stderr)
-        );
-    }
+    harness.build_image(&spec_path, &context_path, &image_name).await?;
 
     let docker = Docker::connect_with_local_defaults()
         .context("Failed to connect to Docker/Podman")?;
-
-    // Verify image exists
-    docker.inspect_image(&image_name)
-        .await
-        .context("Failed to inspect image after build")?;
 
     Ok((image_name, docker))
 }
@@ -410,16 +304,8 @@ async fn test_binary_exists_and_executable() -> Result<()> {
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
 
-    let buildkit_container = GenericImage::new("moby/buildkit", "latest")
-        .with_wait_for(WaitFor::message_on_stderr("running server on"))
-        .with_privileged(true)
-        .with_mount(Mount::volume_mount("buildkit-cache", "/var/lib/buildkit"))
-        .start()
-        .await?;
-
-    let container_id = buildkit_container.id();
-
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    // Use the shared BuildKit container to avoid lock conflicts
+    let container_id = support::container_harness::get_buildkit_container().await?;
 
     let aipack_binary = std::env::current_dir()?.join("target/release/aipack");
     if !aipack_binary.exists() {

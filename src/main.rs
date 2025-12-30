@@ -297,21 +297,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         println!("{}", output);
     }
 
-    let lowest_confidence = results
-        .iter()
-        .map(|r| r.metadata.confidence)
-        .min_by(|a, b| a.partial_cmp(b).unwrap())
-        .unwrap_or(1.0);
-
-    if lowest_confidence < 0.7 {
-        warn!(
-            "Detection confidence is low ({:.1}%)",
-            lowest_confidence * 100.0
-        );
-        2
-    } else {
-        0
-    }
+    0
 }
 
 fn mask_api_key(value: &str) -> String {
@@ -574,20 +560,75 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
         }
     };
 
-    // Parse spec
-    let spec: UniversalBuild = match serde_json::from_str(&spec_content) {
-        Ok(s) => s,
-        Err(e) => {
-            error!("Failed to parse spec file: {}", e);
-            eprintln!("Error: Failed to parse spec file: {}", e);
-            return 1;
+    // Parse spec (handle both single object and array formats)
+    let specs = match serde_json::from_str::<Vec<UniversalBuild>>(&spec_content) {
+        Ok(specs) => specs,
+        Err(_) => {
+            // Try parsing as single object
+            match serde_json::from_str::<UniversalBuild>(&spec_content) {
+                Ok(s) => vec![s],
+                Err(e) => {
+                    error!("Failed to parse spec file: {}", e);
+                    eprintln!("Error: Failed to parse spec file: {}", e);
+                    return 1;
+                }
+            }
         }
     };
 
-    debug!("Loaded spec for project: {:?}", spec.metadata.project_name);
+    if specs.is_empty() {
+        error!("Spec file contains empty array");
+        eprintln!("Error: Spec file contains empty array");
+        return 1;
+    }
 
-    // Generate LLB
-    let llb_builder = LLBBuilder::new("context");
+    // Strict service selection for monorepos
+    let spec: UniversalBuild = if specs.len() > 1 {
+        // Multiple services detected - require --service flag
+        if let Some(ref service_name) = _args.service {
+            // Collect available services before moving specs
+            let available_services: Vec<String> = specs
+                .iter()
+                .filter_map(|s| s.metadata.project_name.clone())
+                .collect();
+
+            // Find the service by name
+            match specs.into_iter().find(|s| {
+                s.metadata.project_name.as_ref().map(|n| n == service_name).unwrap_or(false)
+            }) {
+                Some(s) => s,
+                None => {
+                    error!("Service '{}' not found. Available services: {}", service_name, available_services.join(", "));
+                    eprintln!(
+                        "Error: Service '{}' not found in spec.\n\nAvailable services:\n  {}",
+                        service_name,
+                        available_services.join("\n  ")
+                    );
+                    return 1;
+                }
+            }
+        } else {
+            // Multiple services but no --service flag provided
+            let service_list: Vec<String> = specs
+                .iter()
+                .filter_map(|s| s.metadata.project_name.clone())
+                .collect();
+            error!("Multiple services detected but no --service specified");
+            eprintln!(
+                "Error: Multiple services detected in spec.\n\nPlease specify which service to build using --service flag:\n  {}",
+                service_list.join("\n  ")
+            );
+            return 1;
+        }
+    } else {
+        // Single service - use it regardless of --service flag
+        specs.into_iter().next().unwrap()
+    };
+
+    debug!("Selected spec for project: {:?}", spec.metadata.project_name);
+
+    // Generate LLB with the specified context name
+    let llb_builder = LLBBuilder::new(&_args.context_name);
     let llb_bytes = match llb_builder.build(&spec) {
         Ok(bytes) => bytes,
         Err(e) => {

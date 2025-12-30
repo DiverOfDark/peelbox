@@ -80,12 +80,28 @@ impl BuildSystem for PipBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("python"))
             .expect("Failed to get python version from Wolfi index");
 
+        // Derive version-specific pip package from Python version
+        // python-3.14 -> py3.14-pip
+        let pip_package = python_version
+            .strip_prefix("python-")
+            .map(|v| format!("py{}-pip", v))
+            .unwrap_or_else(|| "py3-pip".to_string());
+
         BuildTemplate {
-            build_packages: vec![python_version.clone(), "build-base".to_string()],
-            build_commands: vec!["pip install --no-cache-dir -r requirements.txt".to_string()],
+            build_packages: vec![
+                python_version.clone(),
+                pip_package,
+                "build-base".to_string(),
+            ],
+            build_commands: vec!["pip install --user --no-cache-dir -r requirements.txt".to_string()],
             cache_paths: vec!["/root/.cache/pip/".to_string()],
-            artifacts: vec!["app/".to_string()],
             common_ports: vec![8000, 5000],
+            build_env: std::collections::HashMap::new(),
+            runtime_copy: vec![
+                (".".to_string(), "/app".to_string()),
+                (".local/".to_string(), "/root/.local".to_string()),
+            ],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

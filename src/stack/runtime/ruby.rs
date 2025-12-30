@@ -80,6 +80,31 @@ impl RubyRuntime {
         result.sort();
         result
     }
+
+    fn find_entrypoint(&self, files: &[PathBuf]) -> Option<String> {
+        const ENTRYPOINT_CANDIDATES: &[&str] = &[
+            "config.ru",
+            "app.rb",
+            "server.rb",
+            "main.rb",
+        ];
+
+        let has_gemfile = files.iter().any(|f| f.file_name().and_then(|n| n.to_str()) == Some("Gemfile"));
+
+        for candidate in ENTRYPOINT_CANDIDATES {
+            for file in files {
+                if file.file_name().and_then(|n| n.to_str()) == Some(candidate) {
+                    if has_gemfile {
+                        return Some(format!("bundle exec ruby /app/{}", candidate));
+                    } else {
+                        return Some(format!("ruby /app/{}", candidate));
+                    }
+                }
+            }
+        }
+
+        None
+    }
 }
 
 impl Runtime for RubyRuntime {
@@ -95,17 +120,18 @@ impl Runtime for RubyRuntime {
         let env_vars = self.extract_env_vars(files);
         let native_deps = self.extract_native_deps(files);
         let detected_port = self.extract_ports(files);
+        let entrypoint = self.find_entrypoint(files);
 
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(&[]).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });
 
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint,
             port,
             env_vars,
             health,
@@ -141,7 +167,18 @@ impl Runtime for RubyRuntime {
             .or_else(|| wolfi_index.get_latest_version("ruby"))
             .unwrap_or_else(|| "ruby-3.2".to_string());
 
-        vec![version]
+        let mut packages = vec![version.clone()];
+
+        let gemfile_path = service_path.join("Gemfile");
+        if gemfile_path.exists() {
+            let ruby_ver_num = version.trim_start_matches("ruby-");
+            let bundler_package = format!("ruby{}-bundler", ruby_ver_num);
+            if wolfi_index.has_package(&bundler_package) {
+                packages.push(bundler_package);
+            }
+        }
+
+        packages
     }
 }
 

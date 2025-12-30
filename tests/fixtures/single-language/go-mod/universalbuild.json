@@ -5,9 +5,11 @@
         "app"
       ],
       "cache": [
-        ".cache/go-build"
+        ".cache/go-build",
+        ".cache/go-mod"
       ],
       "commands": [
+        "go mod download",
         "go build -o app ."
       ],
       "context": [
@@ -16,7 +18,11 @@
           "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "GOCACHE": ".cache/go-build",
+        "GOMODCACHE": ".cache/go-mod",
+        "GOSUMDB": "off"
+      },
       "packages": [
         "go-1.21"
       ]
@@ -31,7 +37,7 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {

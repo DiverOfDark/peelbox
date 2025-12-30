@@ -79,7 +79,7 @@ impl Runtime for NodeRuntime {
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(&[]).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });

@@ -22,14 +22,15 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-25",
+        "npm"
       ]
     },
     "metadata": {
       "build_system": "npm",
       "confidence": 0.949999988079071,
       "language": "JavaScript",
-      "project_name": "ui",
+      "project_name": "@monorepo/ui",
       "reasoning": "Detected from package.json in packages/ui"
     },
     "runtime": {
@@ -75,14 +76,15 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-25",
+        "npm"
       ]
     },
     "metadata": {
       "build_system": "npm",
       "confidence": 0.949999988079071,
       "language": "JavaScript",
-      "project_name": "api",
+      "project_name": "@monorepo/api",
       "reasoning": "Detected from package.json in packages/api"
     },
     "runtime": {
@@ -128,7 +130,8 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-25",
+        "npm"
       ]
     },
     "metadata": {
@@ -136,7 +139,7 @@
       "confidence": 0.949999988079071,
       "framework": "Express",
       "language": "JavaScript",
-      "project_name": "web",
+      "project_name": "@monorepo/web",
       "reasoning": "Detected from package.json in apps/web"
     },
     "runtime": {

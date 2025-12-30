@@ -29,7 +29,7 @@ impl Framework for NextJsFramework {
         vec![3000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/api/health".to_string(), "/health".to_string()]
     }
 
@@ -69,9 +69,9 @@ impl Framework for NextJsFramework {
     }
 
     fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
-        if !template.artifacts.iter().any(|a| a.contains(".next")) {
-            template.artifacts.push(".next/".to_string());
-            template.artifacts.push("public/".to_string());
+        if !template.runtime_copy.iter().any(|(from, _)| from.contains(".next")) {
+            template.runtime_copy.push((".next/".to_string(), "/app/.next".to_string()));
+            template.runtime_copy.push(("public/".to_string(), "/app/public".to_string()));
         }
         template
     }
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_nextjs_health_endpoints() {
         let framework = NextJsFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/api/health"));
         assert!(endpoints.iter().any(|s| s == "/health"));

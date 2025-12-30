@@ -9,7 +9,7 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test"
+        "gradle build -x test --no-daemon --console=plain"
       ],
       "context": [
         {

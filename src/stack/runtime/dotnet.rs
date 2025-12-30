@@ -83,6 +83,21 @@ impl DotNetRuntime {
         result.sort();
         result
     }
+
+    fn extract_entrypoint(&self, files: &[PathBuf]) -> Option<String> {
+        for file in files {
+            if let Some(ext) = file.extension() {
+                if ext == "csproj" || ext == "fsproj" || ext == "vbproj" {
+                    let assembly_name = file
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("app");
+                    return Some(format!("dotnet /app/{}.dll", assembly_name));
+                }
+            }
+        }
+        None
+    }
 }
 
 impl Runtime for DotNetRuntime {
@@ -98,17 +113,18 @@ impl Runtime for DotNetRuntime {
         let env_vars = self.extract_env_vars(files);
         let native_deps = self.extract_native_deps(files);
         let detected_port = self.extract_ports(files);
+        let entrypoint = self.extract_entrypoint(files);
 
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(&[]).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });
 
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint,
             port,
             env_vars,
             health,
@@ -144,7 +160,13 @@ impl Runtime for DotNetRuntime {
             .or_else(|| wolfi_index.get_latest_version("dotnet"))
             .unwrap_or_else(|| "dotnet-8".to_string());
 
-        let version = format!("{}-runtime", base_version);
+        // Check if this is an ASP.NET Core application
+        let is_aspnet = manifest_content
+            .map(|content| content.contains("Microsoft.NET.Sdk.Web") || content.contains("Microsoft.AspNetCore"))
+            .unwrap_or(false);
+
+        let package_prefix = if is_aspnet { "aspnet" } else { "dotnet" };
+        let version = format!("{}-{}-runtime", package_prefix, base_version.trim_start_matches("dotnet-"));
         vec![version]
     }
 }

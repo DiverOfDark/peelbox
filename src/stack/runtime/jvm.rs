@@ -89,6 +89,7 @@ impl JvmRuntime {
         result.sort();
         result
     }
+
 }
 
 impl Runtime for JvmRuntime {
@@ -107,14 +108,15 @@ impl Runtime for JvmRuntime {
 
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
+
         let health = framework.and_then(|f| {
-            f.health_endpoints().first().map(|endpoint| HealthCheck {
+            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
                 endpoint: endpoint.to_string(),
             })
         });
 
         Some(RuntimeConfig {
-            entrypoint: Some(self.start_command(Path::new("app.jar"))),
+            entrypoint: Some(self.start_command(Path::new("/usr/local/bin/app"))),
             port,
             env_vars,
             health,
@@ -244,8 +246,8 @@ mod tests {
     #[test]
     fn test_jvm_start_command() {
         let runtime = JvmRuntime;
-        let entrypoint = Path::new("app.jar");
-        assert_eq!(runtime.start_command(entrypoint), "java -jar app.jar");
+        let entrypoint = Path::new("/usr/local/bin/app");
+        assert_eq!(runtime.start_command(entrypoint), "java -jar /usr/local/bin/app");
     }
 
     #[test]

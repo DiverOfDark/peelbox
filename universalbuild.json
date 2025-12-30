@@ -1,49 +1,45 @@
-{
-  "version": "1.0",
-  "metadata": {
-    "project_name": "aipack",
-    "language": "Rust",
-    "build_system": "Cargo",
-    "confidence": 1.0,
-    "reasoning": "Manual spec for aipack binary"
-  },
-  "build": {
-    "packages": [
-      "rust-1.92",
-      "build-base",
-      "openssl-dev"
-    ],
-    "env": {
-      "CARGO_HOME": ".cargo"
+[
+  {
+    "build": {
+      "cache": [
+        "target",
+        ".cargo"
+      ],
+      "commands": [
+        "cargo build --release --no-default-features"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev"
+      ]
     },
-    "commands": [
-      "cargo build --release --bin aipack --no-default-features"
-    ],
-    "cache": [
-      "target",
-      ".cargo"
-    ],
-    "artifacts": [
-      "target/release/aipack"
-    ]
-  },
-  "runtime": {
-    "packages": [
-      "glibc",
-      "ca-certificates"
-    ],
-    "env": {},
-    "copy": [
-      {
-        "from": "target/release/aipack",
-        "to": "/usr/local/bin/aipack"
-      }
-    ],
-    "command": [
-      "/usr/local/bin/aipack",
-      "--help"
-    ],
-    "ports": [],
-    "healthcheck": null
+    "metadata": {
+      "build_system": "Cargo",
+      "language": "Rust",
+      "project_name": "aipack",
+      "reasoning": "Detected from Cargo.toml in "
+    },
+    "runtime": {
+      "command": [
+        "/usr/local/bin/aipack"
+      ],
+      "copy": [
+        {
+          "from": "target/release/aipack",
+          "to": "/usr/local/bin/aipack"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": []
+    },
+    "version": "1.0"
   }
-}
+]

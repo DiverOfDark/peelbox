@@ -1,26 +1,28 @@
 [
   {
     "build": {
-      "artifacts": [
-        "vendor/",
-        "public/"
-      ],
       "cache": [
         ".composer/cache",
         "vendor"
       ],
       "commands": [
-        "composer install --no-dev --optimize-autoloader"
+        "composer config allow-plugins.symfony/runtime true",
+        "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
       ],
       "env": {},
       "packages": [
         "php-8.1",
-        "composer"
+        "composer",
+        "php-8.1-ctype",
+        "php-8.1-phar",
+        "php-8.1-openssl",
+        "php-8.1-mbstring",
+        "php-8.1-xml",
+        "php-8.1-dom"
       ]
     },
     "metadata": {
       "build_system": "Composer",
-      "confidence": 0.949999988079071,
       "framework": "Symfony",
       "language": "PHP",
       "project_name": "app",
@@ -28,12 +30,32 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/bin/php",
+        "-S",
+        "0.0.0.0:8000",
+        "-t",
+        "/app/public"
       ],
       "copy": [
         {
           "from": "vendor/",
-          "to": "/usr/local/bin/app"
+          "to": "/app/vendor"
+        },
+        {
+          "from": "bin/",
+          "to": "/app/bin"
+        },
+        {
+          "from": "public/",
+          "to": "/app/public"
+        },
+        {
+          "from": "src/",
+          "to": "/app/src"
+        },
+        {
+          "from": "config/",
+          "to": "/app/config"
         }
       ],
       "env": {},
@@ -41,7 +63,18 @@
         "endpoint": "/_health"
       },
       "packages": [
-        "php-8.1"
+        "php-8.1",
+        "php-8.1-ctype",
+        "php-8.1-phar",
+        "php-8.1-openssl",
+        "php-8.1-mbstring",
+        "php-8.1-xml",
+        "php-8.1-dom",
+        "php-8.1-curl",
+        "php-8.1-fileinfo",
+        "php-8.1-iconv",
+        "php-8.1-intl",
+        "php-8.1-pdo"
       ],
       "ports": [
         8000

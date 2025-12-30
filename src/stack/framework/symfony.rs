@@ -36,7 +36,7 @@ impl Framework for SymfonyFramework {
         vec![8000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/_health".to_string(), "/health".to_string()]
     }
 
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_symfony_health_endpoints() {
         let framework = SymfonyFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
         assert!(endpoints.iter().any(|s| s == "/_health"));
         assert!(endpoints.iter().any(|s| s == "/health"));
     }

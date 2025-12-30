@@ -36,8 +36,64 @@ cargo test --test e2e test_single_language::rust_cargo_detection
   cargo test --test e2e llm
   ```
 
-### 3. BuildKit Integration Test (`tests/buildkit_integration.rs`)
-End-to-end test that verifies the complete BuildKit frontend workflow:
+### 3. Container Integration Tests (e2e.rs)
+Tests that verify generated UniversalBuild specs produce working containers:
+1. Run detection to generate UniversalBuild JSON
+2. Build container image using BuildKit
+3. Start container and verify it responds to HTTP requests
+4. Perform health checks on declared endpoints
+
+**Requirements:**
+- Docker must be installed and running
+- BuildKit support (enabled by default in Docker 23.0+)
+- buildctl CLI tool available in PATH
+
+**Run container integration tests:**
+```bash
+# Run all container integration tests
+cargo test --test e2e test_container_integration
+
+# Run static mode container tests (faster, no LLM)
+cargo test --test e2e test_container_integration_single_language
+
+# Run full mode container tests (with LLM fallback)
+cargo test --test e2e test_container_integration_single_language_full
+```
+
+**Testable fixtures:**
+- `rust-cargo` (Actix Web, port 8080, /health)
+- `go-mod` (Gin, port 8080, /health)
+- `python-pip` (Flask, port 5000, /health)
+- `python-poetry` (Flask, port 5000, /health)
+- `node-npm` (Express, port 3000, /health)
+- `ruby-bundler` (Sinatra, port 4567, /health)
+- `java-maven` (Spring Boot, port 8080, /actuator/health)
+- `java-gradle` (Spring Boot, port 8080, /actuator/health)
+- `dotnet-csproj` (ASP.NET Core, port 5000, /health)
+- `php-symfony` (Symfony, port 8000, /_health)
+
+**What it validates:**
+1. UniversalBuild spec is syntactically correct
+2. LLB generation succeeds
+3. Container image builds without errors
+4. Container starts successfully
+5. Application listens on declared port
+6. Health check endpoint returns 200 OK
+7. Both static and full detection modes work
+
+**Performance:**
+- First run: ~2-5 minutes per fixture (downloads base images, builds from scratch)
+- Subsequent runs: ~10-30 seconds per fixture (BuildKit layer caching)
+- Static mode tests: Faster (no LLM inference)
+- **Parallel execution: Enabled** - Tests use:
+  - Dynamic port allocation (no port conflicts)
+  - Shared BuildKit container (single instance for all parallel builds)
+  - Concurrent image builds (BuildKit handles parallel requests)
+
+**Note:** BuildKit layer caching significantly speeds up subsequent runs. The cache persists across test runs in a Docker volume named `buildkit-cache`. A single shared BuildKit container handles all parallel builds, avoiding container startup overhead and lock conflicts. Dynamic port allocation prevents port conflicts between parallel test containers.
+
+### 4. BuildKit Integration Test (`tests/buildkit_integration.rs`)
+End-to-end test that verifies the complete BuildKit frontend workflow by building aipack itself:
 1. Generate LLB using aipack frontend
 2. Build container image using BuildKit
 3. Run the built image and verify output
@@ -51,31 +107,13 @@ End-to-end test that verifies the complete BuildKit frontend workflow:
 cargo test --test buildkit_integration -- --nocapture
 ```
 
-**What it does:**
-1. Starts a BuildKit container (`moby/buildkit:latest`)
-2. Builds aipack binary in release mode (if not already built)
-3. Runs `aipack frontend` to generate LLB from `universalbuild.json`
-4. Pipes LLB to `buildctl build` inside the BuildKit container
-5. Exports the built image to local Docker
-6. Runs the image with `--help` flag
-7. Verifies the output contains expected help text
-8. Cleans up containers and images
-
-**Expected output:**
-```
-=== BuildKit Integration Test ===
-✓ Docker is available
-✓ BuildKit container running
-✓ aipack binary available
-✓ Generated LLB: 1234 bytes
-✓ Image built successfully
-✓ Image loaded into Docker
-✓ Image exists in Docker
-✓ Help output is valid
-✓ BuildKit container removed
-✓ Test image removed
-=== ✓ BuildKit Integration Test PASSED ===
-```
+**What it tests:**
+1. Image builds successfully and exists in registry
+2. Built image runs and outputs help text correctly
+3. Distroless layer structure (no wolfi-base in history)
+4. Image size is optimized (< 200MB)
+5. Binary exists at /usr/local/bin/aipack and is executable
+6. Various buildctl output types (OCI and Docker tarballs)
 
 **Note:** This test requires Docker or Podman to be installed and running. If Docker is not available, the test will fail with a connection error.
 

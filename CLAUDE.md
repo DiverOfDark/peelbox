@@ -44,8 +44,10 @@ Before making ANY of these decisions, STOP and re-read the Claude Rules above:
 - Deciding "this can be done later"
 - Choosing not to remove dead code
 - Preserving deprecated functionality
+- **Avoiding implementation due to complexity** (borrow checker, lifetimes, etc.)
+- Simplifying requirements because "it's too hard"
 
-If you're about to do any of these → You're probably violating a rule → ASK THE USER FIRST.
+If you're about to do any of these → You're probably violating a rule → ASK THE USER FIRST OR IMPLEMENT IT PROPERLY.
 
 ## When You MUST Ask the User
 
@@ -71,6 +73,79 @@ Default answer: REMOVE IT. Only keep if user explicitly says to.
 
 ### ❌ WRONG: "OpenSpec says 'minimal changes', so I'll keep old code"
 ### ✅ RIGHT: Project-specific rules (CLAUDE.md) override general guidelines
+
+## Separation of Concerns
+
+**CRITICAL PRINCIPLE:** Each module should have a single, well-defined responsibility.
+
+### Guidelines
+
+1. **BuildSystem Trait**: Responsible ONLY for build-time concerns
+   - Build commands, packages, cache directories
+   - Workspace detection and parsing
+   - Build environment variables
+   - ❌ NEVER include runtime behavior (ports, health checks, entrypoints)
+
+2. **Runtime Trait**: Responsible ONLY for runtime concerns
+   - Runtime packages and base images
+   - Port detection and health checks
+   - Entrypoint discovery
+   - ❌ NEVER include build-specific logic
+
+3. **Framework Trait**: Responsible ONLY for framework-specific patterns
+   - Default ports (e.g., Spring Boot 8080, Flask 5000)
+   - Health endpoints (e.g., /actuator/health, /health)
+   - Framework-specific runtime environment
+   - ❌ NEVER hardcode in detection phases or build systems
+
+4. **Pipeline Phases**: Each phase has a single responsibility
+   - Scan: File tree enumeration only
+   - Classify: Monorepo vs single project
+   - Structure: Workspace topology
+   - Dependencies: Dependency graphs
+   - ❌ NEVER mix concerns across phases
+
+### Examples
+
+#### ❌ WRONG: BuildSystem defining runtime behavior
+```rust
+// In maven.rs build_template()
+common_ports: vec![8080],  // This is runtime concern!
+```
+
+#### ✅ RIGHT: Framework defining default ports
+```rust
+// In springboot.rs
+impl Framework for SpringBootFramework {
+    fn default_ports(&self) -> Vec<u16> {
+        vec![8080]
+    }
+}
+```
+
+#### ❌ WRONG: Hardcoded framework logic in phases
+```rust
+// In assemble.rs
+if language == "Java" && has_spring_dependency() {
+    health = Some("/actuator/health")  // Framework concern!
+}
+```
+
+#### ✅ RIGHT: Framework trait method
+```rust
+// Framework provides health endpoints
+impl Framework for SpringBootFramework {
+    fn health_endpoints(&self, files: &[PathBuf]) -> Vec<String> {
+        if self.has_actuator(files) {
+            vec!["/actuator/health".to_string()]
+        } else {
+            vec![]
+        }
+    }
+}
+```
+
+When in doubt: Ask "Which module is responsible for knowing this?" and implement it there.
 
 ## Before Marking Work Complete
 
@@ -320,6 +395,83 @@ cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
 - BuildKit v0.11.0+ (Docker Desktop 4.17+, Docker Engine 23.0+)
 - buildctl CLI tool
 - Docker or Podman for loading images
+
+### Monorepo Service Selection
+
+When working with monorepos that contain multiple services, aipack requires explicit service selection using the `--service` flag.
+
+#### Detecting Monorepos
+
+```bash
+# Detect all services in a monorepo
+aipack detect /path/to/monorepo
+
+# Output: Array of UniversalBuild specs (one per service)
+# [
+#   {"metadata": {"project_name": "api", ...}, ...},
+#   {"metadata": {"project_name": "web", ...}, ...},
+#   {"metadata": {"project_name": "worker", ...}, ...}
+# ]
+```
+
+#### Building Specific Services
+
+When the spec contains multiple services, the `--service` flag is **required**:
+
+```bash
+# Generate LLB for a specific service
+aipack frontend --spec universalbuild.json --service api > /tmp/llb-api.pb
+
+# Build the API service
+cat /tmp/llb-api.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/monorepo \
+  --output type=docker,name=localhost/api:latest | docker load
+
+# Build the web service
+aipack frontend --spec universalbuild.json --service web > /tmp/llb-web.pb
+cat /tmp/llb-web.pb | buildctl --addr tcp://127.0.0.1:1234 build \
+  --local context=/path/to/monorepo \
+  --output type=docker,name=localhost/web:latest | docker load
+```
+
+#### Single Service Projects
+
+For single-service projects, the `--service` flag is optional:
+
+```bash
+# Both work for single service specs
+aipack frontend --spec universalbuild.json > /tmp/llb.pb
+aipack frontend --spec universalbuild.json --service myapp > /tmp/llb.pb
+```
+
+#### Error Handling
+
+**Multiple services without --service flag:**
+```bash
+$ aipack frontend --spec universalbuild.json
+Error: Multiple services detected in spec.
+
+Please specify which service to build using --service flag:
+  api
+  web
+  worker
+```
+
+**Invalid service name:**
+```bash
+$ aipack frontend --spec universalbuild.json --service invalid
+Error: Service 'invalid' not found in spec.
+
+Available services:
+  api
+  web
+  worker
+```
+
+**Service name uniqueness:** aipack validates that all service names in a monorepo are unique. Detection will fail if duplicate names are found:
+```
+Error: Duplicate service names detected: api. Each service must have a unique name in monorepo.
+```
 
 ## Project Structure
 

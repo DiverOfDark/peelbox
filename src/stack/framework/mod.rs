@@ -7,7 +7,8 @@
 use crate::stack::buildsystem::BuildTemplate;
 use crate::stack::language::Dependency;
 use regex::Regex;
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Dependency pattern for framework detection
 #[derive(Debug, Clone)]
@@ -79,7 +80,18 @@ pub trait Framework: Send + Sync {
     fn default_ports(&self) -> Vec<u16>;
 
     /// Health check endpoints (e.g., ["/actuator/health"] for Spring Boot)
-    fn health_endpoints(&self) -> Vec<String>;
+    /// Takes file list for detecting framework-specific files (e.g., actuator presence)
+    fn health_endpoints(&self, files: &[PathBuf]) -> Vec<String>;
+
+    /// Runtime environment variables specific to this framework
+    fn runtime_env_vars(&self) -> HashMap<String, String> {
+        HashMap::new()
+    }
+
+    /// Entrypoint command for runtime stage (overrides default)
+    fn entrypoint_command(&self) -> Option<Vec<String>> {
+        None
+    }
 
     /// Environment variable patterns (regex, description)
     fn env_var_patterns(&self) -> Vec<(String, String)> {

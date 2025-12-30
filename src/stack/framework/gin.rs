@@ -29,7 +29,7 @@ impl Framework for GinFramework {
         vec![8080]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string(), "/ping".to_string()]
     }
 

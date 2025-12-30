@@ -29,8 +29,19 @@ impl Framework for FastApiFramework {
         vec![8000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string(), "/docs".to_string()]
+    }
+
+    fn entrypoint_command(&self) -> Option<Vec<String>> {
+        Some(vec![
+            "uvicorn".to_string(),
+            "app.main:app".to_string(),
+            "--host".to_string(),
+            "0.0.0.0".to_string(),
+            "--port".to_string(),
+            "8080".to_string(),
+        ])
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -74,7 +85,7 @@ mod tests {
     #[test]
     fn test_fastapi_health_endpoints() {
         let framework = FastApiFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health"));
         assert!(endpoints.iter().any(|s| s == "/docs"));

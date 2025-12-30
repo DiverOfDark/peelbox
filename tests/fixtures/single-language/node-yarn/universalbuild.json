@@ -20,7 +20,8 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-25",
+        "yarn"
       ]
     },
     "metadata": {

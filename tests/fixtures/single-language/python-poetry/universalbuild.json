@@ -2,25 +2,23 @@
   {
     "build": {
       "artifacts": [
-        "dist/",
+        ".",
         ".venv/"
       ],
       "cache": [
-        ".venv",
         ".cache/pypoetry"
       ],
       "commands": [
-        "pip install poetry"
+        "pip install --user poetry",
+        "/root/.local/bin/poetry install --compile --only main --no-root"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "POETRY_CACHE_DIR": "/tmp/poetry-cache",
+        "POETRY_VIRTUALENVS_IN_PROJECT": "true"
+      },
       "packages": [
         "python-3.14",
+        "py3.14-pip",
         "build-base"
       ]
     },
@@ -34,15 +32,22 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/app/.venv/bin/python3",
+        "-m",
+        "flask",
+        "run",
+        "--host=0.0.0.0",
+        "--port=5000"
       ],
       "copy": [
         {
-          "from": "dist/",
-          "to": "/usr/local/bin/app"
+          "from": ".",
+          "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "FLASK_APP": "/app/app.py"
+      },
       "health": {
         "endpoint": "/health"
       },

@@ -166,7 +166,6 @@ mod tests {
                 language: "rust".to_string(),
                 build_system: "cargo".to_string(),
                 framework: None,
-                confidence: 0.95,
                 reasoning: "Detected Cargo.toml with standard Rust project structure".to_string(),
             },
             build: BuildStage {
@@ -174,7 +173,6 @@ mod tests {
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-                artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
@@ -198,11 +196,9 @@ mod tests {
 
         assert!(output.contains("cargo"));
         assert!(output.contains("rust"));
-        assert!(output.contains("confidence"));
 
         // Verify it's valid JSON
-        let parsed: UniversalBuild = serde_json::from_str(&output).unwrap();
-        assert_eq!(parsed.metadata.confidence, 0.95);
+        let _parsed: UniversalBuild = serde_json::from_str(&output).unwrap();
     }
 
     #[test]
@@ -213,7 +209,6 @@ mod tests {
 
         assert!(output.contains("cargo"));
         assert!(output.contains("rust"));
-        assert!(output.contains("0.95"));
 
         // Verify it's valid YAML
         let _parsed: UniversalBuild = serde_yaml::from_str(&output).unwrap();

@@ -9,15 +9,12 @@
         "target"
       ],
       "commands": [
-        "mvn clean package -DskipTests"
+        "mvn package -DskipTests"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/tmp/maven-repo"
+      },
       "packages": [
         "openjdk-17",
         "maven-3.9"
@@ -28,14 +25,14 @@
       "confidence": 0.949999988079071,
       "framework": "Spring Boot",
       "language": "Java",
-      "project_name": "app",
+      "project_name": "example-app",
       "reasoning": "Detected from pom.xml in "
     },
     "runtime": {
       "command": [
-        "java",
+        "/usr/lib/jvm/java-17-openjdk/bin/java",
         "-jar",
-        "app.jar"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {
@@ -44,9 +41,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
       "packages": [
         "openjdk-17-jre"
       ],

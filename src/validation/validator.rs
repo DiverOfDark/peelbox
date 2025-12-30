@@ -1,6 +1,6 @@
 use crate::output::schema::UniversalBuild;
 use crate::validation::rules::{
-    validate_confidence_range, validate_non_empty_commands,
+    validate_non_empty_commands,
     validate_required_fields, validate_valid_copy_specs,
     validate_wolfi_packages,
 };
@@ -27,7 +27,6 @@ impl Validator {
         validate_required_fields(build).map_err(|e| anyhow::anyhow!("[RequiredFields] {}", e))?;
         validate_non_empty_commands(build)
             .map_err(|e| anyhow::anyhow!("[NonEmptyCommands] {}", e))?;
-        validate_confidence_range(build).map_err(|e| anyhow::anyhow!("[ConfidenceRange] {}", e))?;
         validate_valid_copy_specs(build).map_err(|e| anyhow::anyhow!("[ValidCopySpecs] {}", e))?;
 
         if let Some(wolfi_index) = &self.wolfi_index {
@@ -59,7 +58,6 @@ mod tests {
                 language: "rust".to_string(),
                 build_system: "cargo".to_string(),
                 framework: None,
-                confidence: 0.95,
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
@@ -67,7 +65,6 @@ mod tests {
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-                artifacts: vec!["target/release/app".to_string()],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
@@ -108,15 +105,5 @@ mod tests {
         let result = validator.validate(&build);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("NonEmptyCommands"));
-    }
-
-    #[test]
-    fn test_validator_invalid_confidence() {
-        let mut build = create_minimal_valid_build();
-        build.metadata.confidence = 1.5;
-        let validator = Validator::new();
-        let result = validator.validate(&build);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("ConfidenceRange"));
     }
 }

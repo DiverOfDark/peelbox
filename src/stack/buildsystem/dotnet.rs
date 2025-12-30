@@ -86,17 +86,26 @@ impl BuildSystem for DotNetBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("dotnet"))
             .expect("Failed to get dotnet version from Wolfi index");
 
-        let _runtime_version = format!("{}-runtime", dotnet_version);
+        let sdk_package = format!("{}-sdk", dotnet_version);
+
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("DOTNET_SKIP_FIRST_TIME_EXPERIENCE".to_string(), "1".to_string());
+        build_env.insert("DOTNET_CLI_TELEMETRY_OPTOUT".to_string(), "1".to_string());
+        build_env.insert("DOTNET_NOLOGO".to_string(), "1".to_string());
+        build_env.insert("DOTNET_CLI_HOME".to_string(), "/root".to_string());
 
         BuildTemplate {
-            build_packages: vec![dotnet_version],
+            build_packages: vec![sdk_package],
             build_commands: vec![
                 "dotnet restore".to_string(),
                 "dotnet publish -c Release -o out".to_string(),
             ],
             cache_paths: vec!["/root/.nuget/packages/".to_string(), "obj/".to_string()],
-            artifacts: vec!["out/".to_string()],
+            
             common_ports: vec![8080, 5000],
+            build_env,
+            runtime_copy: vec![("out/".to_string(), "/app".to_string())],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

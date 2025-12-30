@@ -2,49 +2,43 @@
   {
     "build": {
       "artifacts": [
-        "dist/",
-        "build/"
+        "dist/"
       ],
       "cache": [
         "node_modules",
         ".npm"
       ],
       "commands": [
-        "npm ci"
+        "mkdir -p /root/.npm && npm ci --cache=/tmp/.npm",
+        "npm run build"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "HOME": "/tmp"
+      },
       "packages": [
-        "nodejs-25"
+        "nodejs-25",
+        "npm"
       ]
     },
     "metadata": {
       "build_system": "npm",
       "confidence": 0.949999988079071,
-      "framework": "Express",
       "language": "JavaScript",
-      "project_name": "app",
-      "reasoning": "Detected from package.json in "
+      "project_name": "example-node-app",
+      "reasoning": "Detected from package-lock.json in "
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "node",
+        "/app/index.js"
       ],
       "copy": [
         {
           "from": "dist/",
-          "to": "/usr/local/bin/app"
+          "to": "/app"
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
         "nodejs-25"
       ],

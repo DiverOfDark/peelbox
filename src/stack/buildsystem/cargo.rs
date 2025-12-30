@@ -68,20 +68,40 @@ impl BuildSystem for CargoBuildSystem {
 
         build_packages.push("build-base".to_string());
 
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("CARGO_HOME".to_string(), ".cargo".to_string());
+
         BuildTemplate {
             build_packages,
             build_commands: vec!["cargo build --release".to_string()],
-            cache_paths: vec![
-                "target/".to_string(),
-                "/usr/local/cargo/registry/".to_string(),
-            ],
-            artifacts: vec!["target/release/{project_name}".to_string()],
+            cache_paths: vec!["target".to_string(), ".cargo".to_string()],
             common_ports: vec![8080],
+            build_env,
+            runtime_copy: vec![(
+                "target/release/{project_name}".to_string(),
+                "/usr/local/bin/{project_name}".to_string(),
+            )],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
         vec!["target".to_string(), ".cargo".to_string()]
+    }
+
+    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+        let name = manifest_content
+            .lines()
+            .find(|line| line.trim().starts_with("name"))
+            .and_then(|line| line.split('=').nth(1))
+            .map(|name| name.trim().trim_matches('"').trim_matches('\'').to_string())
+            .unwrap_or_else(|| "app".to_string());
+
+        // Cargo projects are applications by default (bin target)
+        // Libraries have [[lib]] section
+        let is_application = !manifest_content.contains("[[lib]]") || manifest_content.contains("[[bin]]");
+
+        Ok((name, is_application))
     }
 
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {

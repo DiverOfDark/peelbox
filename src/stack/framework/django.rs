@@ -36,8 +36,17 @@ impl Framework for DjangoFramework {
         vec![8000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health/".to_string(), "/healthz/".to_string(), "/ping/".to_string()]
+    }
+
+    fn entrypoint_command(&self) -> Option<Vec<String>> {
+        Some(vec![
+            "python".to_string(),
+            "manage.py".to_string(),
+            "runserver".to_string(),
+            "0.0.0.0:8080".to_string(),
+        ])
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -161,7 +170,7 @@ mod tests {
     #[test]
     fn test_django_health_endpoints() {
         let framework = DjangoFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health/"));
         assert!(endpoints.iter().any(|s| s == "/healthz/"));

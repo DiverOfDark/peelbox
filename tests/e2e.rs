@@ -7,11 +7,15 @@
 //!
 //! Tests use RecordingMode::Auto to replay cached LLM responses for deterministic testing.
 
+mod support;
+
 use aipack::output::schema::UniversalBuild;
 use serial_test::serial;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Duration;
+use support::ContainerTestHarness;
 use yare::parameterized;
 
 /// Setup test APKINDEX cache from committed snapshot
@@ -175,12 +179,6 @@ fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixtur
     assert!(
         !results[0].build.commands.is_empty(),
         "Build commands should not be empty"
-    );
-
-    assert!(
-        results[0].metadata.confidence >= 0.5,
-        "Confidence should be at least 0.5, got {}",
-        results[0].metadata.confidence
     );
 
     // Load and validate against expected JSON (required, same for all modes)
@@ -359,4 +357,152 @@ fn test_edge_cases(fixture_name: &str, mode: Option<&str>) {
     );
     let results = run_detection_with_mode(fixture, &test_name, mode).expect("Detection failed");
     assert_detection_with_mode(&results, "edge-cases", fixture_name, mode);
+}
+
+//
+// Container Integration Tests
+//
+
+/// Helper to load port, health endpoint (optional), and command from committed universalbuild.json
+fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16, Option<String>, Vec<String>, Vec<String>)> {
+    let spec_path = PathBuf::from("tests/fixtures")
+        .join(category)
+        .join(fixture_name)
+        .join("universalbuild.json");
+
+    if !spec_path.exists() {
+        return None;
+    }
+
+    let content = std::fs::read_to_string(&spec_path).ok()?;
+    let ub: Vec<UniversalBuild> = serde_json::from_str(&content)
+        .or_else(|_| {
+            serde_json::from_str::<UniversalBuild>(&content).map(|single| vec![single])
+        })
+        .ok()?;
+
+    let first = ub.first()?;
+    let port = first.runtime.ports.first().copied()?;
+    let health = first.runtime.health.as_ref().map(|h| h.endpoint.clone());
+    let command = first.runtime.command.clone();
+    let env: Vec<String> = first.runtime.env.iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect();
+
+    Some((port, health, command, env))
+}
+
+/// Helper to run container integration test for a single fixture
+async fn run_container_integration_test(
+    category: &str,
+    fixture_name: &str,
+) -> Result<(), String> {
+    // Setup test APKINDEX cache
+    setup_test_apkindex_cache();
+
+    let fixture_path = fixture_path(category, fixture_name);
+
+    // Get port, health endpoint, command, and env from committed universalbuild.json
+    let (port, health_path, cmd, env) = get_fixture_container_info(category, fixture_name)
+        .ok_or_else(|| format!("No container info found for fixture {}", fixture_name))?;
+
+    // Use committed universalbuild.json directly
+    let spec_path = fixture_path.join("universalbuild.json");
+
+    if !spec_path.exists() {
+        return Err(format!(
+            "universalbuild.json not found for fixture {}",
+            fixture_name
+        ));
+    }
+
+    // Build and test container
+    let harness = ContainerTestHarness::new()
+        .map_err(|e| format!("Failed to create harness: {}", e))?;
+
+    let image_name = format!(
+        "localhost/aipack-test-{}-{}:latest",
+        category.replace("/", "-"),
+        fixture_name
+    );
+
+    let image = harness
+        .build_image(&spec_path, &fixture_path, &image_name)
+        .await
+        .map_err(|e| format!("Failed to build image: {}", e))?;
+
+    let container_id = harness
+        .start_container(&image, port, Some(cmd), if env.is_empty() { None } else { Some(env) })
+        .await
+        .map_err(|e| format!("Failed to start container: {}", e))?;
+
+    // Get the dynamically assigned host port
+    let host_port = harness
+        .get_host_port(&container_id, port)
+        .await
+        .map_err(|e| format!("Failed to get host port: {}", e))?;
+
+    // Wait for port to be accessible (30s timeout)
+    let wait_result = harness
+        .wait_for_port(&container_id, host_port, Duration::from_secs(30))
+        .await;
+
+    if wait_result.is_err() {
+        let logs = harness
+            .get_container_logs(&container_id)
+            .await
+            .unwrap_or_default();
+        let _ = harness.cleanup_container(&container_id).await;
+        let _ = harness.cleanup_image(&image_name).await;
+        return Err(format!(
+            "Container failed to start on port {} (container port {} -> host port {}): {:?}\nLogs:\n{}",
+            port, port, host_port, wait_result, logs
+        ));
+    }
+
+    // Perform health check if endpoint is defined (10s timeout)
+    if let Some(health_endpoint) = health_path {
+        let health_ok = harness
+            .http_health_check(host_port, &health_endpoint, Duration::from_secs(10))
+            .await
+            .map_err(|e| format!("Health check failed: {}", e))?;
+
+        if !health_ok {
+            let _ = harness.cleanup_container(&container_id).await;
+            let _ = harness.cleanup_image(&image_name).await;
+            return Err(format!(
+                "Health check returned non-2xx status for {}",
+                health_endpoint
+            ));
+        }
+    }
+
+    // Cleanup
+    let _ = harness.cleanup_container(&container_id).await;
+    let _ = harness.cleanup_image(&image_name).await;
+
+    Ok(())
+}
+
+/// Container integration test for single-language fixtures
+/// Tests run in parallel using dynamic port allocation
+#[parameterized(
+    rust_cargo = { "rust-cargo" },
+    go_mod = { "go-mod" },
+    python_pip = { "python-pip" },
+    python_poetry = { "python-poetry" },
+    node_npm = { "node-npm" },
+    ruby_bundler = { "ruby-bundler" },
+    java_maven = { "java-maven" },
+    java_gradle = { "java-gradle" },
+    dotnet_csproj = { "dotnet-csproj" },
+    php_symfony = { "php-symfony" },
+)]
+fn test_container_integration_single_language(fixture_name: &str) {
+    let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    runtime.block_on(async {
+        run_container_integration_test("single-language", fixture_name)
+            .await
+            .expect("Container integration test failed");
+    });
 }

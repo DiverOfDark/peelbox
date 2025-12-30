@@ -53,18 +53,28 @@ impl BuildSystem for PipenvBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("python"))
             .expect("Failed to get python version from Wolfi index");
 
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("PIPENV_CACHE_DIR".to_string(), "/root/.cache/pipenv".to_string());
+
         BuildTemplate {
-            build_packages: vec![python_version.clone(), "build-base".to_string()],
+            build_packages: vec![
+                python_version.clone(),
+                "py3-pip".to_string(),
+                "build-base".to_string(),
+            ],
             build_commands: vec![
-                "pip install pipenv".to_string(),
+                "pip install --break-system-packages pipenv".to_string(),
                 "pipenv install --deploy".to_string(),
             ],
             cache_paths: vec![
                 "/root/.cache/pip/".to_string(),
                 "/root/.cache/pipenv/".to_string(),
             ],
-            artifacts: vec!["Pipfile".to_string()],
+            
             common_ports: vec![8000, 5000],
+            build_env,
+            runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

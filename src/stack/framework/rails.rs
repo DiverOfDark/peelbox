@@ -29,7 +29,7 @@ impl Framework for RailsFramework {
         vec![3000]
     }
 
-    fn health_endpoints(&self) -> Vec<String> {
+    fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
         vec!["/health".to_string(), "/healthz".to_string(), "/up".to_string()]
     }
 
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn test_rails_health_endpoints() {
         let framework = RailsFramework;
-        let endpoints = framework.health_endpoints();
+        let endpoints = framework.health_endpoints(&[]);
 
         assert!(endpoints.iter().any(|s| s == "/health"));
         assert!(endpoints.iter().any(|s| s == "/up"));
