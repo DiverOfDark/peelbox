@@ -729,11 +729,11 @@ The e2e test suite supports three detection modes to validate both LLM and stati
 
 ### Detection Modes
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `full` | LLM + static analysis (default) | Normal operation - deterministic first, LLM fallback |
-| `static` | Static analysis only, no LLM | Fast CI tests, validate deterministic detection |
-| `llm` | LLM-only detection | Test LLM code paths specifically |
+| Mode     | Description                     | Use Case                                             |
+|----------|---------------------------------|------------------------------------------------------|
+| `full`   | LLM + static analysis (default) | Normal operation - deterministic first, LLM fallback |
+| `static` | Static analysis only, no LLM    | Fast CI tests, validate deterministic detection      |
+| `llm`    | LLM-only detection              | Test LLM code paths specifically                     |
 
 ### Test Organization
 

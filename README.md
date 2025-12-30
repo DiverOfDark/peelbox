@@ -63,9 +63,6 @@ Automatically analyzes repositories and generates secure, minimal container imag
 aipack requires BuildKit v0.11.0+ for image building:
 
 ```bash
-# Docker Desktop 4.17+ (includes BuildKit)
-# or Docker Engine 23.0+
-
 # Verify BuildKit
 docker buildx version
 
@@ -587,20 +584,20 @@ For more examples:
 
 ## Supported Languages
 
-| Language | Build Systems | Wolfi Packages | Confidence |
-|----------|---------------|----------------|------------|
-| Rust | cargo | `rust`, `build-base` | ✓✓✓ |
-| JavaScript | npm, yarn, pnpm, bun | `nodejs-22`, `nodejs-20` | ✓✓✓ |
-| TypeScript | npm, yarn, pnpm | `nodejs-22` | ✓✓✓ |
-| Java | maven, gradle | `openjdk-21`, `openjdk-21-jre`, `maven`, `gradle` | ✓✓✓ |
-| Kotlin | gradle, maven | `openjdk-21`, `gradle` | ✓✓ |
-| Python | pip, poetry, pipenv | `python-3.12`, `py3-pip` | ✓✓✓ |
-| Go | go mod | `go`, `build-base` | ✓✓✓ |
-| C# / F# | dotnet | `dotnet-8`, `dotnet-8-runtime` | ✓✓ |
-| Ruby | bundler | `ruby-3.3`, `bundler` | ✓✓ |
-| PHP | composer | `php-8.3`, `composer` | ✓✓ |
-| C++ | cmake, make | `build-base`, `cmake` | ✓✓ |
-| Elixir | mix | `elixir`, `erlang` | ✓✓ |
+| Language   | Build Systems        | Wolfi Packages                                    | Confidence |
+|------------|----------------------|---------------------------------------------------|------------|
+| Rust       | cargo                | `rust`, `build-base`                              | ✓✓✓        |
+| JavaScript | npm, yarn, pnpm, bun | `nodejs-22`, `nodejs-20`                          | ✓✓✓        |
+| TypeScript | npm, yarn, pnpm      | `nodejs-22`                                       | ✓✓✓        |
+| Java       | maven, gradle        | `openjdk-21`, `openjdk-21-jre`, `maven`, `gradle` | ✓✓✓        |
+| Kotlin     | gradle, maven        | `openjdk-21`, `gradle`                            | ✓✓         |
+| Python     | pip, poetry, pipenv  | `python-3.12`, `py3-pip`                          | ✓✓✓        |
+| Go         | go mod               | `go`, `build-base`                                | ✓✓✓        |
+| C# / F#    | dotnet               | `dotnet-8`, `dotnet-8-runtime`                    | ✓✓         |
+| Ruby       | bundler              | `ruby-3.3`, `bundler`                             | ✓✓         |
+| PHP        | composer             | `php-8.3`, `composer`                             | ✓✓         |
+| C++        | cmake, make          | `build-base`, `cmake`                             | ✓✓         |
+| Elixir     | mix                  | `elixir`, `erlang`                                | ✓✓         |
 
 ## Documentation
 
@@ -702,7 +699,6 @@ Error: Package 'nodejs' not found. Did you mean: nodejs-22, nodejs-20, nodejs-18
 # Use version-specific package
 build.packages = ["nodejs-22"]
 ```
-
 
 ## Acknowledgments
 
