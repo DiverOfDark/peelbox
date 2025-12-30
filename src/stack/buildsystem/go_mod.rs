@@ -84,22 +84,34 @@ impl BuildSystem for GoModBuildSystem {
             })
             .expect("Failed to get go version from Wolfi index");
 
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("GOCACHE".to_string(), ".cache/go-build".to_string());
+        build_env.insert("GOMODCACHE".to_string(), ".cache/go-mod".to_string());
+        build_env.insert("GOSUMDB".to_string(), "off".to_string());
+
         BuildTemplate {
             build_packages: vec![go_package],
-            build_commands: vec!["go build -o app .".to_string()],
+            build_commands: vec![
+                "go mod download".to_string(),
+                "go build -o app .".to_string(),
+            ],
             cache_paths: vec![
-                "/go/pkg/mod/".to_string(),
-                "/root/.cache/go-build/".to_string(),
+                ".cache/go-build".to_string(),
+                ".cache/go-mod".to_string(),
             ],
             artifacts: vec!["app".to_string()],
             common_ports: vec![8080],
-            build_env: std::collections::HashMap::new(),
+            build_env,
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".cache/go-build".to_string()]
+        vec![
+            ".cache/go-build".to_string(),
+            ".cache/go-mod".to_string(),
+        ]
     }
     fn workspace_configs(&self) -> Vec<String> {
         vec!["go.work".to_string()]

@@ -46,7 +46,7 @@ impl LanguageDefinition for DotNetLanguage {
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
-        vec!["bin".to_string(), "obj".to_string(), ".nuget".to_string()]
+        vec!["bin/Debug".to_string(), "bin/Release".to_string(), "obj".to_string(), ".nuget".to_string()]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
@@ -256,7 +256,8 @@ mod tests {
     #[test]
     fn test_excluded_dirs() {
         let lang = DotNetLanguage;
-        assert!(lang.excluded_dirs().iter().any(|s| s == "bin"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "bin/Debug"));
+        assert!(lang.excluded_dirs().iter().any(|s| s == "bin/Release"));
         assert!(lang.excluded_dirs().iter().any(|s| s == "obj"));
         assert!(lang.excluded_dirs().iter().any(|s| s == ".nuget"));
     }

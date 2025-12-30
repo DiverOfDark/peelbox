@@ -16,18 +16,13 @@
 mod support;
 
 use anyhow::{Context, Result};
-use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions};
-#[allow(unused_imports)]
-use bollard::container::WaitContainerOptions;
+use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use serial_test::serial;
 use std::io::Write;
 use std::process::Stdio;
 use support::ContainerTestHarness;
-use testcontainers::core::{Mount, WaitFor};
-use testcontainers::runners::AsyncRunner;
-use testcontainers::{GenericImage, ImageExt};
 
 /// Shared test fixture: Build aipack image using BuildKit
 /// Returns (image_name, docker_client)

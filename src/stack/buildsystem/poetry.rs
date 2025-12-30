@@ -64,21 +64,40 @@ impl BuildSystem for PoetryBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("python"))
             .expect("Failed to get python version from Wolfi index");
 
+        // Derive version-specific pip package from Python version
+        // python-3.14 -> py3.14-pip
+        let pip_package = python_version
+            .strip_prefix("python-")
+            .map(|v| format!("py{}-pip", v))
+            .unwrap_or_else(|| "py3-pip".to_string());
+
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("POETRY_CACHE_DIR".to_string(), "/tmp/poetry-cache".to_string());
+        build_env.insert("POETRY_VIRTUALENVS_IN_PROJECT".to_string(), "true".to_string());
+
         BuildTemplate {
-            build_packages: vec![python_version.clone(), "build-base".to_string()],
-            build_commands: vec![
-                "pip install poetry".to_string(),
-                "poetry install --no-dev".to_string(),
+            build_packages: vec![
+                python_version.clone(),
+                pip_package,
+                "build-base".to_string(),
             ],
-            cache_paths: vec![".venv/".to_string(), "/root/.cache/pypoetry/".to_string()],
-            artifacts: vec!["dist/".to_string(), ".venv/".to_string()],
+            build_commands: vec![
+                "pip install --user poetry".to_string(),
+                "/root/.local/bin/poetry install --compile --only main --no-root".to_string(),
+            ],
+            cache_paths: vec!["/tmp/poetry-cache/".to_string()],
+            artifacts: vec![".".to_string(), ".venv/".to_string()],
             common_ports: vec![8000, 5000],
-            build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
+            build_env,
+            runtime_copy: vec![
+                (".".to_string(), "/app".to_string()),
+                (".venv/".to_string(), "/app/.venv".to_string()),
+            ],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".venv".to_string(), ".cache/pypoetry".to_string()]
+        vec![".cache/pypoetry".to_string()]
     }
 }

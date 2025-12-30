@@ -67,6 +67,7 @@ impl BuildSystem for CMakeBuildSystem {
             common_ports: vec![8080],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

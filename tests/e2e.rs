@@ -369,8 +369,8 @@ fn test_edge_cases(fixture_name: &str, mode: Option<&str>) {
 // Container Integration Tests
 //
 
-/// Helper to load port, health endpoint, and command from committed universalbuild.json
-fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16, String, Vec<String>)> {
+/// Helper to load port, health endpoint (optional), and command from committed universalbuild.json
+fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16, Option<String>, Vec<String>, Vec<String>)> {
     let spec_path = PathBuf::from("tests/fixtures")
         .join(category)
         .join(fixture_name)
@@ -389,10 +389,13 @@ fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16
 
     let first = ub.first()?;
     let port = first.runtime.ports.first().copied()?;
-    let health = first.runtime.health.as_ref()?.endpoint.clone();
+    let health = first.runtime.health.as_ref().map(|h| h.endpoint.clone());
     let command = first.runtime.command.clone();
+    let env: Vec<String> = first.runtime.env.iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect();
 
-    Some((port, health, command))
+    Some((port, health, command, env))
 }
 
 /// Helper to run container integration test for a single fixture
@@ -405,8 +408,8 @@ async fn run_container_integration_test(
 
     let fixture_path = fixture_path(category, fixture_name);
 
-    // Get port, health endpoint, and command from committed universalbuild.json
-    let (port, health_path, cmd) = get_fixture_container_info(category, fixture_name)
+    // Get port, health endpoint, command, and env from committed universalbuild.json
+    let (port, health_path, cmd, env) = get_fixture_container_info(category, fixture_name)
         .ok_or_else(|| format!("No container info found for fixture {}", fixture_name))?;
 
     // Use committed universalbuild.json directly
@@ -435,7 +438,7 @@ async fn run_container_integration_test(
         .map_err(|e| format!("Failed to build image: {}", e))?;
 
     let container_id = harness
-        .start_container(&image, port, Some(cmd))
+        .start_container(&image, port, Some(cmd), if env.is_empty() { None } else { Some(env) })
         .await
         .map_err(|e| format!("Failed to start container: {}", e))?;
 
@@ -463,22 +466,26 @@ async fn run_container_integration_test(
         ));
     }
 
-    // Perform health check (10s timeout)
-    let health_ok = harness
-        .http_health_check(host_port, &health_path, Duration::from_secs(10))
-        .await
-        .map_err(|e| format!("Health check failed: {}", e))?;
+    // Perform health check if endpoint is defined (10s timeout)
+    if let Some(health_endpoint) = health_path {
+        let health_ok = harness
+            .http_health_check(host_port, &health_endpoint, Duration::from_secs(10))
+            .await
+            .map_err(|e| format!("Health check failed: {}", e))?;
+
+        if !health_ok {
+            let _ = harness.cleanup_container(&container_id).await;
+            let _ = harness.cleanup_image(&image_name).await;
+            return Err(format!(
+                "Health check returned non-2xx status for {}",
+                health_endpoint
+            ));
+        }
+    }
 
     // Cleanup
     let _ = harness.cleanup_container(&container_id).await;
     let _ = harness.cleanup_image(&image_name).await;
-
-    if !health_ok {
-        return Err(format!(
-            "Health check returned non-2xx status for {}",
-            health_path
-        ));
-    }
 
     Ok(())
 }

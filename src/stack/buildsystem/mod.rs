@@ -24,6 +24,8 @@ pub struct BuildTemplate {
     /// Patterns support {project_name} placeholder
     #[serde(default)]
     pub runtime_copy: Vec<(String, String)>,
+    #[serde(default)]
+    pub runtime_env: std::collections::HashMap<String, String>,
 }
 
 /// Manifest pattern for build system detection

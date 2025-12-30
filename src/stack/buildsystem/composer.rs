@@ -95,14 +95,33 @@ impl BuildSystem for ComposerBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("php"))
             .expect("Failed to get php version from Wolfi index");
 
+        let required_extensions = vec!["ctype", "phar", "openssl", "mbstring", "xml", "dom"];
+        let extension_packages: Vec<String> = required_extensions
+            .iter()
+            .map(|ext| format!("{}-{}", php_version, ext))
+            .collect();
+
+        let mut build_packages = vec![php_version.clone(), "composer".to_string()];
+        build_packages.extend(extension_packages);
+
         BuildTemplate {
-            build_packages: vec![php_version.clone(), "composer".to_string()],
-            build_commands: vec!["composer install --no-dev --optimize-autoloader".to_string()],
+            build_packages,
+            build_commands: vec![
+                "composer config allow-plugins.symfony/runtime true".to_string(),
+                "composer install --no-dev --optimize-autoloader --ignore-platform-reqs".to_string(),
+            ],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
-            artifacts: vec!["vendor/".to_string(), "public/".to_string()],
+            artifacts: vec!["vendor/".to_string(), "bin/".to_string(), "public/".to_string(), "src/".to_string(), "config/".to_string()],
             common_ports: vec![9000, 80],
             build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
+            runtime_copy: vec![
+                ("vendor/".to_string(), "/app/vendor".to_string()),
+                ("bin/".to_string(), "/app/bin".to_string()),
+                ("public/".to_string(), "/app/public".to_string()),
+                ("src/".to_string(), "/app/src".to_string()),
+                ("config/".to_string(), "/app/config".to_string()),
+            ],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

@@ -80,9 +80,8 @@ fn assemble_single_service(
         })
         .unwrap_or_else(|| {
             // Fall back to directory name
-            result.service
-                .path
-                .file_name()
+            let path = &result.service.path;
+            path.file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("app")
                 .to_string()
@@ -151,7 +150,7 @@ fn assemble_single_service(
             .as_ref()
             .map(|t| t.build_env.clone())
             .unwrap_or_default(),
-        commands: build_info.build_cmd.clone().into_iter().collect::<Vec<_>>(),
+        commands: build_info.build_cmd.clone(),
         cache: cache_paths,
         artifacts: template
             .as_ref()
@@ -164,8 +163,42 @@ fn assemble_single_service(
             .unwrap_or_default(),
     };
 
-    // Build env map from runtime_config env_vars (simplified - just var names, no defaults for now)
-    let env_map = HashMap::new(); // TODO: Parse env_vars into key=value pairs
+    let mut env_map = HashMap::new();
+
+    // Add build system runtime environment variables
+    if let Some(ref tmpl) = template {
+        env_map.extend(tmpl.runtime_env.clone());
+    }
+
+    // Add framework-specific runtime environment variables
+    if let Some(framework) = &stack.framework {
+        if *framework == crate::stack::FrameworkId::AspNetCore {
+            env_map.insert(
+                "ASPNETCORE_URLS".to_string(),
+                format!("http://0.0.0.0:{}", port)
+            );
+        } else if *framework == crate::stack::FrameworkId::Flask {
+            // Find the Flask app file (look for .py files with Flask imports)
+            if let Ok(entries) = std::fs::read_dir(&service_path) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) == Some("py") {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            if content.contains("from flask import") || content.contains("import flask") {
+                                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                                    env_map.insert(
+                                        "FLASK_APP".to_string(),
+                                        format!("/app/{}", filename)
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let entrypoint_replaced = entrypoint_cmd.replace("{project_name}", &project_name);
     let command_parts: Vec<String> = entrypoint_replaced
@@ -196,14 +229,15 @@ fn assemble_single_service(
             }
         })
         .unwrap_or_else(|| {
-            vec![CopySpec {
-                from: build
-                    .artifacts
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "/app".to_string()),
-                to: format!("/usr/local/bin/{}", project_name),
-            }]
+            // Only create default copy spec if there are artifacts to copy
+            if !build.artifacts.is_empty() {
+                vec![CopySpec {
+                    from: build.artifacts.first().cloned().unwrap(),
+                    to: format!("/usr/local/bin/{}", project_name),
+                }]
+            } else {
+                vec![]
+            }
         });
 
     let runtime = RuntimeStage {
@@ -292,7 +326,7 @@ mod tests {
             }),
             runtime_config: None,
             build: Some(BuildInfo {
-                build_cmd: Some("npm run build".to_string()),
+                build_cmd: vec!["npm run build".to_string()],
                 output_dir: Some(PathBuf::from("dist")),
                 confidence: Confidence::High,
             }),

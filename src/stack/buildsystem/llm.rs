@@ -198,6 +198,7 @@ Identify manifest files and their build systems. Return JSON array:
                     common_ports: info.common_ports.clone(),
                     build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
                 }
             })
             .unwrap_or_else(|| BuildTemplate {
@@ -208,6 +209,7 @@ Identify manifest files and their build systems. Return JSON array:
                 common_ports: vec![],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
             })
     }
 

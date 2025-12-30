@@ -2,23 +2,19 @@
   {
     "build": {
       "artifacts": [
-        "app/"
+        ".",
+        "/root/.local/"
       ],
       "cache": [
         ".cache/pip"
       ],
       "commands": [
-        "pip install --no-cache-dir -r requirements.txt"
-      ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
+        "pip install --user --no-cache-dir -r requirements.txt"
       ],
       "env": {},
       "packages": [
         "python-3.14",
+        "py3.14-pip",
         "build-base"
       ]
     },
@@ -32,15 +28,26 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/bin/python3",
+        "-m",
+        "flask",
+        "run",
+        "--host=0.0.0.0",
+        "--port=5000"
       ],
       "copy": [
         {
-          "from": "app/",
-          "to": "/usr/local/bin/app"
+          "from": ".",
+          "to": "/app"
+        },
+        {
+          "from": ".local/",
+          "to": "/root/.local"
         }
       ],
-      "env": {},
+      "env": {
+        "FLASK_APP": "/app/app.py"
+      },
       "health": {
         "endpoint": "/health"
       },

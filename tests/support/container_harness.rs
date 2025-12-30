@@ -246,10 +246,11 @@ impl ContainerTestHarness {
     /// Start a container from an image with dynamic port binding
     /// Returns the container ID
     /// The container_port will be bound to a random available host port
-    pub async fn start_container(&self, image_name: &str, container_port: u16, cmd: Option<Vec<String>>) -> Result<String> {
+    pub async fn start_container(&self, image_name: &str, container_port: u16, cmd: Option<Vec<String>>, env: Option<Vec<String>>) -> Result<String> {
         let container_config = Config {
             image: Some(image_name.to_string()),
             cmd,
+            env,
             exposed_ports: Some(
                 [(format!("{}/tcp", container_port), std::collections::HashMap::new())]
                     .into_iter()
@@ -342,7 +343,7 @@ impl ContainerTestHarness {
             .context("Timeout waiting for port")?
     }
 
-    /// Perform HTTP health check
+    /// Perform HTTP health check with retries
     pub async fn http_health_check(
         &self,
         port: u16,
@@ -351,13 +352,25 @@ impl ContainerTestHarness {
     ) -> Result<bool> {
         let url = format!("http://127.0.0.1:{}{}", port, path);
         let client = reqwest::Client::builder()
-            .timeout(timeout_duration)
+            .timeout(Duration::from_secs(5))
             .build()?;
 
-        match client.get(&url).send().await {
-            Ok(response) => Ok(response.status().is_success()),
-            Err(_) => Ok(false),
-        }
+        let check = async {
+            loop {
+                match client.get(&url).send().await {
+                    Ok(response) if response.status().is_success() => return Ok(true),
+                    Ok(_) => return Ok(false), // Non-2xx status
+                    Err(_) => {
+                        // Connection error, retry
+                        tokio::time::sleep(Duration::from_millis(200)).await;
+                    }
+                }
+            }
+        };
+
+        timeout(timeout_duration, check)
+            .await
+            .unwrap_or(Ok(false))
     }
 
     /// Stop and remove a container

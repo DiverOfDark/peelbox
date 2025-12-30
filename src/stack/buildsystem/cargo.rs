@@ -82,6 +82,7 @@ impl BuildSystem for CargoBuildSystem {
                 "target/release/{project_name}".to_string(),
                 "/usr/local/bin/{project_name}".to_string(),
             )],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

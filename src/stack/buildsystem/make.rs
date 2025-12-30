@@ -65,6 +65,7 @@ impl BuildSystem for MakeBuildSystem {
             common_ports: vec![],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

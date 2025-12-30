@@ -88,6 +88,7 @@ impl BuildSystem for BunBuildSystem {
             common_ports: vec![3000, 8080],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

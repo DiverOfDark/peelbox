@@ -21,14 +21,20 @@ impl ServicePhase for RuntimeConfigPhase {
         let runtime = stack_registry.get_runtime(stack.runtime.clone(), None);
 
         let scan = context.scan()?;
-        let files = &scan.file_tree;
+        let repo_path = context.repo_path();
+
+        // Convert relative paths to absolute paths
+        let absolute_files: Vec<std::path::PathBuf> = scan.file_tree
+            .iter()
+            .map(|p| repo_path.join(p))
+            .collect();
 
         let framework = stack
             .framework
             .as_ref()
             .and_then(|fw_id| stack_registry.get_framework(fw_id.clone()));
 
-        if let Some(config) = runtime.try_extract(files, framework) {
+        if let Some(config) = runtime.try_extract(&absolute_files, framework) {
             context.runtime_config = Some(config);
         }
 

@@ -10,17 +10,17 @@
         "obj"
       ],
       "commands": [
-        "dotnet restore"
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "DOTNET_CLI_HOME": "/tmp",
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
+      },
       "packages": [
-        "dotnet-8"
+        "dotnet-8-sdk"
       ]
     },
     "metadata": {
@@ -33,20 +33,23 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "dotnet",
+        "/app/App.dll"
       ],
       "copy": [
         {
           "from": "out/",
-          "to": "/usr/local/bin/app"
+          "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "ASPNETCORE_URLS": "http://0.0.0.0:5000"
+      },
       "health": {
         "endpoint": "/health"
       },
       "packages": [
-        "dotnet-8-runtime"
+        "aspnet-8-runtime"
       ],
       "ports": [
         5000

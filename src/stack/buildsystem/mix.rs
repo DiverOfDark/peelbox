@@ -64,6 +64,7 @@ impl BuildSystem for MixBuildSystem {
             common_ports: vec![4000],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 

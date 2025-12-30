@@ -70,14 +70,22 @@ impl BuildSystem for MavenBuildSystem {
             .get_latest_version("maven")
             .expect("Failed to get maven version from Wolfi index");
 
+        let java_home = format!("/usr/lib/jvm/java-{}-openjdk",
+            java_version.trim_start_matches("openjdk-"));
+
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("JAVA_HOME".to_string(), java_home);
+        build_env.insert("MAVEN_OPTS".to_string(), "-Dmaven.repo.local=/tmp/maven-repo".to_string());
+
         BuildTemplate {
             build_packages: vec![java_version, maven_version],
-            build_commands: vec!["mvn clean package -DskipTests".to_string()],
+            build_commands: vec!["mvn package -DskipTests".to_string()],
             cache_paths: vec!["/root/.m2/repository/".to_string()],
             artifacts: vec!["target/*.jar".to_string()],
             common_ports: vec![8080],
-            build_env: std::collections::HashMap::new(),
+            build_env,
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 
@@ -90,6 +98,34 @@ impl BuildSystem for MavenBuildSystem {
         } else {
             false
         }
+    }
+
+    fn parse_package_metadata(
+        &self,
+        manifest_content: &str,
+    ) -> Result<(String, bool), anyhow::Error> {
+        let doc = Document::parse(manifest_content)?;
+
+        let mut artifact_id = None;
+        let mut packaging = None;
+
+        // Find root <project> element
+        let root = doc.root_element();
+
+        // Only look at direct children of <project>
+        for child in root.children() {
+            if child.has_tag_name("artifactId") && artifact_id.is_none() {
+                artifact_id = child.text().map(|s| s.trim().to_string());
+            }
+            if child.has_tag_name("packaging") {
+                packaging = child.text().map(|s| s.trim().to_string());
+            }
+        }
+
+        let name = artifact_id.ok_or_else(|| anyhow::anyhow!("No artifactId found in pom.xml"))?;
+        let is_application = packaging.as_deref() != Some("pom");
+
+        Ok((name, is_application))
     }
 
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {

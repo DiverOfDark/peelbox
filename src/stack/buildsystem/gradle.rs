@@ -104,17 +104,27 @@ impl BuildSystem for GradleBuildSystem {
             .get_latest_version("gradle")
             .expect("Failed to get gradle version from Wolfi index");
 
+        let java_home = format!("/usr/lib/jvm/java-{}-openjdk",
+            java_version.trim_start_matches("openjdk-"));
+
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("JAVA_HOME".to_string(), java_home);
+        build_env.insert("GRADLE_USER_HOME".to_string(), "/tmp/gradle-home".to_string());
+        build_env.insert("GRADLE_OPTS".to_string(), "-Dorg.gradle.native=false".to_string());
+
         BuildTemplate {
             build_packages: vec![java_version, gradle_version],
-            build_commands: vec!["gradle build -x test".to_string()],
+            build_commands: vec!["gradle build -x test --no-daemon --console=plain".to_string()],
             cache_paths: vec![
                 "/root/.gradle/caches/".to_string(),
                 "/root/.gradle/wrapper/".to_string(),
+                "/root/.gradle/native/".to_string(),
             ],
             artifacts: vec!["build/libs/*.jar".to_string()],
             common_ports: vec![8080],
-            build_env: std::collections::HashMap::new(),
+            build_env,
             runtime_copy: vec![],
+            runtime_env: std::collections::HashMap::new(),
         }
     }
 
@@ -127,6 +137,16 @@ impl BuildSystem for GradleBuildSystem {
         } else {
             false
         }
+    }
+
+    fn parse_package_metadata(
+        &self,
+        _manifest_content: &str,
+    ) -> Result<(String, bool), anyhow::Error> {
+        // Gradle build.gradle files don't contain project names
+        // Project names are defined in settings.gradle or derived from directory names
+        // Return error to trigger fallback to directory name
+        Err(anyhow::anyhow!("Gradle projects use directory names, not manifest metadata"))
     }
 
     fn workspace_configs(&self) -> Vec<String> {

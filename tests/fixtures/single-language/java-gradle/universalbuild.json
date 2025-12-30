@@ -9,15 +9,13 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test"
+        "gradle build -x test --no-daemon --console=plain"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/tmp/gradle-home",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
+      },
       "packages": [
         "openjdk-17",
         "gradle-9"
@@ -33,9 +31,9 @@
     },
     "runtime": {
       "command": [
-        "java",
+        "/usr/lib/jvm/java-17-openjdk/bin/java",
         "-jar",
-        "app.jar"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {
@@ -44,9 +42,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
       "packages": [
         "openjdk-17-jre"
       ],

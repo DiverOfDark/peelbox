@@ -7,6 +7,18 @@ use std::path::{Path, PathBuf};
 pub struct PhpRuntime;
 
 impl PhpRuntime {
+    fn find_entrypoint(&self, files: &[PathBuf]) -> Option<String> {
+        for file in files {
+            let file_str = file.to_string_lossy();
+
+            // Check for public/index.php (Symfony, Laravel, etc.)
+            if file_str.ends_with("public/index.php") || file_str == "public/index.php" {
+                return Some("/usr/bin/php -S 0.0.0.0:8000 -t /app/public".to_string());
+            }
+        }
+        None
+    }
+
     fn extract_env_vars(&self, files: &[PathBuf]) -> Vec<String> {
         let mut env_vars = HashSet::new();
         let env_pattern = Regex::new(r#"\$_ENV\[['"]([A-Z_][A-Z0-9_]*)['"]\]"#).unwrap();
@@ -62,6 +74,7 @@ impl Runtime for PhpRuntime {
         files: &[PathBuf],
         framework: Option<&dyn Framework>,
     ) -> Option<RuntimeConfig> {
+        let entrypoint = self.find_entrypoint(files);
         let env_vars = self.extract_env_vars(files);
         let native_deps = self.extract_native_deps(files);
 
@@ -73,7 +86,7 @@ impl Runtime for PhpRuntime {
         });
 
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint,
             port,
             env_vars,
             health,
@@ -109,7 +122,15 @@ impl Runtime for PhpRuntime {
             .or_else(|| wolfi_index.get_latest_version("php"))
             .unwrap_or_else(|| "php-8.3".to_string());
 
-        vec![version]
+        let required_extensions = vec!["ctype", "phar", "openssl", "mbstring", "xml", "dom"];
+        let mut packages = vec![version.clone()];
+        packages.extend(
+            required_extensions
+                .iter()
+                .map(|ext| format!("{}-{}", version, ext))
+        );
+
+        packages
     }
 }
 
@@ -227,5 +248,30 @@ $key = $_ENV["API_KEY"];
         let deps = runtime.extract_native_deps(&files);
 
         assert_eq!(deps, vec!["build-base".to_string()]);
+    }
+
+    #[test]
+    fn test_find_entrypoint_public_index() {
+        let runtime = PhpRuntime;
+        let files = vec![
+            PathBuf::from("composer.json"),
+            PathBuf::from("public/index.php"),
+            PathBuf::from("src/Kernel.php"),
+        ];
+
+        let entrypoint = runtime.find_entrypoint(&files);
+        assert_eq!(entrypoint, Some("/usr/bin/php -S 0.0.0.0:8000 -t /app/public".to_string()));
+    }
+
+    #[test]
+    fn test_find_entrypoint_none() {
+        let runtime = PhpRuntime;
+        let files = vec![
+            PathBuf::from("composer.json"),
+            PathBuf::from("src/Kernel.php"),
+        ];
+
+        let entrypoint = runtime.find_entrypoint(&files);
+        assert_eq!(entrypoint, None);
     }
 }

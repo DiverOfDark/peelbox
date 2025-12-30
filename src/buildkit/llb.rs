@@ -114,14 +114,14 @@ impl LLBBuilder {
             let mut build_cmd = Command::run("sh");
 
             if let Some(ref pkg_cmd) = with_packages {
-                build_cmd = build_cmd.mount(Mount::ReadOnlyLayer(pkg_cmd.output(0), "/"));
+                build_cmd = build_cmd.mount(Mount::Layer(OutputIdx(0), pkg_cmd.output(0), "/"));
             } else {
-                build_cmd = build_cmd.mount(Mount::ReadOnlyLayer(base.output(), "/"));
+                build_cmd = build_cmd.mount(Mount::Layer(OutputIdx(0), base.output(), "/"));
             }
 
             build_cmd = build_cmd
-                .mount(Mount::Layer(OutputIdx(0), context.output(), "/build"))
-                .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
+                .mount(Mount::Layer(OutputIdx(1), context.output(), "/build"))
+                .mount(Mount::Scratch(OutputIdx(2), "/tmp"))
                 .cwd("/build");
 
             // Add cache mounts for build system caches (resolve relative to /build)
@@ -154,7 +154,18 @@ impl LLBBuilder {
                 if !spec.build.artifacts.is_empty() {
                     script_parts.push("mkdir -p /tmp/artifacts".to_string());
                     for artifact in &spec.build.artifacts {
-                        script_parts.push(format!("cp {} /tmp/artifacts/", artifact));
+                        // Normalize "." to "./" for directory detection
+                        let normalized_artifact = if artifact == "." {
+                            "./"
+                        } else {
+                            artifact.as_str()
+                        };
+
+                        if normalized_artifact.ends_with('/') {
+                            script_parts.push(format!("cp -r {} /tmp/artifacts/", normalized_artifact));
+                        } else {
+                            script_parts.push(format!("cp {} /tmp/artifacts/", normalized_artifact));
+                        }
                     }
                 }
 
@@ -206,40 +217,61 @@ impl LLBBuilder {
             .custom_name(&runtime_desc);
 
         // Stage 4: Copy artifacts from build stage onto squashed runtime base
-        let mut final_stage = Command::run("sh")
-            .mount(Mount::Layer(OutputIdx(0), squashed_runtime.output(0), "/"))
-            .mount(Mount::ReadOnlyLayer(build_stage.output(1), "/tmp/build-tmp"));
-
         let app_name = spec.metadata.project_name.as_deref().unwrap_or("app");
 
         if !spec.runtime.copy.is_empty() {
+            // Use busybox for shell commands since squashed runtime is distroless
+            let busybox_final = Source::image("cgr.dev/chainguard/busybox:latest");
+            let mut copy_stage = Command::run("/bin/sh")
+                .mount(Mount::ReadOnlyLayer(busybox_final.output(), "/"))
+                .mount(Mount::Layer(OutputIdx(0), squashed_runtime.output(0), "/dest"))
+                .mount(Mount::ReadOnlyLayer(build_stage.output(2), "/tmp/build-tmp"));
+
+            // Set runtime environment variables
+            for (key, value) in &spec.runtime.env {
+                copy_stage = copy_stage.env(key, value);
+            }
+
             let mut copy_commands = vec![format!(": aipack {} application", app_name)];
             for copy_spec in &spec.runtime.copy {
-                let filename = copy_spec.from.split('/').last().unwrap_or(&copy_spec.from);
-                // Create parent directory if needed
+                // Normalize "." to "./" for directory detection
+                let normalized_from = if copy_spec.from == "." {
+                    "./"
+                } else {
+                    &copy_spec.from
+                };
+
+                let source_path = if normalized_from.ends_with('/') {
+                    normalized_from.trim_end_matches('/')
+                } else {
+                    normalized_from
+                };
+                let filename = source_path.split('/').last().unwrap_or(source_path);
+
+                // Create parent directory if needed (in /dest)
                 let parent_dir = copy_spec.to.rsplitn(2, '/').nth(1);
                 if let Some(dir) = parent_dir {
                     if !dir.is_empty() {
-                        copy_commands.push(format!("mkdir -p {}", dir));
+                        copy_commands.push(format!("/bin/mkdir -p /dest{}", dir));
                     }
                 }
-                copy_commands.push(format!("cp /tmp/build-tmp/artifacts/{} {}", filename, copy_spec.to));
+
+                let copy_flag = if normalized_from.ends_with('/') { "-r" } else { "" };
+                copy_commands.push(format!("/bin/cp {} /tmp/build-tmp/artifacts/{} /dest{}", copy_flag, filename, copy_spec.to));
             }
             let script = copy_commands.join(" && ");
-            final_stage = final_stage.args(&["-c", &script]);
-            final_stage = final_stage.custom_name(&format!("aipack {} application", app_name));
+            copy_stage = copy_stage.args(&["-c", &script]);
+            copy_stage = copy_stage.custom_name(&format!("aipack {} application", app_name));
+
+            Terminal::with(copy_stage.output(0))
+                .write_definition(writer)
+                .with_context(|| "Failed to write LLB definition")?;
         } else {
-            final_stage = final_stage.args(&["-c", &format!(": aipack {} application", app_name)]);
-            final_stage = final_stage.custom_name(&format!("aipack {} application", app_name));
+            // No artifacts to copy - use squashed runtime directly
+            Terminal::with(squashed_runtime.output(0))
+                .write_definition(writer)
+                .with_context(|| "Failed to write LLB definition")?;
         }
-
-        for (key, value) in &spec.runtime.env {
-            final_stage = final_stage.env(key, value);
-        }
-
-        Terminal::with(final_stage.output(0))
-            .write_definition(writer)
-            .with_context(|| "Failed to write LLB definition")?;
 
         Ok(())
     }

@@ -36,17 +36,12 @@ pub fn validate_confidence_range(build: &UniversalBuild) -> Result<()> {
     Ok(())
 }
 
-pub fn validate_non_empty_artifacts(build: &UniversalBuild) -> Result<()> {
-    if build.build.artifacts.is_empty() {
-        anyhow::bail!("Build artifacts cannot be empty");
-    }
+pub fn validate_non_empty_artifacts(_build: &UniversalBuild) -> Result<()> {
+    // Empty artifacts is valid (e.g., Flask apps where build context contains everything)
     Ok(())
 }
 
 pub fn validate_valid_copy_specs(build: &UniversalBuild) -> Result<()> {
-    if build.runtime.copy.is_empty() {
-        anyhow::bail!("Runtime copy specifications cannot be empty");
-    }
     for (i, copy_spec) in build.runtime.copy.iter().enumerate() {
         if copy_spec.from.is_empty() {
             anyhow::bail!("Runtime copy[{}] 'from' path cannot be empty", i);

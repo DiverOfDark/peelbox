@@ -9,7 +9,7 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test"
+        "gradle build -x test --no-daemon --console=plain"
       ],
       "context": [
         {
@@ -44,9 +44,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
       "packages": [
         "openjdk-17-jre"
       ],
@@ -66,7 +63,7 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test"
+        "gradle build -x test --no-daemon --console=plain"
       ],
       "context": [
         {
@@ -119,7 +116,7 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test"
+        "gradle build -x test --no-daemon --console=plain"
       ],
       "context": [
         {
@@ -172,7 +169,7 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test"
+        "gradle build -x test --no-daemon --console=plain"
       ],
       "context": [
         {
@@ -207,9 +204,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/actuator/health"
-      },
       "packages": [
         "openjdk-17-jre"
       ],

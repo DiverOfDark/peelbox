@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildInfo {
-    pub build_cmd: Option<String>,
+    pub build_cmd: Vec<String>,
     pub output_dir: Option<PathBuf>,
     pub confidence: Confidence,
 }
@@ -28,7 +28,7 @@ fn try_deterministic(
 
     let template = build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
 
-    let build_cmd = template.build_commands.first().cloned();
+    let build_cmd = template.build_commands.clone();
     let output_dir = template.artifacts.first().map(|artifact| {
         let path = artifact
             .replace("/{project_name}", "")
@@ -107,7 +107,7 @@ mod tests {
 
         assert_eq!(
             template.build_commands.first(),
-            Some(&"mvn clean package -DskipTests".to_string())
+            Some(&"mvn package -DskipTests".to_string())
         );
         assert!(!template.artifacts.is_empty());
     }

@@ -55,21 +55,37 @@ impl BuildSystem for BundlerBuildSystem {
 
         let ruby_ver_num = ruby_version.trim_start_matches("ruby-");
         let bundler_package = format!("ruby{}-bundler", ruby_ver_num);
+        let ruby_dev_package = format!("{}-dev", ruby_version);
 
-        let build_packages = if wolfi_index.has_package(&bundler_package) {
-            vec![ruby_version.clone(), bundler_package]
-        } else {
-            vec![ruby_version.clone()]
-        };
+        let mut build_packages = vec![ruby_version.clone()];
+
+        if wolfi_index.has_package(&ruby_dev_package) {
+            build_packages.push(ruby_dev_package);
+        }
+
+        if wolfi_index.has_package(&bundler_package) {
+            build_packages.push(bundler_package);
+        }
+
+        build_packages.push("build-base".to_string());
+
+        let mut build_env = std::collections::HashMap::new();
+        build_env.insert("BUNDLE_PATH".to_string(), "vendor/bundle".to_string());
+        build_env.insert("BUNDLE_DEPLOYMENT".to_string(), "false".to_string());
+
+        let mut runtime_env = std::collections::HashMap::new();
+        runtime_env.insert("BUNDLE_PATH".to_string(), "/app/vendor/bundle".to_string());
+        runtime_env.insert("BUNDLE_GEMFILE".to_string(), "/app/Gemfile".to_string());
 
         BuildTemplate {
             build_packages,
             build_commands: vec!["bundle install".to_string()],
             cache_paths: vec!["vendor/bundle/".to_string()],
-            artifacts: vec![],
+            artifacts: vec!["/build/".to_string()],
             common_ports: vec![3000],
-            build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
+            build_env,
+            runtime_copy: vec![("/build/".to_string(), "/app".to_string())],
+            runtime_env,
         }
     }
 

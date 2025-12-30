@@ -10,7 +10,8 @@
         ".pnpm-store"
       ],
       "commands": [
-        "corepack enable"
+        "pnpm install --frozen-lockfile",
+        "pnpm build"
       ],
       "context": [
         {
@@ -20,7 +21,8 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-22"
+        "nodejs-22",
+        "pnpm"
       ]
     },
     "metadata": {
