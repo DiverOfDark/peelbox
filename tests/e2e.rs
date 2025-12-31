@@ -7,6 +7,9 @@
 //!
 //! Tests use RecordingMode::Auto to replay cached LLM responses for deterministic testing.
 
+#![allow(clippy::unnecessary_literal_unwrap)]
+#![allow(clippy::type_complexity)]
+
 mod support;
 
 use peelbox::output::schema::UniversalBuild;
@@ -100,11 +103,11 @@ fn load_expected(category: &str, fixture_name: &str, _mode: Option<&str>) -> Opt
 
     // Try parsing as array of UniversalBuild first (for monorepos)
     match serde_json::from_str::<Vec<UniversalBuild>>(&content) {
-        Ok(multi) => return Some(multi),
+        Ok(multi) => Some(multi),
         Err(e1) => {
             // Try parsing as single UniversalBuild
             match serde_json::from_str::<UniversalBuild>(&content) {
-                Ok(single) => return Some(vec![single]),
+                Ok(single) => Some(vec![single]),
                 Err(e2) => {
                     panic!(
                         "Failed to parse expected JSON: {}\nAs Vec<UniversalBuild>: {}\nAs UniversalBuild: {}",
@@ -182,12 +185,12 @@ fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixtur
     );
 
     // Load and validate against expected JSON (required, same for all modes)
-    let mut expected = load_expected(category, fixture_name, mode).expect(&format!(
-        "Expected JSON file not found for fixture '{}'. Expected file: tests/fixtures/{}/{}/universalbuild.json",
-        fixture_name,
-        category,
-        fixture_name
-    ));
+    let mut expected = load_expected(category, fixture_name, mode).unwrap_or_else(|| {
+        panic!(
+            "Expected JSON file not found for fixture '{}'. Expected file: tests/fixtures/{}/{}/universalbuild.json",
+            fixture_name, category, fixture_name
+        )
+    });
 
     assert_eq!(
         results.len(),

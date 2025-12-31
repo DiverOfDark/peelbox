@@ -3,10 +3,10 @@
 //! Tests backend availability checking, configuration validation,
 //! and health status reporting.
 
+use genai::adapter::AdapterKind;
 use peelbox::config::PeelboxConfig;
 use peelbox::detection::service::DetectionService;
 use peelbox::llm::GenAIClient;
-use genai::adapter::AdapterKind;
 use std::env;
 use std::time::Duration;
 

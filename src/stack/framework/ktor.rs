@@ -42,8 +42,14 @@ impl Framework for KtorFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"KTOR_PORT\s*=\s*(\d+)".to_string(), "Ktor port".to_string()),
-            (r"KTOR_ENV\s*=\s*(\w+)".to_string(), "Ktor environment".to_string()),
+            (
+                r"KTOR_PORT\s*=\s*(\d+)".to_string(),
+                "Ktor port".to_string(),
+            ),
+            (
+                r"KTOR_ENV\s*=\s*(\w+)".to_string(),
+                "Ktor environment".to_string(),
+            ),
         ]
     }
 }
@@ -57,9 +63,18 @@ mod tests {
     fn test_ktor_compatibility() {
         let framework = KtorFramework;
 
-        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Kotlin"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "gradle"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "maven"));
     }
 
     #[test]

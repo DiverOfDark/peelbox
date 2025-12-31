@@ -42,8 +42,14 @@ impl Framework for SymfonyFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"%env\(([A-Z_]+)\)%".to_string(), "Symfony environment variable".to_string()),
-            (r"APP_ENV\s*=\s*(\w+)".to_string(), "Symfony environment".to_string()),
+            (
+                r"%env\(([A-Z_]+)\)%".to_string(),
+                "Symfony environment variable".to_string(),
+            ),
+            (
+                r"APP_ENV\s*=\s*(\w+)".to_string(),
+                "Symfony environment".to_string(),
+            ),
         ]
     }
 }
@@ -57,7 +63,10 @@ mod tests {
     fn test_symfony_compatibility() {
         let framework = SymfonyFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "PHP"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "composer"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "composer"));
     }
 
     #[test]

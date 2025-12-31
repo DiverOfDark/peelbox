@@ -35,8 +35,14 @@ impl Framework for LaravelFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"APP_ENV\s*=\s*(\w+)".to_string(), "Laravel environment".to_string()),
-            (r"APP_PORT\s*=\s*(\d+)".to_string(), "Laravel port".to_string()),
+            (
+                r"APP_ENV\s*=\s*(\w+)".to_string(),
+                "Laravel environment".to_string(),
+            ),
+            (
+                r"APP_PORT\s*=\s*(\d+)".to_string(),
+                "Laravel port".to_string(),
+            ),
         ]
     }
 
@@ -123,7 +129,10 @@ mod tests {
     fn test_laravel_compatibility() {
         let framework = LaravelFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "PHP"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "composer"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "composer"));
     }
 
     #[test]
@@ -178,7 +187,7 @@ return [
         let framework = LaravelFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "config/app.php"));
-        assert!(files.iter().any(|s| *s == "config/database.php"));
+        assert!(files.contains(&"config/app.php"));
+        assert!(files.contains(&"config/database.php"));
     }
 }

@@ -46,7 +46,9 @@ impl Framework for SpringBootFramework {
         let has_actuator = files.iter().any(|path| {
             path.file_name()
                 .and_then(|n| n.to_str())
-                .map(|name| name == "pom.xml" || name.ends_with(".gradle") || name.ends_with(".gradle.kts"))
+                .map(|name| {
+                    name == "pom.xml" || name.ends_with(".gradle") || name.ends_with(".gradle.kts")
+                })
                 .unwrap_or(false)
         });
 
@@ -63,8 +65,14 @@ impl Framework for SpringBootFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"SERVER_PORT\s*=\s*(\d+)".to_string(), "Spring Boot server.port".to_string()),
-            (r"SPRING_PROFILES_ACTIVE\s*=\s*(\w+)".to_string(), "Spring profiles".to_string()),
+            (
+                r"SERVER_PORT\s*=\s*(\d+)".to_string(),
+                "Spring Boot server.port".to_string(),
+            ),
+            (
+                r"SPRING_PROFILES_ACTIVE\s*=\s*(\w+)".to_string(),
+                "Spring profiles".to_string(),
+            ),
         ]
     }
 
@@ -97,8 +105,15 @@ impl Framework for SpringBootFramework {
     }
 
     fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
-        if template.runtime_copy.is_empty() || !template.runtime_copy.iter().any(|(from, _)| from.contains(".jar")) {
-            template.runtime_copy.push(("target/*.jar".to_string(), "/app/".to_string()));
+        if template.runtime_copy.is_empty()
+            || !template
+                .runtime_copy
+                .iter()
+                .any(|(from, _)| from.contains(".jar"))
+        {
+            template
+                .runtime_copy
+                .push(("target/*.jar".to_string(), "/app/".to_string()));
         }
         template
     }
@@ -209,9 +224,18 @@ mod tests {
         let framework = SpringBootFramework;
 
         assert!(framework.compatible_languages().iter().any(|s| s == "Java"));
-        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Kotlin"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "maven"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "gradle"));
     }
 
     #[test]
@@ -299,8 +323,8 @@ spring:
         let framework = SpringBootFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "application.properties"));
-        assert!(files.iter().any(|s| *s == "application.yml"));
-        assert!(files.iter().any(|s| *s == "application.yaml"));
+        assert!(files.contains(&"application.properties"));
+        assert!(files.contains(&"application.yml"));
+        assert!(files.contains(&"application.yaml"));
     }
 }

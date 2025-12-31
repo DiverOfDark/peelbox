@@ -35,8 +35,14 @@ impl Framework for ActixFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"ACTIX_HOST\s*=\s*(\S+)".to_string(), "Actix host".to_string()),
-            (r"ACTIX_PORT\s*=\s*(\d+)".to_string(), "Actix port".to_string()),
+            (
+                r"ACTIX_HOST\s*=\s*(\S+)".to_string(),
+                "Actix host".to_string(),
+            ),
+            (
+                r"ACTIX_PORT\s*=\s*(\d+)".to_string(),
+                "Actix port".to_string(),
+            ),
         ]
     }
 }
@@ -50,7 +56,10 @@ mod tests {
     fn test_actix_compatibility() {
         let framework = ActixFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "Rust"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "cargo"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "cargo"));
     }
 
     #[test]

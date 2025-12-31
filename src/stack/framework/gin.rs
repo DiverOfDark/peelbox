@@ -30,7 +30,11 @@ impl Framework for GinFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health".to_string(), "/healthz".to_string(), "/ping".to_string()]
+        vec![
+            "/health".to_string(),
+            "/healthz".to_string(),
+            "/ping".to_string(),
+        ]
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -50,7 +54,10 @@ mod tests {
     fn test_gin_compatibility() {
         let framework = GinFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "Go"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "go"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "go"));
     }
 
     #[test]

@@ -99,22 +99,40 @@ impl LanguageDefinition for RustLanguage {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "std::env".to_string()),
-            (r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "env::var".to_string()),
+            (
+                r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
+                "std::env".to_string(),
+            ),
+            (
+                r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
+                "env::var".to_string(),
+            ),
         ]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"\.bind\([^,)]*:(\d{4,5})".to_string(), "bind()".to_string()),
-            (r#"addr\s*=\s*"[^:]*:(\d{4,5})""#.to_string(), "addr config".to_string()),
+            (
+                r"\.bind\([^,)]*:(\d{4,5})".to_string(),
+                "bind()".to_string(),
+            ),
+            (
+                r#"addr\s*=\s*"[^:]*:(\d{4,5})""#.to_string(),
+                "addr config".to_string(),
+            ),
         ]
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "axum/actix".to_string()),
-            (r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "rocket/warp".to_string()),
+            (
+                r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+                "axum/actix".to_string(),
+            ),
+            (
+                r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+                "rocket/warp".to_string(),
+            ),
         ]
     }
 

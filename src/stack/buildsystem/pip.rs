@@ -76,7 +76,7 @@ impl BuildSystem for PipBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let python_version = read_python_version_file(service_path)
-            .or_else(|| manifest_content.and_then(|c| parse_pyproject_toml_version(c)))
+            .or_else(|| manifest_content.and_then(parse_pyproject_toml_version))
             .or_else(|| wolfi_index.get_latest_version("python"))
             .expect("Failed to get python version from Wolfi index");
 
@@ -93,7 +93,9 @@ impl BuildSystem for PipBuildSystem {
                 pip_package,
                 "build-base".to_string(),
             ],
-            build_commands: vec!["pip install --user --no-cache-dir -r requirements.txt".to_string()],
+            build_commands: vec![
+                "pip install --user --no-cache-dir -r requirements.txt".to_string()
+            ],
             cache_paths: vec!["/root/.cache/pip/".to_string()],
             common_ports: vec![8000, 5000],
             build_env: std::collections::HashMap::new(),

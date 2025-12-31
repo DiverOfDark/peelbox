@@ -1,7 +1,6 @@
 use crate::output::schema::UniversalBuild;
 use crate::validation::rules::{
-    validate_non_empty_commands,
-    validate_required_fields, validate_valid_copy_specs,
+    validate_non_empty_commands, validate_required_fields, validate_valid_copy_specs,
     validate_wolfi_packages,
 };
 use crate::validation::WolfiPackageIndex;

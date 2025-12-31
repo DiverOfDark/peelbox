@@ -33,17 +33,15 @@ impl DotNetRuntime {
     }
 
     fn extract_ports(&self, files: &[PathBuf]) -> Option<u16> {
+        let port_re = Regex::new(r":(\d+)").unwrap();
+
         for file in files {
-            if file
-                .file_name()
-                .is_some_and(|n| n == "launchSettings.json")
-            {
+            if file.file_name().is_some_and(|n| n == "launchSettings.json") {
                 if let Ok(content) = std::fs::read_to_string(file) {
                     if let Ok(json) = serde_json::from_str::<Value>(&content) {
                         if let Some(profiles) = json["profiles"].as_object() {
                             for profile in profiles.values() {
                                 if let Some(url) = profile["applicationUrl"].as_str() {
-                                    let port_re = Regex::new(r":(\d+)").unwrap();
                                     if let Some(cap) = port_re.captures(url) {
                                         if let Some(port_str) = cap.get(1) {
                                             if let Ok(port) = port_str.as_str().parse::<u16>() {
@@ -88,10 +86,7 @@ impl DotNetRuntime {
         for file in files {
             if let Some(ext) = file.extension() {
                 if ext == "csproj" || ext == "fsproj" || ext == "vbproj" {
-                    let assembly_name = file
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("app");
+                    let assembly_name = file.file_stem().and_then(|s| s.to_str()).unwrap_or("app");
                     return Some(format!("dotnet /app/{}.dll", assembly_name));
                 }
             }
@@ -162,17 +157,28 @@ impl Runtime for DotNetRuntime {
 
         // Check if this is an ASP.NET Core application
         let is_aspnet = manifest_content
-            .map(|content| content.contains("Microsoft.NET.Sdk.Web") || content.contains("Microsoft.AspNetCore"))
+            .map(|content| {
+                content.contains("Microsoft.NET.Sdk.Web")
+                    || content.contains("Microsoft.AspNetCore")
+            })
             .unwrap_or(false);
 
         let package_prefix = if is_aspnet { "aspnet" } else { "dotnet" };
-        let version = format!("{}-{}-runtime", package_prefix, base_version.trim_start_matches("dotnet-"));
+        let version = format!(
+            "{}-{}-runtime",
+            package_prefix,
+            base_version.trim_start_matches("dotnet-")
+        );
         vec![version]
     }
 }
 
 impl DotNetRuntime {
-    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+    fn detect_version(
+        &self,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Option<String> {
         if let Some(content) = manifest_content {
             for csproj in ["*.csproj", "*.fsproj", "*.vbproj"] {
                 let pattern_path = service_path.join(csproj);

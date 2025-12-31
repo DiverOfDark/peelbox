@@ -70,7 +70,11 @@ impl LanguageDefinition for PythonLanguage {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
+        vec![
+            "pip".to_string(),
+            "poetry".to_string(),
+            "pipenv".to_string(),
+        ]
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
@@ -139,16 +143,31 @@ impl LanguageDefinition for PythonLanguage {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "os.environ.get".to_string()),
-            (r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "os.getenv".to_string()),
+            (
+                r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
+                "os.environ.get".to_string(),
+            ),
+            (
+                r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
+                "os.getenv".to_string(),
+            ),
         ]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"@app\.route.*:(\d{4,5})".to_string(), "Flask route decorator".to_string()),
-            (r"app\.run\(.*port\s*=\s*(\d{4,5})".to_string(), "app.run()".to_string()),
-            (r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})".to_string(), "uvicorn.run()".to_string()),
+            (
+                r"@app\.route.*:(\d{4,5})".to_string(),
+                "Flask route decorator".to_string(),
+            ),
+            (
+                r"app\.run\(.*port\s*=\s*(\d{4,5})".to_string(),
+                "app.run()".to_string(),
+            ),
+            (
+                r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})".to_string(),
+                "uvicorn.run()".to_string(),
+            ),
         ]
     }
 
@@ -189,7 +208,8 @@ impl PythonLanguage {
 
         if let Some(tool) = parsed.get("tool").and_then(|t| t.as_table()) {
             if let Some(poetry) = tool.get("poetry").and_then(|p| p.as_table()) {
-                for dep_section in vec!["dependencies".to_string(), "dev-dependencies".to_string()] {
+                for dep_section in ["dependencies".to_string(), "dev-dependencies".to_string()]
+                {
                     if let Some(deps) = poetry.get(&dep_section).and_then(|d| d.as_table()) {
                         for (name, value) in deps {
                             if name == "python" || seen.contains(name) {

@@ -62,11 +62,19 @@ impl LanguageDefinition for JavaLanguage {
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
-        vec!["target".to_string(), "build".to_string(), ".gradle".to_string(), ".m2".to_string()]
+        vec![
+            "target".to_string(),
+            "build".to_string(),
+            ".gradle".to_string(),
+            ".m2".to_string(),
+        ]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
-        vec!["settings.gradle".to_string(), "settings.gradle.kts".to_string()]
+        vec![
+            "settings.gradle".to_string(),
+            "settings.gradle.kts".to_string(),
+        ]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -164,18 +172,30 @@ impl LanguageDefinition for JavaLanguage {
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#.to_string(), "System.getenv".to_string())]
+        vec![(
+            r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#.to_string(),
+            "System.getenv".to_string(),
+        )]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"server\.port\s*=\s*(\d{4,5})"#.to_string(), "application.properties".to_string()),
-            (r#"port:\s*(\d{4,5})"#.to_string(), "application.yml".to_string()),
+            (
+                r#"server\.port\s*=\s*(\d{4,5})"#.to_string(),
+                "application.properties".to_string(),
+            ),
+            (
+                r#"port:\s*(\d{4,5})"#.to_string(),
+                "application.yml".to_string(),
+            ),
         ]
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Spring".to_string())]
+        vec![(
+            r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+            "Spring".to_string(),
+        )]
     }
 
     fn default_health_endpoints(&self) -> Vec<(String, String)> {
@@ -381,7 +401,9 @@ mod tests {
     #[test]
     fn test_workspace_configs() {
         let lang = JavaLanguage;
-        assert!(lang.workspace_configs().contains(&"settings.gradle".to_string()));
+        assert!(lang
+            .workspace_configs()
+            .contains(&"settings.gradle".to_string()));
     }
 
     #[test]

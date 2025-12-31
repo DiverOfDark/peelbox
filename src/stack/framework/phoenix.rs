@@ -35,7 +35,10 @@ impl Framework for PhoenixFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"PHX_HOST\s*=\s*(\S+)".to_string(), "Phoenix host".to_string()),
+            (
+                r"PHX_HOST\s*=\s*(\S+)".to_string(),
+                "Phoenix host".to_string(),
+            ),
             (r"PORT\s*=\s*(\d+)".to_string(), "Phoenix port".to_string()),
         ]
     }
@@ -114,8 +117,14 @@ mod tests {
     #[test]
     fn test_phoenix_compatibility() {
         let framework = PhoenixFramework;
-        assert!(framework.compatible_languages().iter().any(|s| s == "Elixir"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "mix"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Elixir"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "mix"));
     }
 
     #[test]
@@ -166,7 +175,7 @@ config :my_app, MyAppWeb.Endpoint,
         let framework = PhoenixFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "config/runtime.exs"));
-        assert!(files.iter().any(|s| *s == "config/prod.exs"));
+        assert!(files.contains(&"config/runtime.exs"));
+        assert!(files.contains(&"config/prod.exs"));
     }
 }

@@ -14,7 +14,11 @@ impl Framework for DjangoFramework {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
+        vec![
+            "pip".to_string(),
+            "poetry".to_string(),
+            "pipenv".to_string(),
+        ]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -37,7 +41,11 @@ impl Framework for DjangoFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health/".to_string(), "/healthz/".to_string(), "/ping/".to_string()]
+        vec![
+            "/health/".to_string(),
+            "/healthz/".to_string(),
+            "/ping/".to_string(),
+        ]
     }
 
     fn entrypoint_command(&self) -> Option<Vec<String>> {
@@ -55,7 +63,10 @@ impl Framework for DjangoFramework {
                 r"DJANGO_SETTINGS_MODULE\s*=\s*(\S+)".to_string(),
                 "Django settings module".to_string(),
             ),
-            (r"SECRET_KEY\s*=\s*".to_string(), "Django secret key".to_string()),
+            (
+                r"SECRET_KEY\s*=\s*".to_string(),
+                "Django secret key".to_string(),
+            ),
         ]
     }
 
@@ -146,9 +157,18 @@ mod tests {
     fn test_django_compatibility() {
         let framework = DjangoFramework;
 
-        assert!(framework.compatible_languages().iter().any(|s| s == "Python"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "pip"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "poetry"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Python"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "pip"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "poetry"));
     }
 
     #[test]
@@ -211,7 +231,7 @@ DATABASE_URL = os.environ['DATABASE_URL']
         let framework = DjangoFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "settings.py"));
-        assert!(files.iter().any(|s| *s == "*/settings.py"));
+        assert!(files.contains(&"settings.py"));
+        assert!(files.contains(&"*/settings.py"));
     }
 }

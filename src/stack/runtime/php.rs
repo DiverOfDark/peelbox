@@ -80,9 +80,11 @@ impl Runtime for PhpRuntime {
 
         let port = framework.and_then(|f| f.default_ports().first().copied());
         let health = framework.and_then(|f| {
-            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
-                endpoint: endpoint.to_string(),
-            })
+            f.health_endpoints(files)
+                .first()
+                .map(|endpoint| HealthCheck {
+                    endpoint: endpoint.to_string(),
+                })
         });
 
         Some(RuntimeConfig {
@@ -123,8 +125,7 @@ impl Runtime for PhpRuntime {
             .unwrap_or_else(|| "php-8.3".to_string());
 
         let required_extensions = vec![
-            "ctype", "phar", "openssl", "mbstring", "xml", "dom",
-            "curl", "fileinfo", "iconv"
+            "ctype", "phar", "openssl", "mbstring", "xml", "dom", "curl", "fileinfo", "iconv",
         ];
 
         let framework_extensions = self.detect_framework_extensions(manifest_content);
@@ -133,12 +134,12 @@ impl Runtime for PhpRuntime {
         packages.extend(
             required_extensions
                 .iter()
-                .map(|ext| format!("{}-{}", version, ext))
+                .map(|ext| format!("{}-{}", version, ext)),
         );
         packages.extend(
             framework_extensions
                 .iter()
-                .map(|ext| format!("{}-{}", version, ext))
+                .map(|ext| format!("{}-{}", version, ext)),
         );
 
         packages
@@ -193,7 +194,11 @@ impl PhpRuntime {
         result
     }
 
-    fn detect_version(&self, _service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+    fn detect_version(
+        &self,
+        _service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Option<String> {
         if let Some(content) = manifest_content {
             return self.parse_composer_version(content);
         }
@@ -318,7 +323,10 @@ $key = $_ENV["API_KEY"];
         ];
 
         let entrypoint = runtime.find_entrypoint(&files);
-        assert_eq!(entrypoint, Some("/usr/bin/php -S 0.0.0.0:8000 -t /app/public".to_string()));
+        assert_eq!(
+            entrypoint,
+            Some("/usr/bin/php -S 0.0.0.0:8000 -t /app/public".to_string())
+        );
     }
 
     #[test]

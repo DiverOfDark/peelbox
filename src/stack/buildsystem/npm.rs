@@ -73,7 +73,7 @@ impl BuildSystem for NpmBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let node_version = read_node_version_file(service_path)
-            .or_else(|| manifest_content.and_then(|c| parse_node_version(c)))
+            .or_else(|| manifest_content.and_then(parse_node_version))
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .expect("Failed to get nodejs version from Wolfi index");
 
@@ -105,7 +105,12 @@ impl BuildSystem for NpmBuildSystem {
     }
 
     fn workspace_configs(&self) -> Vec<String> {
-        vec!["lerna.json".to_string(), "nx.json".to_string(), "turbo.json".to_string(), "rush.json".to_string()]
+        vec![
+            "lerna.json".to_string(),
+            "nx.json".to_string(),
+            "turbo.json".to_string(),
+            "rush.json".to_string(),
+        ]
     }
 
     fn parse_package_metadata(

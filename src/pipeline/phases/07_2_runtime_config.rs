@@ -24,10 +24,8 @@ impl ServicePhase for RuntimeConfigPhase {
         let repo_path = context.repo_path();
 
         // Convert relative paths to absolute paths
-        let absolute_files: Vec<std::path::PathBuf> = scan.file_tree
-            .iter()
-            .map(|p| repo_path.join(p))
-            .collect();
+        let absolute_files: Vec<std::path::PathBuf> =
+            scan.file_tree.iter().map(|p| repo_path.join(p)).collect();
 
         let framework = stack
             .framework

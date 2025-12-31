@@ -49,7 +49,7 @@ impl BuildSystem for BundlerBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let ruby_version = read_ruby_version_file(service_path)
-            .or_else(|| manifest_content.and_then(|c| parse_gemfile_version(c)))
+            .or_else(|| manifest_content.and_then(parse_gemfile_version))
             .or_else(|| wolfi_index.get_latest_version("ruby"))
             .expect("Failed to get ruby version from Wolfi index");
 
@@ -81,7 +81,7 @@ impl BuildSystem for BundlerBuildSystem {
             build_packages,
             build_commands: vec!["bundle install".to_string()],
             cache_paths: vec!["vendor/bundle/".to_string()],
-            
+
             common_ports: vec![3000],
             build_env,
             runtime_copy: vec![("/build/".to_string(), "/app".to_string())],

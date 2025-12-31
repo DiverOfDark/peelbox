@@ -12,7 +12,7 @@ pub mod progress;
 pub mod stack;
 pub mod validation;
 
-pub use config::{PeelboxConfig, ConfigError};
+pub use config::{ConfigError, PeelboxConfig};
 pub use detection::service::{DetectionService, ServiceError};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use llm::{AdapterKind, BackendError};

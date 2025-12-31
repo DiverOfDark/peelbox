@@ -37,7 +37,11 @@ impl Framework for MicronautFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health".to_string(), "/health/liveness".to_string(), "/health/readiness".to_string()]
+        vec![
+            "/health".to_string(),
+            "/health/liveness".to_string(),
+            "/health/readiness".to_string(),
+        ]
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
@@ -64,9 +68,18 @@ mod tests {
         let framework = MicronautFramework;
 
         assert!(framework.compatible_languages().iter().any(|s| s == "Java"));
-        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Kotlin"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "maven"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "gradle"));
     }
 
     #[test]

@@ -37,7 +37,11 @@ impl Framework for AspNetFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health".to_string(), "/healthz".to_string(), "/ready".to_string()]
+        vec![
+            "/health".to_string(),
+            "/healthz".to_string(),
+            "/ready".to_string(),
+        ]
     }
 
     fn runtime_env_vars(&self) -> HashMap<String, String> {
@@ -48,8 +52,14 @@ impl Framework for AspNetFramework {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"ASPNETCORE_ENVIRONMENT\s*=\s*(\w+)".to_string(), "ASP.NET environment".to_string()),
-            (r"ASPNETCORE_URLS\s*=\s*([^\s]+)".to_string(), "ASP.NET URLs".to_string()),
+            (
+                r"ASPNETCORE_ENVIRONMENT\s*=\s*(\w+)".to_string(),
+                "ASP.NET environment".to_string(),
+            ),
+            (
+                r"ASPNETCORE_URLS\s*=\s*([^\s]+)".to_string(),
+                "ASP.NET URLs".to_string(),
+            ),
         ]
     }
 
@@ -143,7 +153,10 @@ mod tests {
 
         assert!(framework.compatible_languages().iter().any(|s| s == "C#"));
         assert!(framework.compatible_languages().iter().any(|s| s == "F#"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "dotnet"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "dotnet"));
     }
 
     #[test]
@@ -211,7 +224,7 @@ mod tests {
         let framework = AspNetFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "appsettings.json"));
-        assert!(files.iter().any(|s| *s == "appsettings.Development.json"));
+        assert!(files.contains(&"appsettings.json"));
+        assert!(files.contains(&"appsettings.Development.json"));
     }
 }

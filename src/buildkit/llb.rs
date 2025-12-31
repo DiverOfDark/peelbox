@@ -1,6 +1,6 @@
+use crate::output::schema::UniversalBuild;
 use anyhow::{Context as AnyhowContext, Result};
 use buildkit_llb::prelude::*;
-use crate::output::schema::UniversalBuild;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -81,22 +81,23 @@ impl LLBBuilder {
     ///   3. Copies source context
     ///   4. Runs build commands
     ///   5. Outputs artifacts to /tmp/artifacts
-    /// Stage 2 (Runtime Prep):
+    ///
+    ///      Stage 2 (Runtime Prep):
     ///   6. Install runtime packages on wolfi-base
     ///   7. Remove apk tooling (/sbin/apk, /etc/apk, /lib/apk, /var/cache/apk)
-    /// Stage 3 (Squash to Clean Base):
+    ///
+    ///      Stage 3 (Squash to Clean Base):
     ///   8. Start with glibc-dynamic (clean base, no apk in history)
     ///   9. Copy all files from runtime prep (cp -a /source/. /)
-    ///   Result: Single squashed layer with packages but no apk in history
-    /// Stage 4 (Final):
+    ///
+    ///      Result: Single squashed layer with packages but no apk in history
+    ///
+    ///      Stage 4 (Final):
     ///   10. Copy artifacts from build stage
     ///   11. Set command and environment
-    /// Result: No apk in any layer, truly distroless
-    pub fn write_definition<W: Write>(
-        &self,
-        spec: &UniversalBuild,
-        writer: W,
-    ) -> Result<()> {
+    ///
+    ///       Result: No apk in any layer, truly distroless
+    pub fn write_definition<W: Write>(&self, spec: &UniversalBuild, writer: W) -> Result<()> {
         // Create all sources first
         let wolfi_base = Source::image(WOLFI_BASE_IMAGE);
         let glibc_dynamic = Source::image("cgr.dev/chainguard/glibc-dynamic:latest");
@@ -115,7 +116,7 @@ impl LLBBuilder {
             let cmd = format!("apk add --no-cache {}", packages);
             Some(
                 Command::run("sh")
-                    .args(&["-c", &cmd])
+                    .args(["-c", &cmd])
                     .mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"))
                     .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
                     .custom_name("Install build packages"),
@@ -156,13 +157,16 @@ impl LLBBuilder {
                 for (idx, command) in spec.build.commands.iter().enumerate() {
                     // For first command, copy context to /build in root fs
                     let build_script = if idx == 0 {
-                        format!("mkdir -p /build && cp -r /context/. /build && cd /build && {}", command)
+                        format!(
+                            "mkdir -p /build && cp -r /context/. /build && cd /build && {}",
+                            command
+                        )
                     } else {
                         command.clone()
                     };
 
                     let mut cmd = Command::run("sh")
-                        .args(&["-c", &build_script])
+                        .args(["-c", &build_script])
                         .cwd("/build");
 
                     // Mount base layer (first command) or previous command's output
@@ -174,7 +178,11 @@ impl LLBBuilder {
                         }
                     } else {
                         // Reference previous command via Arc
-                        cmd = cmd.mount(Mount::Layer(OutputIdx(0), build_stages[idx - 1].output(0), "/"));
+                        cmd = cmd.mount(Mount::Layer(
+                            OutputIdx(0),
+                            build_stages[idx - 1].output(0),
+                            "/",
+                        ));
                     }
 
                     // Mount context read-only for first command, /tmp scratch for all
@@ -183,8 +191,7 @@ impl LLBBuilder {
                             .mount(Mount::ReadOnlyLayer(context.output(), "/context"))
                             .mount(Mount::Scratch(OutputIdx(1), "/tmp"));
                     } else {
-                        cmd = cmd
-                            .mount(Mount::Scratch(OutputIdx(1), "/tmp"));
+                        cmd = cmd.mount(Mount::Scratch(OutputIdx(1), "/tmp"));
                     }
 
                     // Add cache mounts
@@ -209,24 +216,30 @@ impl LLBBuilder {
                         cmd = cmd.env(key, &resolved_value);
                     }
 
-                    cmd = cmd.custom_name(&format!("Build command {}", idx + 1));
+                    cmd = cmd.custom_name(format!("Build command {}", idx + 1));
                     build_stages.push(Arc::new(cmd));
                 }
             }
 
             // Extract artifacts from runtime.copy[].from
-            let artifacts: Vec<&String> = spec.runtime.copy.iter()
+            let artifacts: Vec<&String> = spec
+                .runtime
+                .copy
+                .iter()
                 .map(|copy_spec| &copy_spec.from)
                 .collect();
 
             // Final layer: Copy artifacts out of cache mounts (after all build commands)
             let build_stage = if !artifacts.is_empty() && !build_stages.is_empty() {
-                let mut artifact_cmd = Command::run("sh")
-                    .cwd("/build");
+                let mut artifact_cmd = Command::run("sh").cwd("/build");
 
                 // Mount last build command's output (which includes /build directory)
                 artifact_cmd = artifact_cmd
-                    .mount(Mount::Layer(OutputIdx(0), build_stages.last().unwrap().output(0), "/"))
+                    .mount(Mount::Layer(
+                        OutputIdx(0),
+                        build_stages.last().unwrap().output(0),
+                        "/",
+                    ))
                     .mount(Mount::Scratch(OutputIdx(1), "/tmp"));
 
                 // Add cache mounts
@@ -254,17 +267,23 @@ impl LLBBuilder {
                 }
 
                 let script = copy_commands.join(" && ");
-                artifact_cmd.args(&["-c", &script]).custom_name("Copy build artifacts")
+                artifact_cmd
+                    .args(["-c", &script])
+                    .custom_name("Copy build artifacts")
             } else if !build_stages.is_empty() {
                 // No artifacts to copy, use last build command
                 // Create a no-op command that passes through the build stage
                 Command::run("sh")
-                    .args(&["-c", "true"])
-                    .mount(Mount::Layer(OutputIdx(0), build_stages.last().unwrap().output(0), "/"))
+                    .args(["-c", "true"])
+                    .mount(Mount::Layer(
+                        OutputIdx(0),
+                        build_stages.last().unwrap().output(0),
+                        "/",
+                    ))
                     .custom_name("Build stage (passthrough)")
             } else {
                 // No commands at all, create empty build stage
-                build_cmd.args(&["-c", "true"]).custom_name("Build stage")
+                build_cmd.args(["-c", "true"]).custom_name("Build stage")
             };
 
             build_stage
@@ -278,14 +297,14 @@ impl LLBBuilder {
                 packages
             );
             Command::run("sh")
-                .args(&["-c", &cmd])
+                .args(["-c", &cmd])
                 .mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"))
                 .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
                 .custom_name("Install runtime packages and remove apk")
         } else {
             // No runtime packages - just use wolfi-base and remove apk
             Command::run("sh")
-                .args(&["-c", "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk"])
+                .args(["-c", "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk"])
                 .mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"))
                 .custom_name("Remove apk from base")
         };
@@ -299,7 +318,7 @@ impl LLBBuilder {
             "peelbox base runtime".to_string()
         };
         let squashed_runtime = Command::run("sh")
-            .args(&["-c", &format!(": {}; cp -a /source/. /dest/", runtime_desc)])
+            .args(["-c", &format!(": {}; cp -a /source/. /dest/", runtime_desc)])
             .mount(Mount::ReadOnlyLayer(busybox.output(), "/"))
             .mount(Mount::Layer(OutputIdx(0), glibc_dynamic.output(), "/dest"))
             .mount(Mount::ReadOnlyLayer(runtime_prep.output(0), "/source"))
@@ -312,8 +331,15 @@ impl LLBBuilder {
             // Use busybox for shell commands since squashed runtime is distroless
             let mut copy_stage = Command::run("/bin/sh")
                 .mount(Mount::ReadOnlyLayer(busybox.output(), "/"))
-                .mount(Mount::Layer(OutputIdx(0), squashed_runtime.output(0), "/dest"))
-                .mount(Mount::ReadOnlyLayer(build_stage.output(1), "/tmp/build-tmp"));
+                .mount(Mount::Layer(
+                    OutputIdx(0),
+                    squashed_runtime.output(0),
+                    "/dest",
+                ))
+                .mount(Mount::ReadOnlyLayer(
+                    build_stage.output(1),
+                    "/tmp/build-tmp",
+                ));
 
             // Set runtime environment variables
             for (key, value) in &spec.runtime.env {
@@ -329,22 +355,29 @@ impl LLBBuilder {
                 } else {
                     normalized_from
                 };
-                let filename = source_path.split('/').last().unwrap_or(source_path);
+                let filename = source_path.split('/').next_back().unwrap_or(source_path);
 
                 // Create parent directory if needed (in /dest)
-                let parent_dir = copy_spec.to.rsplitn(2, '/').nth(1);
+                let parent_dir = copy_spec.to.rsplit_once('/').map(|x| x.0);
                 if let Some(dir) = parent_dir {
                     if !dir.is_empty() {
                         copy_commands.push(format!("/bin/mkdir -p /dest{}", dir));
                     }
                 }
 
-                let copy_flag = if Self::is_directory(normalized_from) { "-r" } else { "" };
-                copy_commands.push(format!("/bin/cp {} /tmp/build-tmp/artifacts/{} /dest{}", copy_flag, filename, copy_spec.to));
+                let copy_flag = if Self::is_directory(normalized_from) {
+                    "-r"
+                } else {
+                    ""
+                };
+                copy_commands.push(format!(
+                    "/bin/cp {} /tmp/build-tmp/artifacts/{} /dest{}",
+                    copy_flag, filename, copy_spec.to
+                ));
             }
             let script = copy_commands.join(" && ");
-            copy_stage = copy_stage.args(&["-c", &script]);
-            copy_stage = copy_stage.custom_name(&format!("peelbox {} application", app_name));
+            copy_stage = copy_stage.args(["-c", &script]);
+            copy_stage = copy_stage.custom_name(format!("peelbox {} application", app_name));
 
             Terminal::with(copy_stage.output(0))
                 .write_definition(writer)
@@ -425,7 +458,10 @@ mod tests {
         assert!(result.is_ok(), "Full build should succeed");
 
         let bytes = result.unwrap();
-        assert!(!bytes.is_empty(), "Should generate non-empty LLB definition");
+        assert!(
+            !bytes.is_empty(),
+            "Should generate non-empty LLB definition"
+        );
     }
 
     #[test]

@@ -279,14 +279,18 @@ fn enrich_detections(
     read_content: bool,
 ) -> Result<()> {
     for detection in detections.iter_mut() {
-        let rel_path = detection.manifest_path.strip_prefix(repo_path).unwrap_or(&detection.manifest_path);
+        let rel_path = detection
+            .manifest_path
+            .strip_prefix(repo_path)
+            .unwrap_or(&detection.manifest_path);
 
         detection.depth = rel_path.to_string_lossy().matches('/').count();
 
         if read_content {
             if let Some(filename) = detection.manifest_path.file_name().and_then(|n| n.to_str()) {
                 let content = std::fs::read_to_string(&detection.manifest_path).ok();
-                detection.is_workspace_root = stack_registry.is_workspace_root(filename, content.as_deref());
+                detection.is_workspace_root =
+                    stack_registry.is_workspace_root(filename, content.as_deref());
             }
         }
     }
@@ -413,7 +417,10 @@ impl ScanPhase {
             if matches!(detection.language, crate::stack::LanguageId::Custom(_)) {
                 stack_registry.register_llm_language(detection.language.clone());
             }
-            if matches!(detection.build_system, crate::stack::BuildSystemId::Custom(_)) {
+            if matches!(
+                detection.build_system,
+                crate::stack::BuildSystemId::Custom(_)
+            ) {
                 let manifest_path = repo_path.join(&detection.manifest_path);
                 if let Err(e) = stack_registry.register_llm_build_system(
                     detection.build_system.clone(),
@@ -428,7 +435,12 @@ impl ScanPhase {
             }
         }
 
-        enrich_detections(&mut detections, &repo_path, &stack_registry, config.read_content)?;
+        enrich_detections(
+            &mut detections,
+            &repo_path,
+            &stack_registry,
+            config.read_content,
+        )?;
 
         for detection in &detections {
             debug!(

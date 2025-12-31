@@ -16,7 +16,16 @@ impl LanguageDefinition for JavaScriptLanguage {
     }
 
     fn extensions(&self) -> Vec<String> {
-        vec!["js".to_string(), "mjs".to_string(), "cjs".to_string(), "jsx".to_string(), "ts".to_string(), "tsx".to_string(), "mts".to_string(), "cts".to_string()]
+        vec![
+            "js".to_string(),
+            "mjs".to_string(),
+            "cjs".to_string(),
+            "jsx".to_string(),
+            "ts".to_string(),
+            "tsx".to_string(),
+            "mts".to_string(),
+            "cts".to_string(),
+        ]
     }
 
     fn detect(
@@ -79,7 +88,12 @@ impl LanguageDefinition for JavaScriptLanguage {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["npm".to_string(), "yarn".to_string(), "pnpm".to_string(), "bun".to_string()]
+        vec![
+            "npm".to_string(),
+            "yarn".to_string(),
+            "pnpm".to_string(),
+            "bun".to_string(),
+        ]
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
@@ -169,11 +183,17 @@ impl LanguageDefinition for JavaScriptLanguage {
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(r"process\.env\.([A-Z_][A-Z0-9_]*)".to_string(), "process.env".to_string())]
+        vec![(
+            r"process\.env\.([A-Z_][A-Z0-9_]*)".to_string(),
+            "process.env".to_string(),
+        )]
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Express".to_string())]
+        vec![(
+            r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+            "Express".to_string(),
+        )]
     }
 
     fn is_main_file(&self, _fs: &dyn crate::fs::FileSystem, file_path: &std::path::Path) -> bool {
@@ -202,8 +222,14 @@ impl LanguageDefinition for JavaScriptLanguage {
 
     fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"\.listen\s*\(\s*(\d{4,5})".to_string(), "listen()".to_string()),
-            (r"port\s*:\s*(\d{4,5})".to_string(), "port config".to_string()),
+            (
+                r"\.listen\s*\(\s*(\d{4,5})".to_string(),
+                "listen()".to_string(),
+            ),
+            (
+                r"port\s*:\s*(\d{4,5})".to_string(),
+                "port config".to_string(),
+            ),
         ]
     }
 
@@ -324,7 +350,10 @@ mod tests {
     #[test]
     fn test_workspace_configs() {
         let lang = JavaScriptLanguage;
-        assert!(lang.workspace_configs().iter().any(|s| s == "pnpm-workspace.yaml"));
+        assert!(lang
+            .workspace_configs()
+            .iter()
+            .any(|s| s == "pnpm-workspace.yaml"));
         assert!(lang.workspace_configs().iter().any(|s| s == "turbo.json"));
     }
 

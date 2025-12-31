@@ -20,7 +20,8 @@ use tokio::time::timeout;
 /// - Reduce container startup overhead
 /// - Share build cache across all tests
 /// - Enable parallel builds (BuildKit handles concurrent build requests)
-static BUILDKIT_CONTAINER: OnceCell<Arc<(String, ContainerAsync<GenericImage>)>> = OnceCell::const_new();
+static BUILDKIT_CONTAINER: OnceCell<Arc<(String, ContainerAsync<GenericImage>)>> =
+    OnceCell::const_new();
 
 /// Fixed container name for the shared BuildKit instance
 const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
@@ -33,25 +34,29 @@ const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 ///
 /// Uses a fixed container name to enable reuse across test binaries.
 pub async fn get_buildkit_container() -> Result<String> {
-    let docker = Docker::connect_with_local_defaults()
-        .context("Failed to connect to Docker")?;
+    let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
 
     // Check if container already exists (may be from another test binary)
-    match docker.inspect_container(BUILDKIT_CONTAINER_NAME, None).await {
+    match docker
+        .inspect_container(BUILDKIT_CONTAINER_NAME, None)
+        .await
+    {
         Ok(inspect) => {
             // Container exists, check if it's running
             if inspect.state.and_then(|s| s.running) == Some(true) {
                 // Container is already running, return its ID
-                return Ok(inspect.id.context("Container ID missing")?);
+                return inspect.id.context("Container ID missing");
             } else {
                 // Container exists but not running, remove it
-                let _ = docker.remove_container(
-                    BUILDKIT_CONTAINER_NAME,
-                    Some(bollard::container::RemoveContainerOptions {
-                        force: true,
-                        ..Default::default()
-                    })
-                ).await;
+                let _ = docker
+                    .remove_container(
+                        BUILDKIT_CONTAINER_NAME,
+                        Some(bollard::container::RemoveContainerOptions {
+                            force: true,
+                            ..Default::default()
+                        }),
+                    )
+                    .await;
             }
         }
         Err(_) => {
@@ -93,8 +98,8 @@ pub struct ContainerTestHarness {
 impl ContainerTestHarness {
     /// Create a new harness instance
     pub fn new() -> Result<Self> {
-        let docker = Docker::connect_with_local_defaults()
-            .context("Failed to connect to Docker/Podman")?;
+        let docker =
+            Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
         Ok(Self { docker })
     }
 
@@ -117,7 +122,13 @@ impl ContainerTestHarness {
 
         if !peelbox_binary.exists() {
             let build_status = std::process::Command::new("cargo")
-                .args(&["build", "--release", "--bin", "peelbox", "--no-default-features"])
+                .args([
+                    "build",
+                    "--release",
+                    "--bin",
+                    "peelbox",
+                    "--no-default-features",
+                ])
                 .status()
                 .context("Failed to build peelbox")?;
 
@@ -136,7 +147,13 @@ impl ContainerTestHarness {
 
         // Generate LLB from UniversalBuild spec with unique context name
         let peelbox_output = std::process::Command::new(&peelbox_binary)
-            .args(&["frontend", "--spec", spec_path.to_str().unwrap(), "--context-name", &context_name])
+            .args([
+                "frontend",
+                "--spec",
+                spec_path.to_str().unwrap(),
+                "--context-name",
+                &context_name,
+                ])
             .output()
             .context("Failed to run peelbox frontend")?;
 
@@ -154,7 +171,7 @@ impl ContainerTestHarness {
         let buildkit_addr = format!("docker-container://{}", container_id);
 
         let mut buildctl = std::process::Command::new("buildctl")
-            .args(&[
+            .args([
                 "--addr",
                 &buildkit_addr,
                 "build",
@@ -163,7 +180,7 @@ impl ContainerTestHarness {
                 &format!("{}={}", context_name, context_path.display()),
                 "--output",
                 &format!("type=docker,name={}", image_name),
-            ])
+                ])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -210,7 +227,7 @@ impl ContainerTestHarness {
         };
 
         let mut docker_load = std::process::Command::new(cli_cmd)
-            .args(&["load"])
+            .args(["load"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -246,15 +263,24 @@ impl ContainerTestHarness {
     /// Start a container from an image with dynamic port binding
     /// Returns the container ID
     /// The container_port will be bound to a random available host port
-    pub async fn start_container(&self, image_name: &str, container_port: u16, cmd: Option<Vec<String>>, env: Option<Vec<String>>) -> Result<String> {
+    pub async fn start_container(
+        &self,
+        image_name: &str,
+        container_port: u16,
+        cmd: Option<Vec<String>>,
+        env: Option<Vec<String>>,
+    ) -> Result<String> {
         let container_config = Config {
             image: Some(image_name.to_string()),
             cmd,
             env,
             exposed_ports: Some(
-                [(format!("{}/tcp", container_port), std::collections::HashMap::new())]
-                    .into_iter()
-                    .collect(),
+                [(
+                    format!("{}/tcp", container_port),
+                    std::collections::HashMap::new(),
+                )]
+                .into_iter()
+                .collect(),
             ),
             host_config: Some(bollard::service::HostConfig {
                 port_bindings: Some(
@@ -368,9 +394,7 @@ impl ContainerTestHarness {
             }
         };
 
-        timeout(timeout_duration, check)
-            .await
-            .unwrap_or(Ok(false))
+        timeout(timeout_duration, check).await.unwrap_or(Ok(false))
     }
 
     /// Stop and remove a container

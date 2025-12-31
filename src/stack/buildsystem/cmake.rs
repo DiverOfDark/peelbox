@@ -63,10 +63,13 @@ impl BuildSystem for CMakeBuildSystem {
                 "cmake --build build --config Release".to_string(),
             ],
             cache_paths: vec!["build/".to_string()],
-            
+
             common_ports: vec![8080],
             build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![("build/{project_name}".to_string(), "/usr/local/bin/{project_name}".to_string())],
+            runtime_copy: vec![(
+                "build/{project_name}".to_string(),
+                "/usr/local/bin/{project_name}".to_string(),
+            )],
             runtime_env: std::collections::HashMap::new(),
         }
     }

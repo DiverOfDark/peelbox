@@ -60,7 +60,7 @@ impl BuildSystem for MavenBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let java_version = manifest_content
-            .and_then(|c| parse_java_version(c))
+            .and_then(parse_java_version)
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
             .expect("Failed to get openjdk version from Wolfi index");
 
@@ -70,12 +70,17 @@ impl BuildSystem for MavenBuildSystem {
             .get_latest_version("maven")
             .expect("Failed to get maven version from Wolfi index");
 
-        let java_home = format!("/usr/lib/jvm/java-{}-openjdk",
-            java_version.trim_start_matches("openjdk-"));
+        let java_home = format!(
+            "/usr/lib/jvm/java-{}-openjdk",
+            java_version.trim_start_matches("openjdk-")
+        );
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
-        build_env.insert("MAVEN_OPTS".to_string(), "-Dmaven.repo.local=/root/.m2/repository".to_string());
+        build_env.insert(
+            "MAVEN_OPTS".to_string(),
+            "-Dmaven.repo.local=/root/.m2/repository".to_string(),
+        );
 
         let mut runtime_env = std::collections::HashMap::new();
         runtime_env.insert("CLASSPATH".to_string(), "/app/*:/app/lib/*".to_string());

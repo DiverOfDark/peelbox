@@ -89,7 +89,10 @@ impl BuildSystem for CargoBuildSystem {
         vec!["target".to_string(), ".cargo".to_string()]
     }
 
-    fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool), anyhow::Error> {
+    fn parse_package_metadata(
+        &self,
+        manifest_content: &str,
+    ) -> Result<(String, bool), anyhow::Error> {
         let name = manifest_content
             .lines()
             .find(|line| line.trim().starts_with("name"))
@@ -99,7 +102,8 @@ impl BuildSystem for CargoBuildSystem {
 
         // Cargo projects are applications by default (bin target)
         // Libraries have [[lib]] section
-        let is_application = !manifest_content.contains("[[lib]]") || manifest_content.contains("[[bin]]");
+        let is_application =
+            !manifest_content.contains("[[lib]]") || manifest_content.contains("[[bin]]");
 
         Ok((name, is_application))
     }

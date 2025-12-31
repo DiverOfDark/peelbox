@@ -46,7 +46,7 @@ impl StackRegistry {
     /// # Arguments
     ///
     /// * `llm_client` - Optional LLM client for fallback detection. If provided, LLM-backed
-    ///                  implementations are registered last to handle unknown technologies.
+    ///   implementations are registered last to handle unknown technologies.
     ///
     /// # Registration Order
     ///
@@ -169,9 +169,9 @@ impl StackRegistry {
     pub fn register_llm_language(&self, language_id: LanguageId) {
         if let Some(llm) = &self.llm_client {
             let mut languages = self.languages.write().unwrap();
-            if !languages.contains_key(&language_id) {
-                languages.insert(language_id, Arc::new(LLMLanguage::new(llm.clone())));
-            }
+            languages
+                .entry(language_id)
+                .or_insert_with(|| Arc::new(LLMLanguage::new(llm.clone())));
         }
     }
 
@@ -183,10 +183,12 @@ impl StackRegistry {
     ) -> anyhow::Result<()> {
         if let Some(llm) = &self.llm_client {
             let mut build_systems = self.build_systems.write().unwrap();
-            if !build_systems.contains_key(&build_system_id) {
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                build_systems.entry(build_system_id)
+            {
                 let llm_bs = Arc::new(LLMBuildSystem::new(llm.clone()));
                 llm_bs.populate_info(manifest_path, fs)?;
-                build_systems.insert(build_system_id, llm_bs);
+                e.insert(llm_bs);
             }
         }
         Ok(())
@@ -236,7 +238,9 @@ impl StackRegistry {
         // Only invoke LLM fallback if no deterministic detections were found
         if all_detections.is_empty() {
             let build_systems = self.build_systems.read().unwrap();
-            if let Some(llm_bs) = build_systems.get(&BuildSystemId::Custom("__llm_fallback__".to_string())) {
+            if let Some(llm_bs) =
+                build_systems.get(&BuildSystemId::Custom("__llm_fallback__".to_string()))
+            {
                 let detections = llm_bs.detect_all(repo_root, file_tree, fs)?;
                 all_detections.extend(detections);
             }
@@ -244,7 +248,6 @@ impl StackRegistry {
 
         Ok(all_detections)
     }
-
 
     pub fn all_excluded_dirs(&self) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();

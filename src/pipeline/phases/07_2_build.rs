@@ -26,7 +26,8 @@ fn try_deterministic(
     let manifest_path = service_path.join(&service.manifest);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok();
 
-    let template = build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
+    let template =
+        build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
 
     let build_cmd = template.build_commands.clone();
     let output_dir = template.runtime_copy.first().map(|(from, _)| {
@@ -66,7 +67,11 @@ impl ServicePhase for BuildPhase {
     }
 
     async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
-        if let Some(deterministic) = try_deterministic(&context.service, context.stack_registry(), context.repo_path()) {
+        if let Some(deterministic) = try_deterministic(
+            &context.service,
+            context.stack_registry(),
+            context.repo_path(),
+        ) {
             context.build = Some(deterministic);
         }
         Ok(())
@@ -89,7 +94,10 @@ mod tests {
         let service_path = std::path::PathBuf::from("/tmp/test");
         let template = build_system.build_template(&wolfi_index, &service_path, None);
 
-        assert_eq!(template.build_commands.first(), Some(&"cargo build --release".to_string()));
+        assert_eq!(
+            template.build_commands.first(),
+            Some(&"cargo build --release".to_string())
+        );
         assert!(!template.runtime_copy.is_empty());
     }
 

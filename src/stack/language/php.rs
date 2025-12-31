@@ -45,7 +45,11 @@ impl LanguageDefinition for PhpLanguage {
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
-        vec!["vendor".to_string(), "storage".to_string(), "bootstrap/cache".to_string()]
+        vec![
+            "vendor".to_string(),
+            "storage".to_string(),
+            "bootstrap/cache".to_string(),
+        ]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
@@ -129,17 +133,29 @@ impl LanguageDefinition for PhpLanguage {
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "getenv".to_string())]
+        vec![(
+            r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
+            "getenv".to_string(),
+        )]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"['"]SERVER_PORT['"].*?(\d{4,5})"#.to_string(), "server port".to_string())]
+        vec![(
+            r#"['"]SERVER_PORT['"].*?(\d{4,5})"#.to_string(),
+            "server port".to_string(),
+        )]
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Slim".to_string()),
-            (r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Laravel".to_string()),
+            (
+                r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+                "Slim".to_string(),
+            ),
+            (
+                r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+                "Laravel".to_string(),
+            ),
         ]
     }
 
@@ -215,7 +231,10 @@ mod tests {
     #[test]
     fn test_compatible_build_systems() {
         let lang = PhpLanguage;
-        assert_eq!(lang.compatible_build_systems(), vec!["composer".to_string()]);
+        assert_eq!(
+            lang.compatible_build_systems(),
+            vec!["composer".to_string()]
+        );
     }
 
     #[test]

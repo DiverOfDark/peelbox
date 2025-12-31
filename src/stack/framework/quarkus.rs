@@ -37,13 +37,23 @@ impl Framework for QuarkusFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/q/health".to_string(), "/q/health/live".to_string(), "/q/health/ready".to_string()]
+        vec![
+            "/q/health".to_string(),
+            "/q/health/live".to_string(),
+            "/q/health/ready".to_string(),
+        ]
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"QUARKUS_HTTP_PORT\s*=\s*(\d+)".to_string(), "Quarkus HTTP port".to_string()),
-            (r"QUARKUS_PROFILE\s*=\s*(\w+)".to_string(), "Quarkus profile".to_string()),
+            (
+                r"QUARKUS_HTTP_PORT\s*=\s*(\d+)".to_string(),
+                "Quarkus HTTP port".to_string(),
+            ),
+            (
+                r"QUARKUS_PROFILE\s*=\s*(\w+)".to_string(),
+                "Quarkus profile".to_string(),
+            ),
         ]
     }
 }
@@ -58,9 +68,18 @@ mod tests {
         let framework = QuarkusFramework;
 
         assert!(framework.compatible_languages().iter().any(|s| s == "Java"));
-        assert!(framework.compatible_languages().iter().any(|s| s == "Kotlin"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "maven"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "gradle"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Kotlin"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "maven"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "gradle"));
     }
 
     #[test]

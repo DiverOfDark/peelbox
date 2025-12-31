@@ -47,7 +47,10 @@ mod tests {
     fn test_echo_compatibility() {
         let framework = EchoFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "Go"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "go"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "go"));
     }
 
     #[test]

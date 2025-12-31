@@ -82,14 +82,11 @@ impl RubyRuntime {
     }
 
     fn find_entrypoint(&self, files: &[PathBuf]) -> Option<String> {
-        const ENTRYPOINT_CANDIDATES: &[&str] = &[
-            "config.ru",
-            "app.rb",
-            "server.rb",
-            "main.rb",
-        ];
+        const ENTRYPOINT_CANDIDATES: &[&str] = &["config.ru", "app.rb", "server.rb", "main.rb"];
 
-        let has_gemfile = files.iter().any(|f| f.file_name().and_then(|n| n.to_str()) == Some("Gemfile"));
+        let has_gemfile = files
+            .iter()
+            .any(|f| f.file_name().and_then(|n| n.to_str()) == Some("Gemfile"));
 
         for candidate in ENTRYPOINT_CANDIDATES {
             for file in files {
@@ -183,7 +180,11 @@ impl Runtime for RubyRuntime {
 }
 
 impl RubyRuntime {
-    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+    fn detect_version(
+        &self,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Option<String> {
         let ruby_version_file = service_path.join(".ruby-version");
         if let Ok(content) = std::fs::read_to_string(&ruby_version_file) {
             if let Some(ver) = self.normalize_version(&content) {

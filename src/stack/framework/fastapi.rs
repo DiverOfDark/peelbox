@@ -14,7 +14,11 @@ impl Framework for FastApiFramework {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
+        vec![
+            "pip".to_string(),
+            "poetry".to_string(),
+            "pipenv".to_string(),
+        ]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -30,7 +34,11 @@ impl Framework for FastApiFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health".to_string(), "/healthz".to_string(), "/docs".to_string()]
+        vec![
+            "/health".to_string(),
+            "/healthz".to_string(),
+            "/docs".to_string(),
+        ]
     }
 
     fn entrypoint_command(&self) -> Option<Vec<String>> {
@@ -47,7 +55,10 @@ impl Framework for FastApiFramework {
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
             (r"PORT\s*=\s*(\d+)".to_string(), "FastAPI port".to_string()),
-            (r"ENVIRONMENT\s*=\s*(\w+)".to_string(), "FastAPI environment".to_string()),
+            (
+                r"ENVIRONMENT\s*=\s*(\w+)".to_string(),
+                "FastAPI environment".to_string(),
+            ),
         ]
     }
 }
@@ -61,9 +72,18 @@ mod tests {
     fn test_fastapi_compatibility() {
         let framework = FastApiFramework;
 
-        assert!(framework.compatible_languages().iter().any(|s| s == "Python"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "pip"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "poetry"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Python"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "pip"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "poetry"));
     }
 
     #[test]

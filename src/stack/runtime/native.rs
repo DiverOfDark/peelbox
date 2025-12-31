@@ -40,11 +40,13 @@ impl NativeRuntime {
         let mut port = None;
         let deps = HashSet::new();
 
+        let cargo_port_pattern = Regex::new(r#"(?m)^#\s*port\s*=\s*(\d+)"#).unwrap();
+        let go_port_pattern = Regex::new(r#"(?m)^//\s*port\s*=\s*(\d+)"#).unwrap();
+
         for file in files {
             if file.file_name().is_some_and(|n| n == "Cargo.toml") {
                 if let Ok(content) = std::fs::read_to_string(file) {
-                    let metadata_port_pattern = Regex::new(r#"(?m)^#\s*port\s*=\s*(\d+)"#).unwrap();
-                    if let Some(cap) = metadata_port_pattern.captures(&content) {
+                    if let Some(cap) = cargo_port_pattern.captures(&content) {
                         if let Some(port_str) = cap.get(1) {
                             if let Ok(p) = port_str.as_str().parse::<u16>() {
                                 port = Some(p);
@@ -54,9 +56,7 @@ impl NativeRuntime {
                 }
             } else if file.file_name().is_some_and(|n| n == "go.mod") {
                 if let Ok(content) = std::fs::read_to_string(file) {
-                    let metadata_port_pattern =
-                        Regex::new(r#"(?m)^//\s*port\s*=\s*(\d+)"#).unwrap();
-                    if let Some(cap) = metadata_port_pattern.captures(&content) {
+                    if let Some(cap) = go_port_pattern.captures(&content) {
                         if let Some(port_str) = cap.get(1) {
                             if let Ok(p) = port_str.as_str().parse::<u16>() {
                                 port = Some(p);

@@ -74,7 +74,7 @@ impl BuildSystem for MesonBuildSystem {
                 "meson compile -C builddir".to_string(),
             ],
             cache_paths: vec![],
-            
+
             common_ports: vec![],
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![("builddir/app".to_string(), "/usr/local/bin/app".to_string())],

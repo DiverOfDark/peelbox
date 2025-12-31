@@ -1,3 +1,4 @@
+use genai::adapter::AdapterKind;
 use peelbox::buildkit::llb::LLBBuilder;
 use peelbox::cli::commands::{CliArgs, Commands, DetectArgs, FrontendArgs, HealthArgs};
 use peelbox::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
@@ -6,7 +7,6 @@ use peelbox::detection::service::DetectionService;
 use peelbox::llm::{RecordingLLMClient, RecordingMode};
 use peelbox::output::schema::UniversalBuild;
 use peelbox::VERSION;
-use genai::adapter::AdapterKind;
 
 use clap::Parser;
 use std::collections::HashMap;
@@ -548,14 +548,21 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
     debug!("Running in BuildKit frontend mode");
 
     // Default spec path
-    let spec_path = _args.spec.clone().unwrap_or_else(|| PathBuf::from("universalbuild.json"));
+    let spec_path = _args
+        .spec
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("universalbuild.json"));
 
     // Load spec file from build context
     let spec_content = match fs::read_to_string(&spec_path) {
         Ok(content) => content,
         Err(e) => {
             error!("Failed to read spec file {}: {}", spec_path.display(), e);
-            eprintln!("Error: Failed to read spec file {}: {}", spec_path.display(), e);
+            eprintln!(
+                "Error: Failed to read spec file {}: {}",
+                spec_path.display(),
+                e
+            );
             return 1;
         }
     };
@@ -594,11 +601,19 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
 
             // Find the service by name
             match specs.into_iter().find(|s| {
-                s.metadata.project_name.as_ref().map(|n| n == service_name).unwrap_or(false)
+                s.metadata
+                    .project_name
+                    .as_ref()
+                    .map(|n| n == service_name)
+                    .unwrap_or(false)
             }) {
                 Some(s) => s,
                 None => {
-                    error!("Service '{}' not found. Available services: {}", service_name, available_services.join(", "));
+                    error!(
+                        "Service '{}' not found. Available services: {}",
+                        service_name,
+                        available_services.join(", ")
+                    );
                     eprintln!(
                         "Error: Service '{}' not found in spec.\n\nAvailable services:\n  {}",
                         service_name,
@@ -625,7 +640,10 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
         specs.into_iter().next().unwrap()
     };
 
-    debug!("Selected spec for project: {:?}", spec.metadata.project_name);
+    debug!(
+        "Selected spec for project: {:?}",
+        spec.metadata.project_name
+    );
 
     // Generate LLB with the specified context name
     let llb_builder = LLBBuilder::new(&_args.context_name);
@@ -650,4 +668,3 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
     debug!("LLB written to stdout successfully");
     0
 }
-

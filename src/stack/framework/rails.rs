@@ -30,12 +30,19 @@ impl Framework for RailsFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health".to_string(), "/healthz".to_string(), "/up".to_string()]
+        vec![
+            "/health".to_string(),
+            "/healthz".to_string(),
+            "/up".to_string(),
+        ]
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"RAILS_ENV\s*=\s*(\w+)".to_string(), "Rails environment".to_string()),
+            (
+                r"RAILS_ENV\s*=\s*(\w+)".to_string(),
+                "Rails environment".to_string(),
+            ),
             (r"PORT\s*=\s*(\d+)".to_string(), "Rails port".to_string()),
         ]
     }
@@ -115,7 +122,10 @@ mod tests {
         let framework = RailsFramework;
 
         assert!(framework.compatible_languages().iter().any(|s| s == "Ruby"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "bundler"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "bundler"));
     }
 
     #[test]
@@ -173,7 +183,7 @@ bind "tcp://0.0.0.0:#{ENV.fetch('PORT', 3001)}"
         let framework = RailsFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "config/puma.rb"));
-        assert!(files.iter().any(|s| *s == "config/application.rb"));
+        assert!(files.contains(&"config/puma.rb"));
+        assert!(files.contains(&"config/application.rb"));
     }
 }

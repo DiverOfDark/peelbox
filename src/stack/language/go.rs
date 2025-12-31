@@ -146,14 +146,23 @@ impl LanguageDefinition for GoLanguage {
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "os.Getenv".to_string()),
-            (r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(), "viper".to_string()),
+            (
+                r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
+                "os.Getenv".to_string(),
+            ),
+            (
+                r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
+                "viper".to_string(),
+            ),
         ]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"\.Run\([^:)]*:(\d{4,5})".to_string(), "gin.Run()".to_string()),
+            (
+                r"\.Run\([^:)]*:(\d{4,5})".to_string(),
+                "gin.Run()".to_string(),
+            ),
             (
                 r#"http\.ListenAndServe\([^:)]*:(\d{4,5})"#.to_string(),
                 "http.ListenAndServe".to_string(),
@@ -162,7 +171,10 @@ impl LanguageDefinition for GoLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![("/health".to_string(), "Gin".to_string()), ("/healthz".to_string(), "Kubernetes".to_string())]
+        vec![
+            ("/health".to_string(), "Gin".to_string()),
+            ("/healthz".to_string(), "Kubernetes".to_string()),
+        ]
     }
 
     fn default_env_vars(&self) -> Vec<String> {

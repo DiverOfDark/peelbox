@@ -25,7 +25,11 @@ impl ServicePhase for CachePhase {
             .stack_registry()
             .get_build_system(context.service.build_system.clone())
         {
-            build_system.cache_dirs().into_iter().map(PathBuf::from).collect()
+            build_system
+                .cache_dirs()
+                .into_iter()
+                .map(PathBuf::from)
+                .collect()
         } else {
             // Unknown/LLM-detected build system - no cache dirs
             vec![]

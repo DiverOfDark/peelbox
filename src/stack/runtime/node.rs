@@ -126,7 +126,11 @@ impl Runtime for NodeRuntime {
 }
 
 impl NodeRuntime {
-    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+    fn detect_version(
+        &self,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Option<String> {
         for file_name in [".nvmrc", ".node-version"] {
             let path = service_path.join(file_name);
             if let Ok(content) = std::fs::read_to_string(&path) {

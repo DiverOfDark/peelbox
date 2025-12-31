@@ -91,11 +91,11 @@ impl BuildSystem for ComposerBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let php_version = manifest_content
-            .and_then(|c| parse_php_version(c))
+            .and_then(parse_php_version)
             .or_else(|| wolfi_index.get_latest_version("php"))
             .expect("Failed to get php version from Wolfi index");
 
-        let required_extensions = vec!["ctype", "phar", "openssl", "mbstring", "xml", "dom"];
+        let required_extensions = ["ctype", "phar", "openssl", "mbstring", "xml", "dom"];
         let extension_packages: Vec<String> = required_extensions
             .iter()
             .map(|ext| format!("{}-{}", php_version, ext))
@@ -108,7 +108,8 @@ impl BuildSystem for ComposerBuildSystem {
             build_packages,
             build_commands: vec![
                 "composer config allow-plugins.symfony/runtime true".to_string(),
-                "composer install --no-dev --optimize-autoloader --ignore-platform-reqs".to_string(),
+                "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
+                    .to_string(),
             ],
             cache_paths: vec!["/root/.composer/cache/".to_string()],
             common_ports: vec![9000, 80],

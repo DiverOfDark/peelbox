@@ -11,7 +11,15 @@ impl LanguageDefinition for CppLanguage {
     }
 
     fn extensions(&self) -> Vec<String> {
-        vec!["cpp".to_string(), "cc".to_string(), "cxx".to_string(), "c".to_string(), "h".to_string(), "hpp".to_string(), "hxx".to_string()]
+        vec![
+            "cpp".to_string(),
+            "cc".to_string(),
+            "cxx".to_string(),
+            "c".to_string(),
+            "h".to_string(),
+            "hpp".to_string(),
+            "hxx".to_string(),
+        ]
     }
 
     fn detect(
@@ -131,15 +139,24 @@ impl LanguageDefinition for CppLanguage {
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#.to_string(), "getenv".to_string())]
+        vec![(
+            r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#.to_string(),
+            "getenv".to_string(),
+        )]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"bind\([^,)]*,\s*(\d{4,5})"#.to_string(), "bind()".to_string())]
+        vec![(
+            r#"bind\([^,)]*,\s*(\d{4,5})"#.to_string(),
+            "bind()".to_string(),
+        )]
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#.to_string(), "Crow/Beast".to_string())]
+        vec![(
+            r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#.to_string(),
+            "Crow/Beast".to_string(),
+        )]
     }
 
     fn default_health_endpoints(&self) -> Vec<(String, String)> {
@@ -242,7 +259,10 @@ mod tests {
     fn test_excluded_dirs() {
         let lang = CppLanguage;
         assert!(lang.excluded_dirs().iter().any(|s| s == "build"));
-        assert!(lang.excluded_dirs().iter().any(|s| s == "cmake-build-debug"));
+        assert!(lang
+            .excluded_dirs()
+            .iter()
+            .any(|s| s == "cmake-build-debug"));
     }
 
     #[test]

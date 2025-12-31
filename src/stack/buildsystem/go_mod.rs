@@ -73,7 +73,7 @@ impl BuildSystem for GoModBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let go_package = manifest_content
-            .and_then(|c| parse_go_version(c))
+            .and_then(parse_go_version)
             .or_else(|| wolfi_index.get_latest_version("go"))
             .or_else(|| {
                 if wolfi_index.has_package("go") {
@@ -95,11 +95,8 @@ impl BuildSystem for GoModBuildSystem {
                 "go mod download".to_string(),
                 "go build -o app .".to_string(),
             ],
-            cache_paths: vec![
-                ".cache/go-build".to_string(),
-                ".cache/go-mod".to_string(),
-            ],
-            
+            cache_paths: vec![".cache/go-build".to_string(), ".cache/go-mod".to_string()],
+
             common_ports: vec![8080],
             build_env,
             runtime_copy: vec![("app".to_string(), "/usr/local/bin/app".to_string())],
@@ -108,10 +105,7 @@ impl BuildSystem for GoModBuildSystem {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![
-            ".cache/go-build".to_string(),
-            ".cache/go-mod".to_string(),
-        ]
+        vec![".cache/go-build".to_string(), ".cache/go-mod".to_string()]
     }
     fn workspace_configs(&self) -> Vec<String> {
         vec!["go.work".to_string()]

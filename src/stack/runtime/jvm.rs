@@ -89,7 +89,6 @@ impl JvmRuntime {
         result.sort();
         result
     }
-
 }
 
 impl Runtime for JvmRuntime {
@@ -110,9 +109,11 @@ impl Runtime for JvmRuntime {
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
 
         let health = framework.and_then(|f| {
-            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
-                endpoint: endpoint.to_string(),
-            })
+            f.health_endpoints(files)
+                .first()
+                .map(|endpoint| HealthCheck {
+                    endpoint: endpoint.to_string(),
+                })
         });
 
         Some(RuntimeConfig {
@@ -158,7 +159,11 @@ impl Runtime for JvmRuntime {
 }
 
 impl JvmRuntime {
-    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+    fn detect_version(
+        &self,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Option<String> {
         if let Some(content) = manifest_content {
             let pom_path = service_path.join("pom.xml");
             if pom_path.exists() {
@@ -240,14 +245,20 @@ mod tests {
     #[test]
     fn test_jvm_required_packages() {
         let runtime = JvmRuntime;
-        assert_eq!(runtime.required_packages(), vec!["ca-certificates".to_string()]);
+        assert_eq!(
+            runtime.required_packages(),
+            vec!["ca-certificates".to_string()]
+        );
     }
 
     #[test]
     fn test_jvm_start_command() {
         let runtime = JvmRuntime;
         let entrypoint = Path::new("/usr/local/bin/app");
-        assert_eq!(runtime.start_command(entrypoint), "java -jar /usr/local/bin/app");
+        assert_eq!(
+            runtime.start_command(entrypoint),
+            "java -jar /usr/local/bin/app"
+        );
     }
 
     #[test]

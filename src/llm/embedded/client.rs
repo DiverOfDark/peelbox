@@ -147,7 +147,12 @@ impl EmbeddedClient {
     }
 
     /// Generate text completion
-    async fn generate(&self, prompt: &str, max_new_tokens: usize, temperature: f32) -> Result<String> {
+    async fn generate(
+        &self,
+        prompt: &str,
+        max_new_tokens: usize,
+        temperature: f32,
+    ) -> Result<String> {
         let start = Instant::now();
 
         // Tokenize input
@@ -167,7 +172,11 @@ impl EmbeddedClient {
 
         // Use greedy sampling (argmax) when temperature=0.0 for fully deterministic output
         // Otherwise use the specified temperature with fixed seed (42) for reproducibility
-        let temp = if temperature == 0.0 { None } else { Some(temperature as f64) };
+        let temp = if temperature == 0.0 {
+            None
+        } else {
+            Some(temperature as f64)
+        };
         let mut logits_processor = LogitsProcessor::new(42, temp, None);
 
         let mut generated_tokens: Vec<u32> = Vec::new();
@@ -298,10 +307,15 @@ impl EmbeddedClient {
         }
 
         formatted.push_str("**CRITICAL: Output Format**\n");
-        formatted.push_str("When calling a tool, you MUST output ONLY the JSON object with no explanatory text.\n");
-        formatted.push_str("Do NOT include phrases like \"Let's...\", \"I will...\", or any explanation.\n");
+        formatted.push_str(
+            "When calling a tool, you MUST output ONLY the JSON object with no explanatory text.\n",
+        );
+        formatted.push_str(
+            "Do NOT include phrases like \"Let's...\", \"I will...\", or any explanation.\n",
+        );
         formatted.push_str("Output ONLY this JSON format:\n");
-        formatted.push_str("{\"name\": \"tool_name\", \"arguments\": {\"param1\": \"value1\"}}\n\n");
+        formatted
+            .push_str("{\"name\": \"tool_name\", \"arguments\": {\"param1\": \"value1\"}}\n\n");
 
         formatted
     }

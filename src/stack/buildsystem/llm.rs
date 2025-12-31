@@ -40,17 +40,14 @@ impl LLMBuildSystem {
         }
     }
 
-    pub fn populate_info(
-        &self,
-        manifest_path: &Path,
-        fs: &dyn FileSystem,
-    ) -> Result<()> {
+    pub fn populate_info(&self, manifest_path: &Path, fs: &dyn FileSystem) -> Result<()> {
         let manifest_name = manifest_path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
 
-        let content = fs.read_to_string(manifest_path)
+        let content = fs
+            .read_to_string(manifest_path)
             .unwrap_or_else(|_| String::new());
 
         let prompt = format!(
@@ -81,8 +78,7 @@ Wolfi package name guidance:
 - For common packages: glibc, ca-certificates, build-base, gcc
 - Leave packages empty if you're unsure - the build system will validate
 "#,
-            manifest_name,
-            content
+            manifest_name, content
         );
 
         let request = LLMRequest::new(vec![ChatMessage::user(prompt)]);
@@ -91,7 +87,7 @@ Wolfi package name guidance:
         })?;
 
         let json_str = strip_markdown_fences(&response.content);
-        let info: BuildSystemInfo = serde_json::from_str(&json_str)?;
+        let info: BuildSystemInfo = serde_json::from_str(json_str)?;
 
         *self.detected_info.lock().unwrap() = Some(info);
 
@@ -159,7 +155,7 @@ Identify manifest files and their build systems. Return JSON array:
         })?;
 
         let json_str = strip_markdown_fences(&response.content);
-        let manifests: Vec<ManifestInfo> = serde_json::from_str(&json_str)?;
+        let manifests: Vec<ManifestInfo> = serde_json::from_str(json_str)?;
 
         let mut detections = Vec::new();
         for manifest in manifests {
@@ -204,9 +200,9 @@ Identify manifest files and their build systems. Return JSON array:
                 build_commands: vec![],
                 cache_paths: vec![],
                 common_ports: vec![],
-            build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![],
-            runtime_env: std::collections::HashMap::new(),
+                build_env: std::collections::HashMap::new(),
+                runtime_copy: vec![],
+                runtime_env: std::collections::HashMap::new(),
             })
     }
 
@@ -305,10 +301,7 @@ mod tests {
             result[0].build_system,
             BuildSystemId::Custom("zig".to_string())
         );
-        assert_eq!(
-            result[0].language,
-            LanguageId::Custom("Zig".to_string())
-        );
+        assert_eq!(result[0].language, LanguageId::Custom("Zig".to_string()));
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -333,10 +326,7 @@ mod tests {
         client.add_response(MockResponse::text(json));
 
         let build_system = LLMBuildSystem::new(client);
-        let file_tree = vec![
-            PathBuf::from("build.zig"),
-            PathBuf::from("unknown.txt"),
-        ];
+        let file_tree = vec![PathBuf::from("build.zig"), PathBuf::from("unknown.txt")];
         let fs = RealFileSystem;
 
         let result = build_system

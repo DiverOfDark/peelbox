@@ -37,13 +37,20 @@ impl Framework for NestJsFramework {
     }
 
     fn health_endpoints(&self, _files: &[std::path::PathBuf]) -> Vec<String> {
-        vec!["/health".to_string(), "/health/liveness".to_string(), "/health/readiness".to_string()]
+        vec![
+            "/health".to_string(),
+            "/health/liveness".to_string(),
+            "/health/readiness".to_string(),
+        ]
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
             (r"PORT\s*=\s*(\d+)".to_string(), "NestJS port".to_string()),
-            (r"NODE_ENV\s*=\s*(\w+)".to_string(), "Node environment".to_string()),
+            (
+                r"NODE_ENV\s*=\s*(\w+)".to_string(),
+                "Node environment".to_string(),
+            ),
         ]
     }
 }
@@ -57,10 +64,22 @@ mod tests {
     fn test_nestjs_compatibility() {
         let framework = NestJsFramework;
 
-        assert!(framework.compatible_languages().iter().any(|s| s == "TypeScript"));
-        assert!(framework.compatible_languages().iter().any(|s| s == "JavaScript"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "npm"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "yarn"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "TypeScript"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "JavaScript"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "npm"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "yarn"));
     }
 
     #[test]

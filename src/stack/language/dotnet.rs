@@ -46,7 +46,12 @@ impl LanguageDefinition for DotNetLanguage {
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
-        vec!["bin/Debug".to_string(), "bin/Release".to_string(), "obj".to_string(), ".nuget".to_string()]
+        vec![
+            "bin/Debug".to_string(),
+            "bin/Release".to_string(),
+            "obj".to_string(),
+            ".nuget".to_string(),
+        ]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
@@ -150,7 +155,10 @@ impl LanguageDefinition for DotNetLanguage {
 
     fn port_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"UseUrls\([^:)]*:(\d{4,5})"#.to_string(), "UseUrls()".to_string()),
+            (
+                r#"UseUrls\([^:)]*:(\d{4,5})"#.to_string(),
+                "UseUrls()".to_string(),
+            ),
             (
                 r#"ApplicationUrl['"]\s*=\s*[^:]*:(\d{4,5})"#.to_string(),
                 "ApplicationUrl".to_string(),
@@ -159,7 +167,10 @@ impl LanguageDefinition for DotNetLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "ASP.NET".to_string())]
+        vec![(
+            r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+            "ASP.NET".to_string(),
+        )]
     }
 
     fn default_health_endpoints(&self) -> Vec<(String, String)> {

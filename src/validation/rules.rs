@@ -25,8 +25,6 @@ pub fn validate_non_empty_commands(build: &UniversalBuild) -> Result<()> {
     Ok(())
 }
 
-
-
 pub fn validate_non_empty_artifacts(_build: &UniversalBuild) -> Result<()> {
     // Empty artifacts is valid (e.g., Flask apps where build context contains everything)
     Ok(())
@@ -63,7 +61,10 @@ pub fn validate_wolfi_packages(
     }
 
     if !errors.is_empty() {
-        anyhow::bail!("Wolfi package validation failed:\n  {}", errors.join("\n  "));
+        anyhow::bail!(
+            "Wolfi package validation failed:\n  {}",
+            errors.join("\n  ")
+        );
     }
 
     Ok(())
@@ -102,7 +103,10 @@ fn validate_package(package: &str, wolfi_index: &WolfiPackageIndex) -> Option<St
         ));
     }
 
-    Some(format!("Package '{}' not found in Wolfi repository", package))
+    Some(format!(
+        "Package '{}' not found in Wolfi repository",
+        package
+    ))
 }
 
 fn is_version_less_package(package: &str) -> bool {

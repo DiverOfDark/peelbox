@@ -102,7 +102,9 @@ impl ServiceAnalysisPhase {
                                 .unwrap_or_else(|| std::path::Path::new(""))
                                 == package.path
                         })
-                        .map(|detection| Self::service_from_detection(detection, package.path.clone()))
+                        .map(|detection| {
+                            Self::service_from_detection(detection, package.path.clone())
+                        })
                 })
                 .collect()
         } else {

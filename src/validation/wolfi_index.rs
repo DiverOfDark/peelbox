@@ -36,8 +36,12 @@ impl WolfiPackageIndex {
 
     fn get_tar_gz_content(tar_gz_cache: &std::path::Path) -> Result<Vec<u8>> {
         if Self::is_cache_fresh(tar_gz_cache)? {
-            return fs::read(tar_gz_cache)
-                .with_context(|| format!("Failed to read cached APKINDEX from {}", tar_gz_cache.display()));
+            return fs::read(tar_gz_cache).with_context(|| {
+                format!(
+                    "Failed to read cached APKINDEX from {}",
+                    tar_gz_cache.display()
+                )
+            });
         }
 
         Self::fetch_and_save_tar_gz(tar_gz_cache)
@@ -48,11 +52,12 @@ impl WolfiPackageIndex {
             return Ok(false);
         }
 
-        let metadata = fs::metadata(cache_path)
-            .context("Failed to read cache metadata")?;
-        let modified = metadata.modified()
+        let metadata = fs::metadata(cache_path).context("Failed to read cache metadata")?;
+        let modified = metadata
+            .modified()
             .context("Failed to get cache modification time")?;
-        let elapsed = SystemTime::now().duration_since(modified)
+        let elapsed = SystemTime::now()
+            .duration_since(modified)
             .context("System time is before cache modification time")?;
 
         Ok(elapsed < CACHE_TTL)
@@ -66,12 +71,14 @@ impl WolfiPackageIndex {
         }
 
         if let Some(parent) = cache_path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create cache directory: {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create cache directory: {}", parent.display())
+            })?;
         }
 
-        fs::write(cache_path, &content)
-            .with_context(|| format!("Failed to write APKINDEX cache to {}", cache_path.display()))?;
+        fs::write(cache_path, &content).with_context(|| {
+            format!("Failed to write APKINDEX cache to {}", cache_path.display())
+        })?;
 
         Ok(content)
     }
@@ -88,8 +95,12 @@ impl WolfiPackageIndex {
     }
 
     fn fetch_apkindex() -> Result<Vec<u8>> {
-        let response = reqwest::blocking::get(APKINDEX_URL)
-            .with_context(|| format!("Failed to download APKINDEX from {} (check network connectivity)", APKINDEX_URL))?;
+        let response = reqwest::blocking::get(APKINDEX_URL).with_context(|| {
+            format!(
+                "Failed to download APKINDEX from {} (check network connectivity)",
+                APKINDEX_URL
+            )
+        })?;
 
         if !response.status().is_success() {
             anyhow::bail!(
@@ -99,7 +110,8 @@ impl WolfiPackageIndex {
             );
         }
 
-        let bytes = response.bytes()
+        let bytes = response
+            .bytes()
             .context("Failed to read APKINDEX response body")?;
 
         if bytes.is_empty() {
@@ -116,7 +128,8 @@ impl WolfiPackageIndex {
 
         let mut decoder = flate2::read::MultiGzDecoder::new(data);
         let mut tar_data = Vec::new();
-        decoder.read_to_end(&mut tar_data)
+        decoder
+            .read_to_end(&mut tar_data)
             .context("Failed to decompress APKINDEX.tar.gz (invalid gzip format)")?;
 
         if tar_data.is_empty() {
@@ -126,13 +139,17 @@ impl WolfiPackageIndex {
         let mut archive = tar::Archive::new(&tar_data[..]);
         let mut packages = HashSet::new();
 
-        for entry in archive.entries().context("Failed to read tar entries (invalid tar format)")? {
+        for entry in archive
+            .entries()
+            .context("Failed to read tar entries (invalid tar format)")?
+        {
             let mut entry = entry.context("Failed to read tar entry")?;
             let path = entry.path().context("Failed to get entry path")?;
 
             if path.to_str().unwrap_or("") == "APKINDEX" {
                 let mut content = Vec::new();
-                entry.read_to_end(&mut content)
+                entry
+                    .read_to_end(&mut content)
                     .context("Failed to read APKINDEX content from tar")?;
 
                 let content_str = std::str::from_utf8(&content)
@@ -181,7 +198,10 @@ impl WolfiPackageIndex {
         Ok(cache_dir.join("packages.bin"))
     }
 
-    fn load_parsed_cache(parsed_path: &std::path::Path, tar_gz_path: &std::path::Path) -> Result<Self> {
+    fn load_parsed_cache(
+        parsed_path: &std::path::Path,
+        tar_gz_path: &std::path::Path,
+    ) -> Result<Self> {
         if !parsed_path.exists() {
             anyhow::bail!("Parsed cache does not exist");
         }
@@ -198,8 +218,8 @@ impl WolfiPackageIndex {
 
         // Load binary cache using bincode
         let data = fs::read(parsed_path).context("Failed to read parsed cache")?;
-        let packages: HashSet<String> = bincode::deserialize(&data)
-            .context("Failed to deserialize parsed cache")?;
+        let packages: HashSet<String> =
+            bincode::deserialize(&data).context("Failed to deserialize parsed cache")?;
 
         Ok(Self { packages })
     }
@@ -209,8 +229,7 @@ impl WolfiPackageIndex {
             fs::create_dir_all(parent).context("Failed to create cache directory")?;
         }
 
-        let data = bincode::serialize(&index.packages)
-            .context("Failed to serialize packages")?;
+        let data = bincode::serialize(&index.packages).context("Failed to serialize packages")?;
 
         fs::write(parsed_path, data).context("Failed to write parsed cache")?;
 
@@ -225,7 +244,7 @@ impl WolfiPackageIndex {
 
         for package in &self.packages {
             if let Some(version) = package.strip_prefix(&prefix_with_dash) {
-                if !version.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                if !version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
                     continue;
                 }
 
@@ -305,12 +324,14 @@ impl WolfiPackageIndex {
 
         static TEST_INDEX: OnceLock<Arc<WolfiPackageIndex>> = OnceLock::new();
 
-        let index = TEST_INDEX.get_or_init(|| {
-            let test_data_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/data/APKINDEX.tar.gz");
-            Arc::new(WolfiPackageIndex::from_file(&test_data_path)
-                .expect("Failed to load test APKINDEX - run 'cp /tmp/APKINDEX.tar.gz tests/data/'"))
-        });
+        let index =
+            TEST_INDEX.get_or_init(|| {
+                let test_data_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/data/APKINDEX.tar.gz");
+                Arc::new(WolfiPackageIndex::from_file(&test_data_path).expect(
+                    "Failed to load test APKINDEX - run 'cp /tmp/APKINDEX.tar.gz tests/data/'",
+                ))
+            });
 
         (**index).clone()
     }

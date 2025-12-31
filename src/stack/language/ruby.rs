@@ -45,7 +45,13 @@ impl LanguageDefinition for RubyLanguage {
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
-        vec!["vendor".to_string(), "tmp".to_string(), "log".to_string(), "coverage".to_string(), ".bundle".to_string()]
+        vec![
+            "vendor".to_string(),
+            "tmp".to_string(),
+            "log".to_string(),
+            "coverage".to_string(),
+            ".bundle".to_string(),
+        ]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
@@ -133,7 +139,10 @@ impl LanguageDefinition for RubyLanguage {
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(), "ENV".to_string())]
+        vec![(
+            r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
+            "ENV".to_string(),
+        )]
     }
 
     fn port_patterns(&self) -> Vec<(String, String)> {
@@ -142,8 +151,14 @@ impl LanguageDefinition for RubyLanguage {
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Rails/Sinatra".to_string()),
-            (r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(), "Rails".to_string()),
+            (
+                r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+                "Rails/Sinatra".to_string(),
+            ),
+            (
+                r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
+                "Rails".to_string(),
+            ),
         ]
     }
 

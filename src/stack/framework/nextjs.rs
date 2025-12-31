@@ -14,7 +14,12 @@ impl Framework for NextJsFramework {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["npm".to_string(), "yarn".to_string(), "pnpm".to_string(), "bun".to_string()]
+        vec![
+            "npm".to_string(),
+            "yarn".to_string(),
+            "pnpm".to_string(),
+            "bun".to_string(),
+        ]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -36,7 +41,10 @@ impl Framework for NextJsFramework {
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
             (r"PORT\s*=\s*(\d+)".to_string(), "Next.js port".to_string()),
-            (r"NODE_ENV\s*=\s*(\w+)".to_string(), "Node environment".to_string()),
+            (
+                r"NODE_ENV\s*=\s*(\w+)".to_string(),
+                "Node environment".to_string(),
+            ),
         ]
     }
 
@@ -69,9 +77,17 @@ impl Framework for NextJsFramework {
     }
 
     fn customize_build_template(&self, mut template: BuildTemplate) -> BuildTemplate {
-        if !template.runtime_copy.iter().any(|(from, _)| from.contains(".next")) {
-            template.runtime_copy.push((".next/".to_string(), "/app/.next".to_string()));
-            template.runtime_copy.push(("public/".to_string(), "/app/public".to_string()));
+        if !template
+            .runtime_copy
+            .iter()
+            .any(|(from, _)| from.contains(".next"))
+        {
+            template
+                .runtime_copy
+                .push((".next/".to_string(), "/app/.next".to_string()));
+            template
+                .runtime_copy
+                .push(("public/".to_string(), "/app/public".to_string()));
         }
         template
     }
@@ -119,11 +135,26 @@ mod tests {
     fn test_nextjs_compatibility() {
         let framework = NextJsFramework;
 
-        assert!(framework.compatible_languages().iter().any(|s| s == "JavaScript"));
-        assert!(framework.compatible_languages().iter().any(|s| s == "TypeScript"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "npm"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "yarn"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "pnpm"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "JavaScript"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "TypeScript"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "npm"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "yarn"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "pnpm"));
     }
 
     #[test]
@@ -187,7 +218,7 @@ module.exports = nextConfig
         let framework = NextJsFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "next.config.js"));
-        assert!(files.iter().any(|s| *s == "next.config.ts"));
+        assert!(files.contains(&"next.config.js"));
+        assert!(files.contains(&"next.config.ts"));
     }
 }

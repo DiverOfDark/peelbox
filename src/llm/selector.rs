@@ -11,7 +11,10 @@ pub struct SelectedClient {
     pub description: String,
 }
 
-pub async fn select_llm_client(config: &PeelboxConfig, interactive: bool) -> Result<SelectedClient> {
+pub async fn select_llm_client(
+    config: &PeelboxConfig,
+    interactive: bool,
+) -> Result<SelectedClient> {
     if let Some(selected) = try_configured_provider(config).await {
         return Ok(selected);
     }

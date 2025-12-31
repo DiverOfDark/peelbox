@@ -14,7 +14,11 @@ impl Framework for FlaskFramework {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["pip".to_string(), "poetry".to_string(), "pipenv".to_string()]
+        vec![
+            "pip".to_string(),
+            "poetry".to_string(),
+            "pipenv".to_string(),
+        ]
     }
 
     fn dependency_patterns(&self) -> Vec<DependencyPattern> {
@@ -49,13 +53,24 @@ impl Framework for FlaskFramework {
     }
 
     fn entrypoint_command(&self) -> Option<Vec<String>> {
-        Some(vec!["python".to_string(), "-m".to_string(), "flask".to_string(), "run".to_string()])
+        Some(vec![
+            "python".to_string(),
+            "-m".to_string(),
+            "flask".to_string(),
+            "run".to_string(),
+        ])
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {
         vec![
-            (r"FLASK_ENV\s*=\s*(\w+)".to_string(), "Flask environment".to_string()),
-            (r"FLASK_APP\s*=\s*(\S+)".to_string(), "Flask application".to_string()),
+            (
+                r"FLASK_ENV\s*=\s*(\w+)".to_string(),
+                "Flask environment".to_string(),
+            ),
+            (
+                r"FLASK_APP\s*=\s*(\S+)".to_string(),
+                "Flask application".to_string(),
+            ),
         ]
     }
 
@@ -131,9 +146,18 @@ mod tests {
     fn test_flask_compatibility() {
         let framework = FlaskFramework;
 
-        assert!(framework.compatible_languages().iter().any(|s| s == "Python"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "pip"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "poetry"));
+        assert!(framework
+            .compatible_languages()
+            .iter()
+            .any(|s| s == "Python"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "pip"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "poetry"));
     }
 
     #[test]
@@ -193,7 +217,7 @@ DATABASE_URL = os.environ['DB_URL']
         let framework = FlaskFramework;
         let files = framework.config_files();
 
-        assert!(files.iter().any(|s| *s == "config.py"));
-        assert!(files.iter().any(|s| *s == "instance/config.py"));
+        assert!(files.contains(&"config.py"));
+        assert!(files.contains(&"instance/config.py"));
     }
 }

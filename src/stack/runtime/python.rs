@@ -109,12 +109,16 @@ impl Runtime for PythonRuntime {
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
         let health = framework.and_then(|f| {
-            f.health_endpoints(files).first().map(|endpoint| HealthCheck {
-                endpoint: endpoint.to_string(),
-            })
+            f.health_endpoints(files)
+                .first()
+                .map(|endpoint| HealthCheck {
+                    endpoint: endpoint.to_string(),
+                })
         });
 
-        let entrypoint = framework.and_then(|f| f.entrypoint_command()).map(|cmd| cmd.join(" "));
+        let entrypoint = framework
+            .and_then(|f| f.entrypoint_command())
+            .map(|cmd| cmd.join(" "));
 
         Some(RuntimeConfig {
             entrypoint,
@@ -158,7 +162,11 @@ impl Runtime for PythonRuntime {
 }
 
 impl PythonRuntime {
-    fn detect_version(&self, service_path: &Path, manifest_content: Option<&str>) -> Option<String> {
+    fn detect_version(
+        &self,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> Option<String> {
         let runtime_txt = service_path.join("runtime.txt");
         if let Ok(content) = std::fs::read_to_string(&runtime_txt) {
             if let Some(ver) = self.normalize_version(&content) {

@@ -12,11 +12,12 @@
 ///
 /// Usage:
 ///   cargo test --test buildkit_integration -- --nocapture
-
 mod support;
 
 use anyhow::{Context, Result};
-use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
+use bollard::container::{
+    Config, LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
+};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use serial_test::serial;
@@ -33,15 +34,16 @@ async fn build_peelbox_image(test_name: &str) -> Result<(String, Docker)> {
         .context("Failed to get current directory")?
         .join("universalbuild.json");
 
-    let context_path = std::env::current_dir()
-        .context("Failed to get current directory")?;
+    let context_path = std::env::current_dir().context("Failed to get current directory")?;
 
     let image_name = format!("localhost/peelbox-test-{}:latest", test_name);
 
-    harness.build_image(&spec_path, &context_path, &image_name).await?;
+    harness
+        .build_image(&spec_path, &context_path, &image_name)
+        .await?;
 
-    let docker = Docker::connect_with_local_defaults()
-        .context("Failed to connect to Docker/Podman")?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
 
     Ok((image_name, docker))
 }
@@ -54,7 +56,8 @@ async fn test_image_builds_successfully() -> Result<()> {
 
     let (image_name, docker) = build_peelbox_image("build").await?;
 
-    let inspect = docker.inspect_image(&image_name)
+    let inspect = docker
+        .inspect_image(&image_name)
         .await
         .context("Failed to inspect image")?;
 
@@ -77,7 +80,10 @@ async fn test_image_runs_help_command() -> Result<()> {
 
     let container_config = Config {
         image: Some(image_name.clone()),
-        cmd: Some(vec!["/usr/local/bin/peelbox".to_string(), "--help".to_string()]),
+        cmd: Some(vec![
+            "/usr/local/bin/peelbox".to_string(),
+            "--help".to_string(),
+        ]),
         ..Default::default()
     };
 
@@ -122,7 +128,10 @@ async fn test_image_runs_help_command() -> Result<()> {
         )
         .await?;
 
-    assert_eq!(wait_result.status_code, 0, "Container should exit successfully");
+    assert_eq!(
+        wait_result.status_code, 0,
+        "Container should exit successfully"
+    );
     assert!(
         output.contains("peelbox"),
         "Help output should contain project name"
@@ -148,7 +157,8 @@ async fn test_distroless_layer_structure() -> Result<()> {
 
     let (image_name, docker) = build_peelbox_image("layers").await?;
 
-    let history = docker.image_history(&image_name)
+    let history = docker
+        .image_history(&image_name)
         .await
         .context("Failed to get image history")?;
 
@@ -163,18 +173,19 @@ async fn test_distroless_layer_structure() -> Result<()> {
     println!("✓ No wolfi-base in layer history (truly distroless)");
 
     // Count only OUR layers (identified by ": peelbox" prefix)
-    let our_layers: Vec<_> = history.iter()
-        .filter(|layer| {
-            layer.size > 0 && layer.created_by.contains(": peelbox")
-        })
+    let our_layers: Vec<_> = history
+        .iter()
+        .filter(|layer| layer.size > 0 && layer.created_by.contains(": peelbox"))
         .collect();
 
     println!("Image has {} peelbox layers:", our_layers.len());
     for (i, layer) in our_layers.iter().enumerate() {
-        println!("  Layer {}: {} bytes - {}",
+        println!(
+            "  Layer {}: {} bytes - {}",
             i + 1,
             layer.size,
-            &layer.created_by);
+            &layer.created_by
+        );
     }
 
     assert_eq!(
@@ -186,7 +197,8 @@ async fn test_distroless_layer_structure() -> Result<()> {
     println!("✓ Exactly 2 peelbox layers (runtime + app)");
 
     // Verify clean layer metadata format (': peelbox <name>')
-    let runtime_layer = history.iter()
+    let runtime_layer = history
+        .iter()
         .find(|l| l.created_by.contains("runtime"))
         .expect("Runtime layer should exist");
     assert!(
@@ -195,7 +207,8 @@ async fn test_distroless_layer_structure() -> Result<()> {
         runtime_layer.created_by
     );
 
-    let app_layer = history.iter()
+    let app_layer = history
+        .iter()
         .find(|l| l.created_by.contains("application"))
         .expect("Application layer should exist");
     assert!(
@@ -219,7 +232,8 @@ async fn test_image_size_optimized() -> Result<()> {
 
     let (image_name, docker) = build_peelbox_image("size").await?;
 
-    let inspect = docker.inspect_image(&image_name)
+    let inspect = docker
+        .inspect_image(&image_name)
         .await
         .context("Failed to inspect image")?;
 
@@ -234,7 +248,10 @@ async fn test_image_size_optimized() -> Result<()> {
     );
 
     if size_mb > 30.0 {
-        println!("⚠ Warning: Image is {:.2}MB, larger than typical distroless (~10-30MB)", size_mb);
+        println!(
+            "⚠ Warning: Image is {:.2}MB, larger than typical distroless (~10-30MB)",
+            size_mb
+        );
     } else {
         println!("✓ Image size is optimized ({:.2}MB)", size_mb);
     }
@@ -256,7 +273,10 @@ async fn test_binary_exists_and_executable() -> Result<()> {
     // Run the binary with --version to verify it exists and executes
     let container_config = Config {
         image: Some(image_name.clone()),
-        cmd: Some(vec!["/usr/local/bin/peelbox".to_string(), "--version".to_string()]),
+        cmd: Some(vec![
+            "/usr/local/bin/peelbox".to_string(),
+            "--version".to_string(),
+        ]),
         ..Default::default()
     };
 
@@ -310,7 +330,13 @@ async fn test_buildctl_output_types() -> Result<()> {
     let peelbox_binary = std::env::current_dir()?.join("target/release/peelbox");
     if !peelbox_binary.exists() {
         let build_status = std::process::Command::new("cargo")
-            .args(&["build", "--release", "--bin", "peelbox", "--no-default-features"])
+            .args([
+                "build",
+                "--release",
+                "--bin",
+                "peelbox",
+                "--no-default-features",
+                ])
             .status()?;
         if !build_status.success() {
             anyhow::bail!("Failed to build peelbox binary");
@@ -319,11 +345,14 @@ async fn test_buildctl_output_types() -> Result<()> {
 
     let spec_path = std::env::current_dir()?.join("universalbuild.json");
     let peelbox_output = std::process::Command::new(&peelbox_binary)
-        .args(&["frontend", "--spec", spec_path.to_str().unwrap()])
+        .args(["frontend", "--spec", spec_path.to_str().unwrap()])
         .output()?;
 
     if !peelbox_output.status.success() {
-        anyhow::bail!("peelbox frontend failed: {}", String::from_utf8_lossy(&peelbox_output.stderr));
+        anyhow::bail!(
+            "peelbox frontend failed: {}",
+            String::from_utf8_lossy(&peelbox_output.stderr)
+        );
     }
 
     let llb_data = peelbox_output.stdout;
@@ -335,13 +364,16 @@ async fn test_buildctl_output_types() -> Result<()> {
     let oci_dest = std::env::temp_dir().join("peelbox-test-oci.tar");
 
     let mut buildctl_oci = std::process::Command::new("buildctl")
-        .args(&[
-            "--addr", &buildkit_addr,
+        .args([
+            "--addr",
+            &buildkit_addr,
             "build",
             "--progress=plain",
-            "--local", &format!("context={}", repo_path.display()),
-            "--output", &format!("type=oci,dest={}", oci_dest.display()),
-        ])
+            "--local",
+            &format!("context={}", repo_path.display()),
+            "--output",
+            &format!("type=oci,dest={}", oci_dest.display()),
+                ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -353,7 +385,10 @@ async fn test_buildctl_output_types() -> Result<()> {
 
     let oci_output = buildctl_oci.wait_with_output()?;
     if !oci_output.status.success() {
-        eprintln!("OCI build stderr:\n{}", String::from_utf8_lossy(&oci_output.stderr));
+        eprintln!(
+            "OCI build stderr:\n{}",
+            String::from_utf8_lossy(&oci_output.stderr)
+        );
         anyhow::bail!("OCI tarball build failed");
     }
 
@@ -367,13 +402,19 @@ async fn test_buildctl_output_types() -> Result<()> {
     let docker_dest = std::env::temp_dir().join("peelbox-test-docker.tar");
 
     let mut buildctl_docker = std::process::Command::new("buildctl")
-        .args(&[
-            "--addr", &buildkit_addr,
+        .args([
+            "--addr",
+            &buildkit_addr,
             "build",
             "--progress=plain",
-            "--local", &format!("context={}", repo_path.display()),
-            "--output", &format!("type=docker,name=peelbox-test:latest,dest={}", docker_dest.display()),
-        ])
+            "--local",
+            &format!("context={}", repo_path.display()),
+            "--output",
+            &format!(
+                "type=docker,name=peelbox-test:latest,dest={}",
+                docker_dest.display()
+            ),
+                ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -385,7 +426,10 @@ async fn test_buildctl_output_types() -> Result<()> {
 
     let docker_output = buildctl_docker.wait_with_output()?;
     if !docker_output.status.success() {
-        eprintln!("Docker build stderr:\n{}", String::from_utf8_lossy(&docker_output.stderr));
+        eprintln!(
+            "Docker build stderr:\n{}",
+            String::from_utf8_lossy(&docker_output.stderr)
+        );
         anyhow::bail!("Docker tarball build failed");
     }
 
@@ -397,4 +441,3 @@ async fn test_buildctl_output_types() -> Result<()> {
     println!("\n=== ✓ BuildKit Output Types Test PASSED ===");
     Ok(())
 }
-

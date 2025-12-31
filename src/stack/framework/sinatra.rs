@@ -47,7 +47,10 @@ mod tests {
     fn test_sinatra_compatibility() {
         let framework = SinatraFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "Ruby"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "bundler"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "bundler"));
     }
 
     #[test]

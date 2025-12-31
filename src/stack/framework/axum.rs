@@ -47,7 +47,10 @@ mod tests {
     fn test_axum_compatibility() {
         let framework = AxumFramework;
         assert!(framework.compatible_languages().iter().any(|s| s == "Rust"));
-        assert!(framework.compatible_build_systems().iter().any(|s| s == "cargo"));
+        assert!(framework
+            .compatible_build_systems()
+            .iter()
+            .any(|s| s == "cargo"));
     }
 
     #[test]

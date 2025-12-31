@@ -60,7 +60,7 @@ impl BuildSystem for PoetryBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let python_version = read_python_version_file(service_path)
-            .or_else(|| manifest_content.and_then(|c| parse_pyproject_toml_version(c)))
+            .or_else(|| manifest_content.and_then(parse_pyproject_toml_version))
             .or_else(|| wolfi_index.get_latest_version("python"))
             .expect("Failed to get python version from Wolfi index");
 
@@ -72,8 +72,14 @@ impl BuildSystem for PoetryBuildSystem {
             .unwrap_or_else(|| "py3-pip".to_string());
 
         let mut build_env = std::collections::HashMap::new();
-        build_env.insert("POETRY_CACHE_DIR".to_string(), "/root/.cache/pypoetry".to_string());
-        build_env.insert("POETRY_VIRTUALENVS_IN_PROJECT".to_string(), "true".to_string());
+        build_env.insert(
+            "POETRY_CACHE_DIR".to_string(),
+            "/root/.cache/pypoetry".to_string(),
+        );
+        build_env.insert(
+            "POETRY_VIRTUALENVS_IN_PROJECT".to_string(),
+            "true".to_string(),
+        );
 
         BuildTemplate {
             build_packages: vec![

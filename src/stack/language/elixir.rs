@@ -45,7 +45,12 @@ impl LanguageDefinition for ElixirLanguage {
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
-        vec!["_build".to_string(), "deps".to_string(), "cover".to_string(), ".elixir_ls".to_string()]
+        vec![
+            "_build".to_string(),
+            "deps".to_string(),
+            "cover".to_string(),
+            ".elixir_ls".to_string(),
+        ]
     }
 
     fn workspace_configs(&self) -> Vec<String> {

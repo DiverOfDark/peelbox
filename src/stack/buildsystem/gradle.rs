@@ -71,7 +71,10 @@ impl BuildSystem for GradleBuildSystem {
         for rel_path in file_tree {
             let filename = rel_path.file_name().and_then(|n| n.to_str());
 
-            if matches!(filename, Some("settings.gradle") | Some("settings.gradle.kts")) {
+            if matches!(
+                filename,
+                Some("settings.gradle") | Some("settings.gradle.kts")
+            ) {
                 if let Some(parent) = rel_path.parent() {
                     if !dir_has_build_file.contains(parent) {
                         detections.push(DetectionStack::new(
@@ -94,7 +97,7 @@ impl BuildSystem for GradleBuildSystem {
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let java_version = manifest_content
-            .and_then(|c| parse_java_version(c))
+            .and_then(parse_java_version)
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
             .expect("Failed to get openjdk version from Wolfi index");
 
@@ -104,13 +107,18 @@ impl BuildSystem for GradleBuildSystem {
             .get_latest_version("gradle")
             .expect("Failed to get gradle version from Wolfi index");
 
-        let java_home = format!("/usr/lib/jvm/java-{}-openjdk",
-            java_version.trim_start_matches("openjdk-"));
+        let java_home = format!(
+            "/usr/lib/jvm/java-{}-openjdk",
+            java_version.trim_start_matches("openjdk-")
+        );
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
         build_env.insert("GRADLE_USER_HOME".to_string(), "/root/.gradle".to_string());
-        build_env.insert("GRADLE_OPTS".to_string(), "-Dorg.gradle.native=false".to_string());
+        build_env.insert(
+            "GRADLE_OPTS".to_string(),
+            "-Dorg.gradle.native=false".to_string(),
+        );
 
         BuildTemplate {
             build_packages: vec![java_version, gradle_version],
@@ -145,11 +153,16 @@ impl BuildSystem for GradleBuildSystem {
         // Gradle build.gradle files don't contain project names
         // Project names are defined in settings.gradle or derived from directory names
         // Return error to trigger fallback to directory name
-        Err(anyhow::anyhow!("Gradle projects use directory names, not manifest metadata"))
+        Err(anyhow::anyhow!(
+            "Gradle projects use directory names, not manifest metadata"
+        ))
     }
 
     fn workspace_configs(&self) -> Vec<String> {
-        vec!["settings.gradle".to_string(), "settings.gradle.kts".to_string()]
+        vec![
+            "settings.gradle".to_string(),
+            "settings.gradle.kts".to_string(),
+        ]
     }
 
     fn parse_workspace_patterns(&self, manifest_content: &str) -> Result<Vec<String>> {
