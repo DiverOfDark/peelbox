@@ -1,7 +1,7 @@
 # Design - Dual-Mode Testing
 
 ## Overview
-This design adds dual-mode e2e testing by introducing environment variable control for detection mode. All tests spawn the CLI binary with different `AIPACK_DETECTION_MODE` values to validate both LLM and static analysis paths.
+This design adds dual-mode e2e testing by introducing environment variable control for detection mode. All tests spawn the CLI binary with different `PEELBOX_DETECTION_MODE` values to validate both LLM and static analysis paths.
 
 ## Test Structure
 
@@ -9,14 +9,14 @@ This design adds dual-mode e2e testing by introducing environment variable contr
 
 ```
 tests/e2e.rs
-├── test_rust_cargo_llm()          # Spawns CLI with AIPACK_DETECTION_MODE=llm
-├── test_rust_cargo_static()       # Spawns CLI with AIPACK_DETECTION_MODE=static
+├── test_rust_cargo_llm()          # Spawns CLI with PEELBOX_DETECTION_MODE=llm
+├── test_rust_cargo_static()       # Spawns CLI with PEELBOX_DETECTION_MODE=static
 ├── test_node_npm_llm()
 ├── test_node_npm_static()
 └── ... (50+ tests total for 25+ fixtures)
 ```
 
-**All tests remain e2e tests** - they spawn the aipack binary and validate JSON output.
+**All tests remain e2e tests** - they spawn the peelbox binary and validate JSON output.
 
 ## Architecture Changes
 
@@ -38,7 +38,7 @@ pub enum DetectionMode {
 
 impl DetectionMode {
     pub fn from_env() -> Self {
-        match env::var("AIPACK_DETECTION_MODE")
+        match env::var("PEELBOX_DETECTION_MODE")
             .unwrap_or_else(|_| "full".to_string())
             .to_lowercase()
             .as_str()
@@ -159,16 +159,16 @@ fn run_detection_with_mode(
         std::fs::create_dir_all(&git_dir).ok();
     }
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_DETECTION_MODE", mode)  // Set detection mode
-        .env("AIPACK_PROVIDER", "embedded")   // Use embedded LLM if needed
-        .env("AIPACK_MODEL_SIZE", "7B")
+    let output = Command::new(peelbox_bin())
+        .env("PEELBOX_DETECTION_MODE", mode)  // Set detection mode
+        .env("PEELBOX_PROVIDER", "embedded")   // Use embedded LLM if needed
+        .env("PEELBOX_MODEL_SIZE", "7B")
         .arg("detect")
         .arg(fixture)
         .arg("--format")
         .arg("json")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -260,7 +260,7 @@ impl LLMClient for NoOpLLMClient {
 
 ### E2e Test - LLM Mode
 ```
-1. Test spawns aipack binary with AIPACK_DETECTION_MODE=llm
+1. Test spawns peelbox binary with PEELBOX_DETECTION_MODE=llm
 2. Binary reads env var, sets DetectionMode::LLMOnly
 3. Creates embedded LLM client
 4. Pipeline executes, phases use LLM when needed
@@ -270,7 +270,7 @@ impl LLMClient for NoOpLLMClient {
 
 ### E2e Test - Static Mode
 ```
-1. Test spawns aipack binary with AIPACK_DETECTION_MODE=static
+1. Test spawns peelbox binary with PEELBOX_DETECTION_MODE=static
 2. Binary reads env var, sets DetectionMode::StaticOnly
 3. Creates NoOpLLMClient (returns error if called)
 4. Pipeline executes, phases skip LLM and use deterministic paths
@@ -280,7 +280,7 @@ impl LLMClient for NoOpLLMClient {
 
 ### E2e Test - Full Mode (Default)
 ```
-1. Test spawns aipack binary (no AIPACK_DETECTION_MODE set, defaults to "full")
+1. Test spawns peelbox binary (no PEELBOX_DETECTION_MODE set, defaults to "full")
 2. Binary uses DetectionMode::Full
 3. Creates embedded LLM client
 4. Pipeline executes, tries static first, falls back to LLM as needed
@@ -315,8 +315,8 @@ fn load_expected(fixture_name: &str, mode: &str) -> Option<Vec<UniversalBuild>> 
 ```
 tests/
 ├── e2e.rs                     # All e2e tests (50+ dual-mode tests)
-│   ├── LLM mode tests (spawn CLI with AIPACK_DETECTION_MODE=llm)
-│   ├── Static mode tests (spawn CLI with AIPACK_DETECTION_MODE=static)
+│   ├── LLM mode tests (spawn CLI with PEELBOX_DETECTION_MODE=llm)
+│   ├── Static mode tests (spawn CLI with PEELBOX_DETECTION_MODE=static)
 │   └── Shared helpers (run_detection_llm, run_detection_static)
 │
 ├── cli_integration.rs         # CLI integration tests (unchanged)
@@ -382,7 +382,7 @@ tests/
 
 - [ ] 50+ e2e tests (25 fixtures × 2 modes)
 - [ ] All tests spawn CLI binary
-- [ ] CLI respects `AIPACK_DETECTION_MODE` environment variable
+- [ ] CLI respects `PEELBOX_DETECTION_MODE` environment variable
 - [ ] Static mode tests run without LLM backend
 - [ ] Static mode tests complete in < 10 seconds
 - [ ] All tests pass in all modes

@@ -59,12 +59,12 @@ The system SHALL generate BuildKit LLB graphs from UniversalBuild specifications
 The system SHALL build container images directly by sending LLB to the BuildKit daemon.
 
 #### Scenario: Build and push to registry
-- **WHEN** `aipack build --tag registry/image:tag --push` is executed
+- **WHEN** `peelbox build --tag registry/image:tag --push` is executed
 - **THEN** the system builds the image and pushes to the specified registry
 - **AND** displays build progress in real-time
 
 #### Scenario: Build and export to Docker
-- **WHEN** `aipack build --tag image:tag --output type=docker` is executed
+- **WHEN** `peelbox build --tag image:tag --output type=docker` is executed
 - **THEN** the system builds the image and loads it into local Docker daemon
 
 #### Scenario: Build progress streaming
@@ -100,7 +100,7 @@ The system SHALL generate SLSA provenance attestations for build transparency.
 
 #### Scenario: Provenance metadata
 - **WHEN** provenance is generated
-- **THEN** it includes aipack version as the build tool
+- **THEN** it includes peelbox version as the build tool
 - **AND** includes the detected language and build system
 - **AND** includes repository URL if available from git
 

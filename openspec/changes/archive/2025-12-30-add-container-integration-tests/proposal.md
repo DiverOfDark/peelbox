@@ -2,7 +2,7 @@
 
 ## Why
 
-Currently, aipack's e2e tests verify that detection produces correct JSON output (UniversalBuild schema), but they don't validate that the generated build specifications actually work. We have no automated way to verify that:
+Currently, peelbox's e2e tests verify that detection produces correct JSON output (UniversalBuild schema), but they don't validate that the generated build specifications actually work. We have no automated way to verify that:
 
 1. **Images Build Successfully** - The generated UniversalBuild can be translated into a working container build
 2. **Containers Start** - The built image runs without crashing

@@ -17,9 +17,9 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
-# CLAUDE.md - aipack Development Guide
+# CLAUDE.md - peelbox Development Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with the aipack project.
+This file provides guidance to Claude Code (claude.ai/code) when working with the peelbox project.
 
 ## Claude Rules - CRITICAL
 
@@ -168,7 +168,7 @@ If ANY checkbox fails → You violated a rule → Fix it before claiming complet
 
 ## Project Overview
 
-**aipack** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM function calling with iterative tool execution to analyze repositories on-demand, avoiding context window limitations.
+**peelbox** is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses LLM function calling with iterative tool execution to analyze repositories on-demand, avoiding context window limitations.
 
 **Architecture**: Multi-phase pipeline with deterministic analysis
 - 9-phase sequential pipeline orchestrated by code, not LLM
@@ -197,7 +197,7 @@ If ANY checkbox fails → You violated a rule → Fix it before claiming complet
 
 ## Wolfi-First Architecture
 
-**BREAKING CHANGE:** aipack uses Wolfi packages exclusively for all container images.
+**BREAKING CHANGE:** peelbox uses Wolfi packages exclusively for all container images.
 
 ### Core Principles
 
@@ -262,12 +262,12 @@ fn build_template(&self, wolfi_index: &WolfiPackageIndex, manifest_content: Opti
 
 ## BuildKit Frontend Architecture
 
-aipack acts as a BuildKit frontend, generating Low-Level Build (LLB) definitions for image building.
+peelbox acts as a BuildKit frontend, generating Low-Level Build (LLB) definitions for image building.
 
 ### Frontend Workflow
 
-1. **Detection** (`aipack detect`): Analyze repository → Generate UniversalBuild JSON
-2. **LLB Generation** (`aipack frontend`): Read UniversalBuild → Generate LLB protobuf
+1. **Detection** (`peelbox detect`): Analyze repository → Generate UniversalBuild JSON
+2. **LLB Generation** (`peelbox frontend`): Read UniversalBuild → Generate LLB protobuf
 3. **Build** (`buildctl build`): Execute LLB with BuildKit daemon
 
 ### LLB Generation
@@ -301,13 +301,13 @@ Stage 4 (Final):
 - Layer 1-5: `glibc-dynamic:latest` (clean base, ~11MB, no apk ever existed)
 - Layer 6: Squashed runtime (~10MB, packages installed, apk removed)
 - Layer 7: Application layer (~16MB, binary)
-- Layer metadata: Clean descriptions (`: aipack <name> runtime`)
+- Layer metadata: Clean descriptions (`: peelbox <name> runtime`)
 
 **Characteristics:**
 - No `/sbin/apk` in filesystem (package manager removed)
 - No `wolfi-base` in layer history (squashed to clean base)
 - Truly distroless: apk never existed in any layer
-- Optimized size: ~13MB total (aipack example)
+- Optimized size: ~13MB total (peelbox example)
 - Production-ready by default (mandatory, no opt-out)
 
 ### Context Transfer Optimization
@@ -317,17 +317,17 @@ Located in `LLBBuilder::load_gitignore_patterns()`:
 - Parses `.gitignore` file and extracts patterns
 - Adds standard exclusions (`.git`, `.vscode`, `*.md`, `LICENSE`)
 - Applies to `Source::local()` via `add_exclude_pattern()`
-- Results in 99.995% reduction (1.54GB → 80-113KB for aipack itself)
+- Results in 99.995% reduction (1.54GB → 80-113KB for peelbox itself)
 - No filesystem state dependency - patterns embedded in LLB
 
 ### CLI Commands
 
-**`aipack detect <repo>`**: Analyze repository and generate UniversalBuild JSON
+**`peelbox detect <repo>`**: Analyze repository and generate UniversalBuild JSON
 - Runs 9-phase pipeline
 - Validates packages against Wolfi APKINDEX
 - Outputs JSON to stdout
 
-**`aipack frontend --spec <file>`**: Generate LLB from UniversalBuild spec
+**`peelbox frontend --spec <file>`**: Generate LLB from UniversalBuild spec
 - Reads UniversalBuild JSON
 - Generates BuildKit LLB protobuf
 - Outputs raw LLB to stdout for buildctl
@@ -339,7 +339,7 @@ Located in `LLBBuilder::load_gitignore_patterns()`:
 **Step 1: Generate LLB**
 ```bash
 # Auto-detect and generate LLB (uses static detection by default)
-AIPACK_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
+PEELBOX_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
 
 # Or use full detection with LLM
 cargo run --release -- frontend > /tmp/llb.pb
@@ -398,13 +398,13 @@ cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
 
 ### Monorepo Service Selection
 
-When working with monorepos that contain multiple services, aipack requires explicit service selection using the `--service` flag.
+When working with monorepos that contain multiple services, peelbox requires explicit service selection using the `--service` flag.
 
 #### Detecting Monorepos
 
 ```bash
 # Detect all services in a monorepo
-aipack detect /path/to/monorepo
+peelbox detect /path/to/monorepo
 
 # Output: Array of UniversalBuild specs (one per service)
 # [
@@ -420,7 +420,7 @@ When the spec contains multiple services, the `--service` flag is **required**:
 
 ```bash
 # Generate LLB for a specific service
-aipack frontend --spec universalbuild.json --service api > /tmp/llb-api.pb
+peelbox frontend --spec universalbuild.json --service api > /tmp/llb-api.pb
 
 # Build the API service
 cat /tmp/llb-api.pb | buildctl --addr tcp://127.0.0.1:1234 build \
@@ -428,7 +428,7 @@ cat /tmp/llb-api.pb | buildctl --addr tcp://127.0.0.1:1234 build \
   --output type=docker,name=localhost/api:latest | docker load
 
 # Build the web service
-aipack frontend --spec universalbuild.json --service web > /tmp/llb-web.pb
+peelbox frontend --spec universalbuild.json --service web > /tmp/llb-web.pb
 cat /tmp/llb-web.pb | buildctl --addr tcp://127.0.0.1:1234 build \
   --local context=/path/to/monorepo \
   --output type=docker,name=localhost/web:latest | docker load
@@ -440,15 +440,15 @@ For single-service projects, the `--service` flag is optional:
 
 ```bash
 # Both work for single service specs
-aipack frontend --spec universalbuild.json > /tmp/llb.pb
-aipack frontend --spec universalbuild.json --service myapp > /tmp/llb.pb
+peelbox frontend --spec universalbuild.json > /tmp/llb.pb
+peelbox frontend --spec universalbuild.json --service myapp > /tmp/llb.pb
 ```
 
 #### Error Handling
 
 **Multiple services without --service flag:**
 ```bash
-$ aipack frontend --spec universalbuild.json
+$ peelbox frontend --spec universalbuild.json
 Error: Multiple services detected in spec.
 
 Please specify which service to build using --service flag:
@@ -459,7 +459,7 @@ Please specify which service to build using --service flag:
 
 **Invalid service name:**
 ```bash
-$ aipack frontend --spec universalbuild.json --service invalid
+$ peelbox frontend --spec universalbuild.json --service invalid
 Error: Service 'invalid' not found in spec.
 
 Available services:
@@ -468,7 +468,7 @@ Available services:
   worker
 ```
 
-**Service name uniqueness:** aipack validates that all service names in a monorepo are unique. Detection will fail if duplicate names are found:
+**Service name uniqueness:** peelbox validates that all service names in a monorepo are unique. Detection will fail if duplicate names are found:
 ```
 Error: Duplicate service names detected: api. Each service must have a unique name in monorepo.
 ```
@@ -476,7 +476,7 @@ Error: Duplicate service names detected: api. Each service must have a unique na
 ## Project Structure
 
 ```
-aipack/
+peelbox/
 ├── src/
 │   ├── main.rs              # CLI entry point
 │   ├── lib.rs               # Library root
@@ -520,7 +520,7 @@ aipack/
 
 ## Phase-Based Pipeline Architecture
 
-aipack uses a 9-phase sequential pipeline where code orchestrates the workflow and LLMs are used only for unknowns.
+peelbox uses a 9-phase sequential pipeline where code orchestrates the workflow and LLMs are used only for unknowns.
 
 ### Pipeline Phases
 
@@ -562,8 +562,8 @@ aipack uses a 9-phase sequential pipeline where code orchestrates the workflow a
 ## Using the Detection Service
 
 ```rust
-use aipack::detection::DetectionService;
-use aipack::llm::selector::select_llm_client;
+use peelbox::detection::DetectionService;
+use peelbox::llm::selector::select_llm_client;
 use std::path::PathBuf;
 
 // Auto-select LLM client (tries Ollama, falls back to embedded)
@@ -591,7 +591,7 @@ let results = service.detect(PathBuf::from("/path/to/repo")).await?;
 
 The `select_llm_client()` function automatically selects the best available LLM client:
 
-1. **Environment variables** - If `AIPACK_PROVIDER` is set, use that provider
+1. **Environment variables** - If `PEELBOX_PROVIDER` is set, use that provider
 2. **Ollama** - Try connecting to Ollama (localhost:11434)
 3. **Embedded** - Fall back to embedded local inference (zero-config)
 
@@ -601,35 +601,35 @@ Running with different providers:
 cargo run -- detect /path/to/repo
 
 # Force specific provider
-AIPACK_PROVIDER=ollama cargo run -- detect /path/to/repo
-AIPACK_PROVIDER=claude ANTHROPIC_API_KEY=sk-... cargo run -- detect /path/to/repo
-AIPACK_PROVIDER=embedded cargo run -- detect /path/to/repo
+PEELBOX_PROVIDER=ollama cargo run -- detect /path/to/repo
+PEELBOX_PROVIDER=claude ANTHROPIC_API_KEY=sk-... cargo run -- detect /path/to/repo
+PEELBOX_PROVIDER=embedded cargo run -- detect /path/to/repo
 ```
 
 ## Configuration & Environment
 
-### Aipack Configuration Environment Variables
+### Peelbox Configuration Environment Variables
 
 ```bash
 # Provider selection (defaults to "ollama")
-AIPACK_PROVIDER=ollama             # "ollama", "openai", "claude", "gemini", "grok", or "groq"
+PEELBOX_PROVIDER=ollama             # "ollama", "openai", "claude", "gemini", "grok", or "groq"
 
 # Model configuration
-AIPACK_MODEL=qwen2.5-coder:7b      # Model name for selected provider
+PEELBOX_MODEL=qwen2.5-coder:7b      # Model name for selected provider
 
 # Request configuration
-AIPACK_REQUEST_TIMEOUT=60          # Request timeout in seconds
-AIPACK_MAX_CONTEXT_SIZE=512000     # Maximum context size in tokens
-AIPACK_MAX_TOKENS=8192             # Max tokens per LLM response (default: 8192, min: 512, max: 128000)
+PEELBOX_REQUEST_TIMEOUT=60          # Request timeout in seconds
+PEELBOX_MAX_CONTEXT_SIZE=512000     # Maximum context size in tokens
+PEELBOX_MAX_TOKENS=8192             # Max tokens per LLM response (default: 8192, min: 512, max: 128000)
 
 # Logging
-RUST_LOG=aipack=debug,info         # Structured logging
+RUST_LOG=peelbox=debug,info         # Structured logging
 
 # Embedded model configuration
-AIPACK_MODEL_SIZE=7B               # Explicit model size: "0.5B", "1.5B", "3B", or "7B" (overrides auto-selection)
+PEELBOX_MODEL_SIZE=7B               # Explicit model size: "0.5B", "1.5B", "3B", or "7B" (overrides auto-selection)
 
 # Detection mode control
-AIPACK_DETECTION_MODE=full         # "full" (default), "static", or "llm"
+PEELBOX_DETECTION_MODE=full         # "full" (default), "static", or "llm"
                                    # full: LLM + static analysis (deterministic first, LLM fallback)
                                    # static: Static analysis only, no LLM calls (fast, deterministic)
                                    # llm: LLM-only detection (for testing LLM path specifically)
@@ -661,30 +661,30 @@ GROQ_API_KEY=gsk_...                 # Required for Groq
 
 ### Embedded Model Selection
 
-When using the embedded backend, aipack runs local inference using Qwen2.5-Coder models in GGUF format (Q4 quantized).
+When using the embedded backend, peelbox runs local inference using Qwen2.5-Coder models in GGUF format (Q4 quantized).
 
 #### Automatic Selection (Default)
-By default, aipack auto-selects the largest model that fits in available RAM (reserves 25% or 2GB minimum for system):
+By default, peelbox auto-selects the largest model that fits in available RAM (reserves 25% or 2GB minimum for system):
 ```bash
-./aipack detect .
+./peelbox detect .
 ```
 
 #### Explicit Model Size Selection
-Override auto-selection with `AIPACK_MODEL_SIZE`:
+Override auto-selection with `PEELBOX_MODEL_SIZE`:
 ```bash
-AIPACK_MODEL_SIZE=0.5B ./aipack detect .   # Smallest (requires ~1GB RAM)
-AIPACK_MODEL_SIZE=1.5B ./aipack detect .   # Small (requires ~2.5GB RAM)
-AIPACK_MODEL_SIZE=3B ./aipack detect .     # Medium (requires ~4GB RAM)
-AIPACK_MODEL_SIZE=7B ./aipack detect .     # Largest (requires ~5.5GB RAM)
+PEELBOX_MODEL_SIZE=0.5B ./peelbox detect .   # Smallest (requires ~1GB RAM)
+PEELBOX_MODEL_SIZE=1.5B ./peelbox detect .   # Small (requires ~2.5GB RAM)
+PEELBOX_MODEL_SIZE=3B ./peelbox detect .     # Medium (requires ~4GB RAM)
+PEELBOX_MODEL_SIZE=7B ./peelbox detect .     # Largest (requires ~5.5GB RAM)
 ```
 
 All models use GGUF format with Q4_K_M quantization and support tool calling.
 
 ### LLM Self-Reasoning Loop Prevention
 
-aipack includes safeguards to prevent LLMs from getting stuck in self-reasoning loops:
+peelbox includes safeguards to prevent LLMs from getting stuck in self-reasoning loops:
 
-1. **Token Limits**: `AIPACK_MAX_TOKENS` (default: 8192) prevents runaway generation
+1. **Token Limits**: `PEELBOX_MAX_TOKENS` (default: 8192) prevents runaway generation
 2. **Stop Sequences**: Automatically applied to catch repetitive patterns: `</thinking>`, `In summary:`, `To reiterate:`, `Let me repeat:`
 3. **Per-Call Timeouts**: Each LLM API call enforces the configured timeout
 4. **Concise Prompt**: System prompt discourages verbose reasoning
@@ -706,7 +706,7 @@ All LLM integrations implement this trait, providing pluggable backends.
 The `StackRegistry` is a unified registry for all technology stack components with strongly-typed identifiers:
 
 ```rust
-use aipack::stack::{StackRegistry, LanguageId, BuildSystemId, FrameworkId};
+use peelbox::stack::{StackRegistry, LanguageId, BuildSystemId, FrameworkId};
 
 let registry = StackRegistry::with_defaults();
 
@@ -734,7 +734,7 @@ let framework = registry.get_framework(FrameworkId::ActixWeb)?;
 The pipeline uses a context-based architecture where `AnalysisContext` accumulates state as phases execute:
 
 ```rust
-use aipack::pipeline::{AnalysisContext, WorkflowPhase, ServicePhase, ServiceContext};
+use peelbox::pipeline::{AnalysisContext, WorkflowPhase, ServicePhase, ServiceContext};
 
 // AnalysisContext holds all pipeline state
 pub struct AnalysisContext {
@@ -833,17 +833,17 @@ The recording system captures LLM request/response pairs for deterministic testi
 
 ### Recording Modes
 
-Controlled via the `AIPACK_RECORDING_MODE` environment variable:
+Controlled via the `PEELBOX_RECORDING_MODE` environment variable:
 
 ```bash
 # Record mode: Make live LLM calls and save responses
-AIPACK_RECORDING_MODE=record cargo test
+PEELBOX_RECORDING_MODE=record cargo test
 
 # Replay mode: Use saved responses, fail if recording missing
-AIPACK_RECORDING_MODE=replay cargo test
+PEELBOX_RECORDING_MODE=replay cargo test
 
 # Auto mode (default): Replay if recording exists, otherwise record
-AIPACK_RECORDING_MODE=auto cargo test
+PEELBOX_RECORDING_MODE=auto cargo test
 ```
 
 Recordings are stored in `tests/recordings/` with filenames based on request content hash.
@@ -865,10 +865,10 @@ To update recordings after prompt changes:
 rm -rf tests/recordings/
 
 # Re-record with live LLM
-AIPACK_RECORDING_MODE=record cargo test
+PEELBOX_RECORDING_MODE=record cargo test
 
 # Verify new recordings work
-AIPACK_RECORDING_MODE=replay cargo test
+PEELBOX_RECORDING_MODE=replay cargo test
 
 # Commit updated recordings
 git add tests/recordings/
@@ -931,6 +931,6 @@ cargo test --test e2e test_rust_cargo_static
 
 ### When to Use Each Mode
 
-- **Full mode** (`AIPACK_DETECTION_MODE=full`): Default for normal detection
-- **Static mode** (`AIPACK_DETECTION_MODE=static`): Fast CI tests, validate parsers work correctly
-- **LLM mode** (`AIPACK_DETECTION_MODE=llm`): Test LLM prompts and response handling specifically
+- **Full mode** (`PEELBOX_DETECTION_MODE=full`): Default for normal detection
+- **Static mode** (`PEELBOX_DETECTION_MODE=static`): Fast CI tests, validate parsers work correctly
+- **LLM mode** (`PEELBOX_DETECTION_MODE=llm`): Test LLM prompts and response handling specifically

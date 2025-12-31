@@ -166,7 +166,7 @@ impl WolfiPackageIndex {
     fn cache_path() -> Result<PathBuf> {
         let cache_dir = dirs::cache_dir()
             .context("Failed to get user cache directory")?
-            .join("aipack")
+            .join("peelbox")
             .join("apkindex");
 
         Ok(cache_dir.join("APKINDEX.tar.gz"))
@@ -175,7 +175,7 @@ impl WolfiPackageIndex {
     fn parsed_cache_path() -> Result<PathBuf> {
         let cache_dir = dirs::cache_dir()
             .context("Failed to get user cache directory")?
-            .join("aipack")
+            .join("peelbox")
             .join("apkindex");
 
         Ok(cache_dir.join("packages.bin"))

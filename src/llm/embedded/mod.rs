@@ -1,6 +1,6 @@
 //! Embedded LLM client for zero-config local inference
 //!
-//! This module provides local LLM inference using Candle, enabling aipack to work
+//! This module provides local LLM inference using Candle, enabling peelbox to work
 //! without external API keys or Ollama. It automatically detects available hardware
 //! (CPU, CUDA, Metal) and selects an appropriate model based on available RAM.
 

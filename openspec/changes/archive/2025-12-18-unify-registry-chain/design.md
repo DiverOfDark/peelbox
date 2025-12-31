@@ -2,7 +2,7 @@
 
 ## Context
 
-Currently, aipack has three independent registry systems with fundamental design issues:
+Currently, peelbox has three independent registry systems with fundamental design issues:
 
 ### Problem 1: Inverted Dependencies
 
@@ -461,7 +461,7 @@ src/stack/
 - **Cohesion**: All stack detection logic lives in one place
 - **Clear boundaries**: `src/stack/` is self-contained module
 - **Easier navigation**: Related code grouped together
-- **Import simplification**: `use aipack::stack::{LanguageId, BuildSystemId, FrameworkId}`
+- **Import simplification**: `use peelbox::stack::{LanguageId, BuildSystemId, FrameworkId}`
 - **Logical grouping**: Languages, build systems, and frameworks are all part of the "stack" concept
 
 **Public API** (unchanged):
@@ -516,7 +516,7 @@ pub use stack::{
 3. Update Phase 1 to use `detect_languages()` → multiple languages
 4. Update Phase 6 (Runtime) to use `detect_frameworks()`
 5. Update all phases to work with `Vec<LanguageUsage>` instead of single language
-6. Update all imports: `use aipack::stack::{...}`
+6. Update all imports: `use peelbox::stack::{...}`
 
 **Phase F: Cleanup**
 1. Delete old directories: `src/languages/`, `src/build_systems/`, `src/frameworks/`
@@ -550,7 +550,7 @@ pub use stack::{
 **Before**: Could add language without recompiling (dynamic strings)
 **After**: New language requires enum variant (recompile)
 
-**Rationale**: aipack is a CLI tool. All supported languages are known at compile time. Type safety >> flexibility.
+**Rationale**: peelbox is a CLI tool. All supported languages are known at compile time. Type safety >> flexibility.
 
 ## Real-World Multi-Language Scenarios
 

@@ -12,7 +12,7 @@ pub mod progress;
 pub mod stack;
 pub mod validation;
 
-pub use config::{AipackConfig, ConfigError};
+pub use config::{PeelboxConfig, ConfigError};
 pub use detection::service::{DetectionService, ServiceError};
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use llm::{AdapterKind, BackendError};
@@ -35,7 +35,7 @@ pub fn init_default() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         let filter = EnvFilter::from_default_env()
-            .add_directive("aipack=info".parse().unwrap())
+            .add_directive("peelbox=info".parse().unwrap())
             .add_directive("h2=warn".parse().unwrap())
             .add_directive("hyper=warn".parse().unwrap())
             .add_directive("reqwest=warn".parse().unwrap());
@@ -55,7 +55,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_name_is_aipack() {
-        assert_eq!(NAME, "aipack");
+    fn test_name_is_peelbox() {
+        assert_eq!(NAME, "peelbox");
     }
 }

@@ -41,50 +41,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aipack"
-version = "0.3.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "atty",
- "bincode",
- "bollard",
- "buildkit-llb",
- "candle-core",
- "candle-nn",
- "candle-transformers",
- "chrono",
- "clap",
- "dirs",
- "filetime",
- "flate2",
- "futures-util",
- "genai",
- "hf-hub",
- "ignore",
- "md5",
- "regex",
- "reqwest",
- "roxmltree",
- "serde",
- "serde_json",
- "serde_yaml",
- "serial_test",
- "strsim",
- "sysinfo",
- "tar",
- "tempfile",
- "testcontainers",
- "thiserror 1.0.69",
- "tokenizers",
- "tokio 1.48.0",
- "toml",
- "tracing",
- "tracing-subscriber",
- "yare",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2888,6 +2844,50 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "peelbox"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "atty",
+ "bincode",
+ "bollard",
+ "buildkit-llb",
+ "candle-core",
+ "candle-nn",
+ "candle-transformers",
+ "chrono",
+ "clap",
+ "dirs",
+ "filetime",
+ "flate2",
+ "futures-util",
+ "genai",
+ "hf-hub",
+ "ignore",
+ "md5",
+ "regex",
+ "reqwest",
+ "roxmltree",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "serial_test",
+ "strsim",
+ "sysinfo",
+ "tar",
+ "tempfile",
+ "testcontainers",
+ "thiserror 1.0.69",
+ "tokenizers",
+ "tokio 1.48.0",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "yare",
+]
 
 [[package]]
 name = "percent-encoding"

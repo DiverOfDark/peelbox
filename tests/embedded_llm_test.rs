@@ -10,7 +10,7 @@
 //! NOTE: Tests that perform inference are marked with #[serial] to run sequentially
 //! and avoid high concurrent CPU/memory load.
 
-use aipack::llm::{
+use peelbox::llm::{
     ChatMessage, EmbeddedClient, EmbeddedModel, HardwareCapabilities, HardwareDetector, LLMClient,
     LLMRequest, ModelSelector, RecordingLLMClient, RecordingMode, ToolDefinition,
 };
@@ -57,17 +57,17 @@ async fn test_embedded_llm_inference() {
     .with_max_tokens(50)
     .with_temperature(0.7);
 
-    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
+    let recorded_request = peelbox::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
     let test_name =
-        aipack::llm::TestContext::current_test_name().expect("Should be in test context");
+        peelbox::llm::TestContext::current_test_name().expect("Should be in test context");
     let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
     // Otherwise, try to create real client
     let client: Arc<dyn LLMClient> = if recording_path.exists() {
         println!("Using cached recording, skipping model loading");
-        Arc::new(aipack::llm::MockLLMClient::new())
+        Arc::new(peelbox::llm::MockLLMClient::new())
     } else {
         println!("No recording found, will create embedded client");
         if !has_sufficient_ram() {
@@ -161,17 +161,17 @@ async fn test_embedded_llm_tool_calling() {
     .with_max_tokens(100)
     .with_temperature(0.1);
 
-    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
+    let recorded_request = peelbox::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
     let test_name =
-        aipack::llm::TestContext::current_test_name().expect("Should be in test context");
+        peelbox::llm::TestContext::current_test_name().expect("Should be in test context");
     let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
     // Otherwise, try to create real client
     let client: Arc<dyn LLMClient> = if recording_path.exists() {
         println!("Using cached recording, skipping model loading");
-        Arc::new(aipack::llm::MockLLMClient::new())
+        Arc::new(peelbox::llm::MockLLMClient::new())
     } else {
         println!("No recording found, will create embedded client");
         if !has_sufficient_ram() {
@@ -405,17 +405,17 @@ async fn test_embedded_llm_tool_call_chain() {
     .with_max_tokens(200)
     .with_temperature(0.1);
 
-    let recorded_request = aipack::llm::RecordedRequest::from_llm_request(&test_request, None);
+    let recorded_request = peelbox::llm::RecordedRequest::from_llm_request(&test_request, None);
     let request_hash = recorded_request.canonical_hash();
     let test_name =
-        aipack::llm::TestContext::current_test_name().expect("Should be in test context");
+        peelbox::llm::TestContext::current_test_name().expect("Should be in test context");
     let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
 
     // If recording exists, use replay mode with mock client
     // Otherwise, try to create real client
     let client: Arc<dyn LLMClient> = if recording_path.exists() {
         println!("Using cached recording, skipping model loading");
-        Arc::new(aipack::llm::MockLLMClient::new())
+        Arc::new(peelbox::llm::MockLLMClient::new())
     } else {
         println!("No recording found, will create embedded client");
         if !has_sufficient_ram() {
@@ -425,8 +425,8 @@ async fn test_embedded_llm_tool_call_chain() {
 
         let capabilities = HardwareDetector::detect();
 
-        // Use AIPACK_MODEL_SIZE env var or default to 7B
-        let model = if let Ok(model_size) = std::env::var("AIPACK_MODEL_SIZE") {
+        // Use PEELBOX_MODEL_SIZE env var or default to 7B
+        let model = if let Ok(model_size) = std::env::var("PEELBOX_MODEL_SIZE") {
             EmbeddedModel::ALL_MODELS
                 .iter()
                 .find(|m| m.params == model_size)

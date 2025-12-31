@@ -1,6 +1,6 @@
-# aipack Test Suite
+# peelbox Test Suite
 
-This directory contains the test suite for aipack, including unit tests, end-to-end tests, and integration tests.
+This directory contains the test suite for peelbox, including unit tests, end-to-end tests, and integration tests.
 
 ## Test Types
 
@@ -93,8 +93,8 @@ cargo test --test e2e test_container_integration_single_language_full
 **Note:** BuildKit layer caching significantly speeds up subsequent runs. The cache persists across test runs in a Docker volume named `buildkit-cache`. A single shared BuildKit container handles all parallel builds, avoiding container startup overhead and lock conflicts. Dynamic port allocation prevents port conflicts between parallel test containers.
 
 ### 4. BuildKit Integration Test (`tests/buildkit_integration.rs`)
-End-to-end test that verifies the complete BuildKit frontend workflow by building aipack itself:
-1. Generate LLB using aipack frontend
+End-to-end test that verifies the complete BuildKit frontend workflow by building peelbox itself:
+1. Generate LLB using peelbox frontend
 2. Build container image using BuildKit
 3. Run the built image and verify output
 
@@ -112,7 +112,7 @@ cargo test --test buildkit_integration -- --nocapture
 2. Built image runs and outputs help text correctly
 3. Distroless layer structure (no wolfi-base in history)
 4. Image size is optimized (< 200MB)
-5. Binary exists at /usr/local/bin/aipack and is executable
+5. Binary exists at /usr/local/bin/peelbox and is executable
 6. Various buildctl output types (OCI and Docker tarballs)
 
 **Note:** This test requires Docker or Podman to be installed and running. If Docker is not available, the test will fail with a connection error.

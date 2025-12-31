@@ -304,9 +304,9 @@ The implementation includes three detection modes for comprehensive testing:
 
 | Mode | Environment Variable | Purpose |
 |------|---------------------|---------|
-| **Full** | `AIPACK_DETECTION_MODE=full` | Default - deterministic first, LLM fallback |
-| **Static** | `AIPACK_DETECTION_MODE=static` | Fast CI - deterministic only, no LLM |
-| **LLM-only** | `AIPACK_DETECTION_MODE=llm_only` | Validate LLM* implementations |
+| **Full** | `PEELBOX_DETECTION_MODE=full` | Default - deterministic first, LLM fallback |
+| **Static** | `PEELBOX_DETECTION_MODE=static` | Fast CI - deterministic only, no LLM |
+| **LLM-only** | `PEELBOX_DETECTION_MODE=llm_only` | Validate LLM* implementations |
 
 **LLM-only mode** (NEW):
 - Registry registers ONLY LLM* implementations (no deterministic Rust, Java, npm, etc.)

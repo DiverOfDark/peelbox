@@ -24,7 +24,7 @@ pub enum DetectionMode {
 
 impl DetectionMode {
     pub fn from_env() -> Self {
-        let mode = env::var("AIPACK_DETECTION_MODE").ok();
+        let mode = env::var("PEELBOX_DETECTION_MODE").ok();
 
         match mode.as_deref() {
             Some(m) if m.eq_ignore_ascii_case("static") => DetectionMode::StaticOnly,
@@ -36,7 +36,7 @@ impl DetectionMode {
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    #[error("Provider not specified. Set AIPACK_PROVIDER environment variable (ollama|openai|claude|gemini|grok|groq)")]
+    #[error("Provider not specified. Set PEELBOX_PROVIDER environment variable (ollama|openai|claude|gemini|grok|groq)")]
     MissingProvider,
 
     #[error("Invalid provider: {0}. Valid options: ollama, openai, claude, gemini, grok, groq")]
@@ -53,7 +53,7 @@ pub enum ConfigError {
 }
 
 #[derive(Debug, Clone)]
-pub struct AipackConfig {
+pub struct PeelboxConfig {
     pub provider: AdapterKind,
     pub model: String,
     pub cache_enabled: bool,
@@ -67,9 +67,9 @@ pub struct AipackConfig {
     pub max_tokens: usize,
 }
 
-impl Default for AipackConfig {
+impl Default for PeelboxConfig {
     fn default() -> Self {
-        let provider = env::var("AIPACK_PROVIDER")
+        let provider = env::var("PEELBOX_PROVIDER")
             .ok()
             .and_then(|s| match s.to_lowercase().as_str() {
                 "ollama" => Some(AdapterKind::Ollama),
@@ -82,59 +82,59 @@ impl Default for AipackConfig {
             })
             .unwrap_or(AdapterKind::Ollama);
 
-        let model = env::var("AIPACK_MODEL")
+        let model = env::var("PEELBOX_MODEL")
             .ok()
             .unwrap_or_else(|| match provider {
                 AdapterKind::Ollama => DEFAULT_OLLAMA_MODEL.to_string(),
                 _ => "default-model".to_string(),
             });
 
-        let cache_enabled = env::var("AIPACK_CACHE_ENABLED")
+        let cache_enabled = env::var("PEELBOX_CACHE_ENABLED")
             .ok()
             .and_then(|v| v.parse::<bool>().ok())
             .unwrap_or(DEFAULT_CACHE_ENABLED);
 
-        let cache_dir = env::var("AIPACK_CACHE_DIR")
+        let cache_dir = env::var("PEELBOX_CACHE_DIR")
             .ok()
             .map(PathBuf::from)
             .or_else(|| {
                 if cache_enabled {
-                    Some(env::temp_dir().join("aipack-cache"))
+                    Some(env::temp_dir().join("peelbox-cache"))
                 } else {
                     None
                 }
             });
 
-        let request_timeout_secs = env::var("AIPACK_REQUEST_TIMEOUT")
+        let request_timeout_secs = env::var("PEELBOX_REQUEST_TIMEOUT")
             .ok()
             .and_then(|v| v.parse::<u64>().ok())
             .unwrap_or(DEFAULT_REQUEST_TIMEOUT_SECS);
 
-        let max_context_size = env::var("AIPACK_MAX_CONTEXT_SIZE")
+        let max_context_size = env::var("PEELBOX_MAX_CONTEXT_SIZE")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_MAX_CONTEXT_SIZE);
 
-        let log_level = env::var("AIPACK_LOG_LEVEL")
+        let log_level = env::var("PEELBOX_LOG_LEVEL")
             .unwrap_or_else(|_| DEFAULT_LOG_LEVEL.to_string())
             .to_lowercase();
 
-        let max_tool_iterations = env::var("AIPACK_MAX_TOOL_ITERATIONS")
+        let max_tool_iterations = env::var("PEELBOX_MAX_TOOL_ITERATIONS")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_MAX_TOOL_ITERATIONS);
 
-        let tool_timeout_secs = env::var("AIPACK_TOOL_TIMEOUT")
+        let tool_timeout_secs = env::var("PEELBOX_TOOL_TIMEOUT")
             .ok()
             .and_then(|v| v.parse::<u64>().ok())
             .unwrap_or(DEFAULT_TOOL_TIMEOUT_SECS);
 
-        let max_file_size_bytes = env::var("AIPACK_MAX_FILE_SIZE")
+        let max_file_size_bytes = env::var("PEELBOX_MAX_FILE_SIZE")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_MAX_FILE_SIZE_BYTES);
 
-        let max_tokens = env::var("AIPACK_MAX_TOKENS")
+        let max_tokens = env::var("PEELBOX_MAX_TOKENS")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(DEFAULT_MAX_TOKENS);
@@ -155,7 +155,7 @@ impl Default for AipackConfig {
     }
 }
 
-impl AipackConfig {
+impl PeelboxConfig {
     pub fn validate(&self) -> Result<(), ConfigError> {
         if self.request_timeout_secs == 0 {
             return Err(ConfigError::ValidationFailed(
@@ -282,9 +282,9 @@ impl AipackConfig {
     }
 }
 
-impl fmt::Display for AipackConfig {
+impl fmt::Display for PeelboxConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Aipack Configuration:")?;
+        writeln!(f, "Peelbox Configuration:")?;
         writeln!(f, "  Provider: {:?}", self.provider)?;
         writeln!(f, "  Model: {}", self.model)?;
         writeln!(f, "  Cache Enabled: {}", self.cache_enabled)?;
@@ -336,11 +336,11 @@ mod tests {
     #[test]
     fn test_default_configuration() {
         let _guards = [
-            EnvGuard::set("AIPACK_PROVIDER", "ollama"),
-            EnvGuard::set("AIPACK_LOG_LEVEL", DEFAULT_LOG_LEVEL),
+            EnvGuard::set("PEELBOX_PROVIDER", "ollama"),
+            EnvGuard::set("PEELBOX_LOG_LEVEL", DEFAULT_LOG_LEVEL),
         ];
 
-        let config = AipackConfig::default();
+        let config = PeelboxConfig::default();
 
         assert!(matches!(config.provider, AdapterKind::Ollama));
         assert_eq!(config.model, DEFAULT_OLLAMA_MODEL);
@@ -357,16 +357,16 @@ mod tests {
     #[test]
     fn test_environment_variable_parsing() {
         let _guards = [
-            EnvGuard::set("AIPACK_PROVIDER", "claude"),
-            EnvGuard::set("AIPACK_MODEL", "custom-model"),
-            EnvGuard::set("AIPACK_LOG_LEVEL", "debug"),
-            EnvGuard::set("AIPACK_CACHE_ENABLED", "false"),
-            EnvGuard::set("AIPACK_REQUEST_TIMEOUT", "60"),
-            EnvGuard::set("AIPACK_MAX_CONTEXT_SIZE", "1024000"),
-            EnvGuard::set("AIPACK_MAX_TOKENS", "4096"),
+            EnvGuard::set("PEELBOX_PROVIDER", "claude"),
+            EnvGuard::set("PEELBOX_MODEL", "custom-model"),
+            EnvGuard::set("PEELBOX_LOG_LEVEL", "debug"),
+            EnvGuard::set("PEELBOX_CACHE_ENABLED", "false"),
+            EnvGuard::set("PEELBOX_REQUEST_TIMEOUT", "60"),
+            EnvGuard::set("PEELBOX_MAX_CONTEXT_SIZE", "1024000"),
+            EnvGuard::set("PEELBOX_MAX_TOKENS", "4096"),
         ];
 
-        let config = AipackConfig::default();
+        let config = PeelboxConfig::default();
 
         assert!(matches!(config.provider, AdapterKind::Anthropic));
         assert_eq!(config.model, "custom-model");
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_valid() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             provider: AdapterKind::Ollama,
             model: "qwen:7b".to_string(),
             cache_enabled: true,
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_timeout() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             request_timeout_secs: 0,
             ..Default::default()
         };
@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_log_level() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             log_level: "invalid".to_string(),
             ..Default::default()
         };
@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_max_tokens_too_low() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             max_tokens: 256,
             ..Default::default()
         };
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn test_configuration_validation_invalid_max_tokens_too_high() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             max_tokens: 200_000,
             ..Default::default()
         };
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_cache_path() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             provider: AdapterKind::Ollama,
             model: "qwen:7b".to_string(),
             cache_enabled: true,
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_cache_path_sanitizes_special_chars() {
-        let config = AipackConfig {
+        let config = PeelboxConfig {
             provider: AdapterKind::Ollama,
             model: "qwen:7b".to_string(),
             cache_enabled: true,
@@ -484,16 +484,16 @@ mod tests {
 
     #[test]
     fn test_config_display() {
-        let config = AipackConfig::default();
+        let config = PeelboxConfig::default();
         let display = format!("{}", config);
-        assert!(display.contains("Aipack Configuration:"));
+        assert!(display.contains("Peelbox Configuration:"));
         assert!(display.contains("Provider:"));
     }
 
     #[test]
     #[serial]
     fn test_detection_mode_from_env_default() {
-        env::remove_var("AIPACK_DETECTION_MODE");
+        env::remove_var("PEELBOX_DETECTION_MODE");
 
         let mode = DetectionMode::from_env();
         assert_eq!(mode, DetectionMode::Full);
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_detection_mode_from_env_static() {
-        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "static");
+        let _guard = EnvGuard::set("PEELBOX_DETECTION_MODE", "static");
 
         let mode = DetectionMode::from_env();
         assert_eq!(mode, DetectionMode::StaticOnly);
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_detection_mode_from_env_llm() {
-        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "llm");
+        let _guard = EnvGuard::set("PEELBOX_DETECTION_MODE", "llm");
 
         let mode = DetectionMode::from_env();
         assert_eq!(mode, DetectionMode::LLMOnly);
@@ -520,7 +520,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_detection_mode_from_env_full() {
-        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "full");
+        let _guard = EnvGuard::set("PEELBOX_DETECTION_MODE", "full");
 
         let mode = DetectionMode::from_env();
         assert_eq!(mode, DetectionMode::Full);
@@ -529,7 +529,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_detection_mode_from_env_case_insensitive() {
-        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "STATIC");
+        let _guard = EnvGuard::set("PEELBOX_DETECTION_MODE", "STATIC");
 
         let mode = DetectionMode::from_env();
         assert_eq!(mode, DetectionMode::StaticOnly);
@@ -538,7 +538,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_detection_mode_from_env_invalid_defaults_to_full() {
-        let _guard = EnvGuard::set("AIPACK_DETECTION_MODE", "invalid");
+        let _guard = EnvGuard::set("PEELBOX_DETECTION_MODE", "invalid");
 
         let mode = DetectionMode::from_env();
         assert_eq!(mode, DetectionMode::Full);

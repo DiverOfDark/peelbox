@@ -3,11 +3,11 @@
 ## ADDED Requirements
 
 ### Requirement: Detection Mode Environment Variable
-The CLI MUST support `AIPACK_DETECTION_MODE` environment variable to control whether detection uses LLM, static analysis only, or both.
+The CLI MUST support `PEELBOX_DETECTION_MODE` environment variable to control whether detection uses LLM, static analysis only, or both.
 
 #### Scenario: Parsing detection mode from environment
-**Given** the aipack CLI is invoked
-**When** `AIPACK_DETECTION_MODE` environment variable is set
+**Given** the peelbox CLI is invoked
+**When** `PEELBOX_DETECTION_MODE` environment variable is set
 **Then** the CLI parses the value (case-insensitive)
 **And** maps "static" to DetectionMode::StaticOnly
 **And** maps "llm" to DetectionMode::LLMOnly
@@ -15,7 +15,7 @@ The CLI MUST support `AIPACK_DETECTION_MODE` environment variable to control whe
 **And** defaults to DetectionMode::Full if not set or invalid value
 
 #### Scenario: Static mode skips LLM initialization
-**Given** the CLI is invoked with `AIPACK_DETECTION_MODE=static`
+**Given** the CLI is invoked with `PEELBOX_DETECTION_MODE=static`
 **When** detection service is created
 **Then** no real LLM client is initialized
 **And** a NoOpLLMClient is used instead
@@ -42,7 +42,7 @@ A NoOpLLMClient MUST be provided that returns an error if called, for use in sta
 **And** the error message helps developers identify which phase made the incorrect call
 
 #### Scenario: NoOpLLMClient used in static mode
-**Given** the CLI runs with `AIPACK_DETECTION_MODE=static`
+**Given** the CLI runs with `PEELBOX_DETECTION_MODE=static`
 **When** detection service is created
 **Then** it uses NoOpLLMClient instead of real LLM client
 **And** if any phase incorrectly calls LLM, detection fails with clear error
@@ -72,7 +72,7 @@ E2e tests MUST continue using real filesystem to validate the full CLI binary be
 
 #### Scenario: E2e tests access real fixtures
 **Given** an e2e test in `tests/e2e.rs`
-**When** the test spawns the aipack binary
+**When** the test spawns the peelbox binary
 **Then** the binary accesses fixture files from real filesystem
 **And** the test validates that CLI correctly reads repository structure
 **And** no MockFileSystem is used in e2e tests

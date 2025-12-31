@@ -1,4 +1,4 @@
-# aipack
+# peelbox
 
 AI-powered BuildKit frontend for intelligent build detection with Wolfi-first containerization.
 
@@ -27,13 +27,13 @@ Automatically analyzes repositories and generates secure, minimal container imag
 
 ## Overview
 
-**aipack** is a BuildKit frontend that eliminates friction when containerizing applications by:
+**peelbox** is a BuildKit frontend that eliminates friction when containerizing applications by:
 - Automatically detecting build systems, runtimes, and dependencies
 - Generating secure, minimal container images using Wolfi packages
 - Producing distroless final images with 2-layer optimization
 - Providing SBOM and provenance attestations for supply chain security
 
-### Why aipack?
+### Why peelbox?
 
 - **Wolfi-First**: All images use secure, minimal Wolfi packages (not Debian/Ubuntu)
 - **Distroless by Default**: Production-ready images without package managers or shells
@@ -60,7 +60,7 @@ Automatically analyzes repositories and generates secure, minimal container imag
 
 ### 1. Install BuildKit
 
-aipack requires BuildKit v0.11.0+ for image building:
+peelbox requires BuildKit v0.11.0+ for image building:
 
 ```bash
 # Verify BuildKit
@@ -74,14 +74,14 @@ brew install buildkit
 sudo apt install buildkit
 ```
 
-### 2. Install aipack
+### 2. Install peelbox
 
 ```bash
 # From source
-git clone https://github.com/diverofdark/aipack.git
-cd aipack
+git clone https://github.com/diverofdark/peelbox.git
+cd peelbox
 cargo build --release
-sudo install -m 755 target/release/aipack /usr/local/bin/
+sudo install -m 755 target/release/peelbox /usr/local/bin/
 ```
 
 ### 3. Build your first distroless image
@@ -95,7 +95,7 @@ docker run -d --rm --name buildkitd --privileged \
   moby/buildkit:latest --addr tcp://0.0.0.0:1234
 
 # Generate LLB and build
-AIPACK_DETECTION_MODE=static cargo run --release -- frontend | \
+PEELBOX_DETECTION_MODE=static cargo run --release -- frontend | \
   buildctl --addr tcp://127.0.0.1:1234 build \
     --local context=$(pwd) \
     --output type=docker,name=localhost/myapp:latest | \
@@ -108,7 +108,7 @@ docker run --rm localhost/myapp:latest
 docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
 ```
 
-Example output from `aipack detect`:
+Example output from `peelbox detect`:
 
 ```json
 {
@@ -133,7 +133,7 @@ Example output from `aipack detect`:
 }
 ```
 
-Note: No base images! aipack uses `cgr.dev/chainguard/wolfi-base` automatically.
+Note: No base images! peelbox uses `cgr.dev/chainguard/wolfi-base` automatically.
 
 ## Installation
 
@@ -147,8 +147,8 @@ Note: No base images! aipack uses `cgr.dev/chainguard/wolfi-base` automatically.
 ### From Source
 
 ```bash
-git clone https://github.com/diverofdark/aipack.git
-cd aipack
+git clone https://github.com/diverofdark/peelbox.git
+cd peelbox
 
 # Build with embedded LLM (default, zero-config)
 cargo build --release
@@ -157,13 +157,13 @@ cargo build --release
 cargo build --release --no-default-features
 
 # Install
-sudo install -m 755 target/release/aipack /usr/local/bin/
+sudo install -m 755 target/release/peelbox /usr/local/bin/
 ```
 
 ### Verify Installation
 
 ```bash
-aipack --version
+peelbox --version
 buildctl --version  # Should be v0.11.0+
 ```
 
@@ -175,19 +175,19 @@ Analyze a repository and generate `UniversalBuild` specification:
 
 ```bash
 # Detect current directory
-aipack detect .
+peelbox detect .
 
 # Detect specific repository
-aipack detect /path/to/repo
+peelbox detect /path/to/repo
 
 # Save to file
-aipack detect . > universalbuild.json
+peelbox detect . > universalbuild.json
 
 # JSON output (default)
-aipack detect . --format json
+peelbox detect . --format json
 
 # Human-readable display
-aipack detect .
+peelbox detect .
 ```
 
 Detection output includes:
@@ -203,10 +203,10 @@ Generate LLB (Low-Level Build) definition from UniversalBuild spec:
 
 ```bash
 # Generate LLB to stdout
-aipack frontend --spec universalbuild.json
+peelbox frontend --spec universalbuild.json
 
 # Pipe directly to buildctl
-aipack frontend --spec universalbuild.json | buildctl build ...
+peelbox frontend --spec universalbuild.json | buildctl build ...
 ```
 
 The frontend command:
@@ -225,7 +225,7 @@ The frontend command:
 cd /path/to/your/project
 
 # Generate LLB using static detection (fast, no LLM needed)
-AIPACK_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
+PEELBOX_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
 
 # Or use full detection with LLM for unknown build systems
 cargo run --release -- frontend > /tmp/llb.pb
@@ -278,8 +278,8 @@ docker history localhost/myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
 Expected output:
 ```
 SIZE      CREATED BY
-16.2MB    sh -c : aipack myapp application && ...
-10.2MB    sh -c : aipack glibc ca-certificates runtime; ...
+16.2MB    sh -c : peelbox myapp application && ...
+10.2MB    sh -c : peelbox glibc ca-certificates runtime; ...
 ...       pulled from cgr.dev/chainguard/glibc-dynamic:latest
 ```
 
@@ -297,7 +297,7 @@ cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
 #### One-Liner (for automation)
 
 ```bash
-AIPACK_DETECTION_MODE=static cargo run --release -- frontend | \
+PEELBOX_DETECTION_MODE=static cargo run --release -- frontend | \
   buildctl --addr tcp://127.0.0.1:1234 build \
     --local context=$(pwd) \
     --output type=docker,name=localhost/myapp:latest | \
@@ -306,7 +306,7 @@ AIPACK_DETECTION_MODE=static cargo run --release -- frontend | \
 
 ## Wolfi-First Architecture
 
-aipack uses **Wolfi packages exclusively** for all container images:
+peelbox uses **Wolfi packages exclusively** for all container images:
 
 ### What is Wolfi?
 
@@ -319,7 +319,7 @@ aipack uses **Wolfi packages exclusively** for all container images:
 
 ### Wolfi Package Examples
 
-Common Wolfi packages aipack uses:
+Common Wolfi packages peelbox uses:
 
 | Purpose | Wolfi Package | Notes |
 |---------|---------------|-------|
@@ -336,7 +336,7 @@ Common Wolfi packages aipack uses:
 
 ### Dynamic Version Discovery
 
-aipack automatically discovers available Wolfi package versions:
+peelbox automatically discovers available Wolfi package versions:
 
 ```bash
 # Fetches APKINDEX from packages.wolfi.dev
@@ -344,7 +344,7 @@ aipack automatically discovers available Wolfi package versions:
 # Selects best version match for your project
 
 # Example: package.json specifies Node 20
-# aipack automatically selects nodejs-20 from Wolfi
+# peelbox automatically selects nodejs-20 from Wolfi
 ```
 
 ### Package Validation
@@ -359,7 +359,7 @@ All packages are validated against Wolfi APKINDEX with fuzzy matching:
 
 ## Distroless Images
 
-**All aipack images are distroless by default** - no opt-out, no flag needed.
+**All peelbox images are distroless by default** - no opt-out, no flag needed.
 
 ### What is Distroless?
 
@@ -376,7 +376,7 @@ They do NOT contain:
 
 ### Squashed Distroless Architecture
 
-aipack generates truly distroless images with **no wolfi-base in layer history**:
+peelbox generates truly distroless images with **no wolfi-base in layer history**:
 
 ```
 Final Image Layers:
@@ -386,13 +386,13 @@ Layer 1-5: glibc-dynamic:latest (~11MB)
 Layer 6: Squashed Runtime (~10MB)
   - Runtime packages (glibc, ca-certificates, etc.)
   - Package manager removed (no /sbin/apk)
-  - Clean metadata: ": aipack <packages> runtime"
+  - Clean metadata: ": peelbox <packages> runtime"
 
 Layer 7: Application (~16MB)
   - Your compiled binary/artifacts
-  - Clean metadata: ": aipack <name> application"
+  - Clean metadata: ": peelbox <name> application"
 
-Total: ~13MB (aipack example)
+Total: ~13MB (peelbox example)
 ```
 
 ### Build Process
@@ -442,23 +442,23 @@ docker history myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
 
 ```bash
 # LLM Provider Selection
-export AIPACK_PROVIDER=ollama       # "ollama", "claude", "openai", "gemini", "grok", "groq", "embedded"
+export PEELBOX_PROVIDER=ollama       # "ollama", "claude", "openai", "gemini", "grok", "groq", "embedded"
 
 # Model Configuration
-export AIPACK_MODEL=qwen2.5-coder:7b
+export PEELBOX_MODEL=qwen2.5-coder:7b
 
 # Request Configuration
-export AIPACK_REQUEST_TIMEOUT=60    # seconds
-export AIPACK_MAX_TOKENS=8192       # max response tokens
+export PEELBOX_REQUEST_TIMEOUT=60    # seconds
+export PEELBOX_MAX_TOKENS=8192       # max response tokens
 
 # Detection Mode
-export AIPACK_DETECTION_MODE=full   # "full", "static", or "llm"
+export PEELBOX_DETECTION_MODE=full   # "full", "static", or "llm"
 
 # Embedded Model Size (auto-selected by default)
-export AIPACK_MODEL_SIZE=7B         # "0.5B", "1.5B", "3B", "7B"
+export PEELBOX_MODEL_SIZE=7B         # "0.5B", "1.5B", "3B", "7B"
 
 # Logging
-export RUST_LOG=aipack=info         # debug, info, warn, error
+export RUST_LOG=peelbox=info         # debug, info, warn, error
 
 # Provider-Specific
 export OLLAMA_HOST=http://localhost:11434
@@ -479,20 +479,20 @@ export GROQ_API_KEY=gsk_...
 
 ### LLM Provider Selection
 
-aipack auto-selects the best available LLM:
+peelbox auto-selects the best available LLM:
 
-1. Check `AIPACK_PROVIDER` environment variable
+1. Check `PEELBOX_PROVIDER` environment variable
 2. Try connecting to Ollama (localhost:11434)
 3. Fall back to embedded local inference (zero-config)
 
 ```bash
 # Auto-select (tries Ollama, falls back to embedded)
-aipack detect .
+peelbox detect .
 
 # Force specific provider
-AIPACK_PROVIDER=ollama aipack detect .
-AIPACK_PROVIDER=claude ANTHROPIC_API_KEY=sk-... aipack detect .
-AIPACK_PROVIDER=embedded aipack detect .
+PEELBOX_PROVIDER=ollama peelbox detect .
+PEELBOX_PROVIDER=claude ANTHROPIC_API_KEY=sk-... peelbox detect .
+PEELBOX_PROVIDER=embedded peelbox detect .
 ```
 
 ## Examples
@@ -502,10 +502,10 @@ AIPACK_PROVIDER=embedded aipack detect .
 ```bash
 # 1. Detect build configuration
 cd myproject
-aipack detect . > universalbuild.json
+peelbox detect . > universalbuild.json
 
 # 2. Generate LLB and build
-aipack frontend --spec universalbuild.json | \
+peelbox frontend --spec universalbuild.json | \
   buildctl build \
     --local context=. \
     --output type=docker,name=myapp:latest
@@ -517,7 +517,7 @@ docker run -p 8080:8080 myapp:latest
 ### With SBOM and Provenance
 
 ```bash
-aipack frontend | buildctl build \
+peelbox frontend | buildctl build \
   --local context=. \
   --output type=docker,name=myapp:latest \
   --opt attest:sbom= \
@@ -544,15 +544,15 @@ jobs:
       - name: Set up BuildKit
         uses: docker/setup-buildx-action@v3
 
-      - name: Install aipack
+      - name: Install peelbox
         run: |
-          curl -L https://github.com/yourusername/aipack/releases/latest/download/aipack-linux-amd64 -o aipack
-          chmod +x aipack
+          curl -L https://github.com/yourusername/peelbox/releases/latest/download/peelbox-linux-amd64 -o peelbox
+          chmod +x peelbox
 
       - name: Detect and build
         run: |
-          ./aipack detect . > universalbuild.json
-          ./aipack frontend --spec universalbuild.json | \
+          ./peelbox detect . > universalbuild.json
+          ./peelbox frontend --spec universalbuild.json | \
             buildctl build \
               --local context=. \
               --output type=docker,name=ghcr.io/${{ github.repository }}:${{ github.sha }},push=true \
@@ -562,7 +562,7 @@ jobs:
 
 ### Context Transfer Optimization
 
-aipack automatically reduces context transfer by 99.995%:
+peelbox automatically reduces context transfer by 99.995%:
 
 ```bash
 # Before optimization: 1.54GB context transfer
@@ -612,8 +612,8 @@ For more examples:
 ### Building from Source
 
 ```bash
-git clone https://github.com/diverofdark/aipack.git
-cd aipack
+git clone https://github.com/diverofdark/peelbox.git
+cd peelbox
 
 # Development build
 cargo build
@@ -642,7 +642,7 @@ cargo fmt
 cargo test --lib
 
 # E2E tests in static mode (deterministic, no LLM)
-AIPACK_DETECTION_MODE=static cargo test --test e2e
+PEELBOX_DETECTION_MODE=static cargo test --test e2e
 
 # E2E tests with LLM (requires Ollama or embedded model)
 cargo test --test e2e
@@ -669,7 +669,7 @@ export DOCKER_BUILDKIT=1
 
 **Context transfer too slow:**
 ```bash
-# aipack automatically applies gitignore filtering
+# peelbox automatically applies gitignore filtering
 # If still slow, check .gitignore includes build artifacts
 echo "target/" >> .gitignore
 echo "node_modules/" >> .gitignore
@@ -685,7 +685,7 @@ ollama pull qwen2.5-coder:7b  # Pull model
 
 **Use embedded model (zero-config):**
 ```bash
-AIPACK_PROVIDER=embedded aipack detect .
+PEELBOX_PROVIDER=embedded peelbox detect .
 # Auto-selects model based on available RAM
 ```
 
@@ -693,7 +693,7 @@ AIPACK_PROVIDER=embedded aipack detect .
 
 **Package not found:**
 ```bash
-# aipack suggests alternatives
+# peelbox suggests alternatives
 Error: Package 'nodejs' not found. Did you mean: nodejs-22, nodejs-20, nodejs-18?
 
 # Use version-specific package
@@ -709,7 +709,7 @@ build.packages = ["nodejs-22"]
 
 ## Support
 
-- **GitHub Issues**: [Report bugs and request features](https://github.com/diverofdark/aipack/issues)
+- **GitHub Issues**: [Report bugs and request features](https://github.com/diverofdark/peelbox/issues)
 - **Documentation**: Comprehensive guides in [docs/](docs/)
 
 ---

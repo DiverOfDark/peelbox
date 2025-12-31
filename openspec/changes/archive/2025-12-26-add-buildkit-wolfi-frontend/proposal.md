@@ -2,7 +2,7 @@
 
 ## Why
 
-aipack currently uses traditional base images (debian:bookworm-slim, rust:1.75, node:20) hardcoded in BuildTemplate. This approach has critical limitations:
+peelbox currently uses traditional base images (debian:bookworm-slim, rust:1.75, node:20) hardcoded in BuildTemplate. This approach has critical limitations:
 
 1. **Security**: Traditional base images contain unnecessary packages, increasing attack surface and CVE exposure
 2. **Supply Chain**: No built-in SBOM generation or provenance tracking
@@ -27,7 +27,7 @@ Wolfi/Chainguard images are purpose-built for containers with minimal attack sur
    - Keep `build_packages` and `runtime_packages` fields (Wolfi package names only, version-specific)
    - BuildSystems query `WolfiPackageIndex` to discover available package versions dynamically
    - Version selection from manifest files where applicable, fallback to latest available in Wolfi
-   - **Auto-updates**: When Wolfi adds new runtime versions, aipack automatically detects them (after 24h cache refresh)
+   - **Auto-updates**: When Wolfi adds new runtime versions, peelbox automatically detects them (after 24h cache refresh)
    - Examples:
      - `CargoBuildSystem`: Queries `wolfi_index.has_package("rust")`, returns `["rust", "build-base"]`
      - `NpmBuildSystem`: Queries `wolfi_index.get_versions("nodejs")`, selects from package.json or latest, returns `["nodejs-22"]`
@@ -68,7 +68,7 @@ Wolfi/Chainguard images are purpose-built for containers with minimal attack sur
    - Attached to image manifest
 
 ### 7. **New `build` Command** - Direct image building with multi-app support
-   - `aipack build --repo /path/to/repo --spec universalbuild.json --image myapp:latest`
+   - `peelbox build --repo /path/to/repo --spec universalbuild.json --image myapp:latest`
    - Multi-app support: Use `{app}` placeholder in image name template (e.g., `--image myapp-{app}:latest`)
    - `--app <name>` flag to build specific app from multi-app spec
    - `--output type=docker|oci|tar` for export options (local only, no registry push)
@@ -78,14 +78,14 @@ Wolfi/Chainguard images are purpose-built for containers with minimal attack sur
    **Multi-app workflow:**
    ```bash
    # Build all apps in spec using template (distroless by default)
-   aipack build --repo . --spec universalbuild.json --image myapp-{app}:latest
+   peelbox build --repo . --spec universalbuild.json --image myapp-{app}:latest
    # Produces: myapp-backend:latest, myapp-frontend:latest
 
    # Build specific app (when multiple apps defined)
-   aipack build --repo . --spec universalbuild.json --app backend --image backend:latest
+   peelbox build --repo . --spec universalbuild.json --app backend --image backend:latest
 
    # Single-app build
-   aipack build --repo . --spec universalbuild.json --image myapp:latest
+   peelbox build --repo . --spec universalbuild.json --image myapp:latest
 
    # All images are distroless - smallest possible size with maximum security
    ```
@@ -114,7 +114,7 @@ Wolfi/Chainguard images are purpose-built for containers with minimal attack sur
   - `tests/fixtures/*/universalbuild.json` - **UPDATE** Remove base fields, use version-specific packages (keep version `1.0`)
   - `Cargo.toml` - Add `buildkit-client`, `tar` (APKINDEX parsing) dependencies
 - **External API:**
-  - **NEW**: `aipack build` command for direct image building with multi-app support
+  - **NEW**: `peelbox build` command for direct image building with multi-app support
     - `--repo <path>` - Repository root directory
     - `--spec <file>` - UniversalBuild JSON file (can contain single app or array of apps)
     - `--app <name>` - Build specific app from multi-app spec (optional, builds all if omitted)
@@ -122,7 +122,7 @@ Wolfi/Chainguard images are purpose-built for containers with minimal attack sur
       - Single-app: `myapp:latest`
       - Multi-app: `myapp-{app}:latest` (use `{app}` placeholder)
     - **All builds produce distroless images** (mandatory, no flag)
-  - **REMOVED**: Dockerfile generation (`aipack detect` no longer outputs Dockerfiles)
+  - **REMOVED**: Dockerfile generation (`peelbox detect` no longer outputs Dockerfiles)
   - **BREAKING**: UniversalBuild schema removes base image fields (version stays `1.0`)
 - **Breaking changes:**
   - Dockerfile generation removed entirely

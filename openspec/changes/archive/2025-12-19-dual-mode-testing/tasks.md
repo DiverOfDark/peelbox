@@ -2,7 +2,7 @@
 
 ## Phase 1: CLI Mode Control
 - [x] Add `DetectionMode` enum: `Full` (LLM + static), `StaticOnly`, `LLMOnly`
-- [x] Add `AIPACK_DETECTION_MODE` environment variable parsing in `src/config.rs`
+- [x] Add `PEELBOX_DETECTION_MODE` environment variable parsing in `src/config.rs`
 - [x] Pass `DetectionMode` from CLI to `PipelineOrchestrator`
 - [x] Add unit tests for env var parsing (test that "static", "llm", "full" map correctly)
 
@@ -23,8 +23,8 @@
 
 ## Phase 3: E2e Test Helpers
 - [x] Update `run_detection()` helper in `tests/e2e.rs` to accept mode parameter
-- [x] Add `run_detection_llm(fixture)` helper that sets `AIPACK_DETECTION_MODE=llm`
-- [x] Add `run_detection_static(fixture)` helper that sets `AIPACK_DETECTION_MODE=static`
+- [x] Add `run_detection_llm(fixture)` helper that sets `PEELBOX_DETECTION_MODE=llm`
+- [x] Add `run_detection_static(fixture)` helper that sets `PEELBOX_DETECTION_MODE=static`
 - [x] Update `assert_detection()` to accept mode parameter for mode-specific validation
 
 ## Phase 4: Add Dual-Mode E2e Tests
@@ -42,13 +42,13 @@
 
 ## Phase 6: Documentation & Cleanup
 - [x] Update CLAUDE.md with detection mode control:
-  - [x] E2e tests spawn CLI with `AIPACK_DETECTION_MODE` env var
+  - [x] E2e tests spawn CLI with `PEELBOX_DETECTION_MODE` env var
   - [x] Static mode runs without LLM backend (fast, deterministic)
   - [x] LLM mode validates LLM code paths
 - [x] Document when to use each mode in testing
 - [x] Add examples of running e2e tests in different modes
 - [x] Verify all tests pass in all modes (all 70 e2e tests passing)
-- [x] Update CHANGELOG.md (aipack has CHANGELOG.md in root, documented in commit messages)
+- [x] Update CHANGELOG.md (peelbox has CHANGELOG.md in root, documented in commit messages)
 
 ## Validation Checkpoints
 After each phase:

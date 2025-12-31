@@ -294,9 +294,9 @@ impl LLBBuilder {
         // Use busybox to copy all files from runtime prep onto glibc-dynamic
         // (can't use sh on glibc-dynamic itself as it's distroless)
         let runtime_desc = if !spec.runtime.packages.is_empty() {
-            format!("aipack {} runtime", spec.runtime.packages.join(" "))
+            format!("peelbox {} runtime", spec.runtime.packages.join(" "))
         } else {
-            "aipack base runtime".to_string()
+            "peelbox base runtime".to_string()
         };
         let squashed_runtime = Command::run("sh")
             .args(&["-c", &format!(": {}; cp -a /source/. /dest/", runtime_desc)])
@@ -320,7 +320,7 @@ impl LLBBuilder {
                 copy_stage = copy_stage.env(key, value);
             }
 
-            let mut copy_commands = vec![format!(": aipack {} application", app_name)];
+            let mut copy_commands = vec![format!(": peelbox {} application", app_name)];
             for copy_spec in &spec.runtime.copy {
                 let normalized_from = Self::normalize_path(&copy_spec.from);
 
@@ -344,7 +344,7 @@ impl LLBBuilder {
             }
             let script = copy_commands.join(" && ");
             copy_stage = copy_stage.args(&["-c", &script]);
-            copy_stage = copy_stage.custom_name(&format!("aipack {} application", app_name));
+            copy_stage = copy_stage.custom_name(&format!("peelbox {} application", app_name));
 
             Terminal::with(copy_stage.output(0))
                 .write_definition(writer)

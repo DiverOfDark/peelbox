@@ -82,9 +82,9 @@ impl ModelSelector {
     /// Returns None if no model fits (less than 1GB RAM available)
     pub fn select(capabilities: &HardwareCapabilities) -> Option<&'static EmbeddedModel> {
         // Check for explicit model size override
-        if let Ok(model_size) = std::env::var("AIPACK_MODEL_SIZE") {
+        if let Ok(model_size) = std::env::var("PEELBOX_MODEL_SIZE") {
             info!(
-                "AIPACK_MODEL_SIZE={} specified, using explicit model selection",
+                "PEELBOX_MODEL_SIZE={} specified, using explicit model selection",
                 model_size
             );
 

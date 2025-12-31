@@ -7,18 +7,18 @@ TBD - created by archiving change add-buildkit-wolfi-frontend. Update Purpose af
 The system SHALL provide a `build` command that builds container images via BuildKit.
 
 #### Scenario: Build single app with image name
-- **WHEN** `aipack build --repo /path/to/repo --spec spec.json --image myapp:latest` is executed
+- **WHEN** `peelbox build --repo /path/to/repo --spec spec.json --image myapp:latest` is executed
 - **THEN** the system loads the spec, generates LLB, and builds the image
 - **AND** the image is named `myapp:latest`
 
 #### Scenario: Build multi-app with template
-- **WHEN** `aipack build --repo /path/to/repo --spec spec.json --image myapp-{app}:latest` is executed
+- **WHEN** `peelbox build --repo /path/to/repo --spec spec.json --image myapp-{app}:latest` is executed
 - **AND** spec contains apps named "backend" and "frontend"
 - **THEN** the system builds both apps sequentially
 - **AND** produces images `myapp-backend:latest` and `myapp-frontend:latest`
 
 #### Scenario: Build specific app from multi-app spec
-- **WHEN** `aipack build --repo /path/to/repo --spec spec.json --app backend --image backend:latest` is executed
+- **WHEN** `peelbox build --repo /path/to/repo --spec spec.json --app backend --image backend:latest` is executed
 - **AND** spec contains multiple apps including "backend"
 - **THEN** the system builds only the "backend" app
 - **AND** produces image `backend:latest`
@@ -59,7 +59,7 @@ The system SHALL support configuring the BuildKit daemon endpoint.
 The system SHALL always generate SBOM and provenance attestations for all builds.
 
 #### Scenario: Attestations always enabled
-- **WHEN** `aipack build` is executed
+- **WHEN** `peelbox build` is executed
 - **THEN** SBOM and provenance attestations are generated and attached
 - **AND** attestations cannot be disabled (security by default)
 
@@ -87,12 +87,12 @@ The system SHALL display build progress during image building.
 The system SHALL remove the Dockerfile generation capability in favor of direct BuildKit building.
 
 #### Scenario: Detect command output
-- **WHEN** `aipack detect` is executed
+- **WHEN** `peelbox detect` is executed
 - **THEN** the output is UniversalBuild specification (JSON/YAML/text)
 - **AND** no Dockerfile output option is available
 
 #### Scenario: Build replaces Dockerfile generation
 - **WHEN** user needs a container image
-- **THEN** they use `aipack build` to build directly via BuildKit
+- **THEN** they use `peelbox build` to build directly via BuildKit
 - **AND** there is no intermediate Dockerfile step
 

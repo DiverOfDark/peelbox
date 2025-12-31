@@ -1,6 +1,6 @@
 //! End-to-end tests using fixtures and binary execution
 //!
-//! These tests verify the complete detection pipeline by spawning the aipack binary:
+//! These tests verify the complete detection pipeline by spawning the peelbox binary:
 //! - Bootstrap scanning
 //! - LLM conversation with tool calling
 //! - Validation of final output
@@ -9,7 +9,7 @@
 
 mod support;
 
-use aipack::output::schema::UniversalBuild;
+use peelbox::output::schema::UniversalBuild;
 use serial_test::serial;
 use std::env;
 use std::path::PathBuf;
@@ -35,7 +35,7 @@ fn setup_test_apkindex_cache() {
 
         let cache_dir = dirs::cache_dir()
             .expect("Failed to get cache dir")
-            .join("aipack")
+            .join("peelbox")
             .join("apkindex");
 
         std::fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
@@ -59,9 +59,9 @@ fn setup_test_apkindex_cache() {
     });
 }
 
-/// Helper to get the path to the aipack binary
-fn aipack_bin() -> PathBuf {
-    // In tests, the binary should be at target/debug/aipack
+/// Helper to get the path to the peelbox binary
+fn peelbox_bin() -> PathBuf {
+    // In tests, the binary should be at target/debug/peelbox
     let mut path = env::current_exe()
         .expect("Failed to get current executable path")
         .parent()
@@ -75,7 +75,7 @@ fn aipack_bin() -> PathBuf {
         path = path.parent().expect("No parent").to_path_buf();
     }
 
-    path.join("aipack")
+    path.join("peelbox")
 }
 
 /// Helper to get fixture path
@@ -133,15 +133,15 @@ fn run_detection_with_mode(
         std::fs::create_dir_all(&git_dir).ok();
     }
 
-    let mut cmd = Command::new(aipack_bin());
-    cmd.env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "7B")
-        .env("AIPACK_ENABLE_RECORDING", "1")
-        .env("AIPACK_RECORDING_MODE", "auto")
-        .env("AIPACK_TEST_NAME", test_name);
+    let mut cmd = Command::new(peelbox_bin());
+    cmd.env("PEELBOX_PROVIDER", "embedded")
+        .env("PEELBOX_MODEL_SIZE", "7B")
+        .env("PEELBOX_ENABLE_RECORDING", "1")
+        .env("PEELBOX_RECORDING_MODE", "auto")
+        .env("PEELBOX_TEST_NAME", test_name);
 
     if let Some(detection_mode) = mode {
-        cmd.env("AIPACK_DETECTION_MODE", detection_mode);
+        cmd.env("PEELBOX_DETECTION_MODE", detection_mode);
     }
 
     let output = cmd
@@ -150,7 +150,7 @@ fn run_detection_with_mode(
         .arg("--format")
         .arg("json")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -421,7 +421,7 @@ async fn run_container_integration_test(
         .map_err(|e| format!("Failed to create harness: {}", e))?;
 
     let image_name = format!(
-        "localhost/aipack-test-{}-{}:latest",
+        "localhost/peelbox-test-{}-{}:latest",
         category.replace("/", "-"),
         fixture_name
     );

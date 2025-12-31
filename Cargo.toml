@@ -1,15 +1,15 @@
 [package]
-name = "aipack"
+name = "peelbox"
 version = "0.3.0"
 edition = "2021"
 rust-version = "1.70"
 authors = ["Kirill Orlov"]
 description = "AI-powered buildkit frontend for intelligent build command detection"
-repository = "https://github.com/diverofdark/aipack"
+repository = "https://github.com/diverofdark/peelbox"
 license = "Apache-2.0"
 
 [[bin]]
-name = "aipack"
+name = "peelbox"
 path = "src/main.rs"
 
 [dependencies]

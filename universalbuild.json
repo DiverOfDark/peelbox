@@ -20,17 +20,17 @@
     "metadata": {
       "build_system": "Cargo",
       "language": "Rust",
-      "project_name": "aipack",
+      "project_name": "peelbox",
       "reasoning": "Detected from Cargo.toml in "
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/aipack"
+        "/usr/local/bin/peelbox"
       ],
       "copy": [
         {
-          "from": "target/release/aipack",
-          "to": "/usr/local/bin/aipack"
+          "from": "target/release/peelbox",
+          "to": "/usr/local/bin/peelbox"
         }
       ],
       "env": {},

@@ -23,7 +23,7 @@ impl RecordingMode {
     }
 
     pub fn from_env(default: RecordingMode) -> RecordingMode {
-        std::env::var("AIPACK_RECORDING_MODE")
+        std::env::var("PEELBOX_RECORDING_MODE")
             .ok()
             .and_then(|s| Self::parse(&s).ok())
             .unwrap_or(default)
@@ -97,7 +97,7 @@ impl RecordingLLMClient {
     /// Create with defaults from environment
     pub fn from_env(inner: Arc<dyn LLMClient>) -> Result<Self> {
         let mode = RecordingMode::from_env(RecordingMode::Auto);
-        let recordings_dir = std::env::var("AIPACK_RECORDINGS_DIR")
+        let recordings_dir = std::env::var("PEELBOX_RECORDINGS_DIR")
             .unwrap_or_else(|_| "tests/recordings".to_string())
             .into();
 

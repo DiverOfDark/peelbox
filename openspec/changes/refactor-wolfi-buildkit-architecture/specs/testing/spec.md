@@ -53,7 +53,7 @@ The test suite SHALL include a fixture demonstrating Dockerfile compatibility vi
 
 #### Scenario: Dockerfile frontend delegation
 - **WHEN** Dockerfile is detected in repository root
-- **THEN** aipack delegates LLB generation to `docker/dockerfile:1` frontend
+- **THEN** peelbox delegates LLB generation to `docker/dockerfile:1` frontend
 - **AND** does NOT parse Dockerfile syntax itself
 - **AND** supports all Dockerfile features (multi-stage, buildx, etc.)
 

@@ -1,11 +1,11 @@
-use aipack::buildkit::llb::LLBBuilder;
-use aipack::cli::commands::{CliArgs, Commands, DetectArgs, FrontendArgs, HealthArgs};
-use aipack::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
-use aipack::config::AipackConfig;
-use aipack::detection::service::DetectionService;
-use aipack::llm::{RecordingLLMClient, RecordingMode};
-use aipack::output::schema::UniversalBuild;
-use aipack::VERSION;
+use peelbox::buildkit::llb::LLBBuilder;
+use peelbox::cli::commands::{CliArgs, Commands, DetectArgs, FrontendArgs, HealthArgs};
+use peelbox::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
+use peelbox::config::PeelboxConfig;
+use peelbox::detection::service::DetectionService;
+use peelbox::llm::{RecordingLLMClient, RecordingMode};
+use peelbox::output::schema::UniversalBuild;
+use peelbox::VERSION;
 use genai::adapter::AdapterKind;
 
 use clap::Parser;
@@ -24,7 +24,7 @@ async fn main() {
     let args = CliArgs::parse();
     init_logging_from_args(&args);
 
-    debug!("aipack v{} starting", VERSION);
+    debug!("peelbox v{} starting", VERSION);
     debug!("Arguments: {:?}", args);
 
     let exit_code = match &args.command {
@@ -48,7 +48,7 @@ fn init_logging_from_args(args: &CliArgs) {
         } else if args.quiet {
             Level::ERROR
         } else {
-            let level_str = env::var("AIPACK_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+            let level_str = env::var("PEELBOX_LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
             parse_level(&level_str)
         };
 
@@ -56,7 +56,7 @@ fn init_logging_from_args(args: &CliArgs) {
 
         if env::var("RUST_LOG").is_err() {
             filter = filter
-                .add_directive(format!("aipack={}", level).parse().unwrap())
+                .add_directive(format!("peelbox={}", level).parse().unwrap())
                 .add_directive("h2=warn".parse().unwrap())
                 .add_directive("hyper=warn".parse().unwrap())
                 .add_directive("reqwest=warn".parse().unwrap());
@@ -127,8 +127,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     };
     debug!("Canonicalized repository path: {}", repo_path.display());
 
-    let default_config = AipackConfig::default();
-    let config = AipackConfig {
+    let default_config = PeelboxConfig::default();
+    let config = PeelboxConfig {
         provider: args.backend.unwrap_or(default_config.provider),
         model: args.model.clone().unwrap_or(default_config.model),
         request_timeout_secs: args.timeout,
@@ -153,13 +153,13 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     }
 
     let wrap_with_recording =
-        |client: Arc<dyn aipack::llm::LLMClient>| -> Arc<dyn aipack::llm::LLMClient> {
-            if std::env::var("AIPACK_ENABLE_RECORDING").is_ok() {
+        |client: Arc<dyn peelbox::llm::LLMClient>| -> Arc<dyn peelbox::llm::LLMClient> {
+            if std::env::var("PEELBOX_ENABLE_RECORDING").is_ok() {
                 let recordings_dir = std::path::PathBuf::from("tests/recordings");
                 match RecordingLLMClient::new(client.clone(), RecordingMode::Auto, recordings_dir) {
                     Ok(recording_client) => {
                         debug!("Recording enabled, using tests/recordings/ directory");
-                        return Arc::new(recording_client) as Arc<dyn aipack::llm::LLMClient>;
+                        return Arc::new(recording_client) as Arc<dyn peelbox::llm::LLMClient>;
                     }
                     Err(e) => {
                         warn!(
@@ -176,7 +176,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
     let service = if args.backend.is_some() {
         debug!("Using explicitly specified backend: {:?}", config.provider);
 
-        use aipack::llm::GenAIClient;
+        use peelbox::llm::GenAIClient;
         use std::time::Duration;
 
         let client = match GenAIClient::new(
@@ -186,7 +186,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         )
         .await
         {
-            Ok(c) => wrap_with_recording(Arc::new(c) as Arc<dyn aipack::llm::LLMClient>),
+            Ok(c) => wrap_with_recording(Arc::new(c) as Arc<dyn peelbox::llm::LLMClient>),
             Err(e) => {
                 error!("Failed to initialize backend: {}", e);
                 eprintln!("Failed to initialize backend: {}", e);
@@ -220,7 +220,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
                         eprintln!("  - Refer to provider documentation for setup instructions");
                     }
                 }
-                eprintln!("  - Run 'aipack health' to check backend availability");
+                eprintln!("  - Run 'peelbox health' to check backend availability");
                 eprintln!("  - Or omit --backend to automatically select an available backend");
                 return 1;
             }
@@ -232,8 +232,8 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         let interactive = atty::is(atty::Stream::Stdout);
 
         // Create lazy client that defers initialization until first chat() call
-        let lazy_client = aipack::llm::LazyLLMClient::new(config.clone(), interactive);
-        let client = Arc::new(lazy_client) as Arc<dyn aipack::llm::LLMClient>;
+        let lazy_client = peelbox::llm::LazyLLMClient::new(config.clone(), interactive);
+        let client = Arc::new(lazy_client) as Arc<dyn peelbox::llm::LLMClient>;
         let client = wrap_with_recording(client);
 
         DetectionService::new(client)
@@ -407,7 +407,7 @@ fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
 async fn handle_health(args: &HealthArgs) -> i32 {
     info!("Checking backend health");
 
-    let config = AipackConfig::default();
+    let config = PeelboxConfig::default();
     let mut health_results = HashMap::new();
 
     let providers_to_check: Vec<AdapterKind> = if let Some(provider) = args.backend {
@@ -506,7 +506,7 @@ async fn handle_health(args: &HealthArgs) -> i32 {
                 }
             },
             _ => HealthStatus::unavailable(format!(
-                "Provider {:?} is not supported by aipack",
+                "Provider {:?} is not supported by peelbox",
                 provider
             )),
         };

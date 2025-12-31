@@ -24,9 +24,9 @@ use std::io::Write;
 use std::process::Stdio;
 use support::ContainerTestHarness;
 
-/// Shared test fixture: Build aipack image using BuildKit
+/// Shared test fixture: Build peelbox image using BuildKit
 /// Returns (image_name, docker_client)
-async fn build_aipack_image(test_name: &str) -> Result<(String, Docker)> {
+async fn build_peelbox_image(test_name: &str) -> Result<(String, Docker)> {
     let harness = ContainerTestHarness::new()?;
 
     let spec_path = std::env::current_dir()
@@ -36,7 +36,7 @@ async fn build_aipack_image(test_name: &str) -> Result<(String, Docker)> {
     let context_path = std::env::current_dir()
         .context("Failed to get current directory")?;
 
-    let image_name = format!("localhost/aipack-test-{}:latest", test_name);
+    let image_name = format!("localhost/peelbox-test-{}:latest", test_name);
 
     harness.build_image(&spec_path, &context_path, &image_name).await?;
 
@@ -52,7 +52,7 @@ async fn build_aipack_image(test_name: &str) -> Result<(String, Docker)> {
 async fn test_image_builds_successfully() -> Result<()> {
     println!("=== Image Build Test ===\n");
 
-    let (image_name, docker) = build_aipack_image("build").await?;
+    let (image_name, docker) = build_peelbox_image("build").await?;
 
     let inspect = docker.inspect_image(&image_name)
         .await
@@ -73,11 +73,11 @@ async fn test_image_builds_successfully() -> Result<()> {
 async fn test_image_runs_help_command() -> Result<()> {
     println!("=== Image Execution Test ===\n");
 
-    let (image_name, docker) = build_aipack_image("help").await?;
+    let (image_name, docker) = build_peelbox_image("help").await?;
 
     let container_config = Config {
         image: Some(image_name.clone()),
-        cmd: Some(vec!["/usr/local/bin/aipack".to_string(), "--help".to_string()]),
+        cmd: Some(vec!["/usr/local/bin/peelbox".to_string(), "--help".to_string()]),
         ..Default::default()
     };
 
@@ -124,7 +124,7 @@ async fn test_image_runs_help_command() -> Result<()> {
 
     assert_eq!(wait_result.status_code, 0, "Container should exit successfully");
     assert!(
-        output.contains("aipack"),
+        output.contains("peelbox"),
         "Help output should contain project name"
     );
     assert!(
@@ -146,7 +146,7 @@ async fn test_image_runs_help_command() -> Result<()> {
 async fn test_distroless_layer_structure() -> Result<()> {
     println!("=== Distroless Layer Structure Test ===\n");
 
-    let (image_name, docker) = build_aipack_image("layers").await?;
+    let (image_name, docker) = build_peelbox_image("layers").await?;
 
     let history = docker.image_history(&image_name)
         .await
@@ -162,14 +162,14 @@ async fn test_distroless_layer_structure() -> Result<()> {
     }
     println!("✓ No wolfi-base in layer history (truly distroless)");
 
-    // Count only OUR layers (identified by ": aipack" prefix)
+    // Count only OUR layers (identified by ": peelbox" prefix)
     let our_layers: Vec<_> = history.iter()
         .filter(|layer| {
-            layer.size > 0 && layer.created_by.contains(": aipack")
+            layer.size > 0 && layer.created_by.contains(": peelbox")
         })
         .collect();
 
-    println!("Image has {} aipack layers:", our_layers.len());
+    println!("Image has {} peelbox layers:", our_layers.len());
     for (i, layer) in our_layers.iter().enumerate() {
         println!("  Layer {}: {} bytes - {}",
             i + 1,
@@ -180,18 +180,18 @@ async fn test_distroless_layer_structure() -> Result<()> {
     assert_eq!(
         our_layers.len(),
         2,
-        "Distroless image should have exactly 2 aipack layers (runtime + app), found {}",
+        "Distroless image should have exactly 2 peelbox layers (runtime + app), found {}",
         our_layers.len()
     );
-    println!("✓ Exactly 2 aipack layers (runtime + app)");
+    println!("✓ Exactly 2 peelbox layers (runtime + app)");
 
-    // Verify clean layer metadata format (': aipack <name>')
+    // Verify clean layer metadata format (': peelbox <name>')
     let runtime_layer = history.iter()
         .find(|l| l.created_by.contains("runtime"))
         .expect("Runtime layer should exist");
     assert!(
-        runtime_layer.created_by.contains(": aipack"),
-        "Runtime layer should have ': aipack' prefix, got: {}",
+        runtime_layer.created_by.contains(": peelbox"),
+        "Runtime layer should have ': peelbox' prefix, got: {}",
         runtime_layer.created_by
     );
 
@@ -199,11 +199,11 @@ async fn test_distroless_layer_structure() -> Result<()> {
         .find(|l| l.created_by.contains("application"))
         .expect("Application layer should exist");
     assert!(
-        app_layer.created_by.contains(": aipack"),
-        "Application layer should have ': aipack' prefix, got: {}",
+        app_layer.created_by.contains(": peelbox"),
+        "Application layer should have ': peelbox' prefix, got: {}",
         app_layer.created_by
     );
-    println!("✓ Clean layer metadata (': aipack' prefix)");
+    println!("✓ Clean layer metadata (': peelbox' prefix)");
 
     // Cleanup
     let _ = docker.remove_image(&image_name, None, None).await;
@@ -217,7 +217,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
 async fn test_image_size_optimized() -> Result<()> {
     println!("=== Image Size Optimization Test ===\n");
 
-    let (image_name, docker) = build_aipack_image("size").await?;
+    let (image_name, docker) = build_peelbox_image("size").await?;
 
     let inspect = docker.inspect_image(&image_name)
         .await
@@ -251,12 +251,12 @@ async fn test_image_size_optimized() -> Result<()> {
 async fn test_binary_exists_and_executable() -> Result<()> {
     println!("=== Binary Location Test ===\n");
 
-    let (image_name, docker) = build_aipack_image("binary").await?;
+    let (image_name, docker) = build_peelbox_image("binary").await?;
 
     // Run the binary with --version to verify it exists and executes
     let container_config = Config {
         image: Some(image_name.clone()),
-        cmd: Some(vec!["/usr/local/bin/aipack".to_string(), "--version".to_string()]),
+        cmd: Some(vec!["/usr/local/bin/peelbox".to_string(), "--version".to_string()]),
         ..Default::default()
     };
 
@@ -288,9 +288,9 @@ async fn test_binary_exists_and_executable() -> Result<()> {
 
     assert_eq!(
         wait_result.status_code, 0,
-        "Binary at /usr/local/bin/aipack should exist and be executable"
+        "Binary at /usr/local/bin/peelbox should exist and be executable"
     );
-    println!("✓ Binary exists at /usr/local/bin/aipack and is executable");
+    println!("✓ Binary exists at /usr/local/bin/peelbox and is executable");
 
     // Cleanup
     let _ = docker.remove_image(&image_name, None, None).await;
@@ -307,32 +307,32 @@ async fn test_buildctl_output_types() -> Result<()> {
     // Use the shared BuildKit container to avoid lock conflicts
     let container_id = support::container_harness::get_buildkit_container().await?;
 
-    let aipack_binary = std::env::current_dir()?.join("target/release/aipack");
-    if !aipack_binary.exists() {
+    let peelbox_binary = std::env::current_dir()?.join("target/release/peelbox");
+    if !peelbox_binary.exists() {
         let build_status = std::process::Command::new("cargo")
-            .args(&["build", "--release", "--bin", "aipack", "--no-default-features"])
+            .args(&["build", "--release", "--bin", "peelbox", "--no-default-features"])
             .status()?;
         if !build_status.success() {
-            anyhow::bail!("Failed to build aipack binary");
+            anyhow::bail!("Failed to build peelbox binary");
         }
     }
 
     let spec_path = std::env::current_dir()?.join("universalbuild.json");
-    let aipack_output = std::process::Command::new(&aipack_binary)
+    let peelbox_output = std::process::Command::new(&peelbox_binary)
         .args(&["frontend", "--spec", spec_path.to_str().unwrap()])
         .output()?;
 
-    if !aipack_output.status.success() {
-        anyhow::bail!("aipack frontend failed: {}", String::from_utf8_lossy(&aipack_output.stderr));
+    if !peelbox_output.status.success() {
+        anyhow::bail!("peelbox frontend failed: {}", String::from_utf8_lossy(&peelbox_output.stderr));
     }
 
-    let llb_data = aipack_output.stdout;
+    let llb_data = peelbox_output.stdout;
     let repo_path = std::env::current_dir()?;
     let buildkit_addr = format!("docker-container://{}", container_id);
 
     // Test OCI tarball output
     println!("--- Testing OCI tarball output ---");
-    let oci_dest = std::env::temp_dir().join("aipack-test-oci.tar");
+    let oci_dest = std::env::temp_dir().join("peelbox-test-oci.tar");
 
     let mut buildctl_oci = std::process::Command::new("buildctl")
         .args(&[
@@ -364,7 +364,7 @@ async fn test_buildctl_output_types() -> Result<()> {
 
     // Test Docker tarball output
     println!("\n--- Testing Docker tarball output ---");
-    let docker_dest = std::env::temp_dir().join("aipack-test-docker.tar");
+    let docker_dest = std::env::temp_dir().join("peelbox-test-docker.tar");
 
     let mut buildctl_docker = std::process::Command::new("buildctl")
         .args(&[
@@ -372,7 +372,7 @@ async fn test_buildctl_output_types() -> Result<()> {
             "build",
             "--progress=plain",
             "--local", &format!("context={}", repo_path.display()),
-            "--output", &format!("type=docker,name=aipack-test:latest,dest={}", docker_dest.display()),
+            "--output", &format!("type=docker,name=peelbox-test:latest,dest={}", docker_dest.display()),
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

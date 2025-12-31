@@ -1,6 +1,6 @@
 # SBOM and Provenance Attestations
 
-This document describes how to generate Software Bill of Materials (SBOM) and SLSA provenance attestations when building container images with aipack and BuildKit.
+This document describes how to generate Software Bill of Materials (SBOM) and SLSA provenance attestations when building container images with peelbox and BuildKit.
 
 ## Overview
 
@@ -14,15 +14,15 @@ These attestations are attached to the image manifest and can be inspected using
 
 ### What is SBOM?
 
-A Software Bill of Materials (SBOM) is a complete inventory of all software components, libraries, and dependencies in a container image. aipack generates SBOM attestations in SPDX format using BuildKit's built-in Syft scanner.
+A Software Bill of Materials (SBOM) is a complete inventory of all software components, libraries, and dependencies in a container image. peelbox generates SBOM attestations in SPDX format using BuildKit's built-in Syft scanner.
 
 ### Generating SBOM
 
 Use buildctl with `--output` flags to generate SBOM attestations:
 
 ```bash
-# Generate LLB with aipack frontend
-aipack frontend --spec universalbuild.json > build.llb
+# Generate LLB with peelbox frontend
+peelbox frontend --spec universalbuild.json > build.llb
 
 # Build with SBOM attestation
 buildctl build \
@@ -156,16 +156,16 @@ jobs:
       - name: Set up BuildKit
         uses: docker/setup-buildx-action@v3
 
-      - name: Install aipack
+      - name: Install peelbox
         run: |
-          curl -L https://github.com/yourusername/aipack/releases/latest/download/aipack-linux-amd64 -o aipack
-          chmod +x aipack
+          curl -L https://github.com/yourusername/peelbox/releases/latest/download/peelbox-linux-amd64 -o peelbox
+          chmod +x peelbox
 
       - name: Generate build spec
-        run: ./aipack detect . > universalbuild.json
+        run: ./peelbox detect . > universalbuild.json
 
       - name: Generate LLB
-        run: ./aipack frontend --spec universalbuild.json > build.llb
+        run: ./peelbox frontend --spec universalbuild.json > build.llb
 
       - name: Build with attestations
         run: |
@@ -187,8 +187,8 @@ build-image:
   services:
     - docker:dind
   script:
-    - aipack detect . > universalbuild.json
-    - aipack frontend --spec universalbuild.json > build.llb
+    - peelbox detect . > universalbuild.json
+    - peelbox frontend --spec universalbuild.json > build.llb
     - |
       buildctl build \
         --local context=. \

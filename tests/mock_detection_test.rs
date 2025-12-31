@@ -2,9 +2,9 @@
 //!
 //! These tests verify the detection flow without requiring a real LLM backend.
 
-use aipack::fs::MockFileSystem;
-use aipack::llm::{MockLLMClient, MockResponse};
-use aipack::{FileSystem, LLMClient, Validator};
+use peelbox::fs::MockFileSystem;
+use peelbox::llm::{MockLLMClient, MockResponse};
+use peelbox::{FileSystem, LLMClient, Validator};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -177,7 +177,7 @@ async fn test_universal_build_validation() {
     let build = create_rust_universal_build();
 
     // Verify the JSON structure is valid
-    let parsed: aipack::output::schema::UniversalBuild =
+    let parsed: peelbox::output::schema::UniversalBuild =
         serde_json::from_value(build).expect("Should parse as UniversalBuild");
 
     // Validate the build
@@ -219,12 +219,12 @@ async fn test_mock_client_error_handling() {
     let client = MockLLMClient::new();
 
     // Add an error response
-    client.add_response(MockResponse::error(aipack::BackendError::TimeoutError {
+    client.add_response(MockResponse::error(peelbox::BackendError::TimeoutError {
         seconds: 30,
     }));
 
     // Try to make a request
-    use aipack::llm::{LLMClient, LLMRequest};
+    use peelbox::llm::{LLMClient, LLMRequest};
     let result = client.chat(LLMRequest::new(vec![])).await;
 
     assert!(result.is_err());
@@ -235,7 +235,7 @@ async fn test_mock_client_exhausted() {
     let client = MockLLMClient::new();
 
     // Don't add any responses
-    use aipack::llm::{LLMClient, LLMRequest};
+    use peelbox::llm::{LLMClient, LLMRequest};
     let result = client.chat(LLMRequest::new(vec![])).await;
 
     assert!(result.is_err());

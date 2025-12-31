@@ -3,9 +3,9 @@
 //! Tests backend availability checking, configuration validation,
 //! and health status reporting.
 
-use aipack::config::AipackConfig;
-use aipack::detection::service::DetectionService;
-use aipack::llm::GenAIClient;
+use peelbox::config::PeelboxConfig;
+use peelbox::detection::service::DetectionService;
+use peelbox::llm::GenAIClient;
 use genai::adapter::AdapterKind;
 use std::env;
 use std::time::Duration;
@@ -48,7 +48,7 @@ async fn test_service_client_timeout() {
 
 #[test]
 fn test_config_provider_set() {
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: false,
@@ -68,8 +68,8 @@ fn test_config_provider_set() {
 
 #[test]
 fn test_config_default_provider() {
-    // Test that default config respects AIPACK_PROVIDER env var
-    let config = AipackConfig::default();
+    // Test that default config respects PEELBOX_PROVIDER env var
+    let config = PeelboxConfig::default();
 
     // Default should be Ollama (or whatever is set in env)
     assert!(matches!(
@@ -102,7 +102,7 @@ async fn test_service_creation_with_unreachable_backend() {
     if let Ok(client) = client_result {
         use std::sync::Arc;
 
-        let client_arc: Arc<dyn aipack::llm::LLMClient> = Arc::new(client);
+        let client_arc: Arc<dyn peelbox::llm::LLMClient> = Arc::new(client);
 
         let _service = DetectionService::new(client_arc);
         // Service creation succeeded
@@ -114,7 +114,7 @@ async fn test_service_creation_with_unreachable_backend() {
 
 #[tokio::test]
 async fn test_service_client_name_and_info() {
-    use aipack::llm::LLMClient;
+    use peelbox::llm::LLMClient;
 
     std::env::set_var("OPENAI_API_BASE", "http://localhost:11434");
     let client = GenAIClient::new(
@@ -146,7 +146,7 @@ async fn test_service_client_custom_timeout() {
 
 #[test]
 fn test_config_validation_all_fields() {
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: true,
@@ -166,28 +166,28 @@ fn test_config_validation_all_fields() {
 #[test]
 fn test_config_validation_edge_cases() {
     // Test minimum valid timeout
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         request_timeout_secs: 1,
         ..Default::default()
     };
     assert!(config.validate().is_ok());
 
     // Test maximum valid timeout
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         request_timeout_secs: 600,
         ..Default::default()
     };
     assert!(config.validate().is_ok());
 
     // Test minimum valid context size
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         max_context_size: 1024,
         ..Default::default()
     };
     assert!(config.validate().is_ok());
 
     // Test maximum valid context size
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         max_context_size: 10_485_760,
         ..Default::default()
     };
@@ -196,7 +196,7 @@ fn test_config_validation_edge_cases() {
 
 #[test]
 fn test_config_validation_all_log_levels() {
-    let mut config = AipackConfig::default();
+    let mut config = PeelboxConfig::default();
 
     for level in &["trace", "debug", "info", "warn", "error"] {
         config.log_level = level.to_string();
@@ -213,7 +213,7 @@ fn test_config_validation_all_log_levels() {
 
 #[test]
 fn test_config_cache_path_generation() {
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: true,
@@ -264,7 +264,7 @@ async fn test_health_check_with_multiple_endpoints() {
 
 #[test]
 fn test_config_display_formatting() {
-    let config = AipackConfig {
+    let config = PeelboxConfig {
         provider: AdapterKind::Ollama,
         model: "qwen:7b".to_string(),
         cache_enabled: true,
@@ -289,7 +289,7 @@ fn test_config_display_formatting() {
 
 #[test]
 fn test_backend_error_types() {
-    use aipack::llm::BackendError;
+    use peelbox::llm::BackendError;
 
     // Test TimeoutError
     let error = BackendError::TimeoutError { seconds: 30 };
@@ -370,7 +370,7 @@ fn test_backend_error_types() {
 
 #[test]
 fn test_backend_error_implements_error_trait() {
-    use aipack::llm::BackendError;
+    use peelbox::llm::BackendError;
     use std::error::Error;
 
     let error = BackendError::TimeoutError { seconds: 30 };

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-aipack is an AI-powered buildkit frontend for intelligent build command detection. It analyzes repositories on-demand using LLM function calling with iterative tool execution to detect build systems and generate multi-stage container build specifications (UniversalBuild). The tool avoids context window limitations by having the LLM explore repositories incrementally rather than passing full repository context upfront.
+peelbox is an AI-powered buildkit frontend for intelligent build command detection. It analyzes repositories on-demand using LLM function calling with iterative tool execution to detect build systems and generate multi-stage container build specifications (UniversalBuild). The tool avoids context window limitations by having the LLM explore repositories incrementally rather than passing full repository context upfront.
 
 ## Tech Stack
 

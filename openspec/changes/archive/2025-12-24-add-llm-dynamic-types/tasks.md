@@ -126,7 +126,7 @@
 - [x] 7.9 Add test: Multiple custom types in same project
 - [x] 7.10 Update recording system to capture LLM calls from LLM* implementations
 - [x] 7.11 Add LLM-only test mode (NEW)
-  - [x] 7.11.1 Add `AIPACK_DETECTION_MODE=llm_only` environment variable
+  - [x] 7.11.1 Add `PEELBOX_DETECTION_MODE=llm_only` environment variable
   - [x] 7.11.2 When enabled, StackRegistry::with_defaults() registers ONLY LLM* implementations
   - [x] 7.11.3 Skip all deterministic implementations (Rust, Java, npm, etc.)
   - [x] 7.11.4 Forces all detection through LLM code path

@@ -5,11 +5,11 @@ use std::path::PathBuf;
 /// AI-powered buildkit frontend for intelligent build command detection
 #[derive(Parser, Debug)]
 #[command(
-    name = "aipack",
+    name = "peelbox",
     about = "AI-powered buildkit frontend for intelligent build command detection",
     version,
     author,
-    long_about = "aipack analyzes repository structure using LLMs to detect build systems \
+    long_about = "peelbox analyzes repository structure using LLMs to detect build systems \
                   and generate appropriate build commands. It supports multiple AI backends \
                   (Ollama, OpenAI, Claude, Gemini, Grok, Groq) and output formats."
 )]
@@ -45,10 +45,10 @@ pub enum Commands {
         long_about = "Analyzes repository structure and configuration files to detect the \
                       build system and generate appropriate build, test, and deploy commands.\n\n\
                       Examples:\n  \
-                      aipack detect\n  \
-                      aipack detect /path/to/repo\n  \
-                      aipack detect --format json\n  \
-                      aipack detect --backend ollama --model qwen:14b"
+                      peelbox detect\n  \
+                      peelbox detect /path/to/repo\n  \
+                      peelbox detect --format json\n  \
+                      peelbox detect --backend ollama --model qwen:14b"
     )]
     Detect(DetectArgs),
 
@@ -56,8 +56,8 @@ pub enum Commands {
         about = "Check backend availability",
         long_about = "Checks the availability and health of configured AI backends.\n\n\
                       Examples:\n  \
-                      aipack health\n  \
-                      aipack health --backend ollama"
+                      peelbox health\n  \
+                      peelbox health --backend ollama"
     )]
     Health(HealthArgs),
 
@@ -67,8 +67,8 @@ pub enum Commands {
                       This is the standard BuildKit frontend protocol.\n\n\
                       Examples:\n  \
                       # Via buildctl\n  \
-                      buildctl build --frontend=gateway.v0 --opt source=local://aipack \\\n  \
-                        --local aipack=/path/to/aipack-binary \\\n  \
+                      buildctl build --frontend=gateway.v0 --opt source=local://peelbox \\\n  \
+                        --local peelbox=/path/to/peelbox-binary \\\n  \
                         --local context=/path/to/build/context \\\n  \
                         --opt spec=universalbuild.json \\\n  \
                         --output type=docker,name=myapp:latest"
@@ -214,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_default_detect_args() {
-        let args = CliArgs::parse_from(["aipack", "detect"]);
+        let args = CliArgs::parse_from(["peelbox", "detect"]);
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Json);
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_detect_with_path() {
-        let args = CliArgs::parse_from(["aipack", "detect", "/tmp/repo"]);
+        let args = CliArgs::parse_from(["peelbox", "detect", "/tmp/repo"]);
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(
@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn test_detect_with_options() {
         let args = CliArgs::parse_from([
-            "aipack",
+            "peelbox",
             "detect",
             "--format",
             "json",
@@ -274,7 +274,7 @@ mod tests {
 
     #[test]
     fn test_health_command() {
-        let args = CliArgs::parse_from(["aipack", "health"]);
+        let args = CliArgs::parse_from(["peelbox", "health"]);
         match args.command {
             Commands::Health(health_args) => {
                 assert!(health_args.backend.is_none());
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn test_health_with_backend() {
-        let args = CliArgs::parse_from(["aipack", "health", "--backend", "ollama"]);
+        let args = CliArgs::parse_from(["peelbox", "health", "--backend", "ollama"]);
         match args.command {
             Commands::Health(health_args) => {
                 assert_eq!(health_args.backend, Some(AdapterKind::Ollama));
@@ -297,21 +297,21 @@ mod tests {
 
     #[test]
     fn test_global_verbose_flag() {
-        let args = CliArgs::parse_from(["aipack", "-v", "detect"]);
+        let args = CliArgs::parse_from(["peelbox", "-v", "detect"]);
         assert!(args.verbose);
         assert!(!args.quiet);
     }
 
     #[test]
     fn test_global_quiet_flag() {
-        let args = CliArgs::parse_from(["aipack", "-q", "detect"]);
+        let args = CliArgs::parse_from(["peelbox", "-q", "detect"]);
         assert!(!args.verbose);
         assert!(args.quiet);
     }
 
     #[test]
     fn test_log_level_flag() {
-        let args = CliArgs::parse_from(["aipack", "--log-level", "debug", "detect"]);
+        let args = CliArgs::parse_from(["peelbox", "--log-level", "debug", "detect"]);
         assert_eq!(args.log_level, Some("debug".to_string()));
     }
 

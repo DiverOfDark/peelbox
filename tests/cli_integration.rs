@@ -13,9 +13,9 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-/// Helper to get the path to the aipack binary
-fn aipack_bin() -> PathBuf {
-    // In tests, the binary should be at target/debug/aipack
+/// Helper to get the path to the peelbox binary
+fn peelbox_bin() -> PathBuf {
+    // In tests, the binary should be at target/debug/peelbox
     let mut path = env::current_exe()
         .expect("Failed to get current executable path")
         .parent()
@@ -29,7 +29,7 @@ fn aipack_bin() -> PathBuf {
         path = path.parent().expect("No parent").to_path_buf();
     }
 
-    path.join("aipack")
+    path.join("peelbox")
 }
 
 /// Helper to create a test Rust repository
@@ -58,37 +58,37 @@ tokio = "1.0"
 
 #[test]
 fn test_cli_help() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("--help")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("aipack"));
+    assert!(stdout.contains("peelbox"));
     assert!(stdout.contains("detect"));
     assert!(stdout.contains("health"));
 }
 
 #[test]
 fn test_cli_version() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("--version")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("aipack"));
+    assert!(stdout.contains("peelbox"));
 }
 
 #[test]
 fn test_detect_help() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("detect")
         .arg("--help")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -100,10 +100,10 @@ fn test_detect_help() {
 
 #[test]
 fn test_health_command() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("health")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Health command should complete even if backends are unavailable
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -121,11 +121,11 @@ fn test_health_command() {
 
 #[test]
 fn test_detect_nonexistent_path() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("detect")
         .arg("/nonexistent/path/12345")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Should fail with error code
     assert!(!output.status.success());
@@ -139,11 +139,11 @@ fn test_detect_file_instead_of_directory() {
     let file_path = temp_dir.path().join("file.txt");
     fs::write(&file_path, "content").expect("Failed to write file");
 
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("detect")
         .arg(file_path)
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Should fail because it's a file, not a directory
     assert!(!output.status.success());
@@ -158,13 +158,13 @@ fn test_detect_json_format() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "7B")
-        .env("AIPACK_ENABLE_RECORDING", "1")
-        .env("AIPACK_RECORDING_MODE", "auto")
+    let output = Command::new(peelbox_bin())
+        .env("PEELBOX_PROVIDER", "embedded")
+        .env("PEELBOX_MODEL_SIZE", "7B")
+        .env("PEELBOX_ENABLE_RECORDING", "1")
+        .env("PEELBOX_RECORDING_MODE", "auto")
         .env(
-            "AIPACK_TEST_NAME",
+            "PEELBOX_TEST_NAME",
             "cli_integration_test_detect_json_format",
         )
         .arg("detect")
@@ -172,7 +172,7 @@ fn test_detect_json_format() {
         .arg("--format")
         .arg("json")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // If backend is unavailable, command will fail, which is expected
     if output.status.success() || output.status.code() == Some(2) {
@@ -192,13 +192,13 @@ fn test_detect_yaml_format() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "7B")
-        .env("AIPACK_ENABLE_RECORDING", "1")
-        .env("AIPACK_RECORDING_MODE", "auto")
+    let output = Command::new(peelbox_bin())
+        .env("PEELBOX_PROVIDER", "embedded")
+        .env("PEELBOX_MODEL_SIZE", "7B")
+        .env("PEELBOX_ENABLE_RECORDING", "1")
+        .env("PEELBOX_RECORDING_MODE", "auto")
         .env(
-            "AIPACK_TEST_NAME",
+            "PEELBOX_TEST_NAME",
             "cli_integration_test_detect_yaml_format",
         )
         .arg("detect")
@@ -206,7 +206,7 @@ fn test_detect_yaml_format() {
         .arg("--format")
         .arg("yaml")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // If backend is unavailable, command will fail, which is expected
     if output.status.success() || output.status.code() == Some(2) {
@@ -226,13 +226,13 @@ fn test_detect_with_output_file() {
     let repo_path = create_rust_repo(&temp_dir);
     let output_file = temp_dir.path().join("output.json");
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "7B")
-        .env("AIPACK_ENABLE_RECORDING", "1")
-        .env("AIPACK_RECORDING_MODE", "auto")
+    let output = Command::new(peelbox_bin())
+        .env("PEELBOX_PROVIDER", "embedded")
+        .env("PEELBOX_MODEL_SIZE", "7B")
+        .env("PEELBOX_ENABLE_RECORDING", "1")
+        .env("PEELBOX_RECORDING_MODE", "auto")
         .env(
-            "AIPACK_TEST_NAME",
+            "PEELBOX_TEST_NAME",
             "cli_integration_test_detect_with_output_file",
         )
         .arg("detect")
@@ -242,7 +242,7 @@ fn test_detect_with_output_file() {
         .arg("--output")
         .arg(&output_file)
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // If successful, output file should be created
     if output.status.success() {
@@ -255,11 +255,11 @@ fn test_detect_with_output_file() {
 
 #[test]
 fn test_global_verbose_flag() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("-v")
         .arg("config")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Verbose flag should not cause errors
     assert!(output.status.success() || output.status.code() == Some(2));
@@ -267,11 +267,11 @@ fn test_global_verbose_flag() {
 
 #[test]
 fn test_global_quiet_flag() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("-q")
         .arg("config")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Quiet flag should not cause errors
     assert!(output.status.success() || output.status.code() == Some(2));
@@ -279,12 +279,12 @@ fn test_global_quiet_flag() {
 
 #[test]
 fn test_log_level_flag() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("--log-level")
         .arg("debug")
         .arg("config")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Log level flag should not cause errors
     assert!(output.status.success() || output.status.code() == Some(2));
@@ -295,13 +295,13 @@ fn test_invalid_backend() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("detect")
         .arg(repo_path)
         .arg("--backend")
         .arg("invalid")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Should fail with invalid backend error
     assert!(!output.status.success());
@@ -317,13 +317,13 @@ fn test_detect_with_timeout() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "7B")
-        .env("AIPACK_ENABLE_RECORDING", "1")
-        .env("AIPACK_RECORDING_MODE", "auto")
+    let output = Command::new(peelbox_bin())
+        .env("PEELBOX_PROVIDER", "embedded")
+        .env("PEELBOX_MODEL_SIZE", "7B")
+        .env("PEELBOX_ENABLE_RECORDING", "1")
+        .env("PEELBOX_RECORDING_MODE", "auto")
         .env(
-            "AIPACK_TEST_NAME",
+            "PEELBOX_TEST_NAME",
             "cli_integration_test_detect_with_timeout",
         )
         .arg("detect")
@@ -331,7 +331,7 @@ fn test_detect_with_timeout() {
         .arg("--timeout")
         .arg("30")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Timeout flag should be accepted (command may fail if no backend available)
     // We just check that the timeout flag parsing works
@@ -341,12 +341,12 @@ fn test_detect_with_timeout() {
 
 #[test]
 fn test_health_with_specific_backend() {
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("health")
         .arg("--backend")
         .arg("ollama")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Should complete (may show unavailable, but shouldn't crash)
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -367,19 +367,19 @@ fn test_detect_no_cache_flag() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
-    let output = Command::new(aipack_bin())
-        .env("AIPACK_PROVIDER", "embedded")
-        .env("AIPACK_MODEL_SIZE", "7B")
-        .env("AIPACK_ENABLE_RECORDING", "1")
-        .env("AIPACK_RECORDING_MODE", "auto")
+    let output = Command::new(peelbox_bin())
+        .env("PEELBOX_PROVIDER", "embedded")
+        .env("PEELBOX_MODEL_SIZE", "7B")
+        .env("PEELBOX_ENABLE_RECORDING", "1")
+        .env("PEELBOX_RECORDING_MODE", "auto")
         .env(
-            "AIPACK_TEST_NAME",
+            "PEELBOX_TEST_NAME",
             "cli_integration_test_detect_no_cache_flag",
         )
         .arg("detect")
         .arg(repo_path)
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // No-cache flag should be accepted
     // Command may fail if no backend available
@@ -392,12 +392,12 @@ fn test_detect_verbose_output_flag() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
-    let output = Command::new(aipack_bin())
+    let output = Command::new(peelbox_bin())
         .arg("detect")
         .arg(repo_path)
         .arg("--verbose-output")
         .output()
-        .expect("Failed to execute aipack");
+        .expect("Failed to execute peelbox");
 
     // Verbose-output flag should be accepted
     let stderr = String::from_utf8_lossy(&output.stderr);

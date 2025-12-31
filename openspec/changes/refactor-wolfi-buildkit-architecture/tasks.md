@@ -71,6 +71,6 @@
 
 ## 10. Cleanup
 - [x] Fix python-poetry duplicate copy (remove `.venv/` entry) (tests/fixtures/single-language/python-poetry/universalbuild.json)
-- [x] Update root universalbuild.json to single service (aipack only) (universalbuild.json)
+- [x] Update root universalbuild.json to single service (peelbox only) (universalbuild.json)
 - [x] Simplify `build_services_from_workspace` with helper function (phases/07_service_analysis.rs:71-123)
 - [x] Add separation of concerns rule to CLAUDE.md (CLAUDE.md)

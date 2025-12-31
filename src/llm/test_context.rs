@@ -3,7 +3,7 @@ pub struct TestContext;
 impl TestContext {
     /// Get current test name from environment variable or thread name
     pub fn current_test_name() -> Option<String> {
-        if let Ok(test_name) = std::env::var("AIPACK_TEST_NAME") {
+        if let Ok(test_name) = std::env::var("PEELBOX_TEST_NAME") {
             if !test_name.is_empty() {
                 return Self::sanitize_test_name(&test_name);
             }

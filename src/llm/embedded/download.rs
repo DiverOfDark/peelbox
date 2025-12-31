@@ -196,7 +196,7 @@ impl ModelDownloader {
     /// Prompt the user to confirm model download
     fn prompt_download(model: &EmbeddedModel) -> Result<bool> {
         println!();
-        println!("aipack needs to download an embedded LLM model for local inference.");
+        println!("peelbox needs to download an embedded LLM model for local inference.");
         println!();
         println!(
             "  Model: {} ({} parameters)",

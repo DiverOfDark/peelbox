@@ -1,11 +1,11 @@
 ## Context
 
-aipack generates container build specifications from repository analysis. This design document covers implementing a native BuildKit frontend that connects to the BuildKit daemon, generates secure container images using Wolfi base images, and produces SBOM attestations.
+peelbox generates container build specifications from repository analysis. This design document covers implementing a native BuildKit frontend that connects to the BuildKit daemon, generates secure container images using Wolfi base images, and produces SBOM attestations.
 
 **Stakeholders:**
-- Developers using aipack to containerize applications
+- Developers using peelbox to containerize applications
 - Security teams requiring minimal, auditable container images with SBOM
-- Platform teams integrating aipack into CI/CD pipelines
+- Platform teams integrating peelbox into CI/CD pipelines
 
 **Constraints:**
 - Wolfi packages may not have 1:1 mapping with traditional packages
@@ -70,7 +70,7 @@ The [`buildkit-client`](https://crates.io/crates/buildkit-client) crate provides
 - **Simplicity**: No configuration needed, one base image for everything
 - **Security**: Users cannot accidentally use vulnerable base images
 - **Consistency**: All builds use the same tested, secure foundation
-- **Breaking change justified**: aipack is pre-1.0, Wolfi is the future, no need for backwards compatibility
+- **Breaking change justified**: peelbox is pre-1.0, Wolfi is the future, no need for backwards compatibility
 
 ### Decision 3: SBOM and provenance attestations
 
@@ -135,7 +135,7 @@ RUN apk add --no-cache <packages>
 
 ### Decision 6: Direct image building with multi-app support and multiple output options
 
-aipack acts as a BuildKit frontend that builds images directly. Supports multi-app repositories (monorepos) with selective or batch building.
+peelbox acts as a BuildKit frontend that builds images directly. Supports multi-app repositories (monorepos) with selective or batch building.
 
 **Build workflow:**
 1. Load UniversalBuild spec from JSON file (single app or array of apps)
@@ -180,27 +180,27 @@ The `--spec` file can be either:
 ]
 ```
 
-**Note**: The `aipack detect` command already outputs `Vec<UniversalBuild>` for monorepos, which serializes as JSON array. The `build` command consumes this same format.
+**Note**: The `peelbox detect` command already outputs `Vec<UniversalBuild>` for monorepos, which serializes as JSON array. The `build` command consumes this same format.
 
 **CLI interface:**
 ```bash
 # Build all apps in spec using template with {app} placeholder
-aipack build --repo /path/to/monorepo --spec universalbuild.json --image myapp-{app}:latest
+peelbox build --repo /path/to/monorepo --spec universalbuild.json --image myapp-{app}:latest
 
 # Build specific app from multi-app spec
-aipack build --repo . --spec universalbuild.json --app backend --image backend:latest
+peelbox build --repo . --spec universalbuild.json --app backend --image backend:latest
 
 # Single-app build (no placeholder needed)
-aipack build --repo . --spec universalbuild.json --image myapp:latest
+peelbox build --repo . --spec universalbuild.json --image myapp:latest
 
 # Build and load to Docker daemon (default)
-aipack build --repo . --spec universalbuild.json --image myapp:latest --output type=docker
+peelbox build --repo . --spec universalbuild.json --image myapp:latest --output type=docker
 
 # Build and save as OCI tarball
-aipack build --repo . --spec universalbuild.json --image myapp:latest --output type=oci,dest=image.tar
+peelbox build --repo . --spec universalbuild.json --image myapp:latest --output type=oci,dest=image.tar
 
 # Build with custom BuildKit endpoint
-aipack build --repo . --spec universalbuild.json --image myapp:latest --buildkit tcp://buildkit:1234
+peelbox build --repo . --spec universalbuild.json --image myapp:latest --buildkit tcp://buildkit:1234
 ```
 
 **Implementation details:**
@@ -221,7 +221,7 @@ aipack build --repo . --spec universalbuild.json --image myapp:latest --buildkit
 - Separate command per app - Inefficient for monorepos
 - Parallel builds - Complex error handling, overwhelming progress output
 
-**Rationale:** Multi-app support enables monorepo workflows. Sequential builds provide clear progress and error reporting. Local-only builds keep aipack focused - users can push to registries using standard Docker/BuildKit tools after building.
+**Rationale:** Multi-app support enables monorepo workflows. Sequential builds provide clear progress and error reporting. Local-only builds keep peelbox focused - users can push to registries using standard Docker/BuildKit tools after building.
 
 ### Decision 7: Distroless images with optimized 2-layer architecture
 
@@ -302,7 +302,7 @@ Stage 3 (Distroless Final):
 
 ### Decision 8: Dynamic version discovery from Wolfi APKINDEX
 
-Instead of hardcoding package versions in BuildSystem implementations, aipack discovers available versions dynamically from the Wolfi APKINDEX at startup.
+Instead of hardcoding package versions in BuildSystem implementations, peelbox discovers available versions dynamically from the Wolfi APKINDEX at startup.
 
 **Version discovery strategy:**
 
@@ -360,7 +360,7 @@ fn build_template(&self, index: &WolfiPackageIndex, manifest_content: Option<&st
 
 **Benefits:**
 - **Auto-updates**: New Wolfi package versions automatically available (after cache refresh)
-- **No hardcoding**: No need to update aipack code when Wolfi releases new runtime versions
+- **No hardcoding**: No need to update peelbox code when Wolfi releases new runtime versions
 - **Validation**: Automatically validates that selected version exists in Wolfi
 - **Flexibility**: BuildSystems can query available versions and choose best match
 
@@ -369,7 +369,7 @@ fn build_template(&self, index: &WolfiPackageIndex, manifest_content: Option<&st
 - Always use "latest" tag - Wolfi doesn't support generic "latest" packages
 - Let LLM choose version - Less deterministic, validation overhead
 
-**Rationale:** Dynamic discovery keeps aipack in sync with Wolfi package availability without code changes. APKINDEX is already being fetched for validation, so no additional overhead.
+**Rationale:** Dynamic discovery keeps peelbox in sync with Wolfi package availability without code changes. APKINDEX is already being fetched for validation, so no additional overhead.
 
 ### Decision 9: Wolfi package validation via ValidationRule
 
@@ -444,7 +444,7 @@ Require [BuildKit v0.11.0](https://github.com/moby/buildkit/releases/tag/v0.11.0
 
 ## Migration Plan
 
-**Note**: This is a breaking change. No backwards compatibility maintained (aipack is pre-1.0).
+**Note**: This is a breaking change. No backwards compatibility maintained (peelbox is pre-1.0).
 
 ### Phase 1: Schema Breaking Changes
 1. Remove `build.base` and `runtime.base` from UniversalBuild schema
@@ -465,8 +465,8 @@ Require [BuildKit v0.11.0](https://github.com/moby/buildkit/releases/tag/v0.11.0
 
 ### Phase 4: SBOM and Build Command
 1. Add SBOM and provenance attestation generation
-2. Implement `aipack build` CLI command (distroless mandatory, no flag)
+2. Implement `peelbox build` CLI command (distroless mandatory, no flag)
 3. Remove Dockerfile generation entirely (`src/output/dockerfile.rs`)
 
 ### Rollback Strategy
-**None**. This is an all-or-nothing breaking change. Users on older versions must use older aipack versions if they need Dockerfile output.
+**None**. This is an all-or-nothing breaking change. Users on older versions must use older peelbox versions if they need Dockerfile output.

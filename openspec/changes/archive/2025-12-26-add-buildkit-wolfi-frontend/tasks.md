@@ -6,7 +6,7 @@
 
 - [x] 1.1 Create `src/validation/wolfi_index.rs` module
 - [x] 1.2 Implement `fetch_apkindex()` - Download APKINDEX.tar.gz from `packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz`
-- [x] 1.3 Implement local caching with 24-hour TTL (use `~/.cache/aipack/apkindex/`)
+- [x] 1.3 Implement local caching with 24-hour TTL (use `~/.cache/peelbox/apkindex/`)
 - [x] 1.4 Implement `parse_apkindex()` - Extract tar.gz → tar → APKINDEX file
 - [x] 1.5 Parse APK index format to extract package names (format: `P:package-name`)
 - [x] 1.6 Implement `WolfiPackageIndex` struct:
@@ -170,7 +170,7 @@
 - BuildKit frontend protocol: Frontend reads spec, generates LLB, outputs to stdout
 - buildctl pipes LLB from stdin, transfers context, executes build
 - Simpler than gRPC client, no session management needed
-- Better separation: aipack = LLB generation, BuildKit = execution
+- Better separation: peelbox = LLB generation, BuildKit = execution
 
 ### 10. BuildKit Frontend Dependencies
 
@@ -205,7 +205,7 @@
 - [x] 12.2 Parse .gitignore file and extract patterns
 - [x] 12.3 Add standard exclusions (.git, .vscode, *.md, LICENSE, etc.)
 - [x] 12.4 Apply patterns to `Source::local()` via `add_exclude_pattern()`
-- [x] 12.5 Verify context transfer reduction (1.5GB → ~100KB for aipack)
+- [x] 12.5 Verify context transfer reduction (1.5GB → ~100KB for peelbox)
 - [x] 12.6 No filesystem state dependency - patterns embedded in LLB
 
 **Results**: 99.995% context transfer reduction (1.54GB → 80KB-113KB)
@@ -262,7 +262,7 @@
 - [x] 15.1 Frontend LLB generation tested (unit tests passing)
 - [x] 15.2 Context transfer optimization verified (99.995% reduction)
 - [x] 15.3 Manual testing with buildctl successful
-- [x] 15.4 **Verify distroless with 2-layer structure** (test_buildkit_integration_aipack_build):
+- [x] 15.4 **Verify distroless with 2-layer structure** (test_buildkit_integration_peelbox_build):
   - [x] 15.4a Verify final image has exactly 2 layers (runtime base + app)
   - [x] 15.4b Verify built image has no `/sbin/apk` binary
   - [x] 15.4c Verify built image has no `/bin/sh` shell
@@ -279,7 +279,7 @@
 
 - [x] 16.1 Update README.md with `frontend` command usage - Complete rewrite with Wolfi-first architecture
 - [x] 16.2 Add buildctl integration examples:
-  - [x] 16.2a Basic usage: `aipack frontend | buildctl build --local context=.`
+  - [x] 16.2a Basic usage: `peelbox frontend | buildctl build --local context=.`
   - [x] 16.2b With image export: `--output type=image,name=myapp:latest`
   - [x] 16.2c With OCI export: `--output type=oci,dest=myapp.tar`
 - [x] 16.3 Document distroless characteristics:

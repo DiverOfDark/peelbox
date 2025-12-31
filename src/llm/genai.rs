@@ -25,7 +25,7 @@ impl GenAIClient {
         model: String,
         timeout: Duration,
     ) -> Result<Self, BackendError> {
-        let custom_endpoint = std::env::var("AIPACK_API_BASE_URL").ok();
+        let custom_endpoint = std::env::var("PEELBOX_API_BASE_URL").ok();
 
         let client = if let Some(endpoint_url) = custom_endpoint {
             debug!(

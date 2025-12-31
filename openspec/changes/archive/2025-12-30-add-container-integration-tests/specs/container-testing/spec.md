@@ -107,7 +107,7 @@ The test suite SHALL validate both static and LLM detection modes by running int
 #[test]
 #[ignore] // Requires Docker
 fn test_node_express_static_integration() {
-    std::env::set_var("AIPACK_DETECTION_MODE", "static");
+    std::env::set_var("PEELBOX_DETECTION_MODE", "static");
 
     let harness = ContainerTestHarness::new()?;
     let build = detect_service("tests/fixtures/integration/node-express")?;
@@ -129,7 +129,7 @@ The test must use only deterministic parsing, no LLM calls.
 #[test]
 #[ignore] // Requires Docker and LLM
 fn test_node_express_llm_integration() {
-    std::env::set_var("AIPACK_DETECTION_MODE", "full");
+    std::env::set_var("PEELBOX_DETECTION_MODE", "full");
 
     let harness = ContainerTestHarness::new()?;
     let build = detect_service("tests/fixtures/integration/node-express")?;
@@ -307,7 +307,7 @@ The harness must use BuildKit with caching enabled, not disable caching.
 
 ```rust
 let cache_key = sha256(&serde_json::to_string(&universal_build)?);
-let image_tag = format!("aipack-test:{}", cache_key);
+let image_tag = format!("peelbox-test:{}", cache_key);
 ```
 
 The harness should use content-addressed image tags to maximize cache hits.

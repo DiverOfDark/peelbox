@@ -59,8 +59,8 @@ impl ServiceError {
                         2. Start Ollama: ollama serve\n\
                         3. Pull a model: ollama pull qwen2.5-coder:7b\n\n\
                         Configuration:\n\
-                        - AIPACK_OLLAMA_ENDPOINT (default: http://localhost:11434)\n\
-                        - AIPACK_OLLAMA_MODEL (default: qwen2.5-coder:7b)\n\n\
+                        - PEELBOX_OLLAMA_ENDPOINT (default: http://localhost:11434)\n\
+                        - PEELBOX_OLLAMA_MODEL (default: qwen2.5-coder:7b)\n\n\
                         Details: {}",
                         msg
                     )
@@ -86,7 +86,7 @@ impl ServiceError {
                     format!(
                         "Error: Failed to initialize backend\n\n\
                         Help: Try:\n\
-                        - Check backend availability: aipack health\n\
+                        - Check backend availability: peelbox health\n\
                         - Use different backend: --backend <ollama|mistral>\n\n\
                         Details: {}",
                         msg
@@ -110,7 +110,7 @@ impl ServiceError {
                             Help: The LLM request took too long. Try:\n\
                             - Increase timeout: --timeout {}\n\
                             - Check network connectivity\n\
-                            - Verify backend availability: aipack health\n\
+                            - Verify backend availability: peelbox health\n\
                             - Try a smaller model",
                         seconds,
                         seconds * 2
@@ -121,7 +121,7 @@ impl ServiceError {
                         "Error: Network error\n\n\
                             Help: Cannot connect to backend. Try:\n\
                             - Check network connectivity\n\
-                            - Verify backend is running: aipack health\n\
+                            - Verify backend is running: peelbox health\n\
                             - Check firewall settings\n\n\
                             Details: {}",
                         message
@@ -144,7 +144,7 @@ impl ServiceError {
                             Help: The LLM returned an unexpected response. Try:\n\
                             - Retry the operation\n\
                             - Try a different model\n\
-                            - Check backend status: aipack health\n\n\
+                            - Check backend status: peelbox health\n\n\
                             Details: {}",
                         message
                     )
@@ -164,7 +164,7 @@ impl ServiceError {
                     format!(
                         "Error: Backend error\n\n\
                             Help: Try:\n\
-                            - Check backend status: aipack health\n\
+                            - Check backend status: peelbox health\n\
                             - Retry the operation\n\
                             - Try a different backend\n\n\
                             Details: {}",

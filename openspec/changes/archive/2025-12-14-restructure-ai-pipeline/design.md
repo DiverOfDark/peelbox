@@ -120,7 +120,7 @@ pub struct PipelineContext {
 }
 
 impl PipelineContext {
-    pub fn new(config: &AipackConfig) -> Result<Self, ConfigError>;
+    pub fn new(config: &PeelboxConfig) -> Result<Self, ConfigError>;
 
     /// For testing - inject mock dependencies
     pub fn with_mocks(
@@ -406,7 +406,7 @@ impl ConversationManager {
 
 #### 4.4 Embedded LLM (Zero-Config Local Inference)
 
-For a zero-config experience, aipack includes embedded LLM inference using [Candle](https://github.com/huggingface/candle).
+For a zero-config experience, peelbox includes embedded LLM inference using [Candle](https://github.com/huggingface/candle).
 
 ##### Why Candle
 
@@ -421,7 +421,7 @@ For a zero-config experience, aipack includes embedded LLM inference using [Cand
 ##### Provider Selection Logic
 
 ```rust
-pub async fn select_llm_client(config: &AipackConfig) -> Result<Box<dyn LLMClient>> {
+pub async fn select_llm_client(config: &PeelboxConfig) -> Result<Box<dyn LLMClient>> {
     // 1. Explicit provider in config/CLI → use it
     if let Some(provider) = &config.provider {
         return create_genai_client(provider, &config.model).await;
@@ -540,7 +540,7 @@ impl EmbeddedClient {
                 // CI/non-interactive: fail with instructions
                 return Err(LLMError::ModelNotFound {
                     message: format!(
-                        "Model not found. Run `aipack setup` to download, or set ANTHROPIC_API_KEY/OPENAI_API_KEY"
+                        "Model not found. Run `peelbox setup` to download, or set ANTHROPIC_API_KEY/OPENAI_API_KEY"
                     ),
                 });
             }
@@ -602,7 +602,7 @@ async fn download_model(model: &EmbeddedModelConfig, path: &Path) -> Result<(), 
 fn get_model_cache_path(model: &EmbeddedModelConfig) -> PathBuf {
     dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from(".cache"))
-        .join("aipack")
+        .join("peelbox")
         .join("models")
         .join(model.file_name)
 }

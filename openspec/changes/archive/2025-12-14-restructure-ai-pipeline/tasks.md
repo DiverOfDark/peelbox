@@ -149,7 +149,7 @@ Implement zero-config local inference using Candle. Falls back when no API keys 
 - [x] 9.9 Wire `select_llm_client()` into CLI default behavior
 - [x] 9.10 Add unit tests for hardware detection and model selection
 - [x] 9.11 Add integration test with small model (1.5B) for CI
-- [x] 9.12 Verify: `cargo build && cargo test` passes, `aipack detect` works without any config
+- [x] 9.12 Verify: `cargo build && cargo test` passes, `peelbox detect` works without any config
 
 **Deliverable:** Zero-config local inference works out of the box.
 
@@ -272,8 +272,8 @@ Implement request-response recording for deterministic testing.
 - [x] 16.4 Implement `RecordingLLMClient` wrapping any `LLMClient`
 - [x] 16.5 Implement request hashing (canonical JSON → MD5)
 - [x] 16.6 Implement recording file I/O (JSON format)
-- [x] 16.7 Add `AIPACK_RECORDING_MODE` environment variable support
-- [x] 16.8 Add `AIPACK_RECORDINGS_DIR` environment variable support
+- [x] 16.7 Add `PEELBOX_RECORDING_MODE` environment variable support
+- [x] 16.8 Add `PEELBOX_RECORDINGS_DIR` environment variable support
 - [x] 16.9 Add unit tests for recording/replay logic
 - [x] 16.10 Verify: `cargo build && cargo test` passes
 
@@ -315,7 +315,7 @@ Update detection to return `Vec<UniversalBuild>` for multi-project repositories.
 - [x] 18.9 Update E2E tests to validate `Vec<UniversalBuild>` responses
 - [x] 18.10 Verify: `cargo build && cargo test --lib` passes (310 tests passed)
 
-**Deliverable:** aipack returns `Vec<UniversalBuild>` - single element for single-project repos, multiple elements for monorepos. Each runnable application gets its own UniversalBuild entry. LLM can submit either single object or array, pipeline handles both formats transparently.
+**Deliverable:** peelbox returns `Vec<UniversalBuild>` - single element for single-project repos, multiple elements for monorepos. Each runnable application gets its own UniversalBuild entry. LLM can submit either single object or array, pipeline handles both formats transparently.
 
 ---
 

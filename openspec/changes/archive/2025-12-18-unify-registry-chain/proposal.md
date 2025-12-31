@@ -340,18 +340,18 @@ impl DetectionStack {
 **Import changes**:
 ```rust
 // Before
-use aipack::languages::LanguageDefinition;
-use aipack::build_systems::BuildSystem;
-use aipack::frameworks::Framework;
+use peelbox::languages::LanguageDefinition;
+use peelbox::build_systems::BuildSystem;
+use peelbox::frameworks::Framework;
 
 // After
-use aipack::stack::{
+use peelbox::stack::{
     LanguageId, BuildSystemId, FrameworkId,
     StackRegistry, DetectionStack,
 };
-use aipack::stack::languages::Language;
-use aipack::stack::build_systems::BuildSystem;
-use aipack::stack::frameworks::Framework;
+use peelbox::stack::languages::Language;
+use peelbox::stack::build_systems::BuildSystem;
+use peelbox::stack::frameworks::Framework;
 ```
 
 ### Migration Path
@@ -395,7 +395,7 @@ use aipack::stack::frameworks::Framework;
 - Update Phase 1 (Scan) to count files by extension
 - Update all phases to use `DetectionStack` instead of `LanguageDetection`
 - Update BootstrapScanner to return `Vec<DetectionStack>` with multiple languages
-- Update all imports to use `aipack::stack::{...}`
+- Update all imports to use `peelbox::stack::{...}`
 
 **Phase F: Cleanup**
 - Delete old directories: `src/languages/`, `src/build_systems/`, `src/frameworks/`

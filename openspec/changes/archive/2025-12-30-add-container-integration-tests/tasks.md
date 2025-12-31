@@ -50,7 +50,7 @@
   - [x] `test_container_integration_single_language` (static mode, 10 fixtures)
   - [x] `test_container_integration_single_language_full` (full mode, 10 fixtures)
 - [x] Each test iteration:
-  - [x] Run aipack detection with specified mode
+  - [x] Run peelbox detection with specified mode
   - [x] Build container image using ContainerTestHarness
   - [x] Start container
   - [x] Wait for port to be accessible (30s timeout)

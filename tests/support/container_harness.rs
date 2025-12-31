@@ -23,7 +23,7 @@ use tokio::time::timeout;
 static BUILDKIT_CONTAINER: OnceCell<Arc<(String, ContainerAsync<GenericImage>)>> = OnceCell::const_new();
 
 /// Fixed container name for the shared BuildKit instance
-const BUILDKIT_CONTAINER_NAME: &str = "aipack-test-buildkit";
+const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 
 /// Get or create the shared BuildKit container
 ///
@@ -110,19 +110,19 @@ impl ContainerTestHarness {
         // Get or create the shared BuildKit container
         let container_id = get_buildkit_container().await?;
 
-        // Build aipack binary if not already built
-        let aipack_binary = std::env::current_dir()
+        // Build peelbox binary if not already built
+        let peelbox_binary = std::env::current_dir()
             .context("Failed to get current directory")?
-            .join("target/release/aipack");
+            .join("target/release/peelbox");
 
-        if !aipack_binary.exists() {
+        if !peelbox_binary.exists() {
             let build_status = std::process::Command::new("cargo")
-                .args(&["build", "--release", "--bin", "aipack", "--no-default-features"])
+                .args(&["build", "--release", "--bin", "peelbox", "--no-default-features"])
                 .status()
-                .context("Failed to build aipack")?;
+                .context("Failed to build peelbox")?;
 
             if !build_status.success() {
-                anyhow::bail!("Failed to build aipack binary");
+                anyhow::bail!("Failed to build peelbox binary");
             }
         }
 
@@ -135,19 +135,19 @@ impl ContainerTestHarness {
             .unwrap_or_else(|| "context".to_string());
 
         // Generate LLB from UniversalBuild spec with unique context name
-        let aipack_output = std::process::Command::new(&aipack_binary)
+        let peelbox_output = std::process::Command::new(&peelbox_binary)
             .args(&["frontend", "--spec", spec_path.to_str().unwrap(), "--context-name", &context_name])
             .output()
-            .context("Failed to run aipack frontend")?;
+            .context("Failed to run peelbox frontend")?;
 
-        if !aipack_output.status.success() {
+        if !peelbox_output.status.success() {
             anyhow::bail!(
-                "aipack frontend failed: {}",
-                String::from_utf8_lossy(&aipack_output.stderr)
+                "peelbox frontend failed: {}",
+                String::from_utf8_lossy(&peelbox_output.stderr)
             );
         }
 
-        let llb_data = aipack_output.stdout;
+        let llb_data = peelbox_output.stdout;
         assert!(!llb_data.is_empty(), "LLB data should not be empty");
 
         // Build image with buildctl using the same unique context name

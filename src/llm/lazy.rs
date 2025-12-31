@@ -2,19 +2,19 @@ use super::client::LLMClient;
 use super::error::BackendError;
 use super::selector::{select_llm_client, SelectedClient};
 use super::types::{LLMRequest, LLMResponse};
-use crate::config::AipackConfig;
+use crate::config::PeelboxConfig;
 use async_trait::async_trait;
 use std::sync::{Arc, Mutex};
 use tracing::debug;
 
 pub struct LazyLLMClient {
     client: Arc<Mutex<Option<Arc<dyn LLMClient>>>>,
-    config: AipackConfig,
+    config: PeelboxConfig,
     interactive: bool,
 }
 
 impl LazyLLMClient {
-    pub fn new(config: AipackConfig, interactive: bool) -> Self {
+    pub fn new(config: PeelboxConfig, interactive: bool) -> Self {
         debug!("Creating LazyLLMClient - actual client selection deferred until first chat() call");
         Self {
             client: Arc::new(Mutex::new(None)),
@@ -76,7 +76,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_lazy_client_name() {
-        let config = AipackConfig::default();
+        let config = PeelboxConfig::default();
         let client = LazyLLMClient::new(config, false);
 
         assert_eq!(client.name(), "LazyLLMClient");
@@ -84,7 +84,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_lazy_client_model_info_before_init() {
-        let config = AipackConfig::default();
+        let config = PeelboxConfig::default();
         let expected_model = config.model.clone();
         let client = LazyLLMClient::new(config, false);
 

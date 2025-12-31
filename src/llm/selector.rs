@@ -1,4 +1,4 @@
-use crate::config::AipackConfig;
+use crate::config::PeelboxConfig;
 use crate::llm::{EmbeddedClient, GenAIClient, LLMClient};
 use anyhow::Result;
 use genai::adapter::AdapterKind;
@@ -11,7 +11,7 @@ pub struct SelectedClient {
     pub description: String,
 }
 
-pub async fn select_llm_client(config: &AipackConfig, interactive: bool) -> Result<SelectedClient> {
+pub async fn select_llm_client(config: &PeelboxConfig, interactive: bool) -> Result<SelectedClient> {
     if let Some(selected) = try_configured_provider(config).await {
         return Ok(selected);
     }
@@ -32,7 +32,7 @@ pub async fn select_llm_client(config: &AipackConfig, interactive: bool) -> Resu
     ))
 }
 
-async fn try_configured_provider(config: &AipackConfig) -> Option<SelectedClient> {
+async fn try_configured_provider(config: &PeelboxConfig) -> Option<SelectedClient> {
     let provider = config.provider;
 
     if provider == AdapterKind::Ollama {
@@ -67,7 +67,7 @@ async fn try_configured_provider(config: &AipackConfig) -> Option<SelectedClient
     }
 }
 
-async fn try_ollama(config: &AipackConfig) -> Option<SelectedClient> {
+async fn try_ollama(config: &PeelboxConfig) -> Option<SelectedClient> {
     // Check if Ollama is running
     if !is_ollama_available().await {
         debug!("Ollama not available");

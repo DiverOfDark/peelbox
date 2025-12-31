@@ -1,6 +1,6 @@
 # Test Fixtures
 
-Comprehensive test fixtures for verifying aipack's build system detection across different languages, build tools, and project structures.
+Comprehensive test fixtures for verifying peelbox's build system detection across different languages, build tools, and project structures.
 
 ## Directory Structure
 
@@ -62,7 +62,7 @@ fixtures/
 
 ## Usage
 
-These fixtures test that aipack can:
+These fixtures test that peelbox can:
 
 1. **Detect primary language and build system**
    - Identify Rust/Cargo, Node.js/npm, Python/pip, Java/Maven, etc.

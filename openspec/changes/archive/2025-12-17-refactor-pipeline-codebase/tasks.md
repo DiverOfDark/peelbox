@@ -128,7 +128,7 @@
 - [x] 10.4 Update `PRD.md` if architecture changed (not required - internal refactor only)
 - [x] 10.5 Update `CHANGELOG.md` with refactoring notes (file doesn't exist)
 - [x] 10.6 Run full test suite: `cargo test` (389 tests passed)
-- [x] 10.7 Run with replay mode: `AIPACK_RECORDING_MODE=replay cargo test` (24 e2e tests passed)
+- [x] 10.7 Run with replay mode: `PEELBOX_RECORDING_MODE=replay cargo test` (24 e2e tests passed)
 - [x] 10.8 Run e2e tests: `cargo test --test e2e` (24 tests passed)
 - [x] 10.9 Validate detection on polyglot fixture: `cargo run -- detect tests/fixtures/monorepo/polyglot` (detected 2 projects)
 - [x] 10.10 Final validation: `openspec validate refactor-pipeline-codebase --strict` (valid)

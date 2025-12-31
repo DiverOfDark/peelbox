@@ -487,9 +487,9 @@ The system supports three detection modes for comprehensive testing:
 
 | Mode | Environment Variable | Behavior | Use Case |
 |------|---------------------|----------|----------|
-| **Full** | `AIPACK_DETECTION_MODE=full` | Deterministic first, LLM fallback | Normal operation (default) |
-| **Static** | `AIPACK_DETECTION_MODE=static` | Deterministic only, no LLM | Fast CI, validate parsers |
-| **LLM-only** | `AIPACK_DETECTION_MODE=llm_only` | LLM only, skip deterministic | Validate LLM* implementations |
+| **Full** | `PEELBOX_DETECTION_MODE=full` | Deterministic first, LLM fallback | Normal operation (default) |
+| **Static** | `PEELBOX_DETECTION_MODE=static` | Deterministic only, no LLM | Fast CI, validate parsers |
+| **LLM-only** | `PEELBOX_DETECTION_MODE=llm_only` | LLM only, skip deterministic | Validate LLM* implementations |
 
 **LLM-only mode** (NEW):
 - StackRegistry registers ONLY LLM* implementations (skips Rust, Java, npm, etc.)
@@ -506,12 +506,12 @@ fn test_rust_cargo_full() {
 
 #[test]
 fn test_rust_cargo_static() {
-    // AIPACK_DETECTION_MODE=static: Only RustLanguage, no LLM backend needed
+    // PEELBOX_DETECTION_MODE=static: Only RustLanguage, no LLM backend needed
 }
 
 #[test]
 fn test_rust_cargo_llm_only() {
-    // AIPACK_DETECTION_MODE=llm_only: ONLY LLMLanguage registered
+    // PEELBOX_DETECTION_MODE=llm_only: ONLY LLMLanguage registered
     // Validates LLM can correctly identify Rust + Cargo
 }
 ```
@@ -548,7 +548,7 @@ fn test_rust_cargo_llm_only() {
    }
    ```
 6. **Add detection mode support** to StackRegistry:
-   - Check `AIPACK_DETECTION_MODE` environment variable
+   - Check `PEELBOX_DETECTION_MODE` environment variable
    - `llm_only`: Register ONLY LLM* implementations
    - `static`: Skip LLM* registration entirely
    - `full`: Register deterministic first, then LLM* (default)

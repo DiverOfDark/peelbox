@@ -5,7 +5,7 @@
 
 ## Summary
 Enable comprehensive e2e testing of both LLM and static analysis detection modes by:
-1. Adding environment variable `AIPACK_DETECTION_MODE` to control detection mode (llm/static/full)
+1. Adding environment variable `PEELBOX_DETECTION_MODE` to control detection mode (llm/static/full)
 2. Creating dual-mode e2e test variants for each fixture (spawn CLI with different modes)
 3. Ensuring every fixture can be validated via both LLM and static analysis paths through CLI
 
@@ -21,7 +21,7 @@ This change adds dual-mode e2e tests (spawning CLI binary with mode control) to 
 ## Problem Statement
 Currently, e2e tests have gaps:
 
-1. **No Static Analysis Coverage**: E2e tests only run with LLM (embedded model via `AIPACK_PROVIDER=embedded`). No tests validate static analysis paths work correctly.
+1. **No Static Analysis Coverage**: E2e tests only run with LLM (embedded model via `PEELBOX_PROVIDER=embedded`). No tests validate static analysis paths work correctly.
 2. **No Mode Control**: Cannot control detection mode via CLI to test different code paths
 3. **Slow CI**: All e2e tests require LLM backend, making test suite slow (minutes vs seconds)
 4. **Cannot Test Both Modes**: No way to verify that CLI properly executes both LLM and static analysis paths
@@ -30,11 +30,11 @@ The pipeline already supports both modes internally (e.g., `deterministic_classi
 
 ## Goals
 1. **Dual-Mode E2e Tests**: Add e2e test variants for every fixture in both LLM mode and static-only mode
-2. **CLI Mode Control**: Add `AIPACK_DETECTION_MODE` environment variable to control detection mode
+2. **CLI Mode Control**: Add `PEELBOX_DETECTION_MODE` environment variable to control detection mode
 3. **Complete Coverage**: Validate that static analysis fallbacks work for all supported languages/build systems via CLI
 4. **Fast CI**: Static-only e2e tests run without LLM backend (< 10 seconds for all fixtures)
 5. **Clear Test Organization**:
-   - E2e tests spawn CLI binary with `AIPACK_DETECTION_MODE=static` or `AIPACK_DETECTION_MODE=llm`
+   - E2e tests spawn CLI binary with `PEELBOX_DETECTION_MODE=static` or `PEELBOX_DETECTION_MODE=llm`
    - Each fixture has two test variants: `test_rust_cargo_llm()` and `test_rust_cargo_static()`
    - All tests remain e2e tests (no unit tests with MockFileSystem)
 
@@ -46,7 +46,7 @@ The pipeline already supports both modes internally (e.g., `deterministic_classi
 
 ## Scope
 ### In Scope
-- Add `AIPACK_DETECTION_MODE` environment variable (values: `llm`, `static`, `full`)
+- Add `PEELBOX_DETECTION_MODE` environment variable (values: `llm`, `static`, `full`)
 - Add `DetectionMode` parameter to PipelineOrchestrator based on env var
 - Create dual e2e test variants in `tests/e2e.rs` for each fixture (spawn CLI with different modes)
 - Ensure all pipeline phases properly handle static-only execution
@@ -69,7 +69,7 @@ The pipeline already supports both modes internally (e.g., `deterministic_classi
 ## Success Criteria
 1. 50+ e2e tests in `tests/e2e.rs` (25 fixtures × 2 modes)
 2. All e2e tests spawn CLI binary and pass in both LLM and static modes
-3. CLI respects `AIPACK_DETECTION_MODE` environment variable
+3. CLI respects `PEELBOX_DETECTION_MODE` environment variable
 4. Static-mode e2e tests run without LLM backend (< 10 seconds)
 5. Static mode e2e tests are deterministic and fast
 6. All tests remain e2e tests (no unit tests, no MockFileSystem)
@@ -89,9 +89,9 @@ The pipeline already supports both modes internally (e.g., `deterministic_classi
 **Mitigation**: Different purposes - e2e tests validate CLI UX and full binary, unit tests validate detection logic and dual modes. Both are valuable.
 
 ## Implementation Notes
-- Add `AIPACK_DETECTION_MODE` environment variable to control mode
+- Add `PEELBOX_DETECTION_MODE` environment variable to control mode
 - CLI reads env var and passes `DetectionMode` to PipelineOrchestrator
-- E2e tests spawn binary with `AIPACK_DETECTION_MODE=static` or `AIPACK_DETECTION_MODE=llm`
+- E2e tests spawn binary with `PEELBOX_DETECTION_MODE=static` or `PEELBOX_DETECTION_MODE=llm`
 - Each phase already has deterministic fallbacks; static mode e2e tests exercise them
 - All tests remain in `tests/e2e.rs` (no separate unit test file)
 - Expected JSON may need mode-specific variants (e.g., `rust-cargo-static.json`)
