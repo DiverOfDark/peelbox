@@ -165,9 +165,7 @@ impl LLBBuilder {
                         command.clone()
                     };
 
-                    let mut cmd = Command::run("sh")
-                        .args(["-c", &build_script])
-                        .cwd("/build");
+                    let mut cmd = Command::run("sh").args(["-c", &build_script]).cwd("/build");
 
                     // Mount base layer (first command) or previous command's output
                     if idx == 0 {

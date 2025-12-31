@@ -336,7 +336,7 @@ async fn test_buildctl_output_types() -> Result<()> {
                 "--bin",
                 "peelbox",
                 "--no-default-features",
-                ])
+            ])
             .status()?;
         if !build_status.success() {
             anyhow::bail!("Failed to build peelbox binary");
@@ -373,7 +373,7 @@ async fn test_buildctl_output_types() -> Result<()> {
             &format!("context={}", repo_path.display()),
             "--output",
             &format!("type=oci,dest={}", oci_dest.display()),
-                ])
+        ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -414,7 +414,7 @@ async fn test_buildctl_output_types() -> Result<()> {
                 "type=docker,name=peelbox-test:latest,dest={}",
                 docker_dest.display()
             ),
-                ])
+        ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

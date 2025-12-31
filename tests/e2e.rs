@@ -28,8 +28,8 @@ fn setup_test_apkindex_cache() {
     static INIT: Once = Once::new();
 
     INIT.call_once(|| {
-        let test_apkindex = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/data/APKINDEX.tar.gz");
+        let test_apkindex =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
 
         if !test_apkindex.exists() {
             eprintln!("WARNING: Test APKINDEX not found at {:?}", test_apkindex);
@@ -88,7 +88,11 @@ fn fixture_path(category: &str, name: &str) -> PathBuf {
 
 /// Helper to load expected UniversalBuild(s) from JSON
 /// Loads universalbuild.json from the fixture directory itself (same for all modes)
-fn load_expected(category: &str, fixture_name: &str, _mode: Option<&str>) -> Option<Vec<UniversalBuild>> {
+fn load_expected(
+    category: &str,
+    fixture_name: &str,
+    _mode: Option<&str>,
+) -> Option<Vec<UniversalBuild>> {
     let expected_path = PathBuf::from("tests/fixtures")
         .join(category)
         .join(fixture_name)
@@ -176,7 +180,12 @@ fn run_detection_with_mode(
 }
 
 /// Helper to assert detection results against expected output
-fn assert_detection_with_mode(results: &[UniversalBuild], category: &str, fixture_name: &str, mode: Option<&str>) {
+fn assert_detection_with_mode(
+    results: &[UniversalBuild],
+    category: &str,
+    fixture_name: &str,
+    mode: Option<&str>,
+) {
     assert!(!results.is_empty(), "Results should not be empty");
 
     assert!(
@@ -367,7 +376,10 @@ fn test_edge_cases(fixture_name: &str, mode: Option<&str>) {
 //
 
 /// Helper to load port, health endpoint (optional), and command from committed universalbuild.json
-fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16, Option<String>, Vec<String>, Vec<String>)> {
+fn get_fixture_container_info(
+    category: &str,
+    fixture_name: &str,
+) -> Option<(u16, Option<String>, Vec<String>, Vec<String>)> {
     let spec_path = PathBuf::from("tests/fixtures")
         .join(category)
         .join(fixture_name)
@@ -379,16 +391,17 @@ fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16
 
     let content = std::fs::read_to_string(&spec_path).ok()?;
     let ub: Vec<UniversalBuild> = serde_json::from_str(&content)
-        .or_else(|_| {
-            serde_json::from_str::<UniversalBuild>(&content).map(|single| vec![single])
-        })
+        .or_else(|_| serde_json::from_str::<UniversalBuild>(&content).map(|single| vec![single]))
         .ok()?;
 
     let first = ub.first()?;
     let port = first.runtime.ports.first().copied()?;
     let health = first.runtime.health.as_ref().map(|h| h.endpoint.clone());
     let command = first.runtime.command.clone();
-    let env: Vec<String> = first.runtime.env.iter()
+    let env: Vec<String> = first
+        .runtime
+        .env
+        .iter()
         .map(|(k, v)| format!("{}={}", k, v))
         .collect();
 
@@ -396,10 +409,7 @@ fn get_fixture_container_info(category: &str, fixture_name: &str) -> Option<(u16
 }
 
 /// Helper to run container integration test for a single fixture
-async fn run_container_integration_test(
-    category: &str,
-    fixture_name: &str,
-) -> Result<(), String> {
+async fn run_container_integration_test(category: &str, fixture_name: &str) -> Result<(), String> {
     // Setup test APKINDEX cache
     setup_test_apkindex_cache();
 
@@ -420,8 +430,8 @@ async fn run_container_integration_test(
     }
 
     // Build and test container
-    let harness = ContainerTestHarness::new()
-        .map_err(|e| format!("Failed to create harness: {}", e))?;
+    let harness =
+        ContainerTestHarness::new().map_err(|e| format!("Failed to create harness: {}", e))?;
 
     let image_name = format!(
         "localhost/peelbox-test-{}-{}:latest",
@@ -435,7 +445,12 @@ async fn run_container_integration_test(
         .map_err(|e| format!("Failed to build image: {}", e))?;
 
     let container_id = harness
-        .start_container(&image, port, Some(cmd), if env.is_empty() { None } else { Some(env) })
+        .start_container(
+            &image,
+            port,
+            Some(cmd),
+            if env.is_empty() { None } else { Some(env) },
+        )
         .await
         .map_err(|e| format!("Failed to start container: {}", e))?;
 

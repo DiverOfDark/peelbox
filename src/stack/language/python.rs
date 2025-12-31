@@ -208,8 +208,7 @@ impl PythonLanguage {
 
         if let Some(tool) = parsed.get("tool").and_then(|t| t.as_table()) {
             if let Some(poetry) = tool.get("poetry").and_then(|p| p.as_table()) {
-                for dep_section in ["dependencies".to_string(), "dev-dependencies".to_string()]
-                {
+                for dep_section in ["dependencies".to_string(), "dev-dependencies".to_string()] {
                     if let Some(deps) = poetry.get(&dep_section).and_then(|d| d.as_table()) {
                         for (name, value) in deps {
                             if name == "python" || seen.contains(name) {

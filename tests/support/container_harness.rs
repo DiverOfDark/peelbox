@@ -153,7 +153,7 @@ impl ContainerTestHarness {
                 spec_path.to_str().unwrap(),
                 "--context-name",
                 &context_name,
-                ])
+            ])
             .output()
             .context("Failed to run peelbox frontend")?;
 
@@ -180,7 +180,7 @@ impl ContainerTestHarness {
                 &format!("{}={}", context_name, context_path.display()),
                 "--output",
                 &format!("type=docker,name={}", image_name),
-                ])
+            ])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
