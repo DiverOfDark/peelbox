@@ -31,7 +31,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: build
+          shared-key: peelbox
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -64,10 +64,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: test
+          shared-key: peelbox
 
       - name: Run unit tests
-        run: cargo test --lib --bins --verbose
+        run: cargo test --lib --bins --release --verbose
 
   integration-test:
     name: Run Integration Tests
@@ -84,20 +84,20 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: test
+          shared-key: peelbox
 
       - name: Run integration tests (static mode)
         run: |
           # Run fast deterministic tests without LLM
-          cargo test --test cli_integration --verbose
-          cargo test --test backend_health_test --verbose
-          cargo test --test mock_detection_test --verbose
+          cargo test --test cli_integration --release --verbose
+          cargo test --test backend_health_test --release --verbose
+          cargo test --test mock_detection_test --release --verbose
 
           # Run e2e tests in static mode (no LLM, uses deterministic parsers)
-          cargo test --test e2e --verbose -- --skip test_container_integration
+          cargo test --test e2e --release --verbose -- --skip test_container_integration
 
       - name: Run embedded LLM tests
-        run: cargo test --test embedded_llm_test --verbose
+        run: cargo test --test embedded_llm_test --release --verbose
 
   docker:
     name: Build and Push Docker Image
