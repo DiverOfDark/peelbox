@@ -410,7 +410,12 @@ impl ScanPhase {
         );
 
         let fs = crate::fs::RealFileSystem;
-        let mut detections = stack_registry.detect_all_stacks(&repo_path, &file_tree, &fs, context.detection_mode)?;
+        let mut detections = stack_registry.detect_all_stacks(
+            &repo_path,
+            &file_tree,
+            &fs,
+            context.detection_mode,
+        )?;
 
         // Register LLM languages and build systems for any Custom IDs detected (skip in StaticOnly mode)
         use crate::config::DetectionMode;

@@ -79,8 +79,14 @@ async fn test_embedded_llm_inference() {
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
             Err(e) => {
-                println!("Failed to create client, will use recording if available: {}", e);
-                Arc::new(create_mock_with_model_info(&format!("{} ({})", model.display_name, model.params)))
+                println!(
+                    "Failed to create client, will use recording if available: {}",
+                    e
+                );
+                Arc::new(create_mock_with_model_info(&format!(
+                    "{} ({})",
+                    model.display_name, model.params
+                )))
             }
         }
     };
@@ -152,8 +158,14 @@ async fn test_embedded_llm_tool_calling() {
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
             Err(e) => {
-                println!("Failed to create client, will use recording if available: {}", e);
-                Arc::new(create_mock_with_model_info(&format!("{} ({})", model.display_name, model.params)))
+                println!(
+                    "Failed to create client, will use recording if available: {}",
+                    e
+                );
+                Arc::new(create_mock_with_model_info(&format!(
+                    "{} ({})",
+                    model.display_name, model.params
+                )))
             }
         }
     };
@@ -375,8 +387,14 @@ async fn test_embedded_llm_tool_call_chain() {
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
             Err(e) => {
-                println!("Failed to create client, will use recording if available: {}", e);
-                Arc::new(create_mock_with_model_info(&format!("{} ({})", model.display_name, model.params)))
+                println!(
+                    "Failed to create client, will use recording if available: {}",
+                    e
+                );
+                Arc::new(create_mock_with_model_info(&format!(
+                    "{} ({})",
+                    model.display_name, model.params
+                )))
             }
         }
     };
