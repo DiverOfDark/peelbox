@@ -64,9 +64,6 @@ async fn test_image_builds_successfully() -> Result<()> {
     assert!(inspect.id.is_some(), "Image should have an ID");
     println!("✓ Image built successfully: {}", image_name);
 
-    // Cleanup
-    let _ = docker.remove_image(&image_name, None, None).await;
-
     Ok(())
 }
 
@@ -143,9 +140,6 @@ async fn test_image_runs_help_command() -> Result<()> {
 
     println!("✓ Image runs successfully and outputs help");
 
-    // Cleanup
-    let _ = docker.remove_image(&image_name, None, None).await;
-
     Ok(())
 }
 
@@ -218,9 +212,6 @@ async fn test_distroless_layer_structure() -> Result<()> {
     );
     println!("✓ Clean layer metadata (': peelbox' prefix)");
 
-    // Cleanup
-    let _ = docker.remove_image(&image_name, None, None).await;
-
     Ok(())
 }
 
@@ -255,9 +246,6 @@ async fn test_image_size_optimized() -> Result<()> {
     } else {
         println!("✓ Image size is optimized ({:.2}MB)", size_mb);
     }
-
-    // Cleanup
-    let _ = docker.remove_image(&image_name, None, None).await;
 
     Ok(())
 }
@@ -311,9 +299,6 @@ async fn test_binary_exists_and_executable() -> Result<()> {
         "Binary at /usr/local/bin/peelbox should exist and be executable"
     );
     println!("✓ Binary exists at /usr/local/bin/peelbox and is executable");
-
-    // Cleanup
-    let _ = docker.remove_image(&image_name, None, None).await;
 
     Ok(())
 }

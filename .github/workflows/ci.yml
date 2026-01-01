@@ -37,10 +37,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --all-targets --no-default-features -- -D warnings
 
       - name: Build release binary
-        run: cargo build --release --verbose
+        run: cargo build --release --no-default-features --verbose
 
       - name: Upload release binary
         uses: actions/upload-artifact@v4
@@ -67,7 +67,7 @@ jobs:
           shared-key: peelbox
 
       - name: Run unit tests
-        run: cargo test --lib --bins --release --verbose
+        run: cargo test --lib --bins --release --no-default-features --verbose
 
   integration-test:
     name: Run Integration Tests
@@ -86,18 +86,40 @@ jobs:
         with:
           shared-key: peelbox
 
+      - name: Install buildctl
+        run: |
+          BUILDKIT_VERSION=v0.16.0
+          wget -q https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
+          tar xzf buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
+          sudo install bin/buildctl /usr/local/bin/
+          buildctl --version
+
+      - name: Cache BuildKit volume
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/buildkit-cache
+          key: buildkit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'universalbuild.json') }}
+          restore-keys: |
+            buildkit-${{ runner.os }}-
+
       - name: Run integration tests (static mode)
         run: |
-          # Run fast deterministic tests without LLM
-          cargo test --test cli_integration --release --verbose
-          cargo test --test backend_health_test --release --verbose
-          cargo test --test mock_detection_test --release --verbose
+          # Run fast deterministic tests without LLM (CPU-only, no CUDA)
+          cargo test --test cli_integration --release --no-default-features --verbose
+          cargo test --test backend_health_test --release --no-default-features --verbose
+          cargo test --test mock_detection_test --release --no-default-features --verbose
 
           # Run e2e tests in static mode (no LLM, uses deterministic parsers)
-          cargo test --test e2e --release --verbose -- --skip test_container_integration
+          cargo test --test e2e --release --no-default-features --verbose
 
       - name: Run embedded LLM tests
-        run: cargo test --test embedded_llm_test --release --verbose
+        run: cargo test --test embedded_llm_test --release --no-default-features --verbose
+
+      - name: Run BuildKit integration tests
+        run: |
+          # Tests use testcontainers with shared BuildKit volume
+          # Volume caching significantly speeds up subsequent runs
+          cargo test --test buildkit_integration --release --no-default-features --verbose
 
   docker:
     name: Build and Push Docker Image
@@ -131,10 +153,19 @@ jobs:
           sudo install bin/buildctl /usr/local/bin/
           buildctl --version
 
+      - name: Cache BuildKit volume
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/buildkit-cache
+          key: buildkit-docker-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'universalbuild.json') }}
+          restore-keys: |
+            buildkit-docker-${{ runner.os }}-
+
       - name: Start BuildKit container
         run: |
           docker run -d --name buildkitd --privileged \
             -p 127.0.0.1:1234:1234 \
+            -v /var/lib/buildkit-cache:/var/lib/buildkit \
             moby/buildkit:latest \
             --addr tcp://0.0.0.0:1234
 

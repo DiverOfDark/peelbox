@@ -61,4 +61,8 @@ impl ServiceContext {
     pub fn heuristic_logger(&self) -> &Arc<HeuristicLogger> {
         &self.analysis_context.heuristic_logger
     }
+
+    pub fn detection_mode(&self) -> crate::config::DetectionMode {
+        self.analysis_context.detection_mode
+    }
 }

@@ -1,0 +1,19 @@
+{
+  "request_hash": "24dd58ef279c7526359ae2b13c692004",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information.\n\nManifest: package.json\nContent:\n{\n  \"name\": \"example-node-app\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Example Node.js application\",\n  \"main\": \"dist/index.js\",\n  \"scripts\": {\n    \"build\": \"tsc\",\n    \"test\": \"jest\",\n    \"start\": \"node dist/index.js\",\n    \"dev\": \"ts-node src/index.ts\"\n  },\n  \"dependencies\": {\n    \"express\": \"^4.18.2\"\n  },\n  \"devDependencies\": {\n    \"@types/express\": \"^4.17.17\",\n    \"@types/node\": \"^20.0.0\",\n    \"typescript\": \"^5.0.0\",\n    \"ts-node\": \"^10.9.1\",\n    \"jest\": \"^29.5.0\"\n  }\n}\n\n\nReturn JSON with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"nodejs-18\",\n  \"manifest_files\": [\"package.json\"],\n  \"build_commands\": [\"npm install\", \"npm run build\"],\n  \"cache_dirs\": [\"node_modules\"],\n  \"build_packages\": [\"nodejs-18\"],\n  \"runtime_packages\": [\"nodejs-18\", \"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"dist/index.js\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
+    "tool_call": null,
+    "response_time": 1616
+  },
+  "recorded_at": "2026-01-01T22:51:07.094057230+00:00"
+}

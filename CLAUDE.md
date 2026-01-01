@@ -934,3 +934,28 @@ cargo test --test e2e test_rust_cargo_static
 - **Full mode** (`PEELBOX_DETECTION_MODE=full`): Default for normal detection
 - **Static mode** (`PEELBOX_DETECTION_MODE=static`): Fast CI tests, validate parsers work correctly
 - **LLM mode** (`PEELBOX_DETECTION_MODE=llm`): Test LLM prompts and response handling specifically
+
+### CUDA Acceleration for Local Testing
+
+By default, peelbox builds with CUDA support enabled for faster local testing on NVIDIA hardware.
+
+**Local Development (with NVIDIA GPU):**
+```bash
+# Default build uses CUDA (5-10x faster than CPU)
+cargo test --test e2e
+
+# Explicitly build with CUDA
+cargo build --features cuda
+```
+
+**CI/CD (CPU-only):**
+```bash
+# Disable CUDA for CPU-only environments
+cargo test --no-default-features
+cargo build --no-default-features
+```
+
+**Feature Configuration:**
+- `default = ["cuda"]` - CUDA enabled by default for local dev
+- GitHub Actions CI uses `--no-default-features` to disable CUDA
+- Embedded LLM automatically detects and uses CUDA when available

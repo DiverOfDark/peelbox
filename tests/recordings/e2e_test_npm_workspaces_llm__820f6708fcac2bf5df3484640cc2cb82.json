@@ -1,0 +1,19 @@
+{
+  "request_hash": "820f6708fcac2bf5df3484640cc2cb82",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests.\n\nRepository: /var/home/diverofdark/Projects/AppBahn/aipack/tests/fixtures/monorepo/npm-workspaces\nFile tree summary:\nRoot files: package.json, universalbuild.json\nExtensions: {\"json\": 5, \"ts\": 3}\n\nIdentify manifest files and their build systems. Return JSON array:\n[{\n  \"manifest_path\": \"build.zig\",\n  \"build_system\": \"zig\",\n  \"language\": \"Zig\",\n  \"confidence\": 0.85\n}]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"package.json\",\n    \"build_system\": \"npm\",\n    \"language\": \"JavaScript\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 976
+  },
+  "recorded_at": "2026-01-01T22:48:31.672015529+00:00"
+}

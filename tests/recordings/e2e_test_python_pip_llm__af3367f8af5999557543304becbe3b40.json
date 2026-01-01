@@ -1,0 +1,19 @@
+{
+  "request_hash": "af3367f8af5999557543304becbe3b40",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON only.\n\nFile: universalbuild.json\nContent:\n[\n  {\n    \"build\": {\n      \"artifacts\": [\n        \".\",\n        \"/root/.local/\"\n      ],\n      \"cache\": [\n        \".cache/pip\"\n      ],\n      \"commands\": [\n        \"pip install --user --no-cache-dir -r requirements.txt\"\n      ],\n      \"env\": {},\n      \"packages\": [\n        \"python-3.14\",\n        \"py3.14-pip\",\n        \"build-base\"\n      ]\n    },\n    \"metadata\": {\n      \"build_system\": \"pip\",\n      \"confidence\": 0.949999988079071,\n      \"framework\": \"Flask\",\n      \"language\": \"Python\",\n      \"proje\n\nResponse format:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "{\n  \"name\": \"Python\",\n  \"file_extensions\": [\".py\"],\n  \"package_managers\": [\"pip\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [\"requirements.txt\"],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": \"python\",\n  \"version_pattern\": null,\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.949999988079071\n}",
+    "tool_call": null,
+    "response_time": 1807
+  },
+  "recorded_at": "2026-01-01T22:51:46.862460320+00:00"
+}

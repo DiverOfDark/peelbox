@@ -258,9 +258,14 @@ impl DetectionService {
             })
         })?;
 
+        let llm_client = match mode {
+            crate::config::DetectionMode::StaticOnly => None,
+            _ => Some(self.client.clone()),
+        };
+
         let mut context = AnalysisContext::new(
             &repo_path,
-            Arc::new(StackRegistry::with_defaults(Some(self.client.clone()))),
+            Arc::new(StackRegistry::with_defaults(llm_client)),
             Arc::new(wolfi_index),
             None,
             Arc::new(HeuristicLogger::disabled()),

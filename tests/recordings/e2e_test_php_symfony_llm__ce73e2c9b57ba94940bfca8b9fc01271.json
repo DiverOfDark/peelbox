@@ -1,0 +1,19 @@
+{
+  "request_hash": "ce73e2c9b57ba94940bfca8b9fc01271",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON only.\n\nFile: composer.json\nContent:\n{\n    \"name\": \"example/symfony-api\",\n    \"description\": \"Symfony API Application\",\n    \"type\": \"project\",\n    \"require\": {\n        \"php\": \">=8.1\",\n        \"symfony/framework-bundle\": \"6.4.*\",\n        \"symfony/http-kernel\": \"6.4.*\",\n        \"symfony/runtime\": \"6.4.*\",\n        \"symfony/routing\": \"6.4.*\",\n        \"symfony/yaml\": \"6.4.*\",\n        \"symfony/cache\": \"6.4.*\",\n        \"symfony/config\": \"6.4.*\",\n        \"symfony/dependency-injection\": \"6.4.*\",\n        \"symfony/error-handler\": \"6.4.*\",\n   \n\nResponse format:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"PHP\",\n  \"file_extensions\": [\".php\"],\n  \"package_managers\": [\"composer\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [\"composer.json\"],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"\\\"php\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}\n```",
+    "tool_call": null,
+    "response_time": 1516
+  },
+  "recorded_at": "2026-01-01T23:18:53.891259597+00:00"
+}

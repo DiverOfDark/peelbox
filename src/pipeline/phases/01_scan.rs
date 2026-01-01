@@ -410,27 +410,30 @@ impl ScanPhase {
         );
 
         let fs = crate::fs::RealFileSystem;
-        let mut detections = stack_registry.detect_all_stacks(&repo_path, &file_tree, &fs)?;
+        let mut detections = stack_registry.detect_all_stacks(&repo_path, &file_tree, &fs, context.detection_mode)?;
 
-        // Register LLM languages and build systems for any Custom IDs detected
-        for detection in &detections {
-            if matches!(detection.language, crate::stack::LanguageId::Custom(_)) {
-                stack_registry.register_llm_language(detection.language.clone());
-            }
-            if matches!(
-                detection.build_system,
-                crate::stack::BuildSystemId::Custom(_)
-            ) {
-                let manifest_path = repo_path.join(&detection.manifest_path);
-                if let Err(e) = stack_registry.register_llm_build_system(
-                    detection.build_system.clone(),
-                    &manifest_path,
-                    &fs,
+        // Register LLM languages and build systems for any Custom IDs detected (skip in StaticOnly mode)
+        use crate::config::DetectionMode;
+        if context.detection_mode != DetectionMode::StaticOnly {
+            for detection in &detections {
+                if matches!(detection.language, crate::stack::LanguageId::Custom(_)) {
+                    stack_registry.register_llm_language(detection.language.clone());
+                }
+                if matches!(
+                    detection.build_system,
+                    crate::stack::BuildSystemId::Custom(_)
                 ) {
-                    warn!(
-                        "Failed to register LLM build system {:?}: {}",
-                        detection.build_system, e
-                    );
+                    let manifest_path = repo_path.join(&detection.manifest_path);
+                    if let Err(e) = stack_registry.register_llm_build_system(
+                        detection.build_system.clone(),
+                        &manifest_path,
+                        &fs,
+                    ) {
+                        warn!(
+                            "Failed to register LLM build system {:?}: {}",
+                            detection.build_system, e
+                        );
+                    }
                 }
             }
         }

@@ -1,0 +1,19 @@
+{
+  "request_hash": "6a3ff3c7ef616be5eee3b8666e2fc94b",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON only.\n\nFile: pom.xml\nContent:\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n    <modelVersion>4.0.0</modelVersion>\n\n    <groupId>com.example</groupId>\n    <artifactId>multimodule</artifactId>\n    <version>1.0.0</version>\n    <packaging>pom</packaging>\n\n    <modules>\n        <module>lib</module>\n        <module>api-service</module>\n        <module>web-service</module>\n    </modules>\n\n    <properties>\n        <maven.compiler.source>17</maven.compiler.source>\n        <maven.compiler.\n\nResponse format:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"Java\",\n  \"file_extensions\": [\".xml\"],\n  \"package_managers\": [\"Maven\"],\n  \"excluded_dirs\": [\"target\"],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"<version>(.+?)</version>\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}\n```",
+    "tool_call": null,
+    "response_time": 1525
+  },
+  "recorded_at": "2026-01-01T23:12:43.002829382+00:00"
+}

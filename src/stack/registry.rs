@@ -219,11 +219,13 @@ impl StackRegistry {
         repo_root: &Path,
         file_tree: &[std::path::PathBuf],
         fs: &dyn crate::fs::FileSystem,
+        detection_mode: crate::config::DetectionMode,
     ) -> anyhow::Result<Vec<DetectionStack>> {
+        use crate::config::DetectionMode;
         let mut all_detections = Vec::new();
 
-        // First, try all deterministic build systems (non-LLM)
-        {
+        // Try deterministic build systems (unless LLMOnly mode)
+        if detection_mode != DetectionMode::LLMOnly {
             let build_systems = self.build_systems.read().unwrap();
             for (id, build_system) in build_systems.iter() {
                 // Skip LLM fallback on first pass
@@ -235,8 +237,10 @@ impl StackRegistry {
             }
         }
 
-        // Only invoke LLM fallback if no deterministic detections were found
-        if all_detections.is_empty() {
+        // Invoke LLM fallback if needed (not in StaticOnly mode)
+        if detection_mode != DetectionMode::StaticOnly
+            && (all_detections.is_empty() || detection_mode == DetectionMode::LLMOnly)
+        {
             let build_systems = self.build_systems.read().unwrap();
             if let Some(llm_bs) =
                 build_systems.get(&BuildSystemId::Custom("__llm_fallback__".to_string()))
@@ -276,11 +280,25 @@ impl StackRegistry {
     }
 
     pub fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
-        for language in self.languages.read().unwrap().values() {
+        let languages = self.languages.read().unwrap();
+
+        // Try deterministic languages first (skip __llm_fallback__)
+        for (id, language) in languages.iter() {
+            if matches!(id, LanguageId::Custom(s) if s == "__llm_fallback__") {
+                continue;
+            }
             if language.is_workspace_root(manifest_name, manifest_content) {
                 return true;
             }
         }
+
+        // Fall back to LLM if no deterministic match found
+        if let Some(llm_lang) = languages.get(&LanguageId::Custom("__llm_fallback__".to_string())) {
+            if llm_lang.is_workspace_root(manifest_name, manifest_content) {
+                return true;
+            }
+        }
+
         false
     }
 
@@ -290,7 +308,13 @@ impl StackRegistry {
         manifest_content: &str,
         all_internal_paths: &[std::path::PathBuf],
     ) -> Option<crate::stack::language::DependencyInfo> {
-        for language in self.languages.read().unwrap().values() {
+        let languages = self.languages.read().unwrap();
+
+        // Try deterministic languages first (skip __llm_fallback__)
+        for (id, language) in languages.iter() {
+            if matches!(id, LanguageId::Custom(s) if s == "__llm_fallback__") {
+                continue;
+            }
             if language
                 .detect(manifest_name, Some(manifest_content))
                 .is_some()
@@ -298,6 +322,17 @@ impl StackRegistry {
                 return Some(language.parse_dependencies(manifest_content, all_internal_paths));
             }
         }
+
+        // Fall back to LLM if no deterministic match found
+        if let Some(llm_lang) = languages.get(&LanguageId::Custom("__llm_fallback__".to_string())) {
+            if llm_lang
+                .detect(manifest_name, Some(manifest_content))
+                .is_some()
+            {
+                return Some(llm_lang.parse_dependencies(manifest_content, all_internal_paths));
+            }
+        }
+
         None
     }
 

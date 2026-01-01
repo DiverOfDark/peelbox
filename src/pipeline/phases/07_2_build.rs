@@ -67,6 +67,19 @@ impl ServicePhase for BuildPhase {
     }
 
     async fn execute(&self, context: &mut ServiceContext) -> Result<()> {
+        // Skip Custom/LLM build systems in StaticOnly mode
+        use crate::config::DetectionMode;
+        use crate::stack::BuildSystemId;
+        if context.detection_mode() == DetectionMode::StaticOnly {
+            if matches!(&context.service.build_system, BuildSystemId::Custom(_)) {
+                tracing::debug!(
+                    "Skipping LLM build system {:?} in StaticOnly mode",
+                    context.service.build_system
+                );
+                return Ok(());
+            }
+        }
+
         if let Some(deterministic) = try_deterministic(
             &context.service,
             context.stack_registry(),

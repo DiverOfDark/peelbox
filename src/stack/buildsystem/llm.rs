@@ -4,7 +4,7 @@ use crate::llm::{ChatMessage, LLMClient, LLMRequest};
 use crate::stack::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -245,7 +245,7 @@ fn create_file_tree_summary(file_tree: &[PathBuf]) -> String {
         .map(|p| p.display().to_string())
         .collect();
 
-    let mut ext_counts = HashMap::new();
+    let mut ext_counts = BTreeMap::new();
     for path in file_tree {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             *ext_counts.entry(ext).or_insert(0) += 1;

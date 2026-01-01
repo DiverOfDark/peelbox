@@ -1,0 +1,19 @@
+{
+  "request_hash": "5fa23ed848b451a1e4b3901dec5d4f38",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests.\n\nRepository: /var/home/diverofdark/Projects/AppBahn/aipack/tests/fixtures/single-language/kotlin-gradle\nFile tree summary:\nRoot files: build.gradle.kts, settings.gradle.kts, universalbuild.json\nExtensions: {\"json\": 1, \"kt\": 1, \"kts\": 2}\n\nIdentify manifest files and their build systems. Return JSON array:\n[{\n  \"manifest_path\": \"build.zig\",\n  \"build_system\": \"zig\",\n  \"language\": \"Zig\",\n  \"confidence\": 0.85\n}]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"build.gradle.kts\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Kotlin\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"settings.gradle.kts\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Kotlin\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"Unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1549
+  },
+  "recorded_at": "2026-01-01T22:50:20.925493306+00:00"
+}

@@ -1,0 +1,19 @@
+{
+  "request_hash": "ea76020ade9a86bf827cc2b2668eabe7",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON only.\n\nFile: composer.json\nContent:\n{\n    \"name\": \"example/php-api\",\n    \"description\": \"Simple PHP API\",\n    \"type\": \"project\",\n    \"require\": {\n        \"php\": \">=8.1\",\n        \"slim/slim\": \"^4.12\",\n        \"slim/psr7\": \"^1.6\",\n        \"monolog/monolog\": \"^3.5\"\n    },\n    \"require-dev\": {\n        \"phpunit/phpunit\": \"^10.5\"\n    },\n    \"autoload\": {\n        \"psr-4\": {\n            \"App\\\\\": \"src/\"\n        }\n    }\n}\n\n\nResponse format:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"PHP\",\n  \"file_extensions\": [\".php\"],\n  \"package_managers\": [\"composer\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"composer.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"php\",\n  \"version_pattern\": \"\\\"php\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.php\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n```",
+    "tool_call": null,
+    "response_time": 2125
+  },
+  "recorded_at": "2026-01-01T23:12:29.821034208+00:00"
+}
