@@ -25,6 +25,14 @@ fn has_sufficient_ram() -> bool {
     capabilities.available_ram_gb() >= 4.0
 }
 
+/// Create a MockLLMClient with model_info that matches embedded client recordings
+/// This ensures hash computation matches when replaying recordings
+fn create_mock_with_model_info(model_name: &str) -> peelbox::llm::MockLLMClient {
+    let mut mock = peelbox::llm::MockLLMClient::new();
+    mock.with_model_info(model_name.to_string());
+    mock
+}
+
 #[tokio::test]
 async fn test_hardware_detection() {
     let capabilities = HardwareDetector::detect();
@@ -48,33 +56,18 @@ async fn test_hardware_detection() {
 #[tokio::test]
 #[serial]
 async fn test_embedded_llm_inference() {
-    // Check if recording exists first
     let recordings_dir = std::path::PathBuf::from("tests/recordings");
-    let test_request = LLMRequest::new(vec![
-        ChatMessage::system("You are a helpful assistant. Respond concisely."),
-        ChatMessage::user("What is 2+2?"),
-    ])
-    .with_max_tokens(50)
-    .with_temperature(0.7);
+    let mode = RecordingMode::from_env(RecordingMode::Auto);
 
-    let recorded_request = peelbox::llm::RecordedRequest::from_llm_request(&test_request, None);
-    let request_hash = recorded_request.canonical_hash();
-    let test_name =
-        peelbox::llm::TestContext::current_test_name().expect("Should be in test context");
-    let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
-
-    // If recording exists, use replay mode with mock client
-    // Otherwise, try to create real client
-    let client: Arc<dyn LLMClient> = if recording_path.exists() {
-        println!("Using cached recording, skipping model loading");
-        Arc::new(peelbox::llm::MockLLMClient::new())
+    // In Replay mode, always use MockLLMClient (recordings will be loaded by RecordingLLMClient)
+    // Otherwise, try to create embedded client
+    let client: Arc<dyn LLMClient> = if mode == RecordingMode::Replay {
+        println!("Replay mode: using mock client (will load from recordings)");
+        Arc::new(create_mock_with_model_info("Qwen2.5-Coder 7B GGUF (7B)"))
+    } else if !has_sufficient_ram() {
+        println!("Insufficient RAM, will use recording if available");
+        Arc::new(create_mock_with_model_info("Qwen2.5-Coder 7B GGUF (7B)"))
     } else {
-        println!("No recording found, will create embedded client");
-        if !has_sufficient_ram() {
-            println!("Skipping test: insufficient RAM and no recording");
-            return;
-        }
-
         let capabilities = HardwareDetector::detect();
         let model = ModelSelector::select(&capabilities).unwrap();
         println!(
@@ -86,17 +79,21 @@ async fn test_embedded_llm_inference() {
         match EmbeddedClient::with_model(model, &capabilities, false).await {
             Ok(client) => Arc::new(client),
             Err(e) => {
-                println!("Skipping inference test: failed to create client: {}", e);
-                return;
+                println!("Failed to create client, will use recording if available: {}", e);
+                Arc::new(create_mock_with_model_info(&format!("{} ({})", model.display_name, model.params)))
             }
         }
     };
 
-    // Always use Auto mode - will replay if available, record if not
-    let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
+    // RecordingLLMClient mode from env (defaults to Auto):
+    // - Auto: Use recording if available, otherwise call client and record
+    // - Replay: Only use recordings (error if missing)
+    // - Record: Always call client and save recordings
+    let mode = RecordingMode::from_env(RecordingMode::Auto);
+    let recording_client = RecordingLLMClient::new(client, mode, recordings_dir)
         .expect("Failed to create recording client");
 
-    // Create a simple request
+    // Create request - RecordingLLMClient will use recording if available
     let request = LLMRequest::new(vec![
         ChatMessage::system("You are a helpful assistant. Respond concisely."),
         ChatMessage::user("What is 2+2?"),
@@ -104,8 +101,16 @@ async fn test_embedded_llm_inference() {
     .with_max_tokens(50)
     .with_temperature(0.7);
 
-    println!("Sending request to embedded LLM...");
+    println!("Sending request (will use recording if available)...");
     let result = recording_client.chat(request).await;
+
+    // If using MockLLMClient and no recording exists, test should skip
+    if let Err(ref e) = result {
+        if e.to_string().contains("No more responses in queue") {
+            println!("Skipping test: no recording available and using mock client");
+            return;
+        }
+    }
 
     match result {
         Ok(response) => {
@@ -125,8 +130,37 @@ async fn test_embedded_llm_inference() {
 #[tokio::test]
 #[serial]
 async fn test_embedded_llm_tool_calling() {
-    // Check if recording exists first
     let recordings_dir = std::path::PathBuf::from("tests/recordings");
+    let mode = RecordingMode::from_env(RecordingMode::Auto);
+
+    // In Replay mode, always use MockLLMClient (recordings will be loaded by RecordingLLMClient)
+    let client: Arc<dyn LLMClient> = if mode == RecordingMode::Replay {
+        println!("Replay mode: using mock client (will load from recordings)");
+        Arc::new(create_mock_with_model_info("Qwen2.5-Coder 7B GGUF (7B)"))
+    } else if !has_sufficient_ram() {
+        println!("Insufficient RAM, will use recording if available");
+        Arc::new(create_mock_with_model_info("Qwen2.5-Coder 7B GGUF (7B)"))
+    } else {
+        let capabilities = HardwareDetector::detect();
+        let model = ModelSelector::select(&capabilities).unwrap();
+        println!(
+            "Testing tool calling with {} on {}",
+            model.display_name,
+            capabilities.best_device()
+        );
+
+        match EmbeddedClient::with_model(model, &capabilities, false).await {
+            Ok(client) => Arc::new(client),
+            Err(e) => {
+                println!("Failed to create client, will use recording if available: {}", e);
+                Arc::new(create_mock_with_model_info(&format!("{} ({})", model.display_name, model.params)))
+            }
+        }
+    };
+
+    // Use the same mode for RecordingLLMClient
+    let recording_client = RecordingLLMClient::new(client, mode, recordings_dir)
+        .expect("Failed to create recording client");
 
     // Define calculate tool with proper JSON schema
     let calculate_tool = ToolDefinition {
@@ -153,53 +187,6 @@ async fn test_embedded_llm_tool_calling() {
         }),
     };
 
-    let test_request = LLMRequest::new(vec![
-        ChatMessage::system("You are a helpful assistant that calls tools to solve problems."),
-        ChatMessage::user("Calculate 15 * 23 using the calculate tool"),
-    ])
-    .with_tools(vec![calculate_tool.clone()])
-    .with_max_tokens(100)
-    .with_temperature(0.1);
-
-    let recorded_request = peelbox::llm::RecordedRequest::from_llm_request(&test_request, None);
-    let request_hash = recorded_request.canonical_hash();
-    let test_name =
-        peelbox::llm::TestContext::current_test_name().expect("Should be in test context");
-    let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
-
-    // If recording exists, use replay mode with mock client
-    // Otherwise, try to create real client
-    let client: Arc<dyn LLMClient> = if recording_path.exists() {
-        println!("Using cached recording, skipping model loading");
-        Arc::new(peelbox::llm::MockLLMClient::new())
-    } else {
-        println!("No recording found, will create embedded client");
-        if !has_sufficient_ram() {
-            println!("Skipping test: insufficient RAM and no recording");
-            return;
-        }
-
-        let capabilities = HardwareDetector::detect();
-        let model = ModelSelector::select(&capabilities).unwrap();
-        println!(
-            "Testing tool calling with {} on {}",
-            model.display_name,
-            capabilities.best_device()
-        );
-
-        match EmbeddedClient::with_model(model, &capabilities, false).await {
-            Ok(client) => Arc::new(client),
-            Err(e) => {
-                println!("Skipping tool calling test: failed to create client: {}", e);
-                return;
-            }
-        }
-    };
-
-    // Always use Auto mode - will replay if available, record if not
-    let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
-        .expect("Failed to create recording client");
-
     // Create a request that should trigger tool calling (same as test_request)
     let request = LLMRequest::new(vec![
         ChatMessage::system("You are a helpful assistant that calls tools to solve problems."),
@@ -209,8 +196,16 @@ async fn test_embedded_llm_tool_calling() {
     .with_max_tokens(100)
     .with_temperature(0.1);
 
-    println!("Testing tool calling with embedded LLM...");
+    println!("Testing tool calling (will use recording if available)...");
     let result = recording_client.chat(request).await;
+
+    // If using MockLLMClient and no recording exists, test should skip
+    if let Err(ref e) = result {
+        if e.to_string().contains("No more responses in queue") {
+            println!("Skipping test: no recording available and using mock client");
+            return;
+        }
+    }
 
     match result {
         Ok(response) => {
@@ -348,8 +343,47 @@ fn test_model_selection_with_insufficient_ram() {
 #[tokio::test]
 #[serial]
 async fn test_embedded_llm_tool_call_chain() {
-    // Check if recording exists first
     let recordings_dir = std::path::PathBuf::from("tests/recordings");
+    let mode = RecordingMode::from_env(RecordingMode::Auto);
+
+    // In Replay mode, always use MockLLMClient (recordings will be loaded by RecordingLLMClient)
+    let client: Arc<dyn LLMClient> = if mode == RecordingMode::Replay {
+        println!("Replay mode: using mock client (will load from recordings)");
+        Arc::new(create_mock_with_model_info("Qwen2.5-Coder 7B GGUF (7B)"))
+    } else if !has_sufficient_ram() {
+        println!("Insufficient RAM, will use recording if available");
+        Arc::new(create_mock_with_model_info("Qwen2.5-Coder 7B GGUF (7B)"))
+    } else {
+        let capabilities = HardwareDetector::detect();
+
+        // Use PEELBOX_MODEL_SIZE env var or select based on available RAM
+        let model = if let Ok(model_size) = std::env::var("PEELBOX_MODEL_SIZE") {
+            EmbeddedModel::ALL_MODELS
+                .iter()
+                .find(|m| m.params == model_size)
+                .unwrap_or_else(|| panic!("Model size {} not found", model_size))
+        } else {
+            ModelSelector::select(&capabilities).unwrap()
+        };
+
+        println!(
+            "Testing tool call chain with {} on {}",
+            model.display_name,
+            capabilities.best_device()
+        );
+
+        match EmbeddedClient::with_model(model, &capabilities, false).await {
+            Ok(client) => Arc::new(client),
+            Err(e) => {
+                println!("Failed to create client, will use recording if available: {}", e);
+                Arc::new(create_mock_with_model_info(&format!("{} ({})", model.display_name, model.params)))
+            }
+        }
+    };
+
+    // Use the same mode for RecordingLLMClient
+    let recording_client = RecordingLLMClient::new(client, mode, recordings_dir)
+        .expect("Failed to create recording client");
 
     // Define multiple tools that can be chained
     let list_files_tool = ToolDefinition {
@@ -397,69 +431,6 @@ async fn test_embedded_llm_tool_call_chain() {
         }),
     };
 
-    let test_request = LLMRequest::new(vec![
-        ChatMessage::system("You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."),
-        ChatMessage::user("Analyze this directory by first listing files, then reading one file, then submitting a summary"),
-    ])
-    .with_tools(vec![list_files_tool.clone(), read_file_tool.clone(), submit_result_tool.clone()])
-    .with_max_tokens(200)
-    .with_temperature(0.1);
-
-    let recorded_request = peelbox::llm::RecordedRequest::from_llm_request(&test_request, None);
-    let request_hash = recorded_request.canonical_hash();
-    let test_name =
-        peelbox::llm::TestContext::current_test_name().expect("Should be in test context");
-    let recording_path = recordings_dir.join(format!("{}__{}.json", test_name, request_hash));
-
-    // If recording exists, use replay mode with mock client
-    // Otherwise, try to create real client
-    let client: Arc<dyn LLMClient> = if recording_path.exists() {
-        println!("Using cached recording, skipping model loading");
-        Arc::new(peelbox::llm::MockLLMClient::new())
-    } else {
-        println!("No recording found, will create embedded client");
-        if !has_sufficient_ram() {
-            println!("Skipping test: insufficient RAM and no recording");
-            return;
-        }
-
-        let capabilities = HardwareDetector::detect();
-
-        // Use PEELBOX_MODEL_SIZE env var or default to 7B
-        let model = if let Ok(model_size) = std::env::var("PEELBOX_MODEL_SIZE") {
-            EmbeddedModel::ALL_MODELS
-                .iter()
-                .find(|m| m.params == model_size)
-                .unwrap_or_else(|| panic!("Model size {} not found", model_size))
-        } else {
-            // Default to 7B (only available model)
-            EmbeddedModel::ALL_MODELS
-                .iter()
-                .find(|m| m.params == "7B")
-                .expect("7B model not found")
-        };
-        println!(
-            "Testing tool call chain with {} on {}",
-            model.display_name,
-            capabilities.best_device()
-        );
-
-        match EmbeddedClient::with_model(model, &capabilities, false).await {
-            Ok(client) => Arc::new(client),
-            Err(e) => {
-                println!(
-                    "Skipping tool call chain test: failed to create client: {}",
-                    e
-                );
-                return;
-            }
-        }
-    };
-
-    // Always use Auto mode - will replay if available, record if not
-    let recording_client = RecordingLLMClient::new(client, RecordingMode::Auto, recordings_dir)
-        .expect("Failed to create recording client");
-
     // Simulate a tool call chain with multiple iterations
     let mut messages = vec![
         ChatMessage::system("You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."),
@@ -481,10 +452,17 @@ async fn test_embedded_llm_tool_call_chain() {
             .with_max_tokens(200)
             .with_temperature(0.1);
 
-        let response = recording_client
-            .chat(request)
-            .await
-            .expect("LLM request should succeed");
+        let response = match recording_client.chat(request).await {
+            Ok(resp) => resp,
+            Err(e) => {
+                // If using MockLLMClient and no recording exists, skip test
+                if e.to_string().contains("No more responses in queue") {
+                    println!("Skipping test: no recording available and using mock client");
+                    return;
+                }
+                panic!("LLM request failed: {}", e);
+            }
+        };
 
         println!("Response: {}", response.content);
 
