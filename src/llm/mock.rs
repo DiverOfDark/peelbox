@@ -9,6 +9,7 @@ use std::time::Duration;
 pub struct MockLLMClient {
     responses: Mutex<VecDeque<MockResponse>>,
     name: String,
+    model_info: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +50,7 @@ impl MockLLMClient {
         Self {
             responses: Mutex::new(VecDeque::new()),
             name: "MockLLM".to_string(),
+            model_info: Some("mock-model".to_string()),
         }
     }
 
@@ -56,7 +58,12 @@ impl MockLLMClient {
         Self {
             responses: Mutex::new(VecDeque::new()),
             name: name.into(),
+            model_info: Some("mock-model".to_string()),
         }
+    }
+
+    pub fn with_model_info(&mut self, model_info: String) {
+        self.model_info = Some(model_info);
     }
 
     pub fn add_response(&self, response: MockResponse) {
@@ -162,7 +169,7 @@ impl LLMClient for MockLLMClient {
     }
 
     fn model_info(&self) -> Option<String> {
-        Some("mock-model".to_string())
+        self.model_info.clone()
     }
 }
 
