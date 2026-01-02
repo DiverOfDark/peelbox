@@ -239,16 +239,24 @@ jobs:
           echo "OCI Config:"
           cat /tmp/oci-config.json
 
-          # Read config and escape for CSV format (buildctl uses CSV parsing)
-          # Need to use literal backslash-quote inside the JSON
+          # Escape for CSV format (buildctl uses CSV parsing)
           OCI_CONFIG=$(cat /tmp/oci-config.json | jq -c . | sed 's/"/\\"/g')
           echo "Escaped OCI Config: $OCI_CONFIG"
 
-          # Build with image config embedded in output
-          # Use single quotes to prevent shell expansion, with embedded escaped JSON
-          cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
-            --local context=. \
-            --output 'type=docker,name=peelbox:latest,"containerimage.config='"$OCI_CONFIG"'"' > /tmp/peelbox.tar
+          # Write buildctl command to a script with interpolated variable
+          cat > /tmp/build.sh << EOF
+#!/bin/bash
+cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \\
+  --local context=. \\
+  --output 'type=docker,name=peelbox:latest,"containerimage.config=$OCI_CONFIG"' > /tmp/peelbox.tar
+EOF
+
+          echo "Generated build.sh:"
+          cat /tmp/build.sh
+          echo ""
+
+          chmod +x /tmp/build.sh
+          /tmp/build.sh
 
       - name: Load image into Docker
         run: docker load < /tmp/peelbox.tar
