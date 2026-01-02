@@ -234,7 +234,7 @@ jobs:
       - name: Build image with BuildKit
         run: |
           # Generate OCI image config from UniversalBuild spec
-          jq -c '.[] | {Config: {Entrypoint: .runtime.command, Env: [.runtime.env | to_entries[] | "\(.key)=\(.value)"]}}' universalbuild.json > /tmp/oci-config.json
+          jq -c '.[] | {os: "linux", architecture: "amd64", config: {Entrypoint: .runtime.command, Env: [.runtime.env | to_entries[] | "\(.key)=\(.value)"]}}' universalbuild.json > /tmp/oci-config.json
 
           echo "OCI Config:"
           cat /tmp/oci-config.json
