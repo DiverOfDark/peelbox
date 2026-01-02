@@ -241,8 +241,7 @@ jobs:
 
           # Escape for CSV format (buildctl uses CSV parsing)
           # First escape: quotes for buildctl CSV parser
-          # Second escape: backslashes for sed replacement
-          OCI_CONFIG=$(cat /tmp/oci-config.json | jq -c . | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+          OCI_CONFIG=$(cat /tmp/oci-config.json | jq -c .)
           echo "Double-escaped OCI Config: $OCI_CONFIG"
 
           # Write buildctl command to a script with interpolated variable
@@ -250,7 +249,7 @@ jobs:
           #!/bin/bash
           cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
             --local context=. \
-            --output "type=docker,name=peelbox:latest,containerimage.config=\"OCI_CONFIG_PLACEHOLDER\"" > /tmp/peelbox.tar
+            --output 'type=docker,name=peelbox:latest,containerimage.config=\"OCI_CONFIG_PLACEHOLDER\"' > /tmp/peelbox.tar
           SCRIPT_END
 
           # Replace placeholder with actual escaped config
