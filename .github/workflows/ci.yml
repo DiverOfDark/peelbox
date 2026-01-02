@@ -250,7 +250,7 @@ jobs:
           #!/bin/bash
           cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
             --local context=. \
-            --output "type=docker,name=peelbox:latest,containerimage.config=OCI_CONFIG_PLACEHOLDER" > /tmp/peelbox.tar
+            --output "type=docker,name=peelbox:latest,containerimage.config=\"OCI_CONFIG_PLACEHOLDER\"" > /tmp/peelbox.tar
           SCRIPT_END
 
           # Replace placeholder with actual escaped config
