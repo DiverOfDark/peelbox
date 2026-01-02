@@ -94,13 +94,20 @@ jobs:
           sudo install bin/buildctl /usr/local/bin/
           buildctl --version
 
-      - name: Cache BuildKit build cache
+      - name: Restore BuildKit cache
+        id: cache-buildkit
         uses: actions/cache@v4
         with:
-          path: target/buildkit-cache
+          path: target/buildkit-cache.tar.zst
           key: buildkit-${{ runner.os }}
           restore-keys: |
-            buildkit-${{ runner.os }}  
+            buildkit-${{ runner.os }}
+
+      - name: Extract BuildKit cache
+        if: steps.cache-buildkit.outputs.cache-hit == 'true'
+        run: |
+          mkdir -p target/buildkit-cache
+          sudo tar -xf target/buildkit-cache.tar.zst -C target/buildkit-cache
 
       - name: Run integration tests (static mode)
         run: |
@@ -121,12 +128,15 @@ jobs:
           # Build cache is shared across test runs for faster execution
           cargo test --test buildkit_integration --release --no-default-features --verbose
 
-      - name: Fix BuildKit cache permissions
+      - name: Create BuildKit cache archive
         if: always()
         run: |
-          # BuildKit container runs as root, fix ownership and permissions for caching
-          sudo chown -R $USER:$USER target/buildkit-cache || true
-          sudo chmod -R u+rw target/buildkit-cache || true
+          # Create tar archive with sudo to handle root-owned files
+          # Cache the archive file instead of the directory to avoid permission issues
+          if [ -d target/buildkit-cache ]; then
+            sudo tar -cf target/buildkit-cache.tar.zst --zstd -C target/buildkit-cache . || true
+            sudo chown $USER:$USER target/buildkit-cache.tar.zst || true
+          fi
 
       - name: Upload new recording files
         if: always()
@@ -169,6 +179,9 @@ jobs:
           name: peelbox-release-binary
           path: target/release/
 
+      - name: Make peelbox executable
+        run: chmod +x target/release/peelbox
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -181,13 +194,20 @@ jobs:
           sudo install bin/buildctl /usr/local/bin/
           buildctl --version
 
-      - name: Cache BuildKit build cache
+      - name: Restore BuildKit cache
+        id: cache-buildkit-docker
         uses: actions/cache@v4
         with:
-          path: target/buildkit-cache
-          key: buildkit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          path: target/buildkit-cache.tar.zst
+          key: buildkit-${{ runner.os }}
           restore-keys: |
-            buildkit-${{ runner.os }}-
+            buildkit-${{ runner.os }}
+
+      - name: Extract BuildKit cache
+        if: steps.cache-buildkit-docker.outputs.cache-hit == 'true'
+        run: |
+          mkdir -p target/buildkit-cache
+          sudo tar -xf target/buildkit-cache.tar.zst -C target/buildkit-cache
 
       - name: Start BuildKit container
         run: |
@@ -247,12 +267,15 @@ jobs:
           docker push ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
           docker push ghcr.io/${REPO_OWNER}/peelbox:$(date +%Y%m%d-%H%M%S)
 
-      - name: Fix BuildKit cache permissions
+      - name: Create BuildKit cache archive
         if: always()
         run: |
-          # BuildKit container runs as root, fix ownership and permissions for caching
-          sudo chown -R $USER:$USER target/buildkit-cache || true
-          sudo chmod -R u+rw target/buildkit-cache || true
+          # Create tar archive with sudo to handle root-owned files
+          # Cache the archive file instead of the directory to avoid permission issues
+          if [ -d target/buildkit-cache ]; then
+            sudo tar -cf target/buildkit-cache.tar.zst --zstd -C target/buildkit-cache . || true
+            sudo chown $USER:$USER target/buildkit-cache.tar.zst || true
+          fi
 
       - name: Cleanup BuildKit
         if: always()
