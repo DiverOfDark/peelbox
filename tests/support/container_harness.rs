@@ -70,8 +70,7 @@ pub async fn get_buildkit_container() -> Result<String> {
             let cache_dir = std::env::current_dir()
                 .expect("Failed to get current directory")
                 .join("target/buildkit-cache");
-            std::fs::create_dir_all(&cache_dir)
-                .expect("Failed to create BuildKit cache directory");
+            std::fs::create_dir_all(&cache_dir).expect("Failed to create BuildKit cache directory");
 
             // Start new BuildKit container with bind-mounted cache directory
             // Using bind mount instead of volume to enable GitHub Actions caching
