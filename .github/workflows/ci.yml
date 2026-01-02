@@ -98,7 +98,7 @@ jobs:
         id: cache-buildkit
         uses: actions/cache@v4
         with:
-          path: target/buildkit-cache.tar.zst
+          path: .buildkit-cache.tar.zst
           key: buildkit-${{ runner.os }}
           restore-keys: |
             buildkit-${{ runner.os }}
@@ -106,8 +106,8 @@ jobs:
       - name: Extract BuildKit cache
         if: steps.cache-buildkit.outputs.cache-hit == 'true'
         run: |
-          mkdir -p target/buildkit-cache
-          sudo tar -xf target/buildkit-cache.tar.zst -C target/buildkit-cache
+          mkdir -p .buildkit-cache
+          sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
 
       - name: Run integration tests (static mode)
         run: |
@@ -133,9 +133,9 @@ jobs:
         run: |
           # Create tar archive with sudo to handle root-owned files
           # Cache the archive file instead of the directory to avoid permission issues
-          if [ -d target/buildkit-cache ]; then
-            sudo tar -cf target/buildkit-cache.tar.zst --zstd -C target/buildkit-cache . || true
-            sudo chown $USER:$USER target/buildkit-cache.tar.zst || true
+          if [ -d .buildkit-cache ]; then
+            sudo tar -cf .buildkit-cache.tar.zst --zstd -C .buildkit-cache . || true
+            sudo chown $USER:$USER .buildkit-cache.tar.zst || true
           fi
 
       - name: Upload new recording files
@@ -198,7 +198,7 @@ jobs:
         id: cache-buildkit-docker
         uses: actions/cache@v4
         with:
-          path: target/buildkit-cache.tar.zst
+          path: .buildkit-cache.tar.zst
           key: buildkit-${{ runner.os }}
           restore-keys: |
             buildkit-${{ runner.os }}
@@ -206,14 +206,14 @@ jobs:
       - name: Extract BuildKit cache
         if: steps.cache-buildkit-docker.outputs.cache-hit == 'true'
         run: |
-          mkdir -p target/buildkit-cache
-          sudo tar -xf target/buildkit-cache.tar.zst -C target/buildkit-cache
+          mkdir -p .buildkit-cache
+          sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
 
       - name: Start BuildKit container
         run: |
           docker run -d --name buildkitd --privileged \
             -p 127.0.0.1:1234:1234 \
-            -v $(pwd)/target/buildkit-cache:/var/lib/buildkit \
+            -v $(pwd)/.buildkit-cache:/var/lib/buildkit \
             moby/buildkit:latest \
             --addr tcp://0.0.0.0:1234
 
@@ -272,9 +272,9 @@ jobs:
         run: |
           # Create tar archive with sudo to handle root-owned files
           # Cache the archive file instead of the directory to avoid permission issues
-          if [ -d target/buildkit-cache ]; then
-            sudo tar -cf target/buildkit-cache.tar.zst --zstd -C target/buildkit-cache . || true
-            sudo chown $USER:$USER target/buildkit-cache.tar.zst || true
+          if [ -d .buildkit-cache ]; then
+            sudo tar -cf .buildkit-cache.tar.zst --zstd -C .buildkit-cache . || true
+            sudo chown $USER:$USER .buildkit-cache.tar.zst || true
           fi
 
       - name: Cleanup BuildKit

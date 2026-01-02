@@ -66,10 +66,10 @@ pub async fn get_buildkit_container() -> Result<String> {
 
     let container = BUILDKIT_CONTAINER
         .get_or_init(|| async {
-            // Use target/buildkit-cache for cache directory (no root required)
+            // Use .buildkit-cache in project root (separate from target/ to avoid Rust cache conflicts)
             let cache_dir = std::env::current_dir()
                 .expect("Failed to get current directory")
-                .join("target/buildkit-cache");
+                .join(".buildkit-cache");
             std::fs::create_dir_all(&cache_dir).expect("Failed to create BuildKit cache directory");
 
             // Start new BuildKit container with bind-mounted cache directory
