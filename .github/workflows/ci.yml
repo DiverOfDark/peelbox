@@ -197,10 +197,10 @@ jobs:
             moby/buildkit:latest \
             --addr tcp://0.0.0.0:1234
 
-          # Wait for BuildKit to be ready (up to 120s)
+          # Wait for BuildKit to be ready (up to 60s)
           echo "Waiting for BuildKit to start..."
-          timeout 120 sh -c 'until docker exec buildkitd buildctl debug workers >/dev/null 2>&1; do echo -n "."; sleep 2; done' || {
-            echo "BuildKit failed to start within 120s"
+          timeout 60 sh -c 'until buildctl --addr tcp://127.0.0.1:1234 debug workers >/dev/null 2>&1; do echo -n "."; sleep 2; done' || {
+            echo "BuildKit failed to start within 60s"
             docker logs buildkitd
             exit 1
           }
