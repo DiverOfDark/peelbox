@@ -121,6 +121,12 @@ jobs:
           # Build cache is shared across test runs for faster execution
           cargo test --test buildkit_integration --release --no-default-features --verbose
 
+      - name: Fix BuildKit cache permissions
+        if: always()
+        run: |
+          # BuildKit container runs as root, so fix ownership for caching
+          sudo chown -R $USER:$USER target/buildkit-cache || true
+
       - name: Upload new recording files
         if: always()
         run: |
@@ -239,6 +245,12 @@ jobs:
           docker push ghcr.io/${REPO_OWNER}/peelbox:latest
           docker push ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
           docker push ghcr.io/${REPO_OWNER}/peelbox:$(date +%Y%m%d-%H%M%S)
+
+      - name: Fix BuildKit cache permissions
+        if: always()
+        run: |
+          # BuildKit container runs as root, so fix ownership for caching
+          sudo chown -R $USER:$USER target/buildkit-cache || true
 
       - name: Cleanup BuildKit
         if: always()
