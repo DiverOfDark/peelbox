@@ -66,11 +66,22 @@ pub async fn get_buildkit_container() -> Result<String> {
 
     let container = BUILDKIT_CONTAINER
         .get_or_init(|| async {
-            // Start new BuildKit container with fixed name and shared cache volume
+            // Use target/buildkit-cache for cache directory (no root required)
+            let cache_dir = std::env::current_dir()
+                .expect("Failed to get current directory")
+                .join("target/buildkit-cache");
+            std::fs::create_dir_all(&cache_dir)
+                .expect("Failed to create BuildKit cache directory");
+
+            // Start new BuildKit container with bind-mounted cache directory
+            // Using bind mount instead of volume to enable GitHub Actions caching
             let buildkit_container = GenericImage::new("moby/buildkit", "latest")
                 .with_wait_for(WaitFor::message_on_stderr("running server on"))
                 .with_privileged(true)
-                .with_mount(Mount::volume_mount("buildkit-cache", "/var/lib/buildkit"))
+                .with_mount(Mount::bind_mount(
+                    cache_dir.to_str().expect("Invalid cache path"),
+                    "/var/lib/buildkit",
+                ))
                 .with_container_name(BUILDKIT_CONTAINER_NAME)
                 .start()
                 .await
