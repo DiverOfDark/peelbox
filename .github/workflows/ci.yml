@@ -240,8 +240,10 @@ jobs:
           cat /tmp/oci-config.json
 
           # Escape for CSV format (buildctl uses CSV parsing)
-          OCI_CONFIG=$(cat /tmp/oci-config.json | jq -c . | sed 's/"/\\"/g')
-          echo "Escaped OCI Config: $OCI_CONFIG"
+          # First escape: quotes for buildctl CSV parser
+          # Second escape: backslashes for sed replacement
+          OCI_CONFIG=$(cat /tmp/oci-config.json | jq -c . | sed 's/"/\\"/g' | sed 's/\\/\\\\/g')
+          echo "Double-escaped OCI Config: $OCI_CONFIG"
 
           # Write buildctl command to a script with interpolated variable
           cat > /tmp/build.sh << 'SCRIPT_END'
