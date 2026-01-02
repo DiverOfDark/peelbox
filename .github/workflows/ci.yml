@@ -233,13 +233,20 @@ jobs:
 
       - name: Build image with BuildKit
         run: |
-          # Generate OCI image config from UniversalBuild spec (escape quotes for shell)
-          OCI_CONFIG=$(jq -c '.[] | {Config: {Entrypoint: .runtime.command, Env: [.runtime.env | to_entries[] | "\(.key)=\(.value)"]}}' universalbuild.json | sed 's/"/\\"/g')
+          # Generate OCI image config from UniversalBuild spec
+          jq -c '.[] | {Config: {Entrypoint: .runtime.command, Env: [.runtime.env | to_entries[] | "\(.key)=\(.value)"]}}' universalbuild.json > /tmp/oci-config.json
+
+          echo "OCI Config:"
+          cat /tmp/oci-config.json
+
+          # Read config and escape for CSV format (buildctl uses CSV parsing)
+          OCI_CONFIG=$(cat /tmp/oci-config.json | jq -c . | sed 's/"/\\"/g')
+          echo "Escaped OCI Config: $OCI_CONFIG"
 
           # Build with image config embedded in output
           cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
             --local context=. \
-            --output "type=docker,name=peelbox:latest,\"containerimage.config=$OCI_CONFIG\"" > /tmp/peelbox.tar
+            --output type=docker,name=peelbox:latest,\"containerimage.config=$OCI_CONFIG\" > /tmp/peelbox.tar
 
       - name: Load image into Docker
         run: docker load < /tmp/peelbox.tar
