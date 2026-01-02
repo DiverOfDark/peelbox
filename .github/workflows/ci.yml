@@ -233,7 +233,7 @@ jobs:
 
       - name: Build image with BuildKit
         run: |
-          buildctl --addr tcp://127.0.0.1:1234 build \
+          cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
             --local context=. \
             --output type=docker,name=peelbox:latest > /tmp/peelbox.tar
 
