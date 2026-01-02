@@ -98,7 +98,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: target/buildkit-cache
-          key: buildkit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'universalbuild.json') }}
+          key: buildkit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             buildkit-${{ runner.os }}-
 
@@ -178,7 +178,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: target/buildkit-cache
-          key: buildkit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'universalbuild.json') }}
+          key: buildkit-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             buildkit-${{ runner.os }}-
 
