@@ -74,14 +74,30 @@ brew install buildkit
 sudo apt install buildkit
 ```
 
-### 2. Install peelbox
+### 2. Run peelbox
+
+#### Option A: Use Docker Image (No Installation)
 
 ```bash
-# From source
+# Detect your project using the published Docker image
+docker run --rm -v $(pwd):/workspace ghcr.io/diverofdark/peelbox:latest \
+  detect /workspace > universalbuild.json
+
+# View the generated build specification
+cat universalbuild.json
+```
+
+#### Option B: Install from Source
+
+```bash
+# Build and install peelbox locally
 git clone https://github.com/diverofdark/peelbox.git
 cd peelbox
 cargo build --release
 sudo install -m 755 target/release/peelbox /usr/local/bin/
+
+# Now use peelbox directly
+peelbox detect . > universalbuild.json
 ```
 
 ### 3. Build your first distroless image
@@ -137,14 +153,36 @@ Note: No base images! peelbox uses `cgr.dev/chainguard/wolfi-base` automatically
 
 ## Installation
 
-### Prerequisites
+### Option 1: Use Docker Image (Recommended)
+
+No installation needed! Use the published Docker image:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/diverofdark/peelbox:latest
+
+# Run peelbox via Docker
+docker run --rm -v $(pwd):/workspace \
+  ghcr.io/diverofdark/peelbox:latest \
+  detect /workspace
+```
+
+**Advantages:**
+- No local installation required
+- Always up-to-date with latest release
+- Works on any platform with Docker
+- Embedded LLM included (zero-config)
+
+### Option 2: Install from Source
+
+#### Prerequisites
 
 - **Rust 1.70+**: [rustup.rs](https://rustup.rs/)
 - **BuildKit v0.11.0+**: Docker Desktop 4.17+, Docker Engine 23.0+, or standalone buildkit
 - **buildctl CLI**: Included with BuildKit installations
 - **Ollama** (optional, for local LLM): [ollama.ai](https://ollama.ai/)
 
-### From Source
+#### Build and Install
 
 ```bash
 git clone https://github.com/diverofdark/peelbox.git
@@ -497,7 +535,38 @@ PEELBOX_PROVIDER=embedded peelbox detect .
 
 ## Examples
 
-### Basic Workflow
+### Using Docker Image (No Installation)
+
+```bash
+cd myproject
+
+# 1. Detect using Docker image
+docker run --rm -v $(pwd):/workspace \
+  ghcr.io/diverofdark/peelbox:latest \
+  detect /workspace > universalbuild.json
+
+# 2. Start BuildKit daemon
+docker run -d --rm --name buildkitd --privileged \
+  -p 127.0.0.1:1234:1234 \
+  moby/buildkit:latest --addr tcp://0.0.0.0:1234
+
+# 3. Generate LLB and build
+docker run --rm -v $(pwd):/workspace \
+  ghcr.io/diverofdark/peelbox:latest \
+  frontend --spec /workspace/universalbuild.json | \
+  buildctl --addr tcp://127.0.0.1:1234 build \
+    --local context=$(pwd) \
+    --output type=docker,name=myapp:latest | \
+  docker load
+
+# 4. Run your distroless image
+docker run -p 8080:8080 myapp:latest
+
+# 5. Verify it's truly distroless
+docker run --rm myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
+```
+
+### Basic Workflow (Installed Binary)
 
 ```bash
 # 1. Detect build configuration
