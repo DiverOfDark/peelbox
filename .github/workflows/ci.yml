@@ -244,12 +244,15 @@ jobs:
           echo "Escaped OCI Config: $OCI_CONFIG"
 
           # Write buildctl command to a script with interpolated variable
-          cat > /tmp/build.sh << EOF
-#!/bin/bash
-cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \\
-  --local context=. \\
-  --output 'type=docker,name=peelbox:latest,"containerimage.config=$OCI_CONFIG"' > /tmp/peelbox.tar
-EOF
+          cat > /tmp/build.sh << 'SCRIPT_END'
+          #!/bin/bash
+          cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
+            --local context=. \
+            --output 'type=docker,name=peelbox:latest,"containerimage.config=OCI_CONFIG_PLACEHOLDER"' > /tmp/peelbox.tar
+          SCRIPT_END
+
+          # Replace placeholder with actual escaped config
+          sed -i "s|OCI_CONFIG_PLACEHOLDER|$OCI_CONFIG|g" /tmp/build.sh
 
           echo "Generated build.sh:"
           cat /tmp/build.sh
