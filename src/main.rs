@@ -1,6 +1,6 @@
 use genai::adapter::AdapterKind;
-use peelbox::buildkit::llb::LLBBuilder;
-use peelbox::cli::commands::{CliArgs, Commands, DetectArgs, FrontendArgs, HealthArgs};
+use peelbox::buildkit::{progress::ProgressTracker, BuildKitConnection, BuildSession};
+use peelbox::cli::commands::{BuildArgs, CliArgs, Commands, DetectArgs, HealthArgs};
 use peelbox::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use peelbox::config::PeelboxConfig;
 use peelbox::detection::service::DetectionService;
@@ -12,7 +12,6 @@ use clap::Parser;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
@@ -30,7 +29,7 @@ async fn main() {
     let exit_code = match &args.command {
         Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet, args.verbose).await,
         Commands::Health(health_args) => handle_health(health_args).await,
-        Commands::Frontend(frontend_args) => handle_frontend(frontend_args).await,
+        Commands::Build(build_args) => handle_build(build_args, args.quiet, args.verbose).await,
     };
 
     process::exit(exit_code);
@@ -98,20 +97,12 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
     if !repo_path.exists() {
         error!("Repository path does not exist: {}", repo_path.display());
-        eprintln!(
-            "Error: Repository path does not exist: {}",
-            repo_path.display()
-        );
         return 1;
     }
 
     if !repo_path.is_dir() {
         error!(
             "Repository path is not a directory: {}",
-            repo_path.display()
-        );
-        eprintln!(
-            "Error: Repository path is not a directory: {}",
             repo_path.display()
         );
         return 1;
@@ -121,7 +112,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         Ok(path) => path,
         Err(e) => {
             error!("Failed to canonicalize repository path: {}", e);
-            eprintln!("Error: Failed to canonicalize repository path: {}", e);
             return 1;
         }
     };
@@ -147,7 +137,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
     if let Err(e) = config.validate() {
         error!("Configuration error: {}", e);
-        eprintln!("Configuration error: {}", e);
         eprintln!("\nPlease check your environment variables and command-line arguments.");
         return 1;
     }
@@ -189,7 +178,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
             Ok(c) => wrap_with_recording(Arc::new(c) as Arc<dyn peelbox::llm::LLMClient>),
             Err(e) => {
                 error!("Failed to initialize backend: {}", e);
-                eprintln!("Failed to initialize backend: {}", e);
                 eprintln!("\nPossible solutions:");
                 match config.provider {
                     AdapterKind::Ollama => {
@@ -256,7 +244,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         Ok(r) => r,
         Err(e) => {
             error!("Detection failed: {}", e);
-            eprintln!("Detection failed: {}", e);
             return 1;
         }
     };
@@ -270,7 +257,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         Ok(out) => out,
         Err(e) => {
             error!("Failed to format output: {}", e);
-            eprintln!("Error: Failed to format output: {}", e);
             return 1;
         }
     };
@@ -285,11 +271,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
             }
             Err(e) => {
                 error!("Failed to write output to file: {}", e);
-                eprintln!(
-                    "Error: Failed to write output to {}: {}",
-                    output_file.display(),
-                    e
-                );
                 return 1;
             }
         }
@@ -523,7 +504,6 @@ async fn handle_health(args: &HealthArgs) -> i32 {
         Ok(out) => out,
         Err(e) => {
             error!("Failed to format health output: {}", e);
-            eprintln!("Error: Failed to format health output: {}", e);
             return 1;
         }
     };
@@ -538,31 +518,14 @@ async fn handle_health(args: &HealthArgs) -> i32 {
     }
 }
 
-async fn handle_frontend(_args: &FrontendArgs) -> i32 {
-    // BuildKit frontend protocol:
-    // - Read spec from build context
-    // - Generate LLB with exclude patterns from .gitignore
-    // - Write LLB Definition protobuf to stdout
-    // - Exit
+async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
+    info!("Starting build");
 
-    debug!("Running in BuildKit frontend mode");
-
-    // Default spec path
-    let spec_path = _args
-        .spec
-        .clone()
-        .unwrap_or_else(|| PathBuf::from("universalbuild.json"));
-
-    // Load spec file from build context
-    let spec_content = match fs::read_to_string(&spec_path) {
+    // Load spec file
+    let spec_content = match fs::read_to_string(&args.spec) {
         Ok(content) => content,
         Err(e) => {
-            error!("Failed to read spec file {}: {}", spec_path.display(), e);
-            eprintln!(
-                "Error: Failed to read spec file {}: {}",
-                spec_path.display(),
-                e
-            );
+            error!("Failed to read spec file {}: {}", args.spec.display(), e);
             return 1;
         }
     };
@@ -576,7 +539,6 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
                 Ok(s) => vec![s],
                 Err(e) => {
                     error!("Failed to parse spec file: {}", e);
-                    eprintln!("Error: Failed to parse spec file: {}", e);
                     return 1;
                 }
             }
@@ -585,15 +547,14 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
 
     if specs.is_empty() {
         error!("Spec file contains empty array");
-        eprintln!("Error: Spec file contains empty array");
         return 1;
     }
 
-    // Strict service selection for monorepos
+    // Service selection for monorepos
     let spec: UniversalBuild = if specs.len() > 1 {
         // Multiple services detected - require --service flag
-        if let Some(ref service_name) = _args.service {
-            // Collect available services before moving specs
+        if let Some(ref service_name) = args.service {
+            // Collect available services
             let available_services: Vec<String> = specs
                 .iter()
                 .filter_map(|s| s.metadata.project_name.clone())
@@ -623,7 +584,7 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
                 }
             }
         } else {
-            // Multiple services but no --service flag provided
+            // Multiple services but no --service flag
             let service_list: Vec<String> = specs
                 .iter()
                 .filter_map(|s| s.metadata.project_name.clone())
@@ -636,7 +597,7 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
             return 1;
         }
     } else {
-        // Single service - use it regardless of --service flag
+        // Single service
         specs.into_iter().next().unwrap()
     };
 
@@ -645,26 +606,78 @@ async fn handle_frontend(_args: &FrontendArgs) -> i32 {
         spec.metadata.project_name
     );
 
-    // Generate LLB with the specified context name
-    let llb_builder = LLBBuilder::new(&_args.context_name);
-    let llb_bytes = match llb_builder.build(&spec) {
-        Ok(bytes) => bytes,
+    // Connect to BuildKit daemon
+    info!("Connecting to BuildKit daemon...");
+    let connection = match BuildKitConnection::connect(args.buildkit.as_deref()).await {
+        Ok(conn) => conn,
         Err(e) => {
-            error!("Failed to generate LLB: {}", e);
-            eprintln!("Error: Failed to generate LLB: {}", e);
+            error!("Failed to connect to BuildKit: {}", e);
             return 1;
         }
     };
 
-    debug!("Generated LLB definition: {} bytes", llb_bytes.len());
+    info!("Connected to BuildKit successfully");
 
-    // Write LLB to stdout (this is the BuildKit frontend protocol)
-    if let Err(e) = std::io::stdout().write_all(&llb_bytes) {
-        error!("Failed to write LLB to stdout: {}", e);
-        eprintln!("Error: Failed to write LLB to stdout: {}", e);
+    // Get current directory as build context
+    let context_path = env::current_dir().expect("Failed to get current directory");
+
+    // Determine output path for tar export
+    let output_path = if let Some(output_spec) = &args.output {
+        // Parse output spec (e.g., "type=oci,dest=file.tar", "oci,dest=file.tar", "dest=file.tar", or just "file.tar")
+        if let Some(after_type) = output_spec.strip_prefix("type=oci,") {
+            // Handle "type=oci,dest=..."
+            if let Some(dest) = after_type.strip_prefix("dest=") {
+                PathBuf::from(dest)
+            } else {
+                PathBuf::from(after_type)
+            }
+        } else if let Some(dest) = output_spec.strip_prefix("oci,dest=") {
+            PathBuf::from(dest)
+        } else if let Some(dest) = output_spec.strip_prefix("dest=") {
+            PathBuf::from(dest)
+        } else {
+            // Assume it's just a file path
+            PathBuf::from(output_spec)
+        }
+    } else {
+        // Default to {tag}.tar in current directory (replace : and / with - for valid filename)
+        let sanitized_tag = args.tag.replace(':', "-").replace('/', "-");
+        context_path.join(format!("{}.tar", sanitized_tag))
+    };
+
+    info!("Output will be written to: {}", output_path.display());
+
+    // Create build session
+    let mut session = BuildSession::new(connection, context_path, output_path);
+
+    // Initialize session
+    if let Err(e) = session.initialize().await {
+        error!("Failed to initialize build session: {}", e);
         return 1;
     }
 
-    debug!("LLB written to stdout successfully");
+    // Create progress tracker with user-specified verbosity
+    let progress_tracker = ProgressTracker::new(quiet, verbose);
+
+    // Execute build
+    let result = match session.build(&spec, &args.tag, Some(&progress_tracker)).await {
+        Ok(r) => r,
+        Err(e) => {
+            error!("Build failed: {}", e);
+            progress_tracker.build_failed(&e.to_string());
+            return 1;
+        }
+    };
+
+    // Progress tracker already printed build completion summary
+    debug!("Build completed successfully");
+    debug!("Image ID: {}", result.image_id);
+    debug!("Image size: {} bytes", result.size_bytes);
+
+    info!("Build successful!");
+    info!("  Image: {}", args.tag);
+    info!("  ID: {}", result.image_id);
+    info!("  Size: {:.2} MB", result.size_bytes as f64 / 1024.0 / 1024.0);
+
     0
 }

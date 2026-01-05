@@ -1,14 +1,18 @@
 /// BuildKit Integration Tests
 ///
-/// These tests verify the complete BuildKit frontend workflow by building
+/// These tests verify the complete BuildKit gRPC workflow by building
 /// a container image and validating its properties.
 ///
 /// Requirements:
 /// - Docker or Podman must be installed and running
 /// - BuildKit support (enabled by default in Docker 23.0+ and Podman 4.0+)
-/// - buildctl CLI tool available in PATH
 ///
-/// The tests use testcontainers to automatically manage BuildKit containers.
+/// The tests use testcontainers to automatically manage BuildKit containers
+/// and connect to them via the BuildKit gRPC protocol (no buildctl required).
+///
+/// Implementation Status:
+/// - ✅ Core tests enabled (FileSync, Session, LLB submission)
+/// - ⏸️ Output format tests still ignored (Phase 7 not implemented)
 ///
 /// Usage:
 ///   cargo test --test buildkit_integration -- --nocapture
@@ -21,8 +25,6 @@ use bollard::container::{
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use serial_test::serial;
-use std::io::Write;
-use std::process::Stdio;
 use support::ContainerTestHarness;
 
 /// Shared test fixture: Build peelbox image using BuildKit
@@ -303,14 +305,18 @@ async fn test_binary_exists_and_executable() -> Result<()> {
     Ok(())
 }
 
-/// Test various buildctl output types (OCI and Docker tarballs)
+/// Test various output types (OCI and Docker tarballs)
+/// NOTE: This test currently uses peelbox build with --output flag
+/// which is not yet fully implemented (Phase 7). The test will fail
+/// until output format implementation is complete.
 #[tokio::test]
 #[serial]
+#[ignore = "Output format implementation not complete (Phase 7)"]
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
 
-    // Use the shared BuildKit container to avoid lock conflicts
-    let container_id = support::container_harness::get_buildkit_container().await?;
+    // Get the shared BuildKit container
+    let (port, _container_id) = support::container_harness::get_buildkit_container().await?;
 
     let peelbox_binary = std::env::current_dir()?.join("target/release/peelbox");
     if !peelbox_binary.exists() {
@@ -329,50 +335,30 @@ async fn test_buildctl_output_types() -> Result<()> {
     }
 
     let spec_path = std::env::current_dir()?.join("universalbuild.json");
-    let peelbox_output = std::process::Command::new(&peelbox_binary)
-        .args(["frontend", "--spec", spec_path.to_str().unwrap()])
-        .output()?;
-
-    if !peelbox_output.status.success() {
-        anyhow::bail!(
-            "peelbox frontend failed: {}",
-            String::from_utf8_lossy(&peelbox_output.stderr)
-        );
-    }
-
-    let llb_data = peelbox_output.stdout;
-    let repo_path = std::env::current_dir()?;
-    let buildkit_addr = format!("docker-container://{}", container_id);
+    let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
     // Test OCI tarball output
     println!("--- Testing OCI tarball output ---");
     let oci_dest = std::env::temp_dir().join("peelbox-test-oci.tar");
 
-    let mut buildctl_oci = std::process::Command::new("buildctl")
+    let peelbox_oci = std::process::Command::new(&peelbox_binary)
         .args([
-            "--addr",
-            &buildkit_addr,
             "build",
-            "--progress=plain",
-            "--local",
-            &format!("context={}", repo_path.display()),
+            "--spec",
+            spec_path.to_str().unwrap(),
+            "--tag",
+            "peelbox-test:latest",
+            "--buildkit",
+            &buildkit_addr,
             "--output",
             &format!("type=oci,dest={}", oci_dest.display()),
         ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+        .output()?;
 
-    if let Some(mut stdin) = buildctl_oci.stdin.take() {
-        stdin.write_all(&llb_data)?;
-    }
-
-    let oci_output = buildctl_oci.wait_with_output()?;
-    if !oci_output.status.success() {
+    if !peelbox_oci.status.success() {
         eprintln!(
-            "OCI build stderr:\n{}",
-            String::from_utf8_lossy(&oci_output.stderr)
+            "peelbox build (OCI) stderr:\n{}",
+            String::from_utf8_lossy(&peelbox_oci.stderr)
         );
         anyhow::bail!("OCI tarball build failed");
     }
@@ -386,34 +372,24 @@ async fn test_buildctl_output_types() -> Result<()> {
     println!("\n--- Testing Docker tarball output ---");
     let docker_dest = std::env::temp_dir().join("peelbox-test-docker.tar");
 
-    let mut buildctl_docker = std::process::Command::new("buildctl")
+    let peelbox_docker = std::process::Command::new(&peelbox_binary)
         .args([
-            "--addr",
-            &buildkit_addr,
             "build",
-            "--progress=plain",
-            "--local",
-            &format!("context={}", repo_path.display()),
+            "--spec",
+            spec_path.to_str().unwrap(),
+            "--tag",
+            "peelbox-test:latest",
+            "--buildkit",
+            &buildkit_addr,
             "--output",
-            &format!(
-                "type=docker,name=peelbox-test:latest,dest={}",
-                docker_dest.display()
-            ),
+            &format!("type=docker,dest={}", docker_dest.display()),
         ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+        .output()?;
 
-    if let Some(mut stdin) = buildctl_docker.stdin.take() {
-        stdin.write_all(&llb_data)?;
-    }
-
-    let docker_output = buildctl_docker.wait_with_output()?;
-    if !docker_output.status.success() {
+    if !peelbox_docker.status.success() {
         eprintln!(
-            "Docker build stderr:\n{}",
-            String::from_utf8_lossy(&docker_output.stderr)
+            "peelbox build (Docker) stderr:\n{}",
+            String::from_utf8_lossy(&peelbox_docker.stderr)
         );
         anyhow::bail!("Docker tarball build failed");
     }

@@ -390,8 +390,8 @@ impl LLBBuilder {
         Ok(())
     }
 
-    /// Generate LLB definition as bytes
-    pub fn build(&self, spec: &UniversalBuild) -> Result<Vec<u8>> {
+    /// Generate LLB definition as bytes for gRPC submission
+    pub fn to_bytes(&self, spec: &UniversalBuild) -> Result<Vec<u8>> {
         let mut buffer = Vec::new();
         self.write_definition(spec, &mut buffer)?;
         Ok(buffer)
@@ -452,7 +452,7 @@ mod tests {
         let builder = LLBBuilder::new("context");
         let spec = create_test_spec();
 
-        let result = builder.build(&spec);
+        let result = builder.to_bytes(&spec);
         assert!(result.is_ok(), "Full build should succeed");
 
         let bytes = result.unwrap();
@@ -468,7 +468,7 @@ mod tests {
         let mut spec = create_test_spec();
         spec.build.packages.clear();
 
-        let result = builder.build(&spec);
+        let result = builder.to_bytes(&spec);
         assert!(
             result.is_ok(),
             "Should handle empty packages list gracefully"
@@ -488,7 +488,7 @@ mod tests {
 
         assert!(!spec.build.env.is_empty(), "Test spec should have env vars");
 
-        let result = builder.build(&spec);
+        let result = builder.to_bytes(&spec);
         assert!(result.is_ok(), "Build with env vars should succeed");
     }
 }

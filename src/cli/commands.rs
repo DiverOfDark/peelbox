@@ -62,18 +62,15 @@ pub enum Commands {
     Health(HealthArgs),
 
     #[command(
-        about = "BuildKit frontend mode - output LLB to stdout",
-        long_about = "Runs as a BuildKit frontend, reading UniversalBuild spec and outputting LLB.\n\
-                      This is the standard BuildKit frontend protocol.\n\n\
+        about = "Build image from UniversalBuild spec",
+        long_about = "Build container image from UniversalBuild specification file.\n\
+                      Connects to BuildKit daemon and executes build with real-time progress.\n\n\
                       Examples:\n  \
-                      # Via buildctl\n  \
-                      buildctl build --frontend=gateway.v0 --opt source=local://peelbox \\\n  \
-                        --local peelbox=/path/to/peelbox-binary \\\n  \
-                        --local context=/path/to/build/context \\\n  \
-                        --opt spec=universalbuild.json \\\n  \
-                        --output type=docker,name=myapp:latest"
+                      peelbox build --spec universalbuild.json --tag myapp:latest\n  \
+                      peelbox build --spec spec.json --tag app:v1 --service api\n  \
+                      peelbox build --spec spec.json --tag app:latest --output type=oci,dest=app.tar"
     )]
-    Frontend(FrontendArgs),
+    Build(BuildArgs),
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -153,21 +150,50 @@ pub struct HealthArgs {
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct FrontendArgs {
+pub struct BuildArgs {
     #[arg(
         long,
         value_name = "FILE",
-        help = "Path to UniversalBuild JSON file (relative to build context)"
+        required = true,
+        help = "Path to UniversalBuild JSON file"
     )]
-    pub spec: Option<PathBuf>,
+    pub spec: PathBuf,
 
     #[arg(
         long,
-        value_name = "NAME",
-        default_value = "context",
-        help = "Local context name for BuildKit (use unique names for parallel builds)"
+        value_name = "TAG",
+        required = true,
+        help = "Image tag (e.g., myapp:latest)"
     )]
-    pub context_name: String,
+    pub tag: String,
+
+    #[arg(
+        long,
+        value_name = "OUTPUT",
+        help = "Output type (docker or oci,dest=file.tar, defaults to docker)"
+    )]
+    pub output: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "ADDR",
+        help = "BuildKit daemon address (unix:///path, tcp://host:port, or docker-container://name)"
+    )]
+    pub buildkit: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "ENTRYPOINT",
+        help = "Override entrypoint at build time"
+    )]
+    pub entrypoint: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "PLATFORM",
+        help = "Target platform (e.g., linux/amd64)"
+    )]
+    pub platform: Option<String>,
 
     #[arg(
         long,
