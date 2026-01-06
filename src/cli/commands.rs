@@ -68,6 +68,7 @@ pub enum Commands {
                       Examples:\n  \
                       peelbox build --spec universalbuild.json --tag myapp:latest\n  \
                       peelbox build --spec spec.json --tag app:v1 --service api\n  \
+                      peelbox build --spec spec.json --tag app:latest --context /path/to/project\n  \
                       peelbox build --spec spec.json --tag app:latest --output type=oci,dest=app.tar"
     )]
     Build(BuildArgs),
@@ -201,6 +202,13 @@ pub struct BuildArgs {
         help = "Service name to build (required for monorepos with multiple services)"
     )]
     pub service: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "PATH",
+        help = "Build context directory (defaults to current directory)"
+    )]
+    pub context: Option<PathBuf>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

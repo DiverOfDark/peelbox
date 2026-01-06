@@ -36,7 +36,7 @@ pub struct BuildSession {
 
 impl BuildSession {
     /// Create a new build session
-    pub fn new(connection: BuildKitConnection, context_path: PathBuf, output_path: PathBuf) -> Self {
+    pub fn new(connection: BuildKitConnection, context_path: PathBuf, output_path: PathBuf, image_tag: String) -> Self {
         let session_id = Self::generate_session_id();
         debug!("Creating new build session: {}", session_id);
 
@@ -45,7 +45,7 @@ impl BuildSession {
             session_id,
             context_path,
             output_path,
-            image_tag: None,
+            image_tag: Some(image_tag),
             session_server: None,
             session_tx: None,
             conn_tx: None,
@@ -270,9 +270,6 @@ impl BuildSession {
         progress: Option<&super::progress::ProgressTracker>,
     ) -> Result<BuildResult> {
         debug!("Building image: {}", image_tag);
-
-        // Store image tag for use in Exporter service
-        self.image_tag = Some(image_tag.to_string());
 
         if let Some(tracker) = progress.as_ref() {
             tracker.build_started(image_tag);

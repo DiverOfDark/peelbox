@@ -136,7 +136,7 @@ impl ContainerTestHarness {
     pub async fn build_image(
         &self,
         spec_path: &Path,
-        _context_path: &Path,
+        context_path: &Path,
         image_name: &str,
     ) -> Result<String> {
         // Get or create the shared BuildKit container
@@ -176,6 +176,8 @@ impl ContainerTestHarness {
                 image_name,
                 "--buildkit",
                 &buildkit_addr,
+                "--context",
+                context_path.to_str().unwrap(),
             ])
             .output()
             .context("Failed to run peelbox build")?;
@@ -192,6 +194,23 @@ impl ContainerTestHarness {
             anyhow::bail!(
                 "peelbox build failed: {}",
                 String::from_utf8_lossy(&peelbox_output.stderr)
+            );
+        }
+
+        // Load the tar file into Docker
+        // The tar file is saved to the context directory (where --context points to)
+        let output_tar = context_path
+            .join(format!("{}.tar", image_name.replace(':', "-").replace('/', "-")));
+
+        let load_output = std::process::Command::new("docker")
+            .args(["load", "-i", output_tar.to_str().unwrap()])
+            .output()
+            .context("Failed to load image into Docker")?;
+
+        if !load_output.status.success() {
+            anyhow::bail!(
+                "Failed to load image into Docker: {}",
+                String::from_utf8_lossy(&load_output.stderr)
             );
         }
 

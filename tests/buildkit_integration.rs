@@ -25,29 +25,39 @@ use bollard::container::{
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use serial_test::serial;
+use std::sync::Arc;
 use support::ContainerTestHarness;
+use tokio::sync::OnceCell;
 
-/// Shared test fixture: Build peelbox image using BuildKit
-/// Returns (image_name, docker_client)
-async fn build_peelbox_image(test_name: &str) -> Result<(String, Docker)> {
-    let harness = ContainerTestHarness::new()?;
+/// Global shared peelbox image for all integration tests
+/// Uses a single image build across all tests to avoid rebuilding for each test
+static PEELBOX_IMAGE: OnceCell<Arc<String>> = OnceCell::const_new();
 
-    let spec_path = std::env::current_dir()
-        .context("Failed to get current directory")?
-        .join("universalbuild.json");
+/// Get or build the shared peelbox image
+/// Returns the image name
+async fn get_or_build_peelbox_image() -> Result<String> {
+    let image = PEELBOX_IMAGE
+        .get_or_init(|| async {
+            let harness = ContainerTestHarness::new().expect("Failed to create harness");
 
-    let context_path = std::env::current_dir().context("Failed to get current directory")?;
+            let spec_path = std::env::current_dir()
+                .expect("Failed to get current directory")
+                .join("universalbuild.json");
 
-    let image_name = format!("localhost/peelbox-test-{}:latest", test_name);
+            let context_path = std::env::current_dir().expect("Failed to get current directory");
 
-    harness
-        .build_image(&spec_path, &context_path, &image_name)
-        .await?;
+            let image_name = "localhost/peelbox-test:integration".to_string();
 
-    let docker =
-        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
+            harness
+                .build_image(&spec_path, &context_path, &image_name)
+                .await
+                .expect("Failed to build peelbox image");
 
-    Ok((image_name, docker))
+            Arc::new(image_name)
+        })
+        .await;
+
+    Ok(image.as_ref().clone())
 }
 
 /// Test that the image builds successfully and exists in registry
@@ -56,7 +66,9 @@ async fn build_peelbox_image(test_name: &str) -> Result<(String, Docker)> {
 async fn test_image_builds_successfully() -> Result<()> {
     println!("=== Image Build Test ===\n");
 
-    let (image_name, docker) = build_peelbox_image("build").await?;
+    let image_name = get_or_build_peelbox_image().await?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
 
     let inspect = docker
         .inspect_image(&image_name)
@@ -75,7 +87,9 @@ async fn test_image_builds_successfully() -> Result<()> {
 async fn test_image_runs_help_command() -> Result<()> {
     println!("=== Image Execution Test ===\n");
 
-    let (image_name, docker) = build_peelbox_image("help").await?;
+    let image_name = get_or_build_peelbox_image().await?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
 
     let container_config = Config {
         image: Some(image_name.clone()),
@@ -151,7 +165,9 @@ async fn test_image_runs_help_command() -> Result<()> {
 async fn test_distroless_layer_structure() -> Result<()> {
     println!("=== Distroless Layer Structure Test ===\n");
 
-    let (image_name, docker) = build_peelbox_image("layers").await?;
+    let image_name = get_or_build_peelbox_image().await?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
 
     let history = docker
         .image_history(&image_name)
@@ -223,7 +239,9 @@ async fn test_distroless_layer_structure() -> Result<()> {
 async fn test_image_size_optimized() -> Result<()> {
     println!("=== Image Size Optimization Test ===\n");
 
-    let (image_name, docker) = build_peelbox_image("size").await?;
+    let image_name = get_or_build_peelbox_image().await?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
 
     let inspect = docker
         .inspect_image(&image_name)
@@ -258,7 +276,9 @@ async fn test_image_size_optimized() -> Result<()> {
 async fn test_binary_exists_and_executable() -> Result<()> {
     println!("=== Binary Location Test ===\n");
 
-    let (image_name, docker) = build_peelbox_image("binary").await?;
+    let image_name = get_or_build_peelbox_image().await?;
+    let docker =
+        Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
 
     // Run the binary with --version to verify it exists and executes
     let container_config = Config {

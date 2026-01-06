@@ -618,8 +618,11 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     info!("Connected to BuildKit successfully");
 
-    // Get current directory as build context
-    let context_path = env::current_dir().expect("Failed to get current directory");
+    // Get build context path (use --context arg or current directory)
+    let context_path = args
+        .context
+        .clone()
+        .unwrap_or_else(|| env::current_dir().expect("Failed to get current directory"));
 
     // Determine output path for tar export
     let output_path = if let Some(output_spec) = &args.output {
@@ -648,7 +651,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     info!("Output will be written to: {}", output_path.display());
 
     // Create build session
-    let mut session = BuildSession::new(connection, context_path, output_path);
+    let mut session = BuildSession::new(connection, context_path, output_path, args.tag.clone());
 
     // Initialize session
     if let Err(e) = session.initialize().await {
