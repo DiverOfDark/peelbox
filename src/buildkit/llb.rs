@@ -3,7 +3,7 @@ use anyhow::{Context as AnyhowContext, Result};
 use buildkit_llb::prelude::*;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
 
@@ -11,13 +11,21 @@ const WOLFI_BASE_IMAGE: &str = "cgr.dev/chainguard/wolfi-base:latest";
 
 pub struct LLBBuilder {
     context_name: String,
+    context_path: Option<PathBuf>,
 }
 
 impl LLBBuilder {
     pub fn new(context_name: impl Into<String>) -> Self {
         Self {
             context_name: context_name.into(),
+            context_path: None,
         }
+    }
+
+    /// Set the context path for .gitignore resolution
+    pub fn with_context_path(mut self, context_path: PathBuf) -> Self {
+        self.context_path = Some(context_path);
+        self
     }
 
     /// Normalize path for directory detection: "." becomes "./"
@@ -34,13 +42,16 @@ impl LLBBuilder {
         path.ends_with('/')
     }
 
-    /// Read .gitignore and parse exclude patterns
-    fn load_gitignore_patterns() -> Vec<String> {
-        let gitignore_path = PathBuf::from(".gitignore");
+    /// Read .gitignore from context root and parse exclude patterns
+    ///
+    /// CRITICAL: Only reads from the exact context_path directory, does NOT scan upwards.
+    /// This ensures we use the build context's .gitignore, not peelbox's or any parent.
+    fn load_gitignore_patterns(context_path: &Path) -> Vec<String> {
+        let gitignore_path = context_path.join(".gitignore");
 
         let mut patterns = Vec::new();
 
-        // Read .gitignore if it exists
+        // Read .gitignore if it exists in the context root
         if gitignore_path.exists() {
             if let Ok(content) = fs::read_to_string(&gitignore_path) {
                 for line in content.lines() {
@@ -50,8 +61,10 @@ impl LLBBuilder {
                         patterns.push(line.to_string());
                     }
                 }
-                debug!("Loaded {} patterns from .gitignore", patterns.len());
+                debug!("Loaded {} patterns from {}", patterns.len(), gitignore_path.display());
             }
+        } else {
+            debug!("No .gitignore found at {}", gitignore_path.display());
         }
 
         // Add standard exclusions
@@ -103,8 +116,11 @@ impl LLBBuilder {
         let glibc_dynamic = Source::image("cgr.dev/chainguard/glibc-dynamic:latest");
         let busybox = Source::image("cgr.dev/chainguard/busybox:latest");
 
-        // Load gitignore patterns and apply to context source
-        let exclude_patterns = Self::load_gitignore_patterns();
+        // Load .gitignore patterns from context root
+        let context_root = self.context_path.as_ref()
+            .map(|p| p.as_path())
+            .unwrap_or_else(|| Path::new("."));
+        let exclude_patterns = Self::load_gitignore_patterns(context_root);
         let mut context = Source::local(&self.context_name);
         for pattern in exclude_patterns {
             context = context.add_exclude_pattern(pattern);

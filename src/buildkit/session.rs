@@ -276,7 +276,8 @@ impl BuildSession {
         }
 
         // Generate LLB from spec
-        let llb_builder = LLBBuilder::new("context");
+        let llb_builder = LLBBuilder::new("context")
+            .with_context_path(self.context_path.clone());
         let llb_bytes = llb_builder
             .to_bytes(spec)
             .context("Failed to generate LLB")?;

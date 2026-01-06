@@ -16,7 +16,9 @@
       },
       "packages": [
         "rust-1.92",
-        "build-base"
+        "build-base",
+        "openssl-dev",
+        "pkgconf"
       ]
     },
     "metadata": {
@@ -43,7 +45,8 @@
       },
       "packages": [
         "glibc",
-        "ca-certificates"
+        "ca-certificates",
+        "openssl"
       ],
       "ports": [
         8080

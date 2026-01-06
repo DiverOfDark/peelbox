@@ -1,0 +1,19 @@
+{
+  "request_hash": "f5135752756ca0fb5519d1d7d54740f0",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests.\n\nRepository: /var/home/diverofdark/Projects/AppBahn/aipack-buildkit/tests/fixtures/monorepo/cargo-workspace\nFile tree summary:\nRoot files: Cargo.lock, Cargo.toml, universalbuild.json\nExtensions: {\"json\": 1, \"lock\": 1, \"rs\": 3, \"toml\": 4}\n\nIdentify manifest files and their build systems. Return JSON array:\n[{\n  \"manifest_path\": \"build.zig\",\n  \"build_system\": \"zig\",\n  \"language\": \"Zig\",\n  \"confidence\": 0.85\n}]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"Cargo.toml\",\n    \"build_system\": \"cargo\",\n    \"language\": \"Rust\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"Cargo.lock\",\n    \"build_system\": \"cargo\",\n    \"language\": \"Rust\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1446
+  },
+  "recorded_at": "2026-01-05T21:50:14.183643422+00:00"
+}
