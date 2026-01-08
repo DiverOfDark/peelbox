@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tonic::transport::Server;
@@ -7,7 +8,7 @@ use tracing::{debug, error, info, warn};
 
 use super::auth_service::AuthService;
 use super::connection::BuildKitConnection;
-use super::exporter_service::ExporterService;
+use super::exporter_service::{ExporterService, ImageConfig};
 use super::filesync::FileSync;
 use super::filesync_service::FileSyncService;
 use super::filesend_service::FileSendService;
@@ -28,6 +29,7 @@ pub struct BuildSession {
     output_path: PathBuf,
 
     image_tag: Option<String>,
+    image_config: Arc<Mutex<Option<ImageConfig>>>,
     session_server: Option<JoinHandle<Result<()>>>,
     session_tx: Option<mpsc::Sender<BytesMessage>>,
     conn_tx: Option<mpsc::Sender<Result<StreamConn, std::io::Error>>>,
@@ -46,6 +48,7 @@ impl BuildSession {
             context_path,
             output_path,
             image_tag: Some(image_tag),
+            image_config: Arc::new(Mutex::new(None)),
             session_server: None,
             session_tx: None,
             conn_tx: None,
@@ -192,7 +195,7 @@ impl BuildSession {
         let filesend_service = FileSendService::new(self.output_path.clone(), export_tx);
         let auth_service = AuthService::new();
         let image_tag = self.image_tag.clone().unwrap_or_else(|| "peelbox:latest".to_string());
-        let exporter_service = ExporterService::new(image_tag, "oci".to_string());
+        let exporter_service = ExporterService::new(image_tag, "oci".to_string(), self.image_config.clone());
         let health_service = super::health_service::HealthService::new();
 
         info!("Creating unified gRPC server with FileSync, FileSend, Auth, Exporter, and Health services");
@@ -275,9 +278,43 @@ impl BuildSession {
             tracker.build_started(image_tag);
         }
 
+        // Extract OCI image config from spec before generating LLB
+        let image_config = ImageConfig {
+            cmd: spec.runtime.command.clone(),
+            env: spec.runtime.env.iter().map(|(k, v)| format!("{}={}", k, v)).collect(),
+            working_dir: "/".to_string(),  // Default working dir
+            entrypoint: vec![],  // No entrypoint by default
+        };
+
+        // Store config for exporter to use
+        if let Ok(mut guard) = self.image_config.lock() {
+            *guard = Some(image_config.clone());
+            debug!("Set OCI config: cmd={:?}, env={:?}", spec.runtime.command, spec.runtime.env);
+        }
+
+        // Serialize OCI config to JSON for exporter attribute
+        // BuildKit expects {"Config": {...}} wrapper (see https://github.com/moby/buildkit/issues/1041)
+        let oci_config_json = serde_json::json!({
+            "Config": {
+                "Cmd": image_config.cmd,
+                "Env": image_config.env,
+                "WorkingDir": image_config.working_dir,
+                "Entrypoint": image_config.entrypoint,
+            },
+            "architecture": "amd64",
+            "os": "linux",
+        });
+        let config_json_str = serde_json::to_string(&oci_config_json)
+            .context("Failed to serialize OCI config")?;
+
+        debug!("OCI config JSON: {}", config_json_str);
+
         // Generate LLB from spec
-        let llb_builder = LLBBuilder::new("context")
-            .with_context_path(self.context_path.clone());
+        let project_name = spec.metadata.project_name.clone()
+            .unwrap_or_else(|| "unnamed".to_string());
+        let mut llb_builder = LLBBuilder::new("context")
+            .with_context_path(self.context_path.clone())
+            .with_project_name(project_name);
         let llb_bytes = llb_builder
             .to_bytes(spec)
             .context("Failed to generate LLB")?;
@@ -325,6 +362,17 @@ impl BuildSession {
         // Add pattern attribute for include/exclude patterns (empty for now, can be configured later)
         frontend_inputs.insert("pattern".to_string(), local_source_def);
 
+        // Create exporter with OCI config
+        let mut exporter_attrs = std::collections::HashMap::new();
+        exporter_attrs.insert("name".to_string(), image_tag.to_string());
+        exporter_attrs.insert("tar".to_string(), "true".to_string());
+        exporter_attrs.insert("containerimage.config".to_string(), config_json_str);
+
+        let exporter = super::proto::moby::buildkit::v1::Exporter {
+            r#type: "docker".to_string(),  // Use docker exporter (supports containerimage.config)
+            attrs: exporter_attrs,
+        };
+
         // Create solve request
         let request = super::proto::moby::buildkit::v1::SolveRequest {
             r#ref: format!("peelbox-build-{}", self.session_id),
@@ -338,9 +386,9 @@ impl BuildSession {
             entitlements: vec![],
             frontend_inputs,
             source_policy: None,
-            exporters: vec![],  // Empty - exporters provided via Exporter service
-            enable_session_exporter: true,  // BuildKit will call Exporter.FindExporters on our session
-            internal: false,
+            exporters: vec![exporter],  // OCI exporter with containerimage.config
+            enable_session_exporter: false,  // Not using session exporter - config passed directly
+            internal: false,  // Enable provenance/SBOM generation (LLB has reference-only final node)
             source_policy_session: String::new(),
         };
 

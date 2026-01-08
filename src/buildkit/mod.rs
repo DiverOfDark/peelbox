@@ -18,7 +18,7 @@ pub mod stream_conn;
 pub use auth_service::AuthService;
 pub use connection::{BuildKitAddr, BuildKitConnection};
 pub use docker::{check_docker_buildkit, get_docker_buildkit_endpoint};
-pub use exporter_service::ExporterService;
+pub use exporter_service::{ExporterService, ImageConfig};
 pub use filesync::{FileSync, FileStat};
 pub use filesync_service::FileSyncService;
 pub use filesend_service::FileSendService;

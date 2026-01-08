@@ -1,10 +1,15 @@
+// Minimal LLB (Low-Level Build) implementation using BuildKit protobufs
+// We implement this ourselves for full control over cache mounts
+
+use crate::buildkit::proto::pb;
 use crate::output::schema::UniversalBuild;
-use anyhow::{Context as AnyhowContext, Result};
-use buildkit_llb::prelude::*;
+use anyhow::Result;
+use prost::Message as ProstMessage;
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use tracing::debug;
 
 const WOLFI_BASE_IMAGE: &str = "cgr.dev/chainguard/wolfi-base:latest";
@@ -12,6 +17,11 @@ const WOLFI_BASE_IMAGE: &str = "cgr.dev/chainguard/wolfi-base:latest";
 pub struct LLBBuilder {
     context_name: String,
     context_path: Option<PathBuf>,
+    project_name: Option<String>,
+
+    // DAG state
+    ops: Vec<pb::Op>,
+    digests: Vec<String>,
 }
 
 impl LLBBuilder {
@@ -19,492 +29,543 @@ impl LLBBuilder {
         Self {
             context_name: context_name.into(),
             context_path: None,
+            project_name: None,
+            ops: Vec::new(),
+            digests: Vec::new(),
         }
     }
 
-    /// Set the context path for .gitignore resolution
     pub fn with_context_path(mut self, context_path: PathBuf) -> Self {
         self.context_path = Some(context_path);
         self
     }
 
-    /// Normalize path for directory detection: "." becomes "./"
-    fn normalize_path(path: &str) -> &str {
-        if path == "." {
-            "./"
-        } else {
-            path
-        }
+    pub fn with_project_name(mut self, project_name: String) -> Self {
+        self.project_name = Some(project_name);
+        self
     }
 
-    /// Check if path represents a directory
-    fn is_directory(path: &str) -> bool {
-        path.ends_with('/')
+    /// Add an operation to the DAG and return its index
+    fn add_op(&mut self, op: pb::Op) -> i64 {
+        let index = self.ops.len() as i64;
+
+        // Marshal and compute digest
+        let mut buf = Vec::new();
+        op.encode(&mut buf).expect("Failed to encode op");
+        let digest = format!("sha256:{}", hex::encode(Sha256::digest(&buf)));
+
+        self.ops.push(op);
+        self.digests.push(digest);
+
+        index
     }
 
-    /// Read .gitignore from context root and parse exclude patterns
-    ///
-    /// CRITICAL: Only reads from the exact context_path directory, does NOT scan upwards.
-    /// This ensures we use the build context's .gitignore, not peelbox's or any parent.
-    fn load_gitignore_patterns(context_path: &Path) -> Vec<String> {
-        let gitignore_path = context_path.join(".gitignore");
+    /// Generate unique cache ID for parallel build isolation
+    fn get_cache_id(&self, cache_path: &str) -> String {
+        let project_name = self.project_name.as_deref().unwrap_or("default");
+        let normalized = cache_path.trim_start_matches("/build/").replace('/', "-");
+        format!("{}-{}", project_name, normalized)
+    }
+
+    /// Read .gitignore patterns from context root
+    fn load_gitignore_patterns(&self) -> Vec<String> {
+        let context_root = self.context_path.as_ref()
+            .map(|p| p.as_path())
+            .unwrap_or_else(|| Path::new("."));
+        let gitignore_path = context_root.join(".gitignore");
 
         let mut patterns = Vec::new();
 
-        // Read .gitignore if it exists in the context root
         if gitignore_path.exists() {
             if let Ok(content) = fs::read_to_string(&gitignore_path) {
                 for line in content.lines() {
                     let line = line.trim();
-                    // Skip empty lines and comments
                     if !line.is_empty() && !line.starts_with('#') {
                         patterns.push(line.to_string());
                     }
                 }
-                debug!("Loaded {} patterns from {}", patterns.len(), gitignore_path.display());
+                debug!("Loaded {} patterns from .gitignore", patterns.len());
             }
-        } else {
-            debug!("No .gitignore found at {}", gitignore_path.display());
         }
 
-        // Add standard exclusions
+        // Standard exclusions
         patterns.extend(vec![
             ".git".to_string(),
             ".gitignore".to_string(),
-            ".dockerignore".to_string(),
             "*.md".to_string(),
             "LICENSE".to_string(),
             ".vscode".to_string(),
             ".idea".to_string(),
-            "*.swp".to_string(),
-            "*.swo".to_string(),
-            "*~".to_string(),
-            ".DS_Store".to_string(),
         ]);
 
-        debug!("Total exclude patterns: {}", patterns.len());
         patterns
     }
 
-    /// Generate complete LLB definition and write to output
-    /// This generates a 4-stage distroless build with squashed runtime:
-    /// Stage 1 (Build):
-    ///   1. Starts with wolfi-base
-    ///   2. Installs build packages
-    ///   3. Copies source context
-    ///   4. Runs build commands
-    ///   5. Outputs artifacts to /tmp/artifacts
-    ///
-    ///      Stage 2 (Runtime Prep):
-    ///   6. Install runtime packages on wolfi-base
-    ///   7. Remove apk tooling (/sbin/apk, /etc/apk, /lib/apk, /var/cache/apk)
-    ///
-    ///      Stage 3 (Squash to Clean Base):
-    ///   8. Start with glibc-dynamic (clean base, no apk in history)
-    ///   9. Copy all files from runtime prep (cp -a /source/. /)
-    ///
-    ///      Result: Single squashed layer with packages but no apk in history
-    ///
-    ///      Stage 4 (Final):
-    ///   10. Copy artifacts from build stage
-    ///   11. Set command and environment
-    ///
-    ///       Result: No apk in any layer, truly distroless
-    pub fn write_definition<W: Write>(&self, spec: &UniversalBuild, writer: W) -> Result<()> {
-        // Create all sources first
-        let wolfi_base = Source::image(WOLFI_BASE_IMAGE);
-        let glibc_dynamic = Source::image("cgr.dev/chainguard/glibc-dynamic:latest");
-        let busybox = Source::image("cgr.dev/chainguard/busybox:latest");
+    /// Create image source operation
+    fn create_image_source(&mut self, image_ref: &str) -> i64 {
+        let op = pb::Op {
+            inputs: vec![],
+            op: Some(pb::op::Op::Source(pb::SourceOp {
+                identifier: format!("docker-image://{}", image_ref),
+                attrs: HashMap::new(),
+            })),
+            platform: None,
+            constraints: None,
+        };
+        self.add_op(op)
+    }
 
-        // Load .gitignore patterns from context root
-        let context_root = self.context_path.as_ref()
-            .map(|p| p.as_path())
-            .unwrap_or_else(|| Path::new("."));
-        let exclude_patterns = Self::load_gitignore_patterns(context_root);
-        let mut context = Source::local(&self.context_name);
-        for pattern in exclude_patterns {
-            context = context.add_exclude_pattern(pattern);
+    /// Create output reference node (required for BuildKit provenance)
+    /// This is a reference-only operation with no op field, pointing to the final build output
+    fn create_output_reference(&mut self, input_idx: i64) -> i64 {
+        let op = pb::Op {
+            inputs: vec![pb::Input {
+                digest: self.digests[input_idx as usize].clone(),
+                index: 0,
+            }],
+            op: None,  // Reference-only node (required for provenance)
+            platform: None,
+            constraints: None,
+        };
+        self.add_op(op)
+    }
+
+    /// Create local context source operation
+    fn create_local_source(&mut self, exclude_patterns: &[String]) -> i64 {
+        let mut attrs = HashMap::new();
+
+        // Add exclude patterns
+        for (i, pattern) in exclude_patterns.iter().enumerate() {
+            attrs.insert(format!("excludepattern.{}", i), pattern.clone());
         }
 
-        // Stage 1: Build stage
-        let with_packages = if !spec.build.packages.is_empty() {
+        let op = pb::Op {
+            inputs: vec![],
+            op: Some(pb::op::Op::Source(pb::SourceOp {
+                identifier: format!("local://{}", self.context_name),
+                attrs,
+            })),
+            platform: None,
+            constraints: None,
+        };
+        self.add_op(op)
+    }
+
+    /// Create exec operation
+    fn create_exec(
+        &mut self,
+        inputs: Vec<i64>,
+        mounts: Vec<pb::Mount>,
+        meta: pb::Meta,
+        _name: Option<String>,
+    ) -> i64 {
+        let op_inputs: Vec<pb::Input> = inputs
+            .iter()
+            .map(|&input_idx| pb::Input {
+                digest: self.digests[input_idx as usize].clone(),
+                index: 0,
+            })
+            .collect();
+
+        let op = pb::Op {
+            inputs: op_inputs,
+            op: Some(pb::op::Op::Exec(pb::ExecOp {
+                meta: Some(meta),
+                mounts,
+                network: pb::NetMode::Unset as i32,
+                security: pb::SecurityMode::Sandbox as i32,
+                secretenv: vec![],
+                cdi_devices: vec![],
+            })),
+            platform: None,
+            constraints: None,
+        };
+
+        self.add_op(op)
+    }
+
+    /// Create file copy operation (using FileOp)
+    fn create_file_copy(
+        &mut self,
+        base_idx: i64,
+        src_idx: i64,
+        src_path: &str,
+        dest_path: &str,
+        description: Option<String>,
+    ) -> i64 {
+        let op_inputs: Vec<pb::Input> = vec![
+            pb::Input {
+                digest: self.digests[base_idx as usize].clone(),
+                index: 0,
+            },
+            pb::Input {
+                digest: self.digests[src_idx as usize].clone(),
+                index: 0,
+            },
+        ];
+
+        let action = pb::FileAction {
+            input: 1,  // Source is input index 1
+            secondary_input: -1,
+            output: 0,
+            action: Some(pb::file_action::Action::Copy(pb::FileActionCopy {
+                src: src_path.to_string(),
+                dest: dest_path.to_string(),
+                owner: None,
+                mode: -1,
+                mode_str: String::new(),
+                follow_symlink: false,
+                dir_copy_contents: true,
+                attempt_unpack_docker_compatibility: false,
+                create_dest_path: true,
+                allow_wildcard: true,
+                allow_empty_wildcard: true,
+                timestamp: -1,
+                include_patterns: vec![],
+                exclude_patterns: vec![],
+                required_paths: vec![],
+                always_replace_existing_dest_paths: false,
+            })),
+        };
+
+        let op = pb::Op {
+            inputs: op_inputs,
+            op: Some(pb::op::Op::File(pb::FileOp {
+                actions: vec![action],
+            })),
+            platform: None,
+            constraints: None,
+        };
+
+        let idx = self.add_op(op);
+
+        if let Some(desc) = description {
+            debug!("Created file copy: {} (op {})", desc, idx);
+        }
+
+        idx
+    }
+
+    /// Create cache mount with project-specific ID
+    fn cache_mount(&self, dest: &str, cache_path: &str) -> pb::Mount {
+        pb::Mount {
+            input: -1,
+            selector: String::new(),
+            dest: dest.to_string(),
+            output: -1,
+            readonly: false,
+            mount_type: pb::MountType::Cache as i32,
+            tmpfs_opt: None,
+            cache_opt: Some(pb::CacheOpt {
+                id: self.get_cache_id(cache_path),
+                sharing: pb::CacheSharingOpt::Shared as i32,
+            }),
+            secret_opt: None,
+            ssh_opt: None,
+            result_id: String::new(),
+            content_cache: pb::MountContentCache::Default as i32,
+        }
+    }
+
+    /// Create layer mount (read-write)
+    fn layer_mount(&self, input_idx: i64, output_idx: i64, dest: &str) -> pb::Mount {
+        pb::Mount {
+            input: input_idx,
+            selector: String::new(),
+            dest: dest.to_string(),
+            output: output_idx,
+            readonly: false,
+            mount_type: pb::MountType::Bind as i32,
+            tmpfs_opt: None,
+            cache_opt: None,
+            secret_opt: None,
+            ssh_opt: None,
+            result_id: String::new(),
+            content_cache: pb::MountContentCache::Default as i32,
+        }
+    }
+
+    /// Create readonly mount
+    fn readonly_mount(&self, input_idx: i64, dest: &str) -> pb::Mount {
+        pb::Mount {
+            input: input_idx,
+            selector: String::new(),
+            dest: dest.to_string(),
+            output: -1,
+            readonly: true,
+            mount_type: pb::MountType::Bind as i32,
+            tmpfs_opt: None,
+            cache_opt: None,
+            secret_opt: None,
+            ssh_opt: None,
+            result_id: String::new(),
+            content_cache: pb::MountContentCache::Default as i32,
+        }
+    }
+
+    /// Create scratch mount (tmpfs)
+    fn scratch_mount(&self, output_idx: i64, dest: &str) -> pb::Mount {
+        pb::Mount {
+            input: -1,
+            selector: String::new(),
+            dest: dest.to_string(),
+            output: output_idx,
+            readonly: false,
+            mount_type: pb::MountType::Tmpfs as i32,
+            tmpfs_opt: Some(pb::TmpfsOpt { size: 0 }),
+            cache_opt: None,
+            secret_opt: None,
+            ssh_opt: None,
+            result_id: String::new(),
+            content_cache: pb::MountContentCache::Default as i32,
+        }
+    }
+
+    /// Serialize to LLB Definition bytes
+    pub fn to_bytes(&mut self, spec: &UniversalBuild) -> Result<Vec<u8>> {
+        // Build the LLB graph
+        self.build_graph(spec)?;
+
+        // Create Definition
+        let mut def_bytes = Vec::new();
+        for op in &self.ops {
+            let mut op_bytes = Vec::new();
+            op.encode(&mut op_bytes)?;
+            def_bytes.push(op_bytes);
+        }
+
+        let definition = pb::Definition {
+            def: def_bytes,
+            metadata: HashMap::new(),
+            source: None,
+        };
+
+        let mut buf = Vec::new();
+        definition.encode(&mut buf)?;
+
+        Ok(buf)
+    }
+
+    /// Build the LLB operation graph - 4-stage distroless build
+    fn build_graph(&mut self, spec: &UniversalBuild) -> Result<()> {
+        // Create sources
+        let wolfi_base_idx = self.create_image_source(WOLFI_BASE_IMAGE);
+        let glibc_dynamic_idx = self.create_image_source("cgr.dev/chainguard/glibc-dynamic:latest");
+
+        let exclude = self.load_gitignore_patterns();
+        let context_idx = self.create_local_source(&exclude);
+
+        // Stage 1: Install build packages
+        let with_build_packages_idx = if !spec.build.packages.is_empty() {
             let packages = spec.build.packages.join(" ");
-            let cmd = format!("apk add --no-cache {}", packages);
-            Some(
-                Command::run("sh")
-                    .args(["-c", &cmd])
-                    .mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"))
-                    .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
-                    .custom_name("Install build packages"),
-            )
+            let meta = pb::Meta {
+                args: vec!["sh".to_string(), "-c".to_string(), format!("apk add --no-cache {}", packages)],
+                env: vec![],
+                cwd: "/".to_string(),
+                user: String::new(),
+                proxy_env: None,
+                extra_hosts: vec![],
+                hostname: String::new(),
+                ulimit: vec![],
+                cgroup_parent: String::new(),
+                remove_mount_stubs_recursive: false,
+                valid_exit_codes: vec![],
+            };
+
+            let mounts = vec![
+                self.layer_mount(0, 0, "/"),  // Input 0: wolfi_base_idx
+                self.scratch_mount(1, "/tmp"),
+            ];
+
+            Some(self.create_exec(vec![wolfi_base_idx], mounts, meta, Some("Install build packages".to_string())))
         } else {
             None
         };
 
-        let build_stage = {
-            let mut build_cmd = Command::run("sh");
+        // Stage 2: Run build commands with cache mounts
+        let base_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
 
-            if let Some(ref pkg_cmd) = with_packages {
-                build_cmd = build_cmd.mount(Mount::Layer(OutputIdx(0), pkg_cmd.output(0), "/"));
-            } else {
-                build_cmd = build_cmd.mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"));
-            }
+        let build_result_idx = if !spec.build.commands.is_empty() {
+            let mut last_idx = base_idx;
 
-            build_cmd = build_cmd
-                .mount(Mount::Layer(OutputIdx(1), context.output(), "/build"))
-                .mount(Mount::Scratch(OutputIdx(2), "/tmp"))
-                .cwd("/build");
-
-            // Add cache mounts for build system caches (resolve relative to /build)
-            for cache_path in &spec.build.cache {
-                let absolute_cache_path = if cache_path.starts_with('/') {
-                    cache_path.clone()
+            for (i, command) in spec.build.commands.iter().enumerate() {
+                let script = if i == 0 {
+                    // First command: copy context
+                    format!("mkdir -p /build && cp -r /context/. /build && cd /build && {}", command)
                 } else {
-                    format!("/build/{}", cache_path)
+                    command.clone()
                 };
-                build_cmd = build_cmd.mount(Mount::SharedCache(&absolute_cache_path));
-            }
 
-            // Execute each build command as a separate layer for better caching
-            // Use Arc to keep Commands alive with stable references
-            let mut build_stages: Vec<Arc<Command>> = Vec::new();
+                let meta = pb::Meta {
+                    args: vec!["sh".to_string(), "-c".to_string(), script],
+                    env: spec.build.env.iter().map(|(k, v)| format!("{}={}", k, v)).collect(),
+                    cwd: "/build".to_string(),
+                    user: String::new(),
+                    proxy_env: None,
+                    extra_hosts: vec![],
+                    hostname: String::new(),
+                    ulimit: vec![],
+                    cgroup_parent: String::new(),
+                    remove_mount_stubs_recursive: false,
+                    valid_exit_codes: vec![],
+                };
 
-            if !spec.build.commands.is_empty() {
-                for (idx, command) in spec.build.commands.iter().enumerate() {
-                    // For first command, copy context to /build in root fs
-                    let build_script = if idx == 0 {
-                        format!(
-                            "mkdir -p /build && cp -r /context/. /build && cd /build && {}",
-                            command
-                        )
-                    } else {
-                        command.clone()
-                    };
+                let mut mounts = if i == 0 {
+                    vec![
+                        self.layer_mount(0, 0, "/"),         // Input 0: last_idx (base_idx)
+                        self.readonly_mount(1, "/context"),  // Input 1: context_idx
+                        self.scratch_mount(1, "/tmp"),
+                    ]
+                } else {
+                    vec![
+                        self.layer_mount(0, 0, "/"),         // Input 0: last_idx
+                        self.scratch_mount(1, "/tmp"),
+                    ]
+                };
 
-                    let mut cmd = Command::run("sh").args(["-c", &build_script]).cwd("/build");
-
-                    // Mount base layer (first command) or previous command's output
-                    if idx == 0 {
-                        if let Some(ref pkg_cmd) = with_packages {
-                            cmd = cmd.mount(Mount::Layer(OutputIdx(0), pkg_cmd.output(0), "/"));
-                        } else {
-                            cmd = cmd.mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"));
-                        }
-                    } else {
-                        // Reference previous command via Arc
-                        cmd = cmd.mount(Mount::Layer(
-                            OutputIdx(0),
-                            build_stages[idx - 1].output(0),
-                            "/",
-                        ));
-                    }
-
-                    // Mount context read-only for first command, /tmp scratch for all
-                    if idx == 0 {
-                        cmd = cmd
-                            .mount(Mount::ReadOnlyLayer(context.output(), "/context"))
-                            .mount(Mount::Scratch(OutputIdx(1), "/tmp"));
-                    } else {
-                        cmd = cmd.mount(Mount::Scratch(OutputIdx(1), "/tmp"));
-                    }
-
-                    // Add cache mounts
-                    for cache_path in &spec.build.cache {
-                        let absolute_cache_path = if cache_path.starts_with('/') {
-                            cache_path.clone()
-                        } else {
-                            format!("/build/{}", cache_path)
-                        };
-                        cmd = cmd.mount(Mount::SharedCache(&absolute_cache_path));
-                    }
-
-                    // Set environment variables
-                    for (key, value) in &spec.build.env {
-                        let resolved_value = if value.starts_with('/') || value.starts_with('$') {
-                            value.clone()
-                        } else if value.starts_with('.') {
-                            format!("/build/{}", value)
-                        } else {
-                            value.clone()
-                        };
-                        cmd = cmd.env(key, &resolved_value);
-                    }
-
-                    cmd = cmd.custom_name(format!("Build command {}", idx + 1));
-                    build_stages.push(Arc::new(cmd));
-                }
-            }
-
-            // Extract artifacts from runtime.copy[].from
-            let artifacts: Vec<&String> = spec
-                .runtime
-                .copy
-                .iter()
-                .map(|copy_spec| &copy_spec.from)
-                .collect();
-
-            // Final layer: Copy artifacts out of cache mounts (after all build commands)
-            let build_stage = if !artifacts.is_empty() && !build_stages.is_empty() {
-                let mut artifact_cmd = Command::run("sh").cwd("/build");
-
-                // Mount last build command's output (which includes /build directory)
-                artifact_cmd = artifact_cmd
-                    .mount(Mount::Layer(
-                        OutputIdx(0),
-                        build_stages.last().unwrap().output(0),
-                        "/",
-                    ))
-                    .mount(Mount::Scratch(OutputIdx(1), "/tmp"));
-
-                // Add cache mounts
+                // Add cache mounts with project-specific IDs
                 for cache_path in &spec.build.cache {
-                    let absolute_cache_path = if cache_path.starts_with('/') {
+                    let absolute = if cache_path.starts_with('/') {
                         cache_path.clone()
                     } else {
                         format!("/build/{}", cache_path)
                     };
-                    artifact_cmd = artifact_cmd.mount(Mount::SharedCache(&absolute_cache_path));
+                    mounts.push(self.cache_mount(&absolute, cache_path));
                 }
 
-                // Build artifact copy script from runtime.copy sources
-                let mut copy_commands = vec!["mkdir -p /tmp/artifacts".to_string()];
-                for artifact in &artifacts {
-                    let normalized_artifact = Self::normalize_path(artifact);
+                let inputs = if i == 0 {
+                    vec![last_idx, context_idx]
+                } else {
+                    vec![last_idx]
+                };
 
-                    if Self::is_directory(normalized_artifact) {
-                        // Remove trailing slash to copy directory itself, not contents
-                        let trimmed = normalized_artifact.trim_end_matches('/');
-                        copy_commands.push(format!("cp -r {} /tmp/artifacts/", trimmed));
-                    } else {
-                        copy_commands.push(format!("cp {} /tmp/artifacts/", normalized_artifact));
-                    }
-                }
+                last_idx = self.create_exec(
+                    inputs,
+                    mounts,
+                    meta,
+                    Some(format!("Build command {}", i + 1)),
+                );
+            }
 
-                let script = copy_commands.join(" && ");
-                artifact_cmd
-                    .args(["-c", &script])
-                    .custom_name("Copy build artifacts")
-            } else if !build_stages.is_empty() {
-                // No artifacts to copy, use last build command
-                // Create a no-op command that passes through the build stage
-                Command::run("sh")
-                    .args(["-c", "true"])
-                    .mount(Mount::Layer(
-                        OutputIdx(0),
-                        build_stages.last().unwrap().output(0),
-                        "/",
-                    ))
-                    .custom_name("Build stage (passthrough)")
-            } else {
-                // No commands at all, create empty build stage
-                build_cmd.args(["-c", "true"]).custom_name("Build stage")
+            last_idx
+        } else {
+            base_idx
+        };
+
+        // Stage 3: Runtime prep - Install runtime packages and remove apk
+        let runtime_prep_idx = if !spec.runtime.packages.is_empty() {
+            let packages = spec.runtime.packages.join(" ");
+
+            // Install runtime packages
+            let install_meta = pb::Meta {
+                args: vec!["sh".to_string(), "-c".to_string(), format!("apk add --no-cache {}", packages)],
+                env: vec![],
+                cwd: "/".to_string(),
+                user: String::new(),
+                proxy_env: None,
+                extra_hosts: vec![],
+                hostname: String::new(),
+                ulimit: vec![],
+                cgroup_parent: String::new(),
+                remove_mount_stubs_recursive: false,
+                valid_exit_codes: vec![],
             };
 
-            build_stage
-        };
+            let install_mounts = vec![
+                self.layer_mount(0, 0, "/"),  // Input 0: wolfi_base_idx
+                self.scratch_mount(1, "/tmp"),
+            ];
 
-        // Stage 2: Runtime Prep (install runtime packages + remove apk)
-        let runtime_prep = if !spec.runtime.packages.is_empty() {
-            let packages = spec.runtime.packages.join(" ");
-            let cmd = format!(
-                "apk add --no-cache {} && rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk",
-                packages
+            let runtime_with_packages_idx = self.create_exec(
+                vec![wolfi_base_idx],
+                install_mounts,
+                install_meta,
+                Some("Install runtime packages".to_string()),
             );
-            Command::run("sh")
-                .args(["-c", &cmd])
-                .mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"))
-                .mount(Mount::Scratch(OutputIdx(1), "/tmp"))
-                .custom_name("Install runtime packages and remove apk")
+
+            // Remove apk tooling
+            let cleanup_meta = pb::Meta {
+                args: vec!["sh".to_string(), "-c".to_string(), "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk".to_string()],
+                env: vec![],
+                cwd: "/".to_string(),
+                user: String::new(),
+                proxy_env: None,
+                extra_hosts: vec![],
+                hostname: String::new(),
+                ulimit: vec![],
+                cgroup_parent: String::new(),
+                remove_mount_stubs_recursive: false,
+                valid_exit_codes: vec![],
+            };
+
+            let cleanup_mounts = vec![
+                self.layer_mount(0, 0, "/"),  // Input 0: runtime_with_packages_idx
+                self.scratch_mount(1, "/tmp"),
+            ];
+
+            Some(self.create_exec(
+                vec![runtime_with_packages_idx],
+                cleanup_mounts,
+                cleanup_meta,
+                Some("Remove apk tooling".to_string()),
+            ))
         } else {
-            // No runtime packages - just use wolfi-base and remove apk
-            Command::run("sh")
-                .args(["-c", "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk"])
-                .mount(Mount::Layer(OutputIdx(0), wolfi_base.output(), "/"))
-                .custom_name("Remove apk from base")
+            None
         };
 
-        // Stage 3: Squash to clean glibc-dynamic base (no apk in history)
-        // Use busybox to copy all files from runtime prep onto glibc-dynamic
-        // (can't use sh on glibc-dynamic itself as it's distroless)
-        let runtime_desc = if !spec.runtime.packages.is_empty() {
-            format!("peelbox {} runtime", spec.runtime.packages.join(" "))
+        // Stage 4: Squash to glibc-dynamic base (using FileOp to copy runtime packages)
+        let squashed_idx = if let Some(runtime_prep) = runtime_prep_idx {
+            debug!("Squash stage: glibc_dynamic_idx={}, runtime_prep={}", glibc_dynamic_idx, runtime_prep);
+            let project_name = self.project_name.as_deref().unwrap_or("app");
+
+            // Use FileOp to copy runtime_prep onto glibc-dynamic
+            // This copies all files from runtime_prep root to glibc-dynamic root
+            Some(self.create_file_copy(
+                glibc_dynamic_idx,
+                runtime_prep,
+                "/",
+                "/",
+                Some(format!("peelbox {} runtime", project_name)),
+            ))
         } else {
-            "peelbox base runtime".to_string()
+            Some(glibc_dynamic_idx)
         };
-        let squashed_runtime = Command::run("sh")
-            .args(["-c", &format!(": {}; cp -a /source/. /dest/", runtime_desc)])
-            .mount(Mount::ReadOnlyLayer(busybox.output(), "/"))
-            .mount(Mount::Layer(OutputIdx(0), glibc_dynamic.output(), "/dest"))
-            .mount(Mount::ReadOnlyLayer(runtime_prep.output(0), "/source"))
-            .custom_name(&runtime_desc);
 
-        // Stage 4: Copy artifacts from build stage onto squashed runtime base
-        let app_name = spec.metadata.project_name.as_deref().unwrap_or("app");
-
-        if !spec.runtime.copy.is_empty() {
-            // Use busybox for shell commands since squashed runtime is distroless
-            let mut copy_stage = Command::run("/bin/sh")
-                .mount(Mount::ReadOnlyLayer(busybox.output(), "/"))
-                .mount(Mount::Layer(
-                    OutputIdx(0),
-                    squashed_runtime.output(0),
-                    "/dest",
-                ))
-                .mount(Mount::ReadOnlyLayer(
-                    build_stage.output(1),
-                    "/tmp/build-tmp",
-                ));
-
-            // Set runtime environment variables
-            for (key, value) in &spec.runtime.env {
-                copy_stage = copy_stage.env(key, value);
-            }
-
-            let mut copy_commands = vec![format!(": peelbox {} application", app_name)];
-            for copy_spec in &spec.runtime.copy {
-                let normalized_from = Self::normalize_path(&copy_spec.from);
-
-                let source_path = if Self::is_directory(normalized_from) {
-                    normalized_from.trim_end_matches('/')
-                } else {
-                    normalized_from
-                };
-                let filename = source_path.split('/').next_back().unwrap_or(source_path);
-
-                // Create parent directory if needed (in /dest)
-                let parent_dir = copy_spec.to.rsplit_once('/').map(|x| x.0);
-                if let Some(dir) = parent_dir {
-                    if !dir.is_empty() {
-                        copy_commands.push(format!("/bin/mkdir -p /dest{}", dir));
-                    }
+        // Stage 5: Copy artifacts to final image using FileOp
+        let final_idx = if let Some(squashed) = squashed_idx {
+            // If no artifacts to copy, just return squashed layer
+            if spec.runtime.copy.is_empty() {
+                squashed
+            } else {
+                // Copy each artifact using FileOp (create_dest_path handles mkdir -p)
+                let mut current_idx = squashed;
+                for copy in &spec.runtime.copy {
+                    current_idx = self.create_file_copy(
+                        current_idx,
+                        build_result_idx,
+                        &format!("/{}", copy.from),
+                        &copy.to,
+                        Some(format!("Copy {} to {}", copy.from, copy.to)),
+                    );
                 }
-
-                let copy_flag = if Self::is_directory(normalized_from) {
-                    "-r"
-                } else {
-                    ""
-                };
-                copy_commands.push(format!(
-                    "/bin/cp {} /tmp/build-tmp/artifacts/{} /dest{}",
-                    copy_flag, filename, copy_spec.to
-                ));
+                current_idx
             }
-            let script = copy_commands.join(" && ");
-            copy_stage = copy_stage.args(["-c", &script]);
-            copy_stage = copy_stage.custom_name(format!("peelbox {} application", app_name));
-
-            Terminal::with(copy_stage.output(0))
-                .write_definition(writer)
-                .with_context(|| "Failed to write LLB definition")?;
         } else {
-            // No artifacts to copy - use squashed runtime directly
-            Terminal::with(squashed_runtime.output(0))
-                .write_definition(writer)
-                .with_context(|| "Failed to write LLB definition")?;
-        }
+            build_result_idx
+        };
+
+        // Add final reference-only node for provenance (required by BuildKit)
+        let output_ref_idx = self.create_output_reference(final_idx);
+
+        debug!("Built LLB graph with {} operations (final output: op {}, reference: op {})",
+               self.ops.len(), final_idx, output_ref_idx);
 
         Ok(())
     }
 
-    /// Generate LLB definition as bytes for gRPC submission
-    pub fn to_bytes(&self, spec: &UniversalBuild) -> Result<Vec<u8>> {
-        let mut buffer = Vec::new();
-        self.write_definition(spec, &mut buffer)?;
-        Ok(buffer)
-    }
-}
-
-impl Default for LLBBuilder {
-    fn default() -> Self {
-        Self::new("context")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::output::schema::{BuildMetadata, BuildStage, RuntimeStage};
-    use std::collections::HashMap;
-
-    fn create_test_spec() -> UniversalBuild {
-        UniversalBuild {
-            version: "1.0".to_string(),
-            metadata: BuildMetadata {
-                project_name: Some("test-app".to_string()),
-                language: "rust".to_string(),
-                build_system: "cargo".to_string(),
-                framework: None,
-                reasoning: "Test".to_string(),
-            },
-            build: BuildStage {
-                packages: vec!["rust".to_string(), "build-base".to_string()],
-                env: {
-                    let mut map = HashMap::new();
-                    map.insert("CARGO_HOME".to_string(), "/cache/cargo".to_string());
-                    map
-                },
-                commands: vec!["cargo build --release".to_string()],
-                cache: vec!["/cache/cargo".to_string()],
-            },
-            runtime: RuntimeStage {
-                packages: vec![],
-                env: HashMap::new(),
-                copy: vec![],
-                command: vec!["./app".to_string()],
-                ports: vec![],
-                health: None,
-            },
-        }
-    }
-
-    #[test]
-    fn test_llb_builder_creation() {
-        let builder = LLBBuilder::new("context");
-        assert_eq!(builder.context_name, "context");
-    }
-
-    #[test]
-    fn test_full_build() {
-        let builder = LLBBuilder::new("context");
-        let spec = create_test_spec();
-
-        let result = builder.to_bytes(&spec);
-        assert!(result.is_ok(), "Full build should succeed");
-
-        let bytes = result.unwrap();
-        assert!(
-            !bytes.is_empty(),
-            "Should generate non-empty LLB definition"
-        );
-    }
-
-    #[test]
-    fn test_empty_packages() {
-        let builder = LLBBuilder::new("context");
-        let mut spec = create_test_spec();
-        spec.build.packages.clear();
-
-        let result = builder.to_bytes(&spec);
-        assert!(
-            result.is_ok(),
-            "Should handle empty packages list gracefully"
-        );
-    }
-
-    #[test]
-    fn test_default_builder() {
-        let builder = LLBBuilder::default();
-        assert_eq!(builder.context_name, "context");
-    }
-
-    #[test]
-    fn test_with_environment_variables() {
-        let builder = LLBBuilder::new("context");
-        let spec = create_test_spec();
-
-        assert!(!spec.build.env.is_empty(), "Test spec should have env vars");
-
-        let result = builder.to_bytes(&spec);
-        assert!(result.is_ok(), "Build with env vars should succeed");
+    pub fn write_definition<W: Write>(&mut self, spec: &UniversalBuild, mut writer: W) -> Result<()> {
+        let bytes = self.to_bytes(spec)?;
+        writer.write_all(&bytes)?;
+        Ok(())
     }
 }
