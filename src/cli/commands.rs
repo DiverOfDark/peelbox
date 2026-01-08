@@ -209,6 +209,39 @@ pub struct BuildArgs {
         help = "Build context directory (defaults to current directory)"
     )]
     pub context: Option<PathBuf>,
+
+    #[arg(
+        long,
+        default_value = "true",
+        help = "Generate SBOM (Software Bill of Materials) attestation in SPDX format"
+    )]
+    pub sbom: bool,
+
+    #[arg(
+        long,
+        help = "Disable SBOM attestation generation"
+    )]
+    pub no_sbom: bool,
+
+    #[arg(
+        long,
+        value_name = "MODE",
+        help = "Generate SLSA provenance attestation (min or max, defaults to max)"
+    )]
+    pub provenance: Option<String>,
+
+    #[arg(
+        long,
+        help = "Disable provenance attestation generation"
+    )]
+    pub no_provenance: bool,
+
+    #[arg(
+        long,
+        default_value = "true",
+        help = "Scan build context files for SBOM generation"
+    )]
+    pub scan_context: bool,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

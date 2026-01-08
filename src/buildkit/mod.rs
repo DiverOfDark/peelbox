@@ -26,4 +26,4 @@ pub use health_service::HealthService;
 pub use llb::LLBBuilder;
 pub use progress::{ProgressEvent, ProgressTracker};
 pub use proto::{AuthServer, AuthServerBuilder, ControlClient, ExporterServer, ExporterServerBuilder, FileSendServer, FileSendServerBuilder, FileSyncClient, FileSyncServer, FileSyncServerBuilder, Packet};
-pub use session::{BuildResult, BuildSession};
+pub use session::{AttestationConfig, BuildResult, BuildSession, ProvenanceMode};

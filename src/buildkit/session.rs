@@ -21,6 +21,36 @@ use tokio_stream::wrappers::ReceiverStream;
 
 const TAR_EXPORT_TIMEOUT_SECS: u64 = 300;
 
+/// Attestation configuration for SBOM and provenance generation
+#[derive(Debug, Clone)]
+pub struct AttestationConfig {
+    /// Enable SBOM (Software Bill of Materials) generation in SPDX format
+    pub sbom: bool,
+    /// Enable SLSA provenance attestation (mode: min or max)
+    pub provenance: Option<ProvenanceMode>,
+    /// Scan build context for SBOM generation
+    pub scan_context: bool,
+}
+
+/// SLSA provenance generation mode
+#[derive(Debug, Clone, Copy)]
+pub enum ProvenanceMode {
+    /// Minimal provenance (fast, basic metadata)
+    Min,
+    /// Maximum provenance (complete audit trail, recommended for production)
+    Max,
+}
+
+impl Default for AttestationConfig {
+    fn default() -> Self {
+        Self {
+            sbom: true,
+            provenance: Some(ProvenanceMode::Max),
+            scan_context: true,
+        }
+    }
+}
+
 /// BuildKit session for managing build context transfer and build execution
 pub struct BuildSession {
     connection: BuildKitConnection,
@@ -30,6 +60,7 @@ pub struct BuildSession {
 
     image_tag: Option<String>,
     image_config: Arc<Mutex<Option<ImageConfig>>>,
+    attestation_config: AttestationConfig,
     session_server: Option<JoinHandle<Result<()>>>,
     session_tx: Option<mpsc::Sender<BytesMessage>>,
     conn_tx: Option<mpsc::Sender<Result<StreamConn, std::io::Error>>>,
@@ -49,11 +80,18 @@ impl BuildSession {
             output_path,
             image_tag: Some(image_tag),
             image_config: Arc::new(Mutex::new(None)),
+            attestation_config: AttestationConfig::default(),
             session_server: None,
             session_tx: None,
             conn_tx: None,
             export_complete_rx: None,
         }
+    }
+
+    /// Configure attestation generation (SBOM and provenance)
+    pub fn with_attestations(mut self, config: AttestationConfig) -> Self {
+        self.attestation_config = config;
+        self
     }
 
     /// Generate a unique session ID using UUID
@@ -362,11 +400,33 @@ impl BuildSession {
         // Add pattern attribute for include/exclude patterns (empty for now, can be configured later)
         frontend_inputs.insert("pattern".to_string(), local_source_def);
 
-        // Create exporter with OCI config
+        // Create exporter with OCI config and attestations
         let mut exporter_attrs = std::collections::HashMap::new();
         exporter_attrs.insert("name".to_string(), image_tag.to_string());
         exporter_attrs.insert("tar".to_string(), "true".to_string());
         exporter_attrs.insert("containerimage.config".to_string(), config_json_str);
+
+        // Add SBOM attestation if enabled
+        if self.attestation_config.sbom {
+            exporter_attrs.insert("attest:sbom".to_string(), String::new());
+            debug!("Enabled SBOM attestation (SPDX format)");
+        }
+
+        // Add SLSA provenance attestation if enabled
+        if let Some(mode) = self.attestation_config.provenance {
+            let mode_str = match mode {
+                ProvenanceMode::Min => "mode=min",
+                ProvenanceMode::Max => "mode=max",
+            };
+            exporter_attrs.insert("attest:provenance".to_string(), mode_str.to_string());
+            debug!("Enabled SLSA provenance attestation ({})", mode_str);
+        }
+
+        // Add build context scanning for SBOM
+        if self.attestation_config.scan_context {
+            exporter_attrs.insert("build-arg:BUILDKIT_SBOM_SCAN_CONTEXT".to_string(), "true".to_string());
+            debug!("Enabled build context scanning for SBOM");
+        }
 
         let exporter = super::proto::moby::buildkit::v1::Exporter {
             r#type: "docker".to_string(),  // Use docker exporter (supports containerimage.config)

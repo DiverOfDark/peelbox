@@ -1,5 +1,5 @@
 use genai::adapter::AdapterKind;
-use peelbox::buildkit::{progress::ProgressTracker, BuildKitConnection, BuildSession};
+use peelbox::buildkit::{progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, ProvenanceMode};
 use peelbox::cli::commands::{BuildArgs, CliArgs, Commands, DetectArgs, HealthArgs};
 use peelbox::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use peelbox::config::PeelboxConfig;
@@ -650,8 +650,42 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     info!("Output will be written to: {}", output_path.display());
 
-    // Create build session
-    let mut session = BuildSession::new(connection, context_path, output_path, args.tag.clone());
+    // Configure attestations based on CLI flags
+    let sbom_enabled = args.sbom && !args.no_sbom;
+    let provenance_mode = if args.no_provenance {
+        None
+    } else if let Some(ref mode_str) = args.provenance {
+        match mode_str.to_lowercase().as_str() {
+            "min" => Some(ProvenanceMode::Min),
+            "max" => Some(ProvenanceMode::Max),
+            _ => {
+                error!("Invalid provenance mode '{}'. Valid values: min, max", mode_str);
+                return 1;
+            }
+        }
+    } else {
+        Some(ProvenanceMode::Max)  // Default to max
+    };
+
+    let attestation_config = AttestationConfig {
+        sbom: sbom_enabled,
+        provenance: provenance_mode,
+        scan_context: args.scan_context,
+    };
+
+    if sbom_enabled {
+        info!("SBOM attestation enabled (SPDX format)");
+    }
+    if let Some(mode) = provenance_mode {
+        info!("SLSA provenance attestation enabled (mode: {:?})", mode);
+    }
+    if args.scan_context {
+        debug!("Build context scanning enabled for SBOM");
+    }
+
+    // Create build session with attestation config
+    let mut session = BuildSession::new(connection, context_path, output_path, args.tag.clone())
+        .with_attestations(attestation_config);
 
     // Initialize session
     if let Err(e) = session.initialize().await {
