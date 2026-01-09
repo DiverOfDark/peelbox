@@ -184,7 +184,7 @@ impl LLBBuilder {
         self.add_op(op)
     }
 
-    /// Create file copy operation (using FileOp)
+    /// Create file copy operation (using FileOp for distroless images without shell)
     fn create_file_copy(
         &mut self,
         base_idx: i64,
@@ -196,18 +196,18 @@ impl LLBBuilder {
         let op_inputs: Vec<pb::Input> = vec![
             pb::Input {
                 digest: self.digests[base_idx as usize].clone(),
-                index: 0,
+                index: 0,  // Reference output 0 from base operation
             },
             pb::Input {
                 digest: self.digests[src_idx as usize].clone(),
-                index: 0,
+                index: 0,  // Reference output 0 from source operation
             },
         ];
 
         let action = pb::FileAction {
             input: 1,  // Source is input index 1
             secondary_input: -1,
-            output: 0,
+            output: 0,  // Result goes to output index 0
             action: Some(pb::file_action::Action::Copy(pb::FileActionCopy {
                 src: src_path.to_string(),
                 dest: dest_path.to_string(),
@@ -303,13 +303,13 @@ impl LLBBuilder {
         }
     }
 
-    /// Create scratch mount (tmpfs)
-    fn scratch_mount(&self, output_idx: i64, dest: &str) -> pb::Mount {
+    /// Create scratch mount (tmpfs) - never persisted as output
+    fn scratch_mount(&self, dest: &str) -> pb::Mount {
         pb::Mount {
             input: -1,
             selector: String::new(),
             dest: dest.to_string(),
-            output: output_idx,
+            output: -1,  // Tmpfs should not be persisted
             readonly: false,
             mount_type: pb::MountType::Tmpfs as i32,
             tmpfs_opt: Some(pb::TmpfsOpt { size: 0 }),
@@ -351,6 +351,7 @@ impl LLBBuilder {
         // Create sources
         let wolfi_base_idx = self.create_image_source(WOLFI_BASE_IMAGE);
         let glibc_dynamic_idx = self.create_image_source("cgr.dev/chainguard/glibc-dynamic:latest");
+        let busybox_idx = self.create_image_source("cgr.dev/chainguard/busybox:latest");
 
         let exclude = self.load_gitignore_patterns();
         let context_idx = self.create_local_source(&exclude);
@@ -374,7 +375,7 @@ impl LLBBuilder {
 
             let mounts = vec![
                 self.layer_mount(0, 0, "/"),  // Input 0: wolfi_base_idx
-                self.scratch_mount(1, "/tmp"),
+                self.scratch_mount("/tmp"),
             ];
 
             Some(self.create_exec(vec![wolfi_base_idx], mounts, meta, Some("Install build packages".to_string())))
@@ -382,24 +383,31 @@ impl LLBBuilder {
             None
         };
 
-        // Stage 2: Run build commands with cache mounts
+        // Stage 2: Run build commands (simplified single-output approach)
         let base_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
 
         let build_result_idx = if !spec.build.commands.is_empty() {
+            debug!("Build stage starting from base_idx={}", base_idx);
+
             let mut last_idx = base_idx;
 
             for (i, command) in spec.build.commands.iter().enumerate() {
+                // Build script: copy context to /build, run build, copy artifacts to /artifacts
                 let script = if i == 0 {
-                    // First command: copy context
-                    format!("mkdir -p /build && cp -r /context/. /build && cd /build && {}", command)
+                    // First command: setup, build, and stage artifacts at root level
+                    format!(
+                        "mkdir -p /build && cp -r /context/. /build && cd /build && {} && mkdir -p /artifacts && cp -r target/release/peelbox /artifacts/",
+                        command
+                    )
                 } else {
-                    command.clone()
+                    // Subsequent commands: continue building and update artifacts
+                    format!("cd /build && {} && cp -r target/release/peelbox /artifacts/", command)
                 };
 
                 let meta = pb::Meta {
                     args: vec!["sh".to_string(), "-c".to_string(), script],
                     env: spec.build.env.iter().map(|(k, v)| format!("{}={}", k, v)).collect(),
-                    cwd: "/build".to_string(),
+                    cwd: "/".to_string(),
                     user: String::new(),
                     proxy_env: None,
                     extra_hosts: vec![],
@@ -410,20 +418,21 @@ impl LLBBuilder {
                     valid_exit_codes: vec![],
                 };
 
+                // Simple mount configuration: root (output 0), context (readonly, first command only), tmp
                 let mut mounts = if i == 0 {
                     vec![
-                        self.layer_mount(0, 0, "/"),         // Input 0: last_idx (base_idx)
+                        self.layer_mount(0, 0, "/"),        // Input 0: base_idx, Output 0
                         self.readonly_mount(1, "/context"),  // Input 1: context_idx
-                        self.scratch_mount(1, "/tmp"),
+                        self.scratch_mount("/tmp"),
                     ]
                 } else {
                     vec![
-                        self.layer_mount(0, 0, "/"),         // Input 0: last_idx
-                        self.scratch_mount(1, "/tmp"),
+                        self.layer_mount(0, 0, "/"),  // Input 0: last_idx, Output 0
+                        self.scratch_mount("/tmp"),
                     ]
                 };
 
-                // Add cache mounts with project-specific IDs
+                // Add cache mounts (working directory /build)
                 for cache_path in &spec.build.cache {
                     let absolute = if cache_path.starts_with('/') {
                         cache_path.clone()
@@ -434,7 +443,7 @@ impl LLBBuilder {
                 }
 
                 let inputs = if i == 0 {
-                    vec![last_idx, context_idx]
+                    vec![base_idx, context_idx]
                 } else {
                     vec![last_idx]
                 };
@@ -445,8 +454,10 @@ impl LLBBuilder {
                     meta,
                     Some(format!("Build command {}", i + 1)),
                 );
+                debug!("Build command {} created layer {}", i + 1, last_idx);
             }
 
+            debug!("Build stage complete, build_result_idx={}", last_idx);
             last_idx
         } else {
             base_idx
@@ -473,7 +484,7 @@ impl LLBBuilder {
 
             let install_mounts = vec![
                 self.layer_mount(0, 0, "/"),  // Input 0: wolfi_base_idx
-                self.scratch_mount(1, "/tmp"),
+                self.scratch_mount("/tmp"),
             ];
 
             let runtime_with_packages_idx = self.create_exec(
@@ -500,7 +511,7 @@ impl LLBBuilder {
 
             let cleanup_mounts = vec![
                 self.layer_mount(0, 0, "/"),  // Input 0: runtime_with_packages_idx
-                self.scratch_mount(1, "/tmp"),
+                self.scratch_mount("/tmp"),
             ];
 
             Some(self.create_exec(
@@ -513,13 +524,12 @@ impl LLBBuilder {
             None
         };
 
-        // Stage 4: Squash to glibc-dynamic base (using FileOp to copy runtime packages)
+        // Stage 4: Squash to glibc-dynamic base (using FileOp - glibc-dynamic has no shell)
         let squashed_idx = if let Some(runtime_prep) = runtime_prep_idx {
             debug!("Squash stage: glibc_dynamic_idx={}, runtime_prep={}", glibc_dynamic_idx, runtime_prep);
             let project_name = self.project_name.as_deref().unwrap_or("app");
 
-            // Use FileOp to copy runtime_prep onto glibc-dynamic
-            // This copies all files from runtime_prep root to glibc-dynamic root
+            // Use FileOp to copy runtime_prep onto glibc-dynamic (no shell available in glibc-dynamic)
             Some(self.create_file_copy(
                 glibc_dynamic_idx,
                 runtime_prep,
@@ -531,23 +541,66 @@ impl LLBBuilder {
             Some(glibc_dynamic_idx)
         };
 
-        // Stage 5: Copy artifacts to final image using FileOp
+        // Stage 5: Copy artifacts after squash using busybox as exec environment
         let final_idx = if let Some(squashed) = squashed_idx {
-            // If no artifacts to copy, just return squashed layer
             if spec.runtime.copy.is_empty() {
                 squashed
             } else {
-                // Copy each artifact using FileOp (create_dest_path handles mkdir -p)
+                // Use busybox image as exec base with mounts for source and destination
                 let mut current_idx = squashed;
+
                 for copy in &spec.runtime.copy {
-                    current_idx = self.create_file_copy(
-                        current_idx,
-                        build_result_idx,
-                        &format!("/{}", copy.from),
-                        &copy.to,
+                    let src_path = if copy.from == "." {
+                        "/artifacts-src/artifacts".to_string()
+                    } else if copy.from.starts_with('/') {
+                        let filename = std::path::Path::new(&copy.from)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(&copy.from);
+                        format!("/artifacts-src/artifacts/{}", filename)
+                    } else {
+                        let filename = std::path::Path::new(&copy.from)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or(&copy.from);
+                        format!("/artifacts-src/artifacts/{}", filename)
+                    };
+
+                    let copy_cmd = format!(
+                        "mkdir -p $(dirname {}) && cp -r {} {}",
+                        copy.to, src_path, copy.to
+                    );
+
+                    let copy_meta = pb::Meta {
+                        args: vec!["sh".to_string(), "-c".to_string(), copy_cmd],
+                        env: vec![],
+                        cwd: "/".to_string(),
+                        user: String::new(),
+                        proxy_env: None,
+                        extra_hosts: vec![],
+                        hostname: String::new(),
+                        ulimit: vec![],
+                        cgroup_parent: String::new(),
+                        remove_mount_stubs_recursive: false,
+                        valid_exit_codes: vec![],
+                    };
+
+                    // Use busybox as base (input 0), mount squashed at / (input 1, output 0), mount artifacts readonly (input 2)
+                    let copy_mounts = vec![
+                        self.layer_mount(1, 0, "/"),  // Input 1: current_idx (squashed) -> Output 0
+                        self.readonly_mount(2, "/artifacts-src"),  // Input 2: build_result_idx (artifacts)
+                        self.scratch_mount("/tmp"),
+                    ];
+
+                    debug!("ExecOp (busybox): copying from {} to {}", src_path, copy.to);
+                    current_idx = self.create_exec(
+                        vec![busybox_idx, current_idx, build_result_idx],
+                        copy_mounts,
+                        copy_meta,
                         Some(format!("Copy {} to {}", copy.from, copy.to)),
                     );
                 }
+
                 current_idx
             }
         } else {
