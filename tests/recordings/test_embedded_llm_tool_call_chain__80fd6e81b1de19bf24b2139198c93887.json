@@ -1,0 +1,96 @@
+{
+  "request_hash": "80fd6e81b1de19bf24b2139198c93887",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."
+      },
+      {
+        "role": "user",
+        "content": "Analyze this directory by first listing files, then reading one file, then submitting a summary"
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "call_id": "embedded_0",
+            "name": "list_files",
+            "arguments": {
+              "path": "/path/to/directory"
+            }
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "content": "{\n  \"count\": 3,\n  \"files\": [\n    \"Cargo.toml\",\n    \"README.md\",\n    \"src/main.rs\"\n  ]\n}",
+        "tool_call_id": "embedded_0"
+      }
+    ],
+    "tools": [
+      {
+        "description": "List files in a directory",
+        "name": "list_files",
+        "parameters": {
+          "properties": {
+            "path": {
+              "description": "Directory path to list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Read the contents of a file",
+        "name": "read_file",
+        "parameters": {
+          "properties": {
+            "path": {
+              "description": "File path to read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Submit the final analysis result",
+        "name": "submit_result",
+        "parameters": {
+          "properties": {
+            "summary": {
+              "description": "Summary of findings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "summary"
+          ],
+          "type": "object"
+        }
+      }
+    ],
+    "model": "Qwen2.5-Coder 7B GGUF (7B)"
+  },
+  "response": {
+    "content": "",
+    "tool_call": {
+      "call_id": "embedded_0",
+      "name": "read_file",
+      "arguments": {
+        "path": "/path/to/directory/src/main.rs"
+      }
+    },
+    "response_time": 477
+  },
+  "recorded_at": "2026-01-10T20:55:19.977805004+00:00"
+}

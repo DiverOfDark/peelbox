@@ -1,10 +1,10 @@
 use crate::llm::{BackendError, ChatMessage, LLMClient, LLMRequest, LLMResponse, TestContext};
 use anyhow::{Context, Result};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tracing::debug;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordingMode {
@@ -85,6 +85,22 @@ impl RecordedRequest {
                 normalized = normalized.replace(&cwd_str, "[REPO_ROOT]");
             }
         }
+
+        // Normalize /tmp paths (e.g. /tmp/.tmpXXXXXX)
+        static TEMP_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
+        let temp_re = TEMP_PATH_REGEX.get_or_init(|| {
+            // Match /tmp/ followed by path characters
+            Regex::new(r"/tmp/[\w\-\./]+").expect("Invalid temp path regex")
+        });
+        normalized = temp_re.replace_all(&normalized, "[TEMP_DIR]").to_string();
+
+        // Normalize UUIDs
+        static UUID_REGEX: OnceLock<Regex> = OnceLock::new();
+        let uuid_re = UUID_REGEX.get_or_init(|| {
+            Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                .expect("Invalid UUID regex")
+        });
+        normalized = uuid_re.replace_all(&normalized, "[UUID]").to_string();
 
         normalized
     }
