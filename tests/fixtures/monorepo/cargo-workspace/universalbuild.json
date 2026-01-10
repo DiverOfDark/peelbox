@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "target/release/lib-a"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -16,7 +13,9 @@
       },
       "packages": [
         "rust-1.92",
-        "build-base"
+        "build-base",
+        "openssl-dev",
+        "pkgconf"
       ]
     },
     "metadata": {
@@ -49,9 +48,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/release/lib-b"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -64,7 +60,9 @@
       },
       "packages": [
         "rust-1.92",
-        "build-base"
+        "build-base",
+        "openssl-dev",
+        "pkgconf"
       ]
     },
     "metadata": {
@@ -97,9 +95,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/release/app"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -112,7 +107,9 @@
       },
       "packages": [
         "rust-1.92",
-        "build-base"
+        "build-base",
+        "openssl-dev",
+        "pkgconf"
       ]
     },
     "metadata": {

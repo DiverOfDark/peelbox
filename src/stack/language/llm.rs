@@ -115,13 +115,13 @@ impl LanguageDefinition for LLMLanguage {
             .unwrap_or_default();
 
         let prompt = format!(
-            r#"Analyze this build manifest to identify the programming language. Respond with JSON only.
+            r#"Analyze this build manifest to identify the programming language. Respond with JSON ONLY.
 
 File: {}
 Content:
 {}
 
-Response format:
+Response format ONLY:
 {{
   "name": "LanguageName",
   "file_extensions": [".ext"],

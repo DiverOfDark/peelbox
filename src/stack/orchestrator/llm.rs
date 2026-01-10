@@ -50,13 +50,13 @@ impl MonorepoOrchestrator for LLMOrchestrator {
             .unwrap_or_default();
 
         let prompt = format!(
-            r#"Analyze this configuration to identify the monorepo orchestrator. Respond with JSON only.
+            r#"Analyze this configuration to identify the monorepo orchestrator. Respond with JSON ONLY.
 
 Config file: {}
 Content:
 {}
 
-Response format:
+Response format ONLY:
 {{
   "name": "OrchestratorName",
   "config_files": ["file1.json"],

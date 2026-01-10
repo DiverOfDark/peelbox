@@ -1,10 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "dist/",
-        "build/"
-      ],
       "cache": [
         "node_modules",
         ".yarn"

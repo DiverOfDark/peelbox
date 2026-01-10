@@ -29,6 +29,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 - If unsure whether code is needed → ASK, don't assume it should stay
 
 The following rules are MANDATORY for CLAUDE:
+ - **LLM tests should NEVER be run in parallel.** This requires significant local resources and can lead to system instability. Always use `#[serial]` for tests that invoke LLM backends (unless replaying from a fast cache and the user explicitly permitted it).
+ - **Always build with `cuda` feature for LLM tests** to ensure optimal performance during local execution.
  - Keep comments to the minimum, only in cases when it's required. No examples.
  - Don't keep code for backwards compatibility – remove it
  - Never postpone a task, never cut corners

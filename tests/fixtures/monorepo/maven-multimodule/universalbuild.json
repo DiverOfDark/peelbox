@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "target/*.jar"
-      ],
       "cache": [
         ".m2/repository",
         "target",
@@ -56,9 +53,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/*.jar"
-      ],
       "cache": [
         ".m2/repository",
         "target",
@@ -112,9 +106,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/*.jar"
-      ],
       "cache": [
         ".m2/repository",
         "target",
@@ -168,9 +159,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/*.jar"
-      ],
       "cache": [
         ".m2/repository",
         "target",

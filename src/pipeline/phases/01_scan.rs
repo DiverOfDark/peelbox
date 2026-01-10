@@ -404,6 +404,9 @@ impl ScanPhase {
             );
         }
 
+        // Sort file tree to ensure deterministic prompts and stable LLM recordings
+        file_tree.sort();
+
         info!(
             files_scanned,
             "File tree scan complete, running batch detection"

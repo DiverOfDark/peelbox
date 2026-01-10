@@ -1,0 +1,19 @@
+{
+  "request_hash": "a1fec3b6c1fee01d05ae131eda878ab2",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: dotnet-csproj\nFile tree summary:\nRoot files: App.csproj, Program.cs, universalbuild.json\nExtensions: {\"cs\": 1, \"csproj\": 1, \"json\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"App.csproj\",\n    \"build_system\": \"MSBuild\",\n    \"language\": \"C#\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"Unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1113
+  },
+  "recorded_at": "2026-01-10T21:25:46.688618290+00:00"
+}

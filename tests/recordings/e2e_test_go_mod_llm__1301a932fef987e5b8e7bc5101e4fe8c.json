@@ -1,0 +1,19 @@
+{
+  "request_hash": "1301a932fef987e5b8e7bc5101e4fe8c",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: universalbuild.json\nContent:\n[\n  {\n    \"build\": {\n      \"cache\": [\n        \".cache/go-build\",\n        \".cache/go-mod\"\n      ],\n      \"commands\": [\n        \"go mod download\",\n        \"go build -o app .\"\n      ],\n      \"context\": [\n        {\n          \"from\": \".\",\n          \"to\": \"/app\"\n        }\n      ],\n      \"env\": {\n        \"GOCACHE\": \"/build/.cache/go-build\",\n        \"GOMODCACHE\": \"/build/.cache/go-mod\",\n        \"GOSUMDB\": \"off\"\n      },\n      \"packages\": [\n        \"go-1.21\"\n      ]\n    },\n    \"metadata\": {\n      \"build_system\": \"go mod\",\n      \"confidence\": 0.949999988079071,\n      \"framework\": \"Gin\",\n      \"language\": \"Go\",\n      \"project_name\": \"app\",\n      \"reasoning\": \"Detected from go.mod in \"\n    },\n    \"runtime\": {\n      \"command\": [\n        \"/usr/local/bin/app\"\n      ],\n      \"copy\": [\n        {\n          \"from\": \"app\",\n          \"to\": \"/usr/local/bin/app\"\n        }\n      ],\n      \"env\": {},\n      \"health\": {\n        \"endpoint\": \"/health\"\n      },\n      \"packages\": [\n        \"glibc\",\n        \"ca-certificates\"\n      ],\n      \"ports\": [\n        8080\n      ]\n    },\n    \"version\": \"1.0\"\n  }\n]\n\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc, openssl-dev, pkgconf\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"go\",\n  \"manifest_files\": [\"universalbuild.json\"],\n  \"build_commands\": [\"go mod download\", \"go build -o app .\"],\n  \"cache_dirs\": [\".cache/go-build\", \".cache/go-mod\"],\n  \"build_packages\": [\"go-1.21\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"app\"],\n  \"common_ports\": [8080],\n  \"confidence\": 0.949999988079071\n}\n```",
+    "tool_call": null,
+    "response_time": 2052
+  },
+  "recorded_at": "2026-01-10T21:25:55.565354216+00:00"
+}

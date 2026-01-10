@@ -5,45 +5,68 @@ This document describes how to generate Software Bill of Materials (SBOM) and SL
 ## Overview
 
 BuildKit v0.11.0+ includes native support for generating:
-- **SBOM (Software Bill of Materials)** - Complete inventory of software components
+- **SBOM (Software Bill of Materials)** - Complete inventory of software components in SPDX format
 - **SLSA Provenance** - Build metadata and attestations for supply chain security
 
-These attestations are attached to the image manifest and can be inspected using tools like `docker buildx imagetools inspect`.
+peelbox **automatically enables** both SBOM and SLSA provenance attestations by default for all builds. Attestations are embedded in the OCI image manifest and can be inspected using tools like `docker buildx imagetools inspect`.
+
+## Default Behavior
+
+By default, peelbox generates:
+- **SBOM attestation** in SPDX-JSON format using BuildKit's built-in Syft scanner
+- **SLSA provenance** in maximum mode (mode=max) with complete build metadata
+- **Build context scanning** to include source files in SBOM
+
+All builds automatically include these attestations unless explicitly disabled.
+
+## Using peelbox build Command
+
+peelbox provides a high-level `build` command that handles attestation generation automatically.
+
+### Basic Usage (Attestations Enabled by Default)
+
+```bash
+# Build with automatic SBOM and provenance (default behavior)
+peelbox build --spec universalbuild.json --tag myapp:latest
+
+# Output:
+# INFO SBOM attestation enabled (SPDX format)
+# INFO SLSA provenance attestation enabled (mode: Max)
+```
+
+### Controlling Attestations
+
+```bash
+# Disable SBOM attestation
+peelbox build --spec spec.json --tag app:latest --no-sbom
+
+# Disable provenance attestation
+peelbox build --spec spec.json --tag app:latest --no-provenance
+
+# Disable both
+peelbox build --spec spec.json --tag app:latest --no-sbom --no-provenance
+
+# Use minimal provenance mode (faster builds)
+peelbox build --spec spec.json --tag app:latest --provenance min
+
+# Use maximum provenance mode (complete audit trail, default)
+peelbox build --spec spec.json --tag app:latest --provenance max
+```
 
 ## SBOM Attestations
 
 ### What is SBOM?
 
-A Software Bill of Materials (SBOM) is a complete inventory of all software components, libraries, and dependencies in a container image. peelbox generates SBOM attestations in SPDX format using BuildKit's built-in Syft scanner.
+A Software Bill of Materials (SBOM) is a complete inventory of all software components, libraries, and dependencies in a container image. peelbox generates SBOM attestations in SPDX-JSON format using BuildKit's built-in Syft scanner.
 
-### Generating SBOM
+### Automatic Generation
 
-Use buildctl with `--output` flags to generate SBOM attestations:
+SBOM is generated automatically during builds and includes:
+- All runtime packages (from Wolfi)
+- Application dependencies
+- Build context files (when scan_context is enabled)
 
-```bash
-# Generate LLB with peelbox frontend
-peelbox frontend --spec universalbuild.json > build.llb
-
-# Build with SBOM attestation
-buildctl build \
-  --local context=. \
-  --output type=image,name=myapp:latest,push=false \
-  --opt attest:sbom= \
-  < build.llb
-```
-
-### SBOM Configuration Options
-
-Enable context scanning to include build context files in SBOM:
-
-```bash
-buildctl build \
-  --local context=. \
-  --output type=image,name=myapp:latest,push=false \
-  --opt attest:sbom= \
-  --opt build-arg:BUILDKIT_SBOM_SCAN_CONTEXT=true \
-  < build.llb
-```
+No manual configuration required - peelbox handles this transparently.
 
 ### Viewing SBOM
 
@@ -63,40 +86,34 @@ docker buildx imagetools inspect myapp:latest \
 ### What is SLSA Provenance?
 
 SLSA (Supply-chain Levels for Software Artifacts) provenance provides build metadata including:
-- Build timestamp
-- Builder information
-- Source repository
+- Build timestamp and duration
+- Builder information (BuildKit version)
 - Build inputs and parameters
+- LLB definition digest
 - Reproducibility metadata
 
-### Generating Provenance
+### Automatic Generation
 
-Generate SLSA provenance attestations:
-
-```bash
-# Build with provenance attestation
-buildctl build \
-  --local context=. \
-  --output type=image,name=myapp:latest,push=false \
-  --opt attest:provenance=mode=max \
-  < build.llb
-```
+SLSA provenance is generated automatically during builds in **maximum mode** by default, providing:
+- Complete build metadata
+- Full audit trail
+- Supply chain security compliance
 
 ### Provenance Modes
 
-BuildKit supports different provenance modes:
+peelbox supports two provenance modes:
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `min` | Minimal provenance | Fast builds, basic metadata |
-| `max` | Full provenance | Production builds, complete audit trail |
+| Mode | Description | Use Case | CLI Flag |
+|------|-------------|----------|----------|
+| `min` | Minimal provenance | Fast builds, basic metadata | `--provenance min` |
+| `max` | Full provenance (default) | Production builds, complete audit trail | `--provenance max` |
 
 ```bash
-# Minimal provenance
---opt attest:provenance=mode=min
+# Maximum provenance (default, recommended for production)
+peelbox build --spec spec.json --tag app:latest
 
-# Maximum provenance (recommended for production)
---opt attest:provenance=mode=max
+# Minimal provenance (faster builds)
+peelbox build --spec spec.json --tag app:latest --provenance min
 ```
 
 ### Viewing Provenance
@@ -115,16 +132,47 @@ docker buildx imagetools inspect myapp:latest \
 
 ## Combined SBOM and Provenance
 
-Generate both SBOM and provenance attestations:
+Both SBOM and provenance attestations are enabled by default:
 
 ```bash
-buildctl build \
-  --local context=. \
-  --output type=image,name=myapp:latest,push=false \
-  --opt attest:sbom= \
-  --opt attest:provenance=mode=max \
-  --opt build-arg:BUILDKIT_SBOM_SCAN_CONTEXT=true \
-  < build.llb
+# Automatic (both enabled by default)
+peelbox build --spec universalbuild.json --tag myapp:latest
+
+# Explicitly configure both
+peelbox build --spec spec.json --tag app:latest --provenance max
+```
+
+## Programmatic API
+
+For advanced use cases, you can configure attestations programmatically using the Rust API:
+
+```rust
+use peelbox::buildkit::{AttestationConfig, BuildSession, ProvenanceMode};
+
+// Custom attestation configuration
+let attestation_config = AttestationConfig {
+    sbom: true,
+    provenance: Some(ProvenanceMode::Max),
+    scan_context: true,
+};
+
+// Create session with custom attestations
+let session = BuildSession::new(connection, context_path, output_path, image_tag)
+    .with_attestations(attestation_config);
+```
+
+### Default Configuration
+
+```rust
+impl Default for AttestationConfig {
+    fn default() -> Self {
+        Self {
+            sbom: true,                          // SBOM enabled
+            provenance: Some(ProvenanceMode::Max), // Maximum provenance
+            scan_context: true,                   // Scan build context
+        }
+    }
+}
 ```
 
 ## Signing Attestations with Cosign
@@ -154,28 +202,27 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up BuildKit
-        uses: docker/setup-buildx-action@v3
+        run: |
+          docker run -d --rm --name buildkitd --privileged \
+            -p 127.0.0.1:1234:1234 \
+            moby/buildkit:latest --addr tcp://0.0.0.0:1234
 
       - name: Install peelbox
         run: |
           curl -L https://github.com/yourusername/peelbox/releases/latest/download/peelbox-linux-amd64 -o peelbox
           chmod +x peelbox
 
-      - name: Generate build spec
-        run: ./peelbox detect . > universalbuild.json
-
-      - name: Generate LLB
-        run: ./peelbox frontend --spec universalbuild.json > build.llb
-
-      - name: Build with attestations
+      - name: Build with attestations (automatic)
         run: |
-          buildctl build \
-            --local context=. \
-            --output type=image,name=ghcr.io/${{ github.repository }}:${{ github.sha }},push=true \
-            --opt attest:sbom= \
-            --opt attest:provenance=mode=max \
-            --opt build-arg:BUILDKIT_SBOM_SCAN_CONTEXT=true \
-            < build.llb
+          ./peelbox detect . > universalbuild.json
+          ./peelbox build --spec universalbuild.json \
+            --tag ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            --buildkit tcp://127.0.0.1:1234
+
+      - name: Verify attestations
+        run: |
+          docker load < ghcr.io-${{ github.repository }}-${{ github.sha }}.tar
+          docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ github.sha }}
 ```
 
 ### GitLab CI
@@ -183,19 +230,18 @@ jobs:
 ```yaml
 build-image:
   stage: build
-  image: moby/buildkit:latest
+  image: rust:latest
   services:
     - docker:dind
   script:
+    # Install peelbox
+    - cargo install --git https://github.com/yourusername/peelbox peelbox
+
+    # Build with automatic attestations
     - peelbox detect . > universalbuild.json
-    - peelbox frontend --spec universalbuild.json > build.llb
-    - |
-      buildctl build \
-        --local context=. \
-        --output type=image,name=$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA,push=true \
-        --opt attest:sbom= \
-        --opt attest:provenance=mode=max \
-        < build.llb
+    - peelbox build --spec universalbuild.json \
+        --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA \
+        --buildkit tcp://docker:2376
 ```
 
 ## Attestation Format
@@ -250,11 +296,60 @@ Attestations follow the [in-toto](https://in-toto.io/) specification and are sto
 
 ## Security Best Practices
 
-1. **Always generate SBOM** - Track all dependencies for vulnerability scanning
-2. **Use provenance mode=max** - Maximum metadata for audit trails
-3. **Sign attestations** - Use Cosign to cryptographically sign SBOM/provenance
-4. **Scan regularly** - Use tools like Grype or Trivy to scan SBOM for CVEs
-5. **Store attestations** - Archive SBOM/provenance for compliance and auditing
+1. **Default is secure** - peelbox automatically generates SBOM and provenance with maximum metadata
+2. **Sign attestations** - Use Cosign to cryptographically sign SBOM/provenance for verification
+3. **Scan regularly** - Use tools like Grype or Trivy to scan SBOM for CVEs
+4. **Store attestations** - Archive SBOM/provenance for compliance and auditing
+5. **Disable only when necessary** - Only use `--no-sbom` or `--no-provenance` if you have specific requirements
+
+## Quick Reference
+
+### CLI Flags
+
+| Flag | Effect | Default |
+|------|--------|---------|
+| (none) | SBOM + provenance (max) enabled | ✓ |
+| `--no-sbom` | Disable SBOM | - |
+| `--no-provenance` | Disable provenance | - |
+| `--provenance min` | Minimal provenance metadata | - |
+| `--provenance max` | Full provenance metadata | ✓ |
+
+### Example Commands
+
+```bash
+# Default (recommended) - Full attestations
+peelbox build --spec spec.json --tag app:latest
+
+# Fast builds - Minimal provenance
+peelbox build --spec spec.json --tag app:latest --provenance min
+
+# No attestations (not recommended)
+peelbox build --spec spec.json --tag app:latest --no-sbom --no-provenance
+
+# Verify attestations after build
+docker buildx imagetools inspect app:latest --format '{{json .SBOM}}'
+docker buildx imagetools inspect app:latest --format '{{json .Provenance}}'
+```
+
+## Troubleshooting
+
+**Q: My builds are slower after enabling attestations**
+A: Use `--provenance min` for faster builds, or `--no-sbom --no-provenance` to disable (not recommended for production).
+
+**Q: How do I view attestations in the built image?**
+A: Load the tar into Docker and use `docker buildx imagetools inspect <image>` to view attestations.
+
+**Q: Are attestations signed?**
+A: BuildKit generates unsigned attestations. Use Cosign to add cryptographic signatures after the build.
+
+**Q: Can I customize SBOM scanner settings?**
+A: BuildKit uses built-in Syft scanner. peelbox enables context scanning by default via `scan_context: true`.
+
+## Requirements
+
+- BuildKit v0.11.0 or later
+- Docker BuildKit enabled (Docker Desktop 4.17+, Docker Engine 23.0+)
+- For verification: `docker buildx` CLI plugin
 
 ## Further Reading
 

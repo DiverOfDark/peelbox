@@ -1,7 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [],
       "cache": [
         "_build",
         "deps"

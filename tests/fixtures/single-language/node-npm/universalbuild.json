@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "dist/"
-      ],
       "cache": [
         "node_modules",
         ".npm"

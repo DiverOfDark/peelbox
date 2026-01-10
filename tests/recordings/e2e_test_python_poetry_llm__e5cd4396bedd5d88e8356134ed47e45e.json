@@ -1,0 +1,19 @@
+{
+  "request_hash": "e5cd4396bedd5d88e8356134ed47e45e",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: pyproject.toml\nContent:\n[tool.poetry]\nname = \"example-app\"\nversion = \"0.1.0\"\ndescription = \"Example Python application\"\nauthors = [\"Your Name <you@example.com>\"]\n\n[tool.poetry.dependencies]\npython = \"^3.9\"\nflask = \"^3.0.0\"\nrequests = \"^2.31.0\"\n\n[tool.poetry.group.dev.dependencies]\npytest = \"^7.4.3\"\n\n[build-system]\nrequires = [\"poetry-core\"]\nbuild-backend = \"poetry.core.masonry.api\"\n\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc, openssl-dev, pkgconf\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"python-3.9\",\n  \"manifest_files\": [\"pyproject.toml\"],\n  \"build_commands\": [\"poetry build\"],\n  \"cache_dirs\": [\".poetry\"],\n  \"build_packages\": [\"poetry-core\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"dist/example-app-0.1.0-py3-none-any.whl\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
+    "tool_call": null,
+    "response_time": 1651
+  },
+  "recorded_at": "2026-01-10T20:50:50.035848643+00:00"
+}

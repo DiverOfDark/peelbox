@@ -1,0 +1,19 @@
+{
+  "request_hash": "cf761afcbd76ffdd652f6d5cb516dd9b",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: go.mod\nContent:\nmodule example.com/app\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n\nrequire (\n\tgithub.com/bytedance/sonic v1.9.1 // indirect\n\tgithub.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect\n\tgithub.com/gabriel-vasile/mimetype v1.4.2 // indirect\n\tgithub.com/gin-contrib/sse v0.1.0 // indirect\n\tgithub.com/go-playground/locales v0.14.1 // indirect\n\tgithub.com/go-playground/universal-translator v0.18.1 // indirect\n\tgithub.com/go-playground/validator/v10 v10.14.0 // indirect\n\tgithub.com/goccy/go-json v0.10.2 // indirect\n\tgithub.com/json-iterator/go v1.1.12 // indirect\n\tgithub.com/klauspost/cpuid/v2 v2.2.4 // indirect\n\tgithub.com/leodido/go-urn v1.2.4 // indirect\n\tgithub.com/mattn/go-isatty v0.0.19 // indirect\n\tgithub.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect\n\tgithub.com/modern-go/reflect2 v1.0.2 // indirect\n\tgithub.com/pelletier/go-toml/v2 v2.0.8 // indirect\n\tgithub.com/twitchyliquid64/golang-asm v0.15.1 // indirect\n\tgithub.com/ugorji/go/codec v1.2.11 // indirect\n\tgolang.org/x/arch v0.3.0 // indirect\n\tgolang.org/x/crypto v0.9.0 // indirect\n\tgolang.org/x/net v0.10.0 // indirect\n\tgolang.org/x/sys v0.8.0 // indirect\n\tgolang.org/x/text v0.9.0 // indirect\n\tgoogle.golang.org/protobuf v1.30.0 // indirect\n\tgopkg.in/yaml.v3 v3.0.1 // indirect\n)\n\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc, openssl-dev, pkgconf\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"go\",\n  \"manifest_files\": [\"go.mod\"],\n  \"build_commands\": [\"go build\"],\n  \"cache_dirs\": [\".go-build\"],\n  \"build_packages\": [\"go\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"app\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
+    "tool_call": null,
+    "response_time": 1685
+  },
+  "recorded_at": "2026-01-10T20:50:17.447520443+00:00"
+}

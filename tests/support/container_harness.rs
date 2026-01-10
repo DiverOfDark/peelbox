@@ -2,9 +2,7 @@ use anyhow::{Context, Result};
 use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
-use std::io::Write;
 use std::path::Path;
-use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 use testcontainers::core::{Mount, WaitFor};
@@ -20,7 +18,9 @@ use tokio::time::timeout;
 /// - Reduce container startup overhead
 /// - Share build cache across all tests
 /// - Enable parallel builds (BuildKit handles concurrent build requests)
-static BUILDKIT_CONTAINER: OnceCell<Arc<(String, ContainerAsync<GenericImage>)>> =
+///
+/// Stores (TCP port, container ID)
+static BUILDKIT_CONTAINER: OnceCell<Arc<(u16, String, ContainerAsync<GenericImage>)>> =
     OnceCell::const_new();
 
 /// Fixed container name for the shared BuildKit instance
@@ -30,10 +30,11 @@ const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 ///
 /// This function is thread-safe and will only create one BuildKit container
 /// for all parallel tests across all test binaries. Subsequent calls return
-/// the existing container ID.
+/// the existing TCP port and container ID.
 ///
 /// Uses a fixed container name to enable reuse across test binaries.
-pub async fn get_buildkit_container() -> Result<String> {
+/// Returns (TCP port, container ID)
+pub async fn get_buildkit_container() -> Result<(u16, String)> {
     let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
 
     // Check if container already exists (may be from another test binary)
@@ -44,8 +45,19 @@ pub async fn get_buildkit_container() -> Result<String> {
         Ok(inspect) => {
             // Container exists, check if it's running
             if inspect.state.and_then(|s| s.running) == Some(true) {
-                // Container is already running, return its ID
-                return inspect.id.context("Container ID missing");
+                // Container is running, get its port mapping
+                let port = inspect
+                    .network_settings
+                    .and_then(|ns| ns.ports)
+                    .and_then(|ports| ports.get("1234/tcp").cloned())
+                    .and_then(|bindings| bindings)
+                    .and_then(|mut b| b.pop())
+                    .and_then(|binding| binding.host_port)
+                    .and_then(|port| port.parse::<u16>().ok())
+                    .context("Failed to get BuildKit port from existing container")?;
+
+                let container_id = inspect.id.context("Container ID missing")?;
+                return Ok((port, container_id));
             } else {
                 // Container exists but not running, remove it
                 let _ = docker
@@ -66,37 +78,44 @@ pub async fn get_buildkit_container() -> Result<String> {
 
     let container = BUILDKIT_CONTAINER
         .get_or_init(|| async {
-            // Use .buildkit-cache in project root (separate from target/ to avoid Rust cache conflicts)
-            let cache_dir = std::env::current_dir()
-                .expect("Failed to get current directory")
-                .join(".buildkit-cache");
+            // Use temporary directory for BuildKit cache to avoid polluting project root
+            let cache_dir = std::env::temp_dir().join("peelbox-test-buildkit-cache");
             std::fs::create_dir_all(&cache_dir).expect("Failed to create BuildKit cache directory");
 
-            // Start new BuildKit container with bind-mounted cache directory
-            // Using bind mount instead of volume to enable GitHub Actions caching
-            let buildkit_container = GenericImage::new("moby/buildkit", "latest")
-                .with_wait_for(WaitFor::message_on_stderr("running server on"))
-                .with_privileged(true)
-                .with_mount(Mount::bind_mount(
-                    cache_dir.to_str().expect("Invalid cache path"),
-                    "/var/lib/buildkit",
-                ))
-                .with_container_name(BUILDKIT_CONTAINER_NAME)
-                .start()
-                .await
-                .expect("Failed to start BuildKit container");
+            // Start new BuildKit container with TCP port exposed
+            // Map port 1234 to random host port and run BuildKit with TCP listener
+            let buildkit_container: ContainerAsync<GenericImage> =
+                GenericImage::new("moby/buildkit", "latest")
+                    .with_wait_for(WaitFor::message_on_stderr("running server on"))
+                    .with_privileged(true)
+                    .with_mount(Mount::bind_mount(
+                        cache_dir.to_str().expect("Invalid cache path"),
+                        "/var/lib/buildkit",
+                    ))
+                    .with_container_name(BUILDKIT_CONTAINER_NAME)
+                    .with_mapped_port(0, 1234.into())
+                    .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
+                    .start()
+                    .await
+                    .expect("Failed to start BuildKit container");
 
             let container_id = buildkit_container.id().to_string();
+
+            // Get the mapped host port for BuildKit TCP
+            let port: u16 = buildkit_container
+                .get_host_port_ipv4(1234)
+                .await
+                .expect("Failed to get BuildKit host port");
 
             // Small delay to ensure BuildKit is fully ready
             tokio::time::sleep(Duration::from_secs(2)).await;
 
             // Store container to keep it alive for the duration of the test run
-            Arc::new((container_id, buildkit_container))
+            Arc::new((port, container_id, buildkit_container))
         })
         .await;
 
-    Ok(container.0.clone())
+    Ok((container.0, container.1.clone()))
 }
 
 /// Container test harness for building and running images from UniversalBuild specs
@@ -113,155 +132,122 @@ impl ContainerTestHarness {
         Ok(Self { docker })
     }
 
-    /// Build a container image from a UniversalBuild JSON spec
+    /// Build a container image from a UniversalBuild JSON spec using peelbox build
     /// Returns the image name
-    /// Uses a shared BuildKit container for all parallel builds
+    /// Uses BuildKit gRPC protocol directly via TCP (no buildctl needed)
     pub async fn build_image(
         &self,
         spec_path: &Path,
         context_path: &Path,
         image_name: &str,
     ) -> Result<String> {
+        // Default output path: image_name.tar in context directory
+        let output_tar = context_path.join(format!("{}.tar", image_name.replace([':', '/'], "-")));
+        self.build_image_with_output(spec_path, context_path, image_name, &output_tar)
+            .await
+    }
+
+    /// Build a container image with a specific output path
+    pub async fn build_image_with_output(
+        &self,
+        spec_path: &Path,
+        context_path: &Path,
+        image_name: &str,
+        output_tar: &Path,
+    ) -> Result<String> {
         // Get or create the shared BuildKit container
-        let container_id = get_buildkit_container().await?;
+        let (port, _container_id) = get_buildkit_container().await?;
 
-        // Build peelbox binary if not already built
-        let peelbox_binary = std::env::current_dir()
-            .context("Failed to get current directory")?
-            .join("target/release/peelbox");
+        // Use the same binary that is running this test
+        // This is much faster than rebuilding in release mode
+        let mut peelbox_binary = std::env::current_exe()
+            .context("Failed to get current executable path")?
+            .parent()
+            .context("No parent directory")?
+            .to_path_buf();
 
-        if !peelbox_binary.exists() {
-            let build_status = std::process::Command::new("cargo")
-                .args([
-                    "build",
-                    "--release",
-                    "--bin",
-                    "peelbox",
-                    "--no-default-features",
-                ])
-                .status()
-                .context("Failed to build peelbox")?;
-
-            if !build_status.success() {
-                anyhow::bail!("Failed to build peelbox binary");
-            }
+        // If we're in deps/, go up one more level
+        if peelbox_binary.ends_with("deps") {
+            peelbox_binary = peelbox_binary
+                .parent()
+                .context("No parent directory")?
+                .to_path_buf();
         }
 
-        // Generate unique context name to avoid conflicts in parallel builds
-        // Use last component of context_path as the context identifier
-        let context_name = context_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .map(|n| format!("ctx-{}", n))
-            .unwrap_or_else(|| "context".to_string());
+        let peelbox_binary = peelbox_binary.join("peelbox");
 
-        // Generate LLB from UniversalBuild spec with unique context name
-        let peelbox_output = std::process::Command::new(&peelbox_binary)
-            .args([
-                "frontend",
-                "--spec",
-                spec_path.to_str().unwrap(),
-                "--context-name",
-                &context_name,
-            ])
-            .output()
-            .context("Failed to run peelbox frontend")?;
+        if !peelbox_binary.exists() {
+            anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
+        }
+
+        // Build image using peelbox build command (direct BuildKit gRPC via TCP)
+        let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
+
+        let mut cmd = std::process::Command::new(&peelbox_binary);
+        cmd.args([
+            "build",
+            "--spec",
+            spec_path.to_str().unwrap(),
+            "--tag",
+            image_name,
+            "--buildkit",
+            &buildkit_addr,
+            "--context",
+            context_path.to_str().unwrap(),
+            "--output",
+            output_tar.to_str().unwrap(),
+            "--quiet", // This will make it output ONLY the image ID to stdout on success
+        ]);
+
+        if let Ok(rust_log) = std::env::var("RUST_LOG") {
+            cmd.env("RUST_LOG", rust_log);
+        }
+
+        let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
 
         if !peelbox_output.status.success() {
-            anyhow::bail!(
-                "peelbox frontend failed: {}",
+            eprintln!(
+                "peelbox build stdout:\n{}",
+                String::from_utf8_lossy(&peelbox_output.stdout)
+            );
+            eprintln!(
+                "peelbox build stderr:\n{}",
                 String::from_utf8_lossy(&peelbox_output.stderr)
             );
         }
 
-        let llb_data = peelbox_output.stdout;
-        assert!(!llb_data.is_empty(), "LLB data should not be empty");
+        let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
+            .trim()
+            .to_string();
 
-        // Build image with buildctl using the same unique context name
-        let buildkit_addr = format!("docker-container://{}", container_id);
-
-        let mut buildctl = std::process::Command::new("buildctl")
-            .args([
-                "--addr",
-                &buildkit_addr,
-                "build",
-                "--progress=plain",
-                "--local",
-                &format!("{}={}", context_name, context_path.display()),
-                "--output",
-                &format!("type=docker,name={}", image_name),
-            ])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .context("Failed to spawn buildctl")?;
-
-        if let Some(mut stdin) = buildctl.stdin.take() {
-            stdin
-                .write_all(&llb_data)
-                .context("Failed to write LLB to buildctl stdin")?;
-        }
-
-        let buildctl_output = buildctl
-            .wait_with_output()
-            .context("Failed to wait for buildctl")?;
-
-        if !buildctl_output.status.success() {
-            eprintln!(
-                "buildctl stdout:\n{}",
-                String::from_utf8_lossy(&buildctl_output.stdout)
-            );
-            eprintln!(
-                "buildctl stderr:\n{}",
-                String::from_utf8_lossy(&buildctl_output.stderr)
-            );
-            anyhow::bail!("buildctl failed");
-        }
-
-        // Load image into Docker/Podman
-        let cli_cmd = if std::process::Command::new("docker")
-            .arg("--version")
-            .output()
-            .is_ok()
-        {
-            "docker"
-        } else if std::process::Command::new("podman")
-            .arg("--version")
-            .output()
-            .is_ok()
-        {
-            "podman"
+        // Check if image already exists in Docker
+        let image_exists = if !image_id.is_empty() {
+            self.docker.inspect_image(&image_id).await.is_ok()
         } else {
-            anyhow::bail!("Neither docker nor podman CLI found");
+            false
         };
 
-        let mut docker_load = std::process::Command::new(cli_cmd)
-            .args(["load"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .context("Failed to spawn docker load")?;
+        if !image_exists {
+            // Load the tar file into Docker
+            let load_output = std::process::Command::new("docker")
+                .args(["load", "-i", output_tar.to_str().unwrap()])
+                .output()
+                .context("Failed to load image into Docker")?;
 
-        if let Some(mut stdin) = docker_load.stdin.take() {
-            stdin
-                .write_all(&buildctl_output.stdout)
-                .context("Failed to write tar to docker load")?;
+            if !load_output.status.success() {
+                anyhow::bail!(
+                    "Failed to load image into Docker: {}",
+                    String::from_utf8_lossy(&load_output.stderr)
+                );
+            }
+        } else {
+            // Ensure it has the requested tag if it already exists
+            let _ = std::process::Command::new("docker")
+                .args(["tag", &image_id, image_name])
+                .status();
         }
 
-        let load_output = docker_load
-            .wait_with_output()
-            .context("Failed to wait for docker load")?;
-
-        if !load_output.status.success() {
-            anyhow::bail!(
-                "docker load failed: {}",
-                String::from_utf8_lossy(&load_output.stderr)
-            );
-        }
-
-        // Verify image exists
+        // Verify image exists in Docker registry
         self.docker
             .inspect_image(image_name)
             .await

@@ -51,11 +51,11 @@ impl LLMFramework {
             .join(", ");
 
         let prompt = format!(
-            r#"Analyze these dependencies to identify the web framework. Respond with JSON only.
+            r#"Analyze these dependencies to identify the web framework. Respond with JSON ONLY.
 
 Dependencies: {}
 
-Response format:
+Response format ONLY:
 {{
   "name": "FrameworkName",
   "language": "LanguageName",

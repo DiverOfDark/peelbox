@@ -75,12 +75,12 @@ impl Runtime for LLMRuntime {
             .join(", ");
 
         let prompt = format!(
-            r#"Analyze the runtime configuration for this application. Respond with JSON only.
+            r#"Analyze the runtime configuration for this application. Respond with JSON ONLY.
 
 Files: {}
 {}
 
-Response format:
+Response format ONLY:
 {{
   "name": "RuntimeName",
   "base_images": ["image:tag"],
