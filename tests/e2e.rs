@@ -147,6 +147,10 @@ fn run_detection_with_mode(
         .env("PEELBOX_RECORDING_MODE", "auto")
         .env("PEELBOX_TEST_NAME", test_name);
 
+    if let Ok(rust_log) = std::env::var("RUST_LOG") {
+        cmd.env("RUST_LOG", rust_log);
+    }
+
     if let Some(detection_mode) = mode {
         cmd.env("PEELBOX_DETECTION_MODE", detection_mode);
     }
@@ -522,7 +526,6 @@ async fn run_container_integration_test(category: &str, fixture_name: &str) -> R
     dotnet_csproj = { "dotnet-csproj" },
     php_symfony = { "php-symfony" },
 )]
-#[serial]
 fn test_container_integration_single_language(fixture_name: &str) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     runtime.block_on(async {

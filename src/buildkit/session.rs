@@ -9,11 +9,14 @@ use tracing::{debug, error, info, warn};
 use super::auth_service::AuthService;
 use super::connection::BuildKitConnection;
 use super::exporter_service::{ExporterService, ImageConfig};
+use super::filesend_service::FileSendService;
 use super::filesync::FileSync;
 use super::filesync_service::FileSyncService;
-use super::filesend_service::FileSendService;
 use super::llb::LLBBuilder;
-use super::proto::{AuthServerBuilder, BytesMessage, ControlClient, ExporterServerBuilder, FileSendServerBuilder, FileSyncServerBuilder};
+use super::proto::{
+    AuthServerBuilder, BytesMessage, ControlClient, ExporterServerBuilder, FileSendServerBuilder,
+    FileSyncServerBuilder,
+};
 use super::stream_conn::StreamConn;
 use crate::output::schema::UniversalBuild;
 use tokio::sync::mpsc;
@@ -69,7 +72,12 @@ pub struct BuildSession {
 
 impl BuildSession {
     /// Create a new build session
-    pub fn new(connection: BuildKitConnection, context_path: PathBuf, output_path: PathBuf, image_tag: String) -> Self {
+    pub fn new(
+        connection: BuildKitConnection,
+        context_path: PathBuf,
+        output_path: PathBuf,
+        image_tag: String,
+    ) -> Self {
         let session_id = Self::generate_session_id();
         debug!("Creating new build session: {}", session_id);
 
@@ -94,9 +102,19 @@ impl BuildSession {
         self
     }
 
+    /// Set a custom session ID (useful for deterministic builds/caching)
+    pub fn with_session_id(mut self, session_id: String) -> Self {
+        debug!(
+            "Overriding session ID from {} to {}",
+            self.session_id, session_id
+        );
+        self.session_id = session_id;
+        self
+    }
+
     /// Generate a unique session ID using UUID
     fn generate_session_id() -> String {
-        format!("peelbox-{}", uuid::Uuid::new_v4())
+        uuid::Uuid::new_v4().to_string()
     }
 
     /// Initialize session and transfer build context
@@ -158,67 +176,94 @@ impl BuildSession {
         // Add session metadata headers
         request.metadata_mut().insert(
             "x-docker-expose-session-uuid",
-            self.session_id.parse().context("Failed to parse session ID")?
+            self.session_id
+                .parse()
+                .context("Failed to parse session ID")?,
         );
 
         request.metadata_mut().insert(
             "x-docker-expose-session-name",
-            self.session_id.parse().context("Failed to parse session name")?
+            self.session_id
+                .parse()
+                .context("Failed to parse session name")?,
         );
 
         request.metadata_mut().insert(
             "x-docker-expose-session-sharedkey",
-            shared_key.parse().context("Failed to parse shared key")?
+            shared_key.parse().context("Failed to parse shared key")?,
         );
 
         // Advertise all available gRPC methods
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.FileSync/DiffCopy".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.FileSync/DiffCopy"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.FileSync/TarStream".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.FileSync/TarStream"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.Auth/Credentials".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.Auth/Credentials"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.Auth/FetchToken".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.Auth/FetchToken"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.Auth/GetTokenAuthority".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.Auth/GetTokenAuthority"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.Auth/VerifyTokenAuthority".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.Auth/VerifyTokenAuthority"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.filesync.v1.FileSend/DiffCopy".parse().context("Failed to parse method")?
+            "/moby.filesync.v1.FileSend/DiffCopy"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.exporter.v1.Exporter/FindExporters".parse().context("Failed to parse method")?
+            "/moby.exporter.v1.Exporter/FindExporters"
+                .parse()
+                .context("Failed to parse method")?,
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/grpc.health.v1.Health/Check".parse().context("Failed to parse method")?
+            "/grpc.health.v1.Health/Check"
+                .parse()
+                .context("Failed to parse method")?,
         );
 
         // Call Control.Session with metadata
         info!("Calling Control.Session RPC...");
-        let response = client
-            .session(request)
-            .await
-            .map_err(|e| {
-                error!("Control.Session RPC failed: status={:?}, message='{}', details={:?}",
-                       e.code(), e.message(), e);
-                anyhow::anyhow!("Failed to attach session: {} (code: {:?})", e.message(), e.code())
-            })?;
+        let response = client.session(request).await.map_err(|e| {
+            error!(
+                "Control.Session RPC failed: status={:?}, message='{}', details={:?}",
+                e.code(),
+                e.message(),
+                e
+            );
+            anyhow::anyhow!(
+                "Failed to attach session: {} (code: {:?})",
+                e.message(),
+                e.code()
+            )
+        })?;
 
         let incoming = response.into_inner();
 
@@ -232,8 +277,12 @@ impl BuildSession {
         let filesync_service = FileSyncService::new(self.context_path.clone());
         let filesend_service = FileSendService::new(self.output_path.clone(), export_tx);
         let auth_service = AuthService::new();
-        let image_tag = self.image_tag.clone().unwrap_or_else(|| "peelbox:latest".to_string());
-        let exporter_service = ExporterService::new(image_tag, "oci".to_string(), self.image_config.clone());
+        let image_tag = self
+            .image_tag
+            .clone()
+            .unwrap_or_else(|| "peelbox:latest".to_string());
+        let exporter_service =
+            ExporterService::new(image_tag, "oci".to_string(), self.image_config.clone());
         let health_service = super::health_service::HealthService::new();
 
         info!("Creating unified gRPC server with FileSync, FileSend, Auth, Exporter, and Health services");
@@ -243,7 +292,9 @@ impl BuildSession {
         let (conn_tx, conn_rx) = mpsc::channel(1);
 
         // Send the single connection
-        conn_tx.send(Ok::<_, std::io::Error>(stream_conn)).await
+        conn_tx
+            .send(Ok::<_, std::io::Error>(stream_conn))
+            .await
             .context("Failed to send StreamConn")?;
 
         // Don't drop conn_tx - keep it alive so the stream never ends
@@ -263,7 +314,9 @@ impl BuildSession {
             .add_service(FileSendServerBuilder::new(filesend_service))
             .add_service(AuthServerBuilder::new(auth_service))
             .add_service(ExporterServerBuilder::new(exporter_service))
-            .add_service(tonic_health::pb::health_server::HealthServer::new(health_service))
+            .add_service(tonic_health::pb::health_server::HealthServer::new(
+                health_service,
+            ))
             .serve_with_incoming(conn_stream);
 
         debug!("gRPC server built, ready to accept connections");
@@ -272,7 +325,10 @@ impl BuildSession {
         let session_id = self.session_id.clone();
         let session_handle = tokio::spawn(async move {
             debug!("Session {} gRPC server starting", session_id);
-            debug!("Session {} server task spawned, awaiting serve_with_incoming", session_id);
+            debug!(
+                "Session {} server task spawned, awaiting serve_with_incoming",
+                session_id
+            );
 
             match server.await {
                 Ok(()) => {
@@ -292,7 +348,10 @@ impl BuildSession {
         self.conn_tx = Some(conn_tx); // Keep connection stream alive - never ends until session dropped
         self.export_complete_rx = Some(export_rx); // Receive export completion signal
 
-        info!("Session {} attached successfully - gRPC server running over BytesMessage stream", self.session_id);
+        info!(
+            "Session {} attached successfully - gRPC server running over BytesMessage stream",
+            self.session_id
+        );
 
         // Give BuildKit time to register the session before we start the build
         // This prevents race condition where Solve() is called before session manager knows about our session
@@ -301,7 +360,6 @@ impl BuildSession {
 
         Ok(())
     }
-
 
     /// Build image from UniversalBuild spec
     pub async fn build(
@@ -319,15 +377,23 @@ impl BuildSession {
         // Extract OCI image config from spec before generating LLB
         let image_config = ImageConfig {
             cmd: spec.runtime.command.clone(),
-            env: spec.runtime.env.iter().map(|(k, v)| format!("{}={}", k, v)).collect(),
-            working_dir: "/".to_string(),  // Default working dir
-            entrypoint: vec![],  // No entrypoint by default
+            env: spec
+                .runtime
+                .env
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect(),
+            working_dir: "/".to_string(), // Default working dir
+            entrypoint: vec![],           // No entrypoint by default
         };
 
         // Store config for exporter to use
         if let Ok(mut guard) = self.image_config.lock() {
             *guard = Some(image_config.clone());
-            debug!("Set OCI config: cmd={:?}, env={:?}", spec.runtime.command, spec.runtime.env);
+            debug!(
+                "Set OCI config: cmd={:?}, env={:?}",
+                spec.runtime.command, spec.runtime.env
+            );
         }
 
         // Serialize OCI config to JSON for exporter attribute
@@ -342,17 +408,21 @@ impl BuildSession {
             "architecture": "amd64",
             "os": "linux",
         });
-        let config_json_str = serde_json::to_string(&oci_config_json)
-            .context("Failed to serialize OCI config")?;
+        let config_json_str =
+            serde_json::to_string(&oci_config_json).context("Failed to serialize OCI config")?;
 
         debug!("OCI config JSON: {}", config_json_str);
 
         // Generate LLB from spec
-        let project_name = spec.metadata.project_name.clone()
+        let project_name = spec
+            .metadata
+            .project_name
+            .clone()
             .unwrap_or_else(|| "unnamed".to_string());
         let mut llb_builder = LLBBuilder::new("context")
             .with_context_path(self.context_path.clone())
-            .with_project_name(project_name);
+            .with_project_name(project_name)
+            .with_session_id(self.session_id.clone());
         let llb_bytes = llb_builder
             .to_bytes(spec)
             .context("Failed to generate LLB")?;
@@ -373,11 +443,12 @@ impl BuildSession {
         let mut client = ControlClient::new(self.connection.channel());
 
         // Parse LLB bytes into Definition proto
-        let definition = prost::Message::decode(&llb_bytes[..])
-            .with_context(|| format!(
+        let definition = prost::Message::decode(&llb_bytes[..]).with_context(|| {
+            format!(
                 "Failed to decode LLB definition ({} bytes). Data may be corrupted.",
                 llb_bytes.len()
-            ))?;
+            )
+        })?;
 
         // Create local input for context source
         // When LLB contains Source::local("context"), BuildKit needs to know
@@ -392,13 +463,9 @@ impl BuildSession {
             source: None,
         };
 
-        frontend_inputs.insert("context".to_string(), local_source_def.clone());
-
-        // Add local.session-id attribute to inform BuildKit which session provides the local source
-        frontend_inputs.insert("local.session-id".to_string(), local_source_def.clone());
-
-        // Add pattern attribute for include/exclude patterns (empty for now, can be configured later)
-        frontend_inputs.insert("pattern".to_string(), local_source_def);
+        // Associating the context name with an empty definition tells BuildKit
+        // to use the session-provided local context
+        frontend_inputs.insert("context".to_string(), local_source_def);
 
         // Create exporter with OCI config and attestations
         let mut exporter_attrs = std::collections::HashMap::new();
@@ -424,18 +491,23 @@ impl BuildSession {
 
         // Add build context scanning for SBOM
         if self.attestation_config.scan_context {
-            exporter_attrs.insert("build-arg:BUILDKIT_SBOM_SCAN_CONTEXT".to_string(), "true".to_string());
+            exporter_attrs.insert(
+                "build-arg:BUILDKIT_SBOM_SCAN_CONTEXT".to_string(),
+                "true".to_string(),
+            );
             debug!("Enabled build context scanning for SBOM");
         }
 
         let exporter = super::proto::moby::buildkit::v1::Exporter {
-            r#type: "docker".to_string(),  // Use docker exporter (supports containerimage.config)
+            r#type: "docker".to_string(), // Use docker exporter (supports containerimage.config)
             attrs: exporter_attrs,
         };
 
         // Create solve request
         let request = super::proto::moby::buildkit::v1::SolveRequest {
-            r#ref: format!("peelbox-build-{}", self.session_id),
+            // Use unique ref per build to avoid "job ID exists" errors,
+            // but keep the session ID stable for caching
+            r#ref: format!("{}-{}", self.session_id, uuid::Uuid::new_v4()),
             definition: Some(definition),
             session: self.session_id.clone(),
             exporter_deprecated: String::new(),
@@ -446,15 +518,19 @@ impl BuildSession {
             entitlements: vec![],
             frontend_inputs,
             source_policy: None,
-            exporters: vec![exporter],  // OCI exporter with containerimage.config
-            enable_session_exporter: false,  // Not using session exporter - config passed directly
-            internal: false,  // Enable provenance/SBOM generation (LLB has reference-only final node)
+            exporters: vec![exporter], // OCI exporter with containerimage.config
+            enable_session_exporter: false, // Not using session exporter - config passed directly
+            internal: false, // Enable provenance/SBOM generation (LLB has reference-only final node)
             source_policy_session: String::new(),
         };
 
         debug!("Submitting build request to BuildKit...");
-        debug!("Request details: ref={}, session={}, exporter_count={}",
-               request.r#ref, request.session, request.exporters.len());
+        debug!(
+            "Request details: ref={}, session={}, exporter_count={}",
+            request.r#ref,
+            request.session,
+            request.exporters.len()
+        );
 
         let build_ref = request.r#ref.clone();
 
@@ -481,11 +557,13 @@ impl BuildSession {
                 while let Some(result) = stream.next().await {
                     match result {
                         Ok(status_response) => {
-                            debug!("Status update: {} vertices, {} statuses, {} logs, {} warnings",
-                                   status_response.vertexes.len(),
-                                   status_response.statuses.len(),
-                                   status_response.logs.len(),
-                                   status_response.warnings.len());
+                            debug!(
+                                "Status update: {} vertices, {} statuses, {} logs, {} warnings",
+                                status_response.vertexes.len(),
+                                status_response.statuses.len(),
+                                status_response.logs.len(),
+                                status_response.warnings.len()
+                            );
 
                             if tx.send(status_response).await.is_err() {
                                 debug!("Status receiver dropped, stopping status stream");
@@ -548,11 +626,18 @@ impl BuildSession {
             }
         } else {
             // No progress tracking, just wait for solve to complete
-            solve_future.await.map_err(|e| {
-                error!("BuildKit Solve RPC error: status={:?}, message={}", e.code(), e.message());
-                error!("Full error: {:?}", e);
-                anyhow::anyhow!("Failed to submit build to BuildKit: {}", e)
-            })?.into_inner()
+            solve_future
+                .await
+                .map_err(|e| {
+                    error!(
+                        "BuildKit Solve RPC error: status={:?}, message={}",
+                        e.code(),
+                        e.message()
+                    );
+                    error!("Full error: {:?}", e);
+                    anyhow::anyhow!("Failed to submit build to BuildKit: {}", e)
+                })?
+                .into_inner()
         };
 
         debug!("Build completed successfully!");
@@ -561,10 +646,9 @@ impl BuildSession {
         // Wait for tar export to complete before closing session
         if let Some(export_rx) = self.export_complete_rx.take() {
             debug!("Waiting for tar export to complete...");
-            match tokio::time::timeout(
-                Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS),
-                export_rx
-            ).await {
+            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_rx)
+                .await
+            {
                 Ok(Ok(())) => {
                     debug!("Tar export completed successfully");
                 }
@@ -596,10 +680,27 @@ impl BuildSession {
             }
         };
 
+        // Extract layer count from exporter response if available
+        let layers = if let Some(config_json) = solve_response
+            .exporter_response
+            .get("containerimage.config")
+        {
+            if let Ok(config) = serde_json::from_str::<serde_json::Value>(config_json) {
+                config["rootfs"]["diff_ids"]
+                    .as_array()
+                    .map(|a| a.len())
+                    .unwrap_or(0)
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
         let build_result = BuildResult {
             image_id: image_id.clone(),
             size_bytes: tar_size_bytes,
-            layers: 0,     // TODO: Extract layer count from tar or manifest
+            layers,
         };
 
         if let Some(tracker) = progress {
@@ -628,8 +729,9 @@ mod tests {
         let id1 = BuildSession::generate_session_id();
         let id2 = BuildSession::generate_session_id();
 
-        assert!(id1.starts_with("peelbox-"));
-        assert!(id2.starts_with("peelbox-"));
+        // IDs should be valid UUIDs
+        assert!(uuid::Uuid::parse_str(&id1).is_ok());
+        assert!(uuid::Uuid::parse_str(&id2).is_ok());
         // IDs should be different (with high probability)
         assert_ne!(id1, id2);
     }
@@ -640,6 +742,6 @@ mod tests {
         // We can't create a real BuildKitConnection without a running daemon,
         // so we'll test what we can without it
         let session_id = BuildSession::generate_session_id();
-        assert!(session_id.starts_with("peelbox-"));
+        assert!(uuid::Uuid::parse_str(&session_id).is_ok());
     }
 }

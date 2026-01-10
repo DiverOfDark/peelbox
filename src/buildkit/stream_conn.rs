@@ -5,8 +5,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::sync::Mutex;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 use tokio_stream::Stream;
 use tonic::transport::server::Connected;
 use tonic::Streaming;
@@ -47,10 +47,7 @@ impl StreamConn {
     /// # Arguments
     /// * `receiver` - The incoming BytesMessage stream from Session RPC response
     /// * `sender` - The outgoing BytesMessage sender for Session RPC request
-    pub fn new(
-        receiver: Streaming<BytesMessage>,
-        sender: mpsc::Sender<BytesMessage>,
-    ) -> Self {
+    pub fn new(receiver: Streaming<BytesMessage>, sender: mpsc::Sender<BytesMessage>) -> Self {
         Self {
             receiver: Arc::new(Mutex::new(receiver)),
             sender: Arc::new(Mutex::new(sender)),
@@ -109,7 +106,11 @@ impl AsyncRead for StreamConn {
                 } else {
                     format!("{:?}", &msg.data)
                 };
-                debug!("StreamConn READ: received {} bytes preview={}", msg.data.len(), preview);
+                debug!(
+                    "StreamConn READ: received {} bytes preview={}",
+                    msg.data.len(),
+                    preview
+                );
 
                 // Put data into buffer
                 buffer.clear();
@@ -130,8 +131,9 @@ impl AsyncRead for StreamConn {
             Poll::Ready(None) => {
                 // Stream closed
                 debug!("StreamConn closed");
-                let mut closed = closed_clone.blocking_lock();
-                *closed = true;
+                if let Ok(mut closed) = closed_clone.try_lock() {
+                    *closed = true;
+                }
                 Poll::Ready(Ok(()))
             }
             Poll::Pending => Poll::Pending,
@@ -174,7 +176,10 @@ impl AsyncWrite for StreamConn {
                 } else {
                     format!("{:?}", &msg_clone_for_log.data)
                 };
-                debug!("StreamConn WRITE: sent {} bytes preview={}", chunk_size, preview);
+                debug!(
+                    "StreamConn WRITE: sent {} bytes preview={}",
+                    chunk_size, preview
+                );
                 Poll::Ready(Ok(chunk_size))
             }
             Err(mpsc::error::TrySendError::Full(_)) => {
@@ -182,12 +187,10 @@ impl AsyncWrite for StreamConn {
                 cx.waker().wake_by_ref();
                 Poll::Pending
             }
-            Err(mpsc::error::TrySendError::Closed(_)) => {
-                Poll::Ready(Err(io::Error::new(
-                    io::ErrorKind::BrokenPipe,
-                    "sender closed",
-                )))
-            }
+            Err(mpsc::error::TrySendError::Closed(_)) => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "sender closed",
+            ))),
         }
     }
 

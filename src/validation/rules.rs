@@ -171,7 +171,12 @@ mod tests {
                 reasoning: "Detected Cargo.toml".to_string(),
             },
             build: BuildStage {
-                packages: vec![rust_package, "build-base".to_string()],
+                packages: vec![
+                    rust_package,
+                    "build-base".to_string(),
+                    "openssl-dev".to_string(),
+                    "pkgconf".to_string(),
+                ],
                 env: HashMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],

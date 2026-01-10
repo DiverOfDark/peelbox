@@ -18,6 +18,7 @@ pub struct LLBBuilder {
     context_name: String,
     context_path: Option<PathBuf>,
     project_name: Option<String>,
+    session_id: Option<String>,
 
     // DAG state
     ops: Vec<pb::Op>,
@@ -30,6 +31,7 @@ impl LLBBuilder {
             context_name: context_name.into(),
             context_path: None,
             project_name: None,
+            session_id: None,
             ops: Vec::new(),
             digests: Vec::new(),
         }
@@ -45,9 +47,25 @@ impl LLBBuilder {
         self
     }
 
+    pub fn with_session_id(mut self, session_id: String) -> Self {
+        self.session_id = Some(session_id);
+        self
+    }
+
     /// Add an operation to the DAG and return its index
-    fn add_op(&mut self, op: pb::Op) -> i64 {
+    fn add_op(&mut self, mut op: pb::Op) -> i64 {
         let index = self.ops.len() as i64;
+
+        // Ensure platform is set for all operations to avoid non-deterministic defaults
+        if op.platform.is_none() {
+            op.platform = Some(pb::Platform {
+                architecture: "amd64".to_string(),
+                os: "linux".to_string(),
+                variant: String::new(),
+                os_version: String::new(),
+                os_features: vec![],
+            });
+        }
 
         // Marshal and compute digest
         let mut buf = Vec::new();
@@ -69,7 +87,9 @@ impl LLBBuilder {
 
     /// Read .gitignore patterns from context root
     fn load_gitignore_patterns(&self) -> Vec<String> {
-        let context_root = self.context_path.as_ref()
+        let context_root = self
+            .context_path
+            .as_ref()
             .map(|p| p.as_path())
             .unwrap_or_else(|| Path::new("."));
         let gitignore_path = context_root.join(".gitignore");
@@ -90,13 +110,18 @@ impl LLBBuilder {
 
         // Standard exclusions
         patterns.extend(vec![
-            ".git".to_string(),
+            ".git/".to_string(),
             ".gitignore".to_string(),
             "*.md".to_string(),
             "LICENSE".to_string(),
-            ".vscode".to_string(),
-            ".idea".to_string(),
+            ".vscode/".to_string(),
+            ".idea/".to_string(),
+            ".buildkit-cache/".to_string(),
+            "*.tar".to_string(),
         ]);
+
+        // Sort patterns to ensure deterministic LLB graph generation
+        patterns.sort();
 
         patterns
     }
@@ -123,7 +148,7 @@ impl LLBBuilder {
                 digest: self.digests[input_idx as usize].clone(),
                 index: 0,
             }],
-            op: None,  // Reference-only node (required for provenance)
+            op: None, // Reference-only node (required for provenance)
             platform: None,
             constraints: None,
         };
@@ -134,9 +159,16 @@ impl LLBBuilder {
     fn create_local_source(&mut self, exclude_patterns: &[String]) -> i64 {
         let mut attrs = HashMap::new();
 
-        // Add exclude patterns
-        for (i, pattern) in exclude_patterns.iter().enumerate() {
-            attrs.insert(format!("excludepattern.{}", i), pattern.clone());
+        // Add exclude patterns (joined with comma as per BuildKit convention for local source)
+        if !exclude_patterns.is_empty() {
+            attrs.insert("exclude-patterns".to_string(), exclude_patterns.join(","));
+        }
+
+        // Add session-id and sharedkey attributes to associate the local source with the current session
+        // This is critical for BuildKit to know where to pull the local files from
+        if let Some(ref session_id) = self.session_id {
+            attrs.insert("local.session-id".to_string(), session_id.clone());
+            attrs.insert("local.sharedkey".to_string(), session_id.clone());
         }
 
         let op = pb::Op {
@@ -196,18 +228,18 @@ impl LLBBuilder {
         let op_inputs: Vec<pb::Input> = vec![
             pb::Input {
                 digest: self.digests[base_idx as usize].clone(),
-                index: 0,  // Reference output 0 from base operation
+                index: 0, // Reference output 0 from base operation
             },
             pb::Input {
                 digest: self.digests[src_idx as usize].clone(),
-                index: 0,  // Reference output 0 from source operation
+                index: 0, // Reference output 0 from source operation
             },
         ];
 
         let action = pb::FileAction {
-            input: 1,  // Source is input index 1
+            input: 1, // Source is input index 1
             secondary_input: -1,
-            output: 0,  // Result goes to output index 0
+            output: 0, // Result goes to output index 0
             action: Some(pb::file_action::Action::Copy(pb::FileActionCopy {
                 src: src_path.to_string(),
                 dest: dest_path.to_string(),
@@ -309,7 +341,7 @@ impl LLBBuilder {
             input: -1,
             selector: String::new(),
             dest: dest.to_string(),
-            output: -1,  // Tmpfs should not be persisted
+            output: -1, // Tmpfs should not be persisted
             readonly: false,
             mount_type: pb::MountType::Tmpfs as i32,
             tmpfs_opt: Some(pb::TmpfsOpt { size: 0 }),
@@ -360,7 +392,11 @@ impl LLBBuilder {
         let with_build_packages_idx = if !spec.build.packages.is_empty() {
             let packages = spec.build.packages.join(" ");
             let meta = pb::Meta {
-                args: vec!["sh".to_string(), "-c".to_string(), format!("apk add --no-cache {}", packages)],
+                args: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    format!("apk add --no-cache {}", packages),
+                ],
                 env: vec![],
                 cwd: "/".to_string(),
                 user: String::new(),
@@ -374,11 +410,16 @@ impl LLBBuilder {
             };
 
             let mounts = vec![
-                self.layer_mount(0, 0, "/"),  // Input 0: wolfi_base_idx
+                self.layer_mount(0, 0, "/"), // Input 0: wolfi_base_idx
                 self.scratch_mount("/tmp"),
             ];
 
-            Some(self.create_exec(vec![wolfi_base_idx], mounts, meta, Some("Install build packages".to_string())))
+            Some(self.create_exec(
+                vec![wolfi_base_idx],
+                mounts,
+                meta,
+                Some("Install build packages".to_string()),
+            ))
         } else {
             None
         };
@@ -392,55 +433,57 @@ impl LLBBuilder {
             let mut last_idx = base_idx;
 
             // Use runtime.copy to determine artifact paths
-            let artifact_paths: Vec<String> = spec.runtime.copy.iter()
-                .map(|c| c.from.clone())
-                .collect();
+            let artifact_paths: Vec<String> =
+                spec.runtime.copy.iter().map(|c| c.from.clone()).collect();
 
+            let num_commands = spec.build.commands.len();
             for (i, command) in spec.build.commands.iter().enumerate() {
-                // Build script: copy context to /build, run build, copy artifacts to /artifacts
-                let script = if i == 0 {
-                    // First command: setup, build, and stage artifacts at root level
-                    let artifact_cmds: String = if !artifact_paths.is_empty() {
-                        artifact_paths.iter()
-                            .map(|path| format!("cp -r {} /artifacts/ 2>/dev/null || true", path))
-                            .collect::<Vec<_>>()
-                            .join(" && ")
-                    } else {
-                        String::new()
-                    };
+                let is_last = i == num_commands - 1;
 
-                    if artifact_cmds.is_empty() {
-                        format!(
-                            "mkdir -p /build && cp -r /context/. /build && cd /build && {}",
-                            command
-                        )
-                    } else {
-                        format!(
-                            "mkdir -p /build && cp -r /context/. /build && cd /build && {} && mkdir -p /artifacts && {}",
-                            command, artifact_cmds
-                        )
-                    }
+                // Build script: copy context to /build, run build
+                let mut script = if i == 0 {
+                    // First command: setup, build
+                    format!(
+                        "mkdir -p /build && cp -r /context/. /build && cd /build && {}",
+                        command
+                    )
                 } else {
-                    // Subsequent commands: continue building and update artifacts
-                    let artifact_cmds: String = if !artifact_paths.is_empty() {
-                        artifact_paths.iter()
-                            .map(|path| format!("cp -r {} /artifacts/ 2>/dev/null || true", path))
-                            .collect::<Vec<_>>()
-                            .join(" && ")
-                    } else {
-                        String::new()
-                    };
-
-                    if artifact_cmds.is_empty() {
-                        format!("cd /build && {}", command)
-                    } else {
-                        format!("cd /build && {} && {}", command, artifact_cmds)
-                    }
+                    // Subsequent commands: continue building
+                    format!("cd /build && {}", command)
                 };
+
+                // Only copy artifacts after the LAST build command
+                if is_last && !artifact_paths.is_empty() {
+                    let artifact_cmds: String = artifact_paths
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, path)| {
+                            let src = if path.starts_with('/') {
+                                path.clone()
+                            } else {
+                                format!("/build/{}", path)
+                            };
+                            // Use index to avoid collisions and handle weird paths like "." or "/"
+                            // We copy to a sub-directory 'res' to make Stage 5 copy behavior predictable
+                            format!(
+                                "mkdir -p /peelbox-artifacts/{} && cp -rp {} /peelbox-artifacts/{}/res",
+                                idx, src, idx
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" && ");
+
+                    script = format!("{} && {}", script, artifact_cmds);
+                }
 
                 let meta = pb::Meta {
                     args: vec!["sh".to_string(), "-c".to_string(), script],
-                    env: spec.build.env.iter().map(|(k, v)| format!("{}={}", k, v)).collect(),
+                    env: spec
+                        .build
+                        .env
+                        .iter()
+                        .map(|(k, v)| format!("{}={}", k, v))
+                        .collect(),
                     cwd: "/".to_string(),
                     user: String::new(),
                     proxy_env: None,
@@ -456,12 +499,12 @@ impl LLBBuilder {
                 let mut mounts = if i == 0 {
                     vec![
                         self.layer_mount(0, 0, "/"),        // Input 0: base_idx, Output 0
-                        self.readonly_mount(1, "/context"),  // Input 1: context_idx
+                        self.readonly_mount(1, "/context"), // Input 1: context_idx
                         self.scratch_mount("/tmp"),
                     ]
                 } else {
                     vec![
-                        self.layer_mount(0, 0, "/"),  // Input 0: last_idx, Output 0
+                        self.layer_mount(0, 0, "/"), // Input 0: last_idx, Output 0
                         self.scratch_mount("/tmp"),
                     ]
                 };
@@ -503,7 +546,11 @@ impl LLBBuilder {
 
             // Install runtime packages
             let install_meta = pb::Meta {
-                args: vec!["sh".to_string(), "-c".to_string(), format!("apk add --no-cache {}", packages)],
+                args: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    format!("apk add --no-cache {}", packages),
+                ],
                 env: vec![],
                 cwd: "/".to_string(),
                 user: String::new(),
@@ -517,7 +564,7 @@ impl LLBBuilder {
             };
 
             let install_mounts = vec![
-                self.layer_mount(0, 0, "/"),  // Input 0: wolfi_base_idx
+                self.layer_mount(0, 0, "/"), // Input 0: wolfi_base_idx
                 self.scratch_mount("/tmp"),
             ];
 
@@ -530,7 +577,11 @@ impl LLBBuilder {
 
             // Remove apk tooling
             let cleanup_meta = pb::Meta {
-                args: vec!["sh".to_string(), "-c".to_string(), "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk".to_string()],
+                args: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk".to_string(),
+                ],
                 env: vec![],
                 cwd: "/".to_string(),
                 user: String::new(),
@@ -544,7 +595,7 @@ impl LLBBuilder {
             };
 
             let cleanup_mounts = vec![
-                self.layer_mount(0, 0, "/"),  // Input 0: runtime_with_packages_idx
+                self.layer_mount(0, 0, "/"), // Input 0: runtime_with_packages_idx
                 self.scratch_mount("/tmp"),
             ];
 
@@ -560,7 +611,10 @@ impl LLBBuilder {
 
         // Stage 4: Squash to glibc-dynamic base (using FileOp - glibc-dynamic has no shell)
         let squashed_idx = if let Some(runtime_prep) = runtime_prep_idx {
-            debug!("Squash stage: glibc_dynamic_idx={}, runtime_prep={}", glibc_dynamic_idx, runtime_prep);
+            debug!(
+                "Squash stage: glibc_dynamic_idx={}, runtime_prep={}",
+                glibc_dynamic_idx, runtime_prep
+            );
             let project_name = self.project_name.as_deref().unwrap_or("app");
 
             // Use FileOp to copy runtime_prep onto glibc-dynamic (no shell available in glibc-dynamic)
@@ -581,61 +635,51 @@ impl LLBBuilder {
                 squashed
             } else {
                 // Use busybox image as exec base with mounts for source and destination
-                let mut current_idx = squashed;
+                // Combine all copy operations into a single layer
+                let mut copy_cmds = Vec::new();
 
-                for copy in &spec.runtime.copy {
-                    let src_path = if copy.from == "." {
-                        "/artifacts-src/artifacts".to_string()
-                    } else if copy.from.starts_with('/') {
-                        let filename = std::path::Path::new(&copy.from)
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or(&copy.from);
-                        format!("/artifacts-src/artifacts/{}", filename)
-                    } else {
-                        let filename = std::path::Path::new(&copy.from)
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or(&copy.from);
-                        format!("/artifacts-src/artifacts/{}", filename)
-                    };
+                for (idx, copy) in spec.runtime.copy.iter().enumerate() {
+                    let src_path = format!("/build-src/peelbox-artifacts/{}/res", idx);
 
-                    let copy_cmd = format!(
-                        "mkdir -p $(dirname {}) && cp -r {} {}",
+                    copy_cmds.push(format!(
+                        "mkdir -p $(dirname {}) && cp -rp {} {}",
                         copy.to, src_path, copy.to
-                    );
-
-                    let copy_meta = pb::Meta {
-                        args: vec!["sh".to_string(), "-c".to_string(), copy_cmd],
-                        env: vec![],
-                        cwd: "/".to_string(),
-                        user: String::new(),
-                        proxy_env: None,
-                        extra_hosts: vec![],
-                        hostname: String::new(),
-                        ulimit: vec![],
-                        cgroup_parent: String::new(),
-                        remove_mount_stubs_recursive: false,
-                        valid_exit_codes: vec![],
-                    };
-
-                    // Use busybox as base (input 0), mount squashed at / (input 1, output 0), mount artifacts readonly (input 2)
-                    let copy_mounts = vec![
-                        self.layer_mount(1, 0, "/"),  // Input 1: current_idx (squashed) -> Output 0
-                        self.readonly_mount(2, "/artifacts-src"),  // Input 2: build_result_idx (artifacts)
-                        self.scratch_mount("/tmp"),
-                    ];
-
-                    debug!("ExecOp (busybox): copying from {} to {}", src_path, copy.to);
-                    current_idx = self.create_exec(
-                        vec![busybox_idx, current_idx, build_result_idx],
-                        copy_mounts,
-                        copy_meta,
-                        Some(format!("Copy {} to {}", copy.from, copy.to)),
-                    );
+                    ));
                 }
 
-                current_idx
+                let copy_script = copy_cmds.join(" && ");
+
+                let copy_meta = pb::Meta {
+                    args: vec!["sh".to_string(), "-c".to_string(), copy_script],
+                    env: vec![],
+                    cwd: "/".to_string(),
+                    user: String::new(),
+                    proxy_env: None,
+                    extra_hosts: vec![],
+                    hostname: String::new(),
+                    ulimit: vec![],
+                    cgroup_parent: String::new(),
+                    remove_mount_stubs_recursive: false,
+                    valid_exit_codes: vec![],
+                };
+
+                // Use busybox as base (input 0), mount squashed at / (input 1, output 0), mount build result readonly (input 2)
+                let copy_mounts = vec![
+                    self.layer_mount(1, 0, "/"),          // Input 1: squashed -> Output 0
+                    self.readonly_mount(2, "/build-src"), // Input 2: build_result_idx
+                    self.scratch_mount("/tmp"),
+                ];
+
+                debug!(
+                    "Creating combined artifact copy layer ({} copies)",
+                    spec.runtime.copy.len()
+                );
+                self.create_exec(
+                    vec![busybox_idx, squashed, build_result_idx],
+                    copy_mounts,
+                    copy_meta,
+                    Some("Copy build artifacts".to_string()),
+                )
             }
         } else {
             build_result_idx
@@ -644,13 +688,21 @@ impl LLBBuilder {
         // Add final reference-only node for provenance (required by BuildKit)
         let output_ref_idx = self.create_output_reference(final_idx);
 
-        debug!("Built LLB graph with {} operations (final output: op {}, reference: op {})",
-               self.ops.len(), final_idx, output_ref_idx);
+        debug!(
+            "Built LLB graph with {} operations (final output: op {}, reference: op {})",
+            self.ops.len(),
+            final_idx,
+            output_ref_idx
+        );
 
         Ok(())
     }
 
-    pub fn write_definition<W: Write>(&mut self, spec: &UniversalBuild, mut writer: W) -> Result<()> {
+    pub fn write_definition<W: Write>(
+        &mut self,
+        spec: &UniversalBuild,
+        mut writer: W,
+    ) -> Result<()> {
         let bytes = self.to_bytes(spec)?;
         writer.write_all(&bytes)?;
         Ok(())

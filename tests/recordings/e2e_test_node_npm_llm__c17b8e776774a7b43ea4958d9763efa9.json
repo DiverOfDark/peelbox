@@ -1,0 +1,19 @@
+{
+  "request_hash": "c17b8e776774a7b43ea4958d9763efa9",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: node-npm\nFile tree summary:\nRoot files: localhost-peelbox-test-single-language-node-npm-latest.tar, node-npm-test-latest.tar, package-lock.json, package.json, tsconfig.json, universalbuild.json\nExtensions: {\"json\": 4, \"tar\": 2, \"ts\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"package-lock.json\",\n    \"build_system\": \"npm\",\n    \"language\": \"JavaScript\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"package.json\",\n    \"build_system\": \"npm\",\n    \"language\": \"JavaScript\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"tsconfig.json\",\n    \"build_system\": \"TypeScript\",\n    \"language\": \"TypeScript\",\n    \"confidence\": 0.90\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 2115
+  },
+  "recorded_at": "2026-01-10T19:16:06.862377571+00:00"
+}

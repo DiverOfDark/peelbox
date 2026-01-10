@@ -1,0 +1,19 @@
+{
+  "request_hash": "611bb7a2a1c7446cc270da3b1058caea",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: go-mod\nFile tree summary:\nRoot files: go.mod, go.sum, main.go, main_test.go, localhost-peelbox-test-single-language-go-mod-latest.tar, universalbuild.json\nExtensions: {\"go\": 2, \"json\": 1, \"mod\": 1, \"sum\": 1, \"tar\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"go.mod\",\n    \"build_system\": \"go\",\n    \"language\": \"Go\",\n    \"confidence\": 0.95\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 529
+  },
+  "recorded_at": "2026-01-10T02:54:19.769103014+00:00"
+}

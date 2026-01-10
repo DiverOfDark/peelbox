@@ -12,7 +12,10 @@ pub mod moby {
             }
 
             pub mod sourcepolicy {
-                include!(concat!(env!("OUT_DIR"), "/moby.buildkit.v1.sourcepolicy.rs"));
+                include!(concat!(
+                    env!("OUT_DIR"),
+                    "/moby.buildkit.v1.sourcepolicy.rs"
+                ));
             }
         }
     }
@@ -47,11 +50,17 @@ pub mod google {
 }
 
 // Re-export commonly used types and clients
+pub use fsutil::types::{packet::PacketType, Packet, Stat};
 pub use moby::buildkit::v1::control_client::ControlClient;
 pub use moby::buildkit::v1::BytesMessage;
-pub use moby::filesync::v1::file_sync_client::FileSyncClient;
-pub use moby::filesync::v1::file_sync_server::{FileSync as FileSyncServer, FileSyncServer as FileSyncServerBuilder};
-pub use moby::filesync::v1::file_send_server::{FileSend as FileSendServer, FileSendServer as FileSendServerBuilder};
+pub use moby::exporter::v1::exporter_server::{
+    Exporter as ExporterServer, ExporterServer as ExporterServerBuilder,
+};
 pub use moby::filesync::v1::auth_server::{Auth as AuthServer, AuthServer as AuthServerBuilder};
-pub use moby::exporter::v1::exporter_server::{Exporter as ExporterServer, ExporterServer as ExporterServerBuilder};
-pub use fsutil::types::{Packet, Stat, packet::PacketType};
+pub use moby::filesync::v1::file_send_server::{
+    FileSend as FileSendServer, FileSendServer as FileSendServerBuilder,
+};
+pub use moby::filesync::v1::file_sync_client::FileSyncClient;
+pub use moby::filesync::v1::file_sync_server::{
+    FileSync as FileSyncServer, FileSyncServer as FileSyncServerBuilder,
+};

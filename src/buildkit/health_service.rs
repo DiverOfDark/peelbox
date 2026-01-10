@@ -16,7 +16,9 @@ impl HealthService {
 
 #[tonic::async_trait]
 impl tonic_health::pb::health_server::Health for HealthService {
-    type WatchStream = tokio_stream::wrappers::ReceiverStream<Result<tonic_health::pb::HealthCheckResponse, Status>>;
+    type WatchStream = tokio_stream::wrappers::ReceiverStream<
+        Result<tonic_health::pb::HealthCheckResponse, Status>,
+    >;
 
     async fn check(
         &self,

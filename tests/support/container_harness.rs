@@ -86,24 +86,28 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
 
             // Start new BuildKit container with TCP port exposed
             // Map port 1234 to random host port and run BuildKit with TCP listener
-            let buildkit_container: ContainerAsync<GenericImage> = GenericImage::new("moby/buildkit", "latest")
-                .with_wait_for(WaitFor::message_on_stderr("running server on"))
-                .with_privileged(true)
-                .with_mount(Mount::bind_mount(
-                    cache_dir.to_str().expect("Invalid cache path"),
-                    "/var/lib/buildkit",
-                ))
-                .with_container_name(BUILDKIT_CONTAINER_NAME)
-                .with_mapped_port(0, 1234.into())
-                .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
-                .start()
-                .await
-                .expect("Failed to start BuildKit container");
+            let buildkit_container: ContainerAsync<GenericImage> =
+                GenericImage::new("moby/buildkit", "latest")
+                    .with_wait_for(WaitFor::message_on_stderr("running server on"))
+                    .with_privileged(true)
+                    .with_mount(Mount::bind_mount(
+                        cache_dir.to_str().expect("Invalid cache path"),
+                        "/var/lib/buildkit",
+                    ))
+                    .with_container_name(BUILDKIT_CONTAINER_NAME)
+                    .with_mapped_port(0, 1234.into())
+                    .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
+                    .start()
+                    .await
+                    .expect("Failed to start BuildKit container");
 
             let container_id = buildkit_container.id().to_string();
 
             // Get the mapped host port for BuildKit TCP
-            let port: u16 = buildkit_container.get_host_port_ipv4(1234).await.expect("Failed to get BuildKit host port");
+            let port: u16 = buildkit_container
+                .get_host_port_ipv4(1234)
+                .await
+                .expect("Failed to get BuildKit host port");
 
             // Small delay to ensure BuildKit is fully ready
             tokio::time::sleep(Duration::from_secs(2)).await;
@@ -139,48 +143,72 @@ impl ContainerTestHarness {
         context_path: &Path,
         image_name: &str,
     ) -> Result<String> {
+        // Default output path: image_name.tar in context directory
+        let output_tar = context_path.join(format!(
+            "{}.tar",
+            image_name.replace(':', "-").replace('/', "-")
+        ));
+        self.build_image_with_output(spec_path, context_path, image_name, &output_tar)
+            .await
+    }
+
+    /// Build a container image with a specific output path
+    pub async fn build_image_with_output(
+        &self,
+        spec_path: &Path,
+        context_path: &Path,
+        image_name: &str,
+        output_tar: &Path,
+    ) -> Result<String> {
         // Get or create the shared BuildKit container
         let (port, _container_id) = get_buildkit_container().await?;
 
-        // Build peelbox binary if not already built
-        let peelbox_binary = std::env::current_dir()
-            .context("Failed to get current directory")?
-            .join("target/release/peelbox");
+        // Use the same binary that is running this test
+        // This is much faster than rebuilding in release mode
+        let mut peelbox_binary = std::env::current_exe()
+            .context("Failed to get current executable path")?
+            .parent()
+            .context("No parent directory")?
+            .to_path_buf();
+
+        // If we're in deps/, go up one more level
+        if peelbox_binary.ends_with("deps") {
+            peelbox_binary = peelbox_binary
+                .parent()
+                .context("No parent directory")?
+                .to_path_buf();
+        }
+
+        let peelbox_binary = peelbox_binary.join("peelbox");
 
         if !peelbox_binary.exists() {
-            let build_status = std::process::Command::new("cargo")
-                .args([
-                    "build",
-                    "--release",
-                    "--bin",
-                    "peelbox",
-                    "--no-default-features",
-                ])
-                .status()
-                .context("Failed to build peelbox")?;
-
-            if !build_status.success() {
-                anyhow::bail!("Failed to build peelbox binary");
-            }
+            anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
         }
 
         // Build image using peelbox build command (direct BuildKit gRPC via TCP)
         let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
-        let peelbox_output = std::process::Command::new(&peelbox_binary)
-            .args([
-                "build",
-                "--spec",
-                spec_path.to_str().unwrap(),
-                "--tag",
-                image_name,
-                "--buildkit",
-                &buildkit_addr,
-                "--context",
-                context_path.to_str().unwrap(),
-            ])
-            .output()
-            .context("Failed to run peelbox build")?;
+        let mut cmd = std::process::Command::new(&peelbox_binary);
+        cmd.args([
+            "build",
+            "--spec",
+            spec_path.to_str().unwrap(),
+            "--tag",
+            image_name,
+            "--buildkit",
+            &buildkit_addr,
+            "--context",
+            context_path.to_str().unwrap(),
+            "--output",
+            output_tar.to_str().unwrap(),
+            "--quiet", // This will make it output ONLY the image ID to stdout on success
+        ]);
+
+        if let Ok(rust_log) = std::env::var("RUST_LOG") {
+            cmd.env("RUST_LOG", rust_log);
+        }
+
+        let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
 
         if !peelbox_output.status.success() {
             eprintln!(
@@ -191,27 +219,37 @@ impl ContainerTestHarness {
                 "peelbox build stderr:\n{}",
                 String::from_utf8_lossy(&peelbox_output.stderr)
             );
-            anyhow::bail!(
-                "peelbox build failed: {}",
-                String::from_utf8_lossy(&peelbox_output.stderr)
-            );
         }
 
-        // Load the tar file into Docker
-        // The tar file is saved to the context directory (where --context points to)
-        let output_tar = context_path
-            .join(format!("{}.tar", image_name.replace(':', "-").replace('/', "-")));
+        let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
+            .trim()
+            .to_string();
 
-        let load_output = std::process::Command::new("docker")
-            .args(["load", "-i", output_tar.to_str().unwrap()])
-            .output()
-            .context("Failed to load image into Docker")?;
+        // Check if image already exists in Docker
+        let image_exists = if !image_id.is_empty() {
+            self.docker.inspect_image(&image_id).await.is_ok()
+        } else {
+            false
+        };
 
-        if !load_output.status.success() {
-            anyhow::bail!(
-                "Failed to load image into Docker: {}",
-                String::from_utf8_lossy(&load_output.stderr)
-            );
+        if !image_exists {
+            // Load the tar file into Docker
+            let load_output = std::process::Command::new("docker")
+                .args(["load", "-i", output_tar.to_str().unwrap()])
+                .output()
+                .context("Failed to load image into Docker")?;
+
+            if !load_output.status.success() {
+                anyhow::bail!(
+                    "Failed to load image into Docker: {}",
+                    String::from_utf8_lossy(&load_output.stderr)
+                );
+            }
+        } else {
+            // Ensure it has the requested tag if it already exists
+            let _ = std::process::Command::new("docker")
+                .args(["tag", &image_id, image_name])
+                .status();
         }
 
         // Verify image exists in Docker registry

@@ -67,6 +67,8 @@ impl BuildSystem for CargoBuildSystem {
         }
 
         build_packages.push("build-base".to_string());
+        build_packages.push("openssl-dev".to_string());
+        build_packages.push("pkgconf".to_string());
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("CARGO_HOME".to_string(), ".cargo".to_string());

@@ -217,10 +217,7 @@ pub struct BuildArgs {
     )]
     pub sbom: bool,
 
-    #[arg(
-        long,
-        help = "Disable SBOM attestation generation"
-    )]
+    #[arg(long, help = "Disable SBOM attestation generation")]
     pub no_sbom: bool,
 
     #[arg(
@@ -230,10 +227,7 @@ pub struct BuildArgs {
     )]
     pub provenance: Option<String>,
 
-    #[arg(
-        long,
-        help = "Disable provenance attestation generation"
-    )]
+    #[arg(long, help = "Disable provenance attestation generation")]
     pub no_provenance: bool,
 
     #[arg(

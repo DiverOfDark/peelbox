@@ -384,7 +384,10 @@ mod tests {
 
         let state = tracker.state.lock().unwrap();
         assert_eq!(state.total_cached, 1, "Cached layer should be counted");
-        assert_eq!(state.total_started, 1, "Started count should be incremented");
+        assert_eq!(
+            state.total_started, 1,
+            "Started count should be incremented"
+        );
     }
 
     #[test]

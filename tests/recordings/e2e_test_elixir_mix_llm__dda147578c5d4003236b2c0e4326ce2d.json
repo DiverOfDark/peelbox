@@ -1,0 +1,19 @@
+{
+  "request_hash": "dda147578c5d4003236b2c0e4326ce2d",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: mix.exs\nContent:\ndefmodule ElixirApi.MixProject do\n  use Mix.Project\n\n  def project do\n    [\n      app: :elixir_api,\n      version: \"1.0.0\",\n      elixir: \"~> 1.15\",\n      start_permanent: Mix.env() == :prod,\n      deps: deps()\n    ]\n  end\n\n  def application do\n    [\n      extra_applications: [:logger],\n      mod: {ElixirApi.Application, []}\n    ]\n  end\n\n  defp deps do\n    [\n      {:plug_cowboy, \"~> 2.6\"},\n      {:jason, \"~> 1.4\"},\n      {:ex_unit, \"~> 1.15\", only: :test}\n    ]\n  end\nend\n\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc, openssl-dev, pkgconf\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"elixir\",\n  \"manifest_files\": [\"mix.exs\"],\n  \"build_commands\": [\"mix compile\"],\n  \"cache_dirs\": [\"_build\"],\n  \"build_packages\": [\"elixir-1.15\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"_build/prod/rel/elixir_api/bin/elixir_api\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
+    "tool_call": null,
+    "response_time": 1712
+  },
+  "recorded_at": "2026-01-10T19:18:32.666268524+00:00"
+}

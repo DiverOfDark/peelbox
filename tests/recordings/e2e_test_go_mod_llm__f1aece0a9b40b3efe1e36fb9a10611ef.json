@@ -1,0 +1,19 @@
+{
+  "request_hash": "f1aece0a9b40b3efe1e36fb9a10611ef",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: go.mod\nContent:\nmodule example.com/app\n\ngo 1.21\n\nrequire github.com/gin-gonic/gin v1.9.1\n\nrequire (\n\tgithub.com/bytedance/sonic v1.9.1 // indirect\n\tgithub.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect\n\tgithub.com/gabriel-vasile/mimetype v1.4.2 // indirect\n\tgithub.com/gin-contrib/sse v0.1.0 // indirect\n\tgithub.com/go-playground/locales v0.14.1 // indirect\n\tgithub.com/go-playground/universal-translator v0.18.1 // indirect\n\tgithub.com/go-playground/validator/v10 v10.14.0 // indirect\n\tgithub\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"Go\",\n  \"file_extensions\": [\".go\"],\n  \"package_managers\": [\"go\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [\"go.mod\"],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": 8080,\n  \"runtime_name\": \"go\",\n  \"version_pattern\": \"go (\\\\d+\\\\.\\\\d+\\\\.\\\\d+)\",\n  \"default_entrypoint\": \"main.go\",\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 1.00\n}\n```",
+    "tool_call": null,
+    "response_time": 1881
+  },
+  "recorded_at": "2026-01-10T14:40:40.467868776+00:00"
+}

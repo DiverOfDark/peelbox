@@ -81,12 +81,19 @@ impl FileSyncTrait for FileSyncService {
             debug!("DiffCopy call_id={} spawned task started", call_id);
             // Acquire lock to serialize DiffCopy calls and prevent packet interleaving
             let _lock = diff_copy_lock.lock().await;
-            debug!("DiffCopy call_id={} lock acquired - starting file transfer", call_id);
+            debug!(
+                "DiffCopy call_id={} lock acquired - starting file transfer",
+                call_id
+            );
 
             // Step 1: Scan files
             let file_stats = match file_sync.scan_files().await {
                 Ok(stats) => {
-                    debug!("DiffCopy call_id={} scanned {} files to transfer", call_id, stats.len());
+                    debug!(
+                        "DiffCopy call_id={} scanned {} files to transfer",
+                        call_id,
+                        stats.len()
+                    );
                     stats
                 }
                 Err(e) => {
@@ -141,17 +148,31 @@ impl FileSyncTrait for FileSyncService {
                     files_map.insert(packet_id as u32, file_stat.path.clone());
                 }
             }
-            debug!("DiffCopy call_id={} built files map with {} regular files out of {} total packets", call_id, files_map.len(), file_stats.len());
+            debug!(
+                "DiffCopy call_id={} built files map with {} regular files out of {} total packets",
+                call_id,
+                files_map.len(),
+                file_stats.len()
+            );
 
             // Step 3: Send all PACKET_STAT (metadata) WITHOUT setting ID field
-            debug!("DiffCopy call_id={} sending PACKET_STAT for {} files (PULL mode)", call_id, file_stats.len());
+            debug!(
+                "DiffCopy call_id={} sending PACKET_STAT for {} files (PULL mode)",
+                call_id,
+                file_stats.len()
+            );
             for (index, file_stat) in file_stats.iter().enumerate() {
                 let path_string = file_stat.path.to_string_lossy().to_string();
 
                 if index < 10 {
                     debug!(
                         "DiffCopy call_id={} file #{}: path='{}' is_dir={} mode=0x{:x} size={}",
-                        call_id, index, path_string, file_stat.is_dir, file_stat.mode, file_stat.size
+                        call_id,
+                        index,
+                        path_string,
+                        file_stat.is_dir,
+                        file_stat.mode,
+                        file_stat.size
                     );
                 }
 
@@ -160,7 +181,11 @@ impl FileSyncTrait for FileSyncService {
                     mode: file_stat.mode,
                     uid: file_stat.uid,
                     gid: file_stat.gid,
-                    size: if file_stat.is_dir { 0 } else { file_stat.size as i64 },
+                    size: if file_stat.is_dir {
+                        0
+                    } else {
+                        file_stat.size as i64
+                    },
                     mod_time: file_stat.mod_time,
                     linkname: file_stat.linkname.clone().unwrap_or_default(),
                     devmajor: 0,
@@ -178,13 +203,19 @@ impl FileSyncTrait for FileSyncService {
                 };
 
                 if tx.send(Ok(stat_packet)).await.is_err() {
-                    error!("DiffCopy call_id={} failed to send PACKET_STAT - channel closed", call_id);
+                    error!(
+                        "DiffCopy call_id={} failed to send PACKET_STAT - channel closed",
+                        call_id
+                    );
                     return;
                 }
             }
 
             // Send final empty PACKET_STAT to signal end of metadata
-            debug!("DiffCopy call_id={} sent all PACKET_STAT, sending final empty PACKET_STAT", call_id);
+            debug!(
+                "DiffCopy call_id={} sent all PACKET_STAT, sending final empty PACKET_STAT",
+                call_id
+            );
             let final_stat_packet = Packet {
                 r#type: PacketType::PacketStat as i32,
                 stat: None,
@@ -193,34 +224,50 @@ impl FileSyncTrait for FileSyncService {
             };
 
             if tx.send(Ok(final_stat_packet)).await.is_err() {
-                error!("DiffCopy call_id={} failed to send final PACKET_STAT - channel closed", call_id);
+                error!(
+                    "DiffCopy call_id={} failed to send final PACKET_STAT - channel closed",
+                    call_id
+                );
                 return;
             }
 
-            debug!("DiffCopy call_id={} waiting for PACKET_REQ from BuildKit receiver", call_id);
+            debug!(
+                "DiffCopy call_id={} waiting for PACKET_REQ from BuildKit receiver",
+                call_id
+            );
 
             // Step 4: Wait for PACKET_REQ from BuildKit and respond with PACKET_DATA
             loop {
                 match in_stream.message().await {
                     Ok(Some(packet)) => {
                         let packet_type = PacketType::try_from(packet.r#type).ok();
-                        debug!("DiffCopy call_id={} received: type={:?} id={}", call_id, packet_type, packet.id);
+                        debug!(
+                            "DiffCopy call_id={} received: type={:?} id={}",
+                            call_id, packet_type, packet.id
+                        );
 
                         match packet_type {
                             Some(PacketType::PacketReq) => {
                                 // BuildKit requests file data
                                 let req_id = packet.id;
-                                debug!("DiffCopy call_id={} received PACKET_REQ for id={}", call_id, req_id);
+                                debug!(
+                                    "DiffCopy call_id={} received PACKET_REQ for id={}",
+                                    call_id, req_id
+                                );
 
                                 let file_path = match files_map.get(&req_id) {
                                     Some(path) => path.clone(),
                                     None => {
-                                        error!("DiffCopy call_id={} invalid file request id={}", call_id, req_id);
+                                        error!(
+                                            "DiffCopy call_id={} invalid file request id={}",
+                                            call_id, req_id
+                                        );
                                         let err_packet = Packet {
                                             r#type: PacketType::PacketErr as i32,
                                             stat: None,
                                             id: req_id,
-                                            data: format!("Invalid file request {}", req_id).into_bytes(),
+                                            data: format!("Invalid file request {}", req_id)
+                                                .into_bytes(),
                                         };
                                         let _ = tx.send(Ok(err_packet)).await;
                                         return;
@@ -257,7 +304,12 @@ impl FileSyncTrait for FileSyncService {
                                             return;
                                         }
 
-                                        debug!("DiffCopy call_id={} sent PACKET_DATA for id={} ({})", call_id, req_id, file_path.display());
+                                        debug!(
+                                            "DiffCopy call_id={} sent PACKET_DATA for id={} ({})",
+                                            call_id,
+                                            req_id,
+                                            file_path.display()
+                                        );
                                     }
                                     Err(e) => {
                                         error!("DiffCopy call_id={} failed to read file id={} ({}): {}", call_id, req_id, file_path.display(), e);
@@ -265,7 +317,8 @@ impl FileSyncTrait for FileSyncService {
                                             r#type: PacketType::PacketErr as i32,
                                             stat: None,
                                             id: req_id,
-                                            data: format!("Failed to read file: {}", e).into_bytes(),
+                                            data: format!("Failed to read file: {}", e)
+                                                .into_bytes(),
                                         };
                                         let _ = tx.send(Ok(err_packet)).await;
                                         return;
@@ -291,11 +344,17 @@ impl FileSyncTrait for FileSyncService {
                             }
                             Some(PacketType::PacketErr) => {
                                 let err_msg = String::from_utf8_lossy(&packet.data);
-                                error!("DiffCopy call_id={} received error from BuildKit: {}", call_id, err_msg);
+                                error!(
+                                    "DiffCopy call_id={} received error from BuildKit: {}",
+                                    call_id, err_msg
+                                );
                                 return;
                             }
                             _ => {
-                                debug!("DiffCopy call_id={} ignoring packet type={:?} id={}", call_id, packet_type, packet.id);
+                                debug!(
+                                    "DiffCopy call_id={} ignoring packet type={:?} id={}",
+                                    call_id, packet_type, packet.id
+                                );
                             }
                         }
                     }

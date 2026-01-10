@@ -1,0 +1,19 @@
+{
+  "request_hash": "660fcda51a4ed76fb858d284ddb38540",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: CMakeLists.txt\nContent:\ncmake_minimum_required(VERSION 3.15)\nproject(cpp-api VERSION 1.0.0)\n\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)\n\nfind_package(Boost 1.75 REQUIRED COMPONENTS system thread)\nfind_package(OpenSSL REQUIRED)\n\ninclude_directories(${Boost_INCLUDE_DIRS})\n\nadd_executable(server\n    src/main.cpp\n)\n\ntarget_link_libraries(server\n    ${Boost_LIBRARIES}\n    OpenSSL::SSL\n    OpenSSL::Crypto\n    pthread\n)\n\nenable_testing()\nadd_subdirectory(tests EXCLUDE_FROM_ALL)\n\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"cmake\",\n  \"manifest_files\": [\"CMakeLists.txt\"],\n  \"build_commands\": [\"cmake -DCMAKE_BUILD_TYPE=Release . && make\"],\n  \"cache_dirs\": [\"cmake-build-release\"],\n  \"build_packages\": [\"cmake\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\", \"libboost_system\", \"libboost_thread\", \"libssl\", \"libcrypto\"],\n  \"artifacts\": [\"server\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
+    "tool_call": null,
+    "response_time": 1394
+  },
+  "recorded_at": "2026-01-10T02:50:25.521224508+00:00"
+}

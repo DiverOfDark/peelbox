@@ -1,0 +1,19 @@
+{
+  "request_hash": "1fd0a86751b0c13b5b1722b9faea68d4",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: zig-build\nFile tree summary:\nRoot files: build.zig, universalbuild.json\nExtensions: {\"json\": 1, \"zig\": 2}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"json\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.90\n  }\n]",
+    "tool_call": null,
+    "response_time": 830
+  },
+  "recorded_at": "2026-01-10T02:51:11.463507901+00:00"
+}

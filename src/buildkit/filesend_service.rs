@@ -79,12 +79,20 @@ impl FileSendTrait for FileSendService {
         let (tx, rx) = mpsc::channel(32);
 
         tokio::spawn(async move {
-            debug!("FileSend call_id={} spawned task started, writing to {}", call_id, output_path.display());
+            debug!(
+                "FileSend call_id={} spawned task started, writing to {}",
+                call_id,
+                output_path.display()
+            );
 
             // Create parent directories if needed
             if let Some(parent) = output_path.parent() {
                 if let Err(e) = tokio::fs::create_dir_all(parent).await {
-                    error!("Failed to create parent directories for {}: {}", output_path.display(), e);
+                    error!(
+                        "Failed to create parent directories for {}: {}",
+                        output_path.display(),
+                        e
+                    );
                     return;
                 }
             }
@@ -93,7 +101,11 @@ impl FileSendTrait for FileSendService {
             let mut file = match File::create(&output_path).await {
                 Ok(f) => f,
                 Err(e) => {
-                    error!("Failed to create output file {}: {}", output_path.display(), e);
+                    error!(
+                        "Failed to create output file {}: {}",
+                        output_path.display(),
+                        e
+                    );
                     return;
                 }
             };
@@ -107,7 +119,10 @@ impl FileSendTrait for FileSendService {
                     Ok(Some(msg)) => {
                         // Empty BytesMessage signals EOF from client
                         if msg.data.is_empty() {
-                            debug!("FileSend call_id={} received EOF signal (empty chunk)", call_id);
+                            debug!(
+                                "FileSend call_id={} received EOF signal (empty chunk)",
+                                call_id
+                            );
                             break;
                         }
 
@@ -147,7 +162,10 @@ impl FileSendTrait for FileSendService {
 
             debug!(
                 "FileSend call_id={} tar export complete: {} chunks, {} bytes written to {}",
-                call_id, chunk_count, total_bytes, output_path.display()
+                call_id,
+                chunk_count,
+                total_bytes,
+                output_path.display()
             );
 
             // Send empty BytesMessage as ACK (blocking send to ensure delivery)
@@ -157,19 +175,32 @@ impl FileSendTrait for FileSendService {
                 return;
             }
 
-            debug!("FileSend call_id={} sent ACK, waiting for client to close...", call_id);
+            debug!(
+                "FileSend call_id={} sent ACK, waiting for client to close...",
+                call_id
+            );
 
             // Wait for client to close their sender (blocking ACK pattern)
             // This ensures the ACK was received before we close our receiver
             match in_stream.message().await {
                 Ok(None) => {
-                    debug!("FileSend call_id={} client closed sender after ACK", call_id);
+                    debug!(
+                        "FileSend call_id={} client closed sender after ACK",
+                        call_id
+                    );
                 }
                 Ok(Some(msg)) => {
-                    debug!("FileSend call_id={} unexpected message after ACK: {} bytes", call_id, msg.data.len());
+                    debug!(
+                        "FileSend call_id={} unexpected message after ACK: {} bytes",
+                        call_id,
+                        msg.data.len()
+                    );
                 }
                 Err(e) => {
-                    debug!("FileSend call_id={} stream error after ACK (expected): {}", call_id, e);
+                    debug!(
+                        "FileSend call_id={} stream error after ACK (expected): {}",
+                        call_id, e
+                    );
                 }
             }
 

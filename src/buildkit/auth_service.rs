@@ -48,7 +48,9 @@ impl AuthServer for AuthService {
 
         // Return Unimplemented to let BuildKit use anonymous/credentials auth
         // Similar to GetTokenAuthority, we don't support token-based auth
-        Err(Status::unimplemented("Token-based auth not supported - use anonymous or credentials"))
+        Err(Status::unimplemented(
+            "Token-based auth not supported - use anonymous or credentials",
+        ))
     }
 
     async fn get_token_authority(
@@ -64,9 +66,7 @@ impl AuthServer for AuthService {
 
         // Return Unimplemented to indicate token authority is not supported
         // This allows BuildKit to fall back to anonymous or credentials-based auth
-        Err(Status::unimplemented(
-            "Token authority not supported",
-        ))
+        Err(Status::unimplemented("Token authority not supported"))
     }
 
     async fn verify_token_authority(

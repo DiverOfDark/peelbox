@@ -1,0 +1,19 @@
+{
+  "request_hash": "3b9ce19e7ce4c954c7446348a473f604",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: php-symfony\nFile tree summary:\nRoot files: composer.json, universalbuild.json, localhost-peelbox-test-single-language-php-symfony-latest.tar\nExtensions: {\"json\": 2, \"php\": 4, \"tar\": 1, \"yaml\": 2}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"composer.json\",\n    \"build_system\": \"composer\",\n    \"language\": \"PHP\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"universalbuild\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.80\n  },\n  {\n    \"manifest_path\": \"localhost-peelbox-test-single-language-php-symfony-latest.tar\",\n    \"build_system\": \"tar\",\n    \"language\": \"None\",\n    \"confidence\": 0.70\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1358
+  },
+  "recorded_at": "2026-01-10T02:54:07.035642944+00:00"
+}

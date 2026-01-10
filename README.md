@@ -89,23 +89,16 @@ sudo install -m 755 target/release/peelbox /usr/local/bin/
 ```bash
 cd /path/to/your/project
 
-# Start BuildKit daemon
-docker run -d --rm --name buildkitd --privileged \
-  -p 127.0.0.1:1234:1234 \
-  moby/buildkit:latest --addr tcp://0.0.0.0:1234
-
-# Generate LLB and build
-PEELBOX_DETECTION_MODE=static cargo run --release -- frontend | \
-  buildctl --addr tcp://127.0.0.1:1234 build \
-    --local context=$(pwd) \
-    --output type=docker,name=localhost/myapp:latest | \
-  docker load
+# Build image directly (auto-detects build system and connects to BuildKit)
+# If using Docker Desktop, it works out of the box.
+# If using standalone BuildKit:
+peelbox build --tag localhost/myapp:latest --buildkit tcp://127.0.0.1:1234
 
 # Run your distroless image
 docker run --rm localhost/myapp:latest
 
-# Verify it's truly distroless
-docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
+# Verify it's truly distroless (no apk, no shell)
+docker run --rm localhost/myapp:latest /sbin/apk --version && echo "FAIL" || echo "PASS"
 ```
 
 Example output from `peelbox detect`:

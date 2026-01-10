@@ -23,7 +23,9 @@ impl BuildKitAddr {
         } else if addr.starts_with("tcp://") {
             Ok(BuildKitAddr::Tcp(addr.to_string()))
         } else {
-            anyhow::bail!("Invalid BuildKit address format. Expected unix://, tcp://, or docker-container://")
+            anyhow::bail!(
+                "Invalid BuildKit address format. Expected unix://, tcp://, or docker-container://"
+            )
         }
     }
 
@@ -62,7 +64,10 @@ impl BuildKitConnection {
         // Try 1: Unix socket (standalone BuildKit)
         let unix_addr = BuildKitAddr::default_unix();
         if Path::new(DEFAULT_UNIX_SOCKET).exists() {
-            debug!("Found standalone BuildKit socket at {}", DEFAULT_UNIX_SOCKET);
+            debug!(
+                "Found standalone BuildKit socket at {}",
+                DEFAULT_UNIX_SOCKET
+            );
             match Self::connect_to_addr(unix_addr.clone()).await {
                 Ok(conn) => {
                     info!("Connected to standalone BuildKit daemon");
@@ -73,7 +78,10 @@ impl BuildKitConnection {
                 }
             }
         } else {
-            debug!("Standalone BuildKit socket not found at {}", DEFAULT_UNIX_SOCKET);
+            debug!(
+                "Standalone BuildKit socket not found at {}",
+                DEFAULT_UNIX_SOCKET
+            );
         }
 
         // Try 2: Docker daemon
@@ -125,16 +133,16 @@ impl BuildKitConnection {
 
                 #[cfg(unix)]
                 {
-                    use tower::service_fn;
                     use hyper_util::rt::TokioIo;
+                    use tower::service_fn;
 
                     let path = path.clone();
                     Endpoint::try_from("http://[::]:50051")
                         .context("Failed to create endpoint")?
                         // Configure HTTP/2 settings for BuildKit compatibility
                         .http2_adaptive_window(true)
-                        .initial_connection_window_size(Some(2 * 1024 * 1024))  // 2MB
-                        .initial_stream_window_size(Some(2 * 1024 * 1024))  // 2MB
+                        .initial_connection_window_size(Some(2 * 1024 * 1024)) // 2MB
+                        .initial_stream_window_size(Some(2 * 1024 * 1024)) // 2MB
                         .http2_keep_alive_interval(std::time::Duration::from_secs(30))
                         .connect_with_connector(service_fn(move |_: Uri| {
                             let path = path.clone();
@@ -214,7 +222,10 @@ impl BuildKitConnection {
     /// Check BuildKit version
     async fn version_check(&mut self) -> Result<()> {
         // This will be implemented when we add the Control service client
-        debug!("Version check: OK (placeholder - will require v{}+)", MIN_BUILDKIT_VERSION);
+        debug!(
+            "Version check: OK (placeholder - will require v{}+)",
+            MIN_BUILDKIT_VERSION
+        );
         Ok(())
     }
 
@@ -236,14 +247,23 @@ async fn connect_docker_container(
     // Docker exec doesn't provide true bidirectional streams needed for HTTP/2
     // Instead, we'll use the Docker API to find or create a port binding for BuildKit
 
-    let docker = Docker::connect_with_local_defaults()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to connect to Docker: {}", e)))?;
+    let docker = Docker::connect_with_local_defaults().map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to connect to Docker: {}", e),
+        )
+    })?;
 
     // Inspect container to see if BuildKit port is already exposed
     let container_info = docker
         .inspect_container(container_id, None)
         .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to inspect container: {}", e)))?;
+        .map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to inspect container: {}", e),
+            )
+        })?;
 
     // Check if port 1234 (BuildKit default) is mapped
     let port_opt = container_info

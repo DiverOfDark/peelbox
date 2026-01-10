@@ -1,0 +1,19 @@
+{
+  "request_hash": "2db3d5d3d1e9b268343d7b5d121d4e79",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: universalbuild.json\nContent:\n[\n  {\n    \"build\": {\n      \"cache\": [\n        \"vendor\",\n        \".bundle\"\n      ],\n      \"commands\": [\n        \"bundle install\"\n      ],\n      \"env\": {\n        \"BUNDLE_DEPLOYMENT\": \"false\",\n        \"BUNDLE_PATH\": \"vendor/bundle\"\n      },\n      \"packages\": [\n        \"ruby-3.4\",\n        \"ruby-3.4-dev\",\n        \"ruby3.4-bundler\",\n        \"build-base\"\n      ]\n    },\n    \"metadata\": {\n      \"build_system\": \"Bundler\",\n      \"confidence\": 0.949999988079071,\n      \"framework\": \"Sinatra\",\n      \"language\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"Ruby\",\n  \"file_extensions\": [\".rb\"],\n  \"package_managers\": [\"Bundler\"],\n  \"excluded_dirs\": [\"vendor\", \".bundle\"],\n  \"workspace_configs\": [\"Gemfile\"],\n  \"env_vars\": [\"BUNDLE_DEPLOYMENT\", \"BUNDLE_PATH\"],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": \"ruby\",\n  \"version_pattern\": \"\\\"ruby\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"bin/rails\",\n  \"env_var_patterns\": [[\"BUNDLE_DEPLOYMENT\", \"\\\\BBUNDLE_DEPLOYMENT\\\\s*=\\\\s*(true|false)\"]],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.949999988079071\n}\n```",
+    "tool_call": null,
+    "response_time": 2001
+  },
+  "recorded_at": "2026-01-10T02:51:32.861182874+00:00"
+}

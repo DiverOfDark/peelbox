@@ -39,7 +39,7 @@ impl FileSync {
         let walker = WalkBuilder::new(&self.root_path)
             .hidden(false)
             .git_ignore(true)
-            .git_global(false)  // Ignore global gitignore to match LLB exclude patterns
+            .git_global(false) // Ignore global gitignore to match LLB exclude patterns
             .git_exclude(false) // Ignore .git/info/exclude to match LLB exclude patterns
             .build();
 
@@ -62,14 +62,20 @@ impl FileSync {
                 path: relative_path.clone(),
                 size: metadata.len(),
                 mode: Self::get_file_mode(&metadata),
-                uid: Self::get_uid(&metadata),
-                gid: Self::get_gid(&metadata),
-                mod_time: Self::get_mod_time(&metadata),
+                // Normalize metadata to ensure deterministic file digests for BuildKit caching
+                uid: 0,
+                gid: 0,
+                mod_time: 0,
                 linkname: Self::get_linkname(path).await,
                 is_dir: metadata.is_dir(),
             };
 
-            trace!("Scanned: {:?} (size: {}, mode: {:o})", relative_path, stat.size, stat.mode);
+            trace!(
+                "Scanned: {:?} (size: {}, mode: {:o})",
+                relative_path,
+                stat.size,
+                stat.mode
+            );
             stats.push(stat);
         }
 
@@ -100,7 +106,10 @@ impl FileSync {
         let mut total_read = 0;
 
         loop {
-            let n = file.read(&mut buffer).await.context("Failed to read file")?;
+            let n = file
+                .read(&mut buffer)
+                .await
+                .context("Failed to read file")?;
             if n == 0 {
                 break;
             }
@@ -108,7 +117,12 @@ impl FileSync {
             chunks.push(buffer[..n].to_vec());
             total_read += n;
 
-            trace!("Read chunk: {} bytes (total: {}/{})", n, total_read, file_size);
+            trace!(
+                "Read chunk: {} bytes (total: {}/{})",
+                n,
+                total_read,
+                file_size
+            );
         }
 
         debug!("Read {} chunks ({} bytes total)", chunks.len(), total_read);
@@ -140,13 +154,13 @@ impl FileSync {
     /// - Unix S_IFLNK (0xa000) -> Go os.ModeSymlink (0x08000000 = bit 27)
     #[cfg(unix)]
     fn unix_mode_to_go_filemode(unix_mode: u32, is_dir: bool) -> u32 {
-        const S_IFMT: u32 = 0xf000;  // Unix file type mask
+        const S_IFMT: u32 = 0xf000; // Unix file type mask
         const S_IFDIR: u32 = 0x4000; // Unix directory
         const S_IFLNK: u32 = 0xa000; // Unix symlink
 
-        const GO_MODE_DIR: u32 = 0x80000000;     // Go os.ModeDir (bit 31)
+        const GO_MODE_DIR: u32 = 0x80000000; // Go os.ModeDir (bit 31)
         const GO_MODE_SYMLINK: u32 = 0x08000000; // Go os.ModeSymlink (bit 27)
-        const GO_MODE_PERM: u32 = 0x1ff;         // Permission bits (0777)
+        const GO_MODE_PERM: u32 = 0x1ff; // Permission bits (0777)
 
         // Extract permission bits (lower 9 bits: rwxrwxrwx)
         let perm = unix_mode & GO_MODE_PERM;
@@ -156,53 +170,11 @@ impl FileSync {
 
         // Convert to Go's FileMode
         match file_type {
-            S_IFDIR => GO_MODE_DIR | perm,           // Directory: 0x80000000 | perms
-            S_IFLNK => GO_MODE_SYMLINK | perm,       // Symlink: 0x08000000 | perms
-            _ if is_dir => GO_MODE_DIR | perm,       // Fallback: check metadata
-            _ => perm,                                // Regular file: just permissions
+            S_IFDIR => GO_MODE_DIR | perm,     // Directory: 0x80000000 | perms
+            S_IFLNK => GO_MODE_SYMLINK | perm, // Symlink: 0x08000000 | perms
+            _ if is_dir => GO_MODE_DIR | perm, // Fallback: check metadata
+            _ => perm,                         // Regular file: just permissions
         }
-    }
-
-    /// Get user ID from metadata
-    #[cfg(unix)]
-    fn get_uid(metadata: &std::fs::Metadata) -> u32 {
-        use std::os::unix::fs::MetadataExt;
-        metadata.uid()
-    }
-
-    #[cfg(not(unix))]
-    fn get_uid(_metadata: &std::fs::Metadata) -> u32 {
-        0
-    }
-
-    /// Get group ID from metadata
-    #[cfg(unix)]
-    fn get_gid(metadata: &std::fs::Metadata) -> u32 {
-        use std::os::unix::fs::MetadataExt;
-        metadata.gid()
-    }
-
-    #[cfg(not(unix))]
-    fn get_gid(_metadata: &std::fs::Metadata) -> u32 {
-        0
-    }
-
-    /// Get modification time as Unix timestamp
-    #[cfg(unix)]
-    fn get_mod_time(metadata: &std::fs::Metadata) -> i64 {
-        use std::os::unix::fs::MetadataExt;
-        metadata.mtime()
-    }
-
-    #[cfg(not(unix))]
-    fn get_mod_time(metadata: &std::fs::Metadata) -> i64 {
-        use std::time::UNIX_EPOCH;
-        metadata
-            .modified()
-            .unwrap_or(UNIX_EPOCH)
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64
     }
 
     /// Get symlink target if file is a symlink
@@ -258,8 +230,12 @@ mod tests {
         let stats = sync.scan_files().await.unwrap();
 
         assert_eq!(stats.len(), 2); // subdir + nested.txt
-        assert!(stats.iter().any(|s| s.path == PathBuf::from("subdir") && s.is_dir));
-        assert!(stats.iter().any(|s| s.path == PathBuf::from("subdir/nested.txt") && !s.is_dir));
+        assert!(stats
+            .iter()
+            .any(|s| s.path == PathBuf::from("subdir") && s.is_dir));
+        assert!(stats
+            .iter()
+            .any(|s| s.path == PathBuf::from("subdir/nested.txt") && !s.is_dir));
     }
 
     #[tokio::test]

@@ -30,8 +30,15 @@ pub struct ExporterService {
 }
 
 impl ExporterService {
-    pub fn new(image_tag: String, exporter_type: String, config: Arc<Mutex<Option<ImageConfig>>>) -> Self {
-        debug!("Creating ExporterService with tag={}, type={}", image_tag, exporter_type);
+    pub fn new(
+        image_tag: String,
+        exporter_type: String,
+        config: Arc<Mutex<Option<ImageConfig>>>,
+    ) -> Self {
+        debug!(
+            "Creating ExporterService with tag={}, type={}",
+            image_tag, exporter_type
+        );
         Self {
             image_tag,
             exporter_type,
@@ -81,7 +88,10 @@ impl ExporterTrait for ExporterService {
                     .map_err(|e| Status::internal(format!("Failed to serialize config: {}", e)))?;
 
                 attrs.insert("containerimage.config".to_string(), config_json);
-                debug!("Added OCI config to exporter: cmd={:?}, env={:?}", config.cmd, config.env);
+                debug!(
+                    "Added OCI config to exporter: cmd={:?}, env={:?}",
+                    config.cmd, config.env
+                );
             }
         }
 

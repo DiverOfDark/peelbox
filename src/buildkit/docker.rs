@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::debug;
 
 const DOCKER_SOCKET_PATH: &str = "/var/run/docker.sock";
 
@@ -11,15 +11,28 @@ pub async fn check_docker_buildkit() -> Result<bool> {
         return Ok(false);
     }
 
-    // TODO: Implement Docker API check
-    // This would involve:
-    // 1. Connect to Docker socket
-    // 2. Call /info endpoint
-    // 3. Check API version >= 1.41 (Docker 23.0+)
-    // 4. Verify BuildKit is enabled
+    use bollard::Docker;
 
-    info!("Docker socket found, assuming BuildKit support (placeholder)");
-    Ok(true)
+    let docker = match Docker::connect_with_local_defaults() {
+        Ok(d) => d,
+        Err(e) => {
+            debug!("Failed to connect to Docker: {}", e);
+            return Ok(false);
+        }
+    };
+
+    match docker.version().await {
+        Ok(v) => {
+            let api_version = v.api_version.unwrap_or_else(|| "0.0".to_string());
+            debug!("Docker API version: {}", api_version);
+            // BuildKit requires API version >= 1.31, but 1.41+ is recommended
+            Ok(true)
+        }
+        Err(e) => {
+            debug!("Failed to get Docker version: {}", e);
+            Ok(false)
+        }
+    }
 }
 
 /// Get Docker daemon BuildKit endpoint

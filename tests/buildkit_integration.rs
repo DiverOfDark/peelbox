@@ -36,6 +36,10 @@ static PEELBOX_IMAGE: OnceCell<Arc<String>> = OnceCell::const_new();
 /// Get or build the shared peelbox image
 /// Returns the image name
 async fn get_or_build_peelbox_image() -> Result<String> {
+    if let Some(image) = PEELBOX_IMAGE.get() {
+        return Ok(image.as_ref().clone());
+    }
+
     let image = PEELBOX_IMAGE
         .get_or_init(|| async {
             let harness = ContainerTestHarness::new().expect("Failed to create harness");
@@ -47,9 +51,10 @@ async fn get_or_build_peelbox_image() -> Result<String> {
             let context_path = std::env::current_dir().expect("Failed to get current directory");
 
             let image_name = "localhost/peelbox-test:integration".to_string();
+            let output_tar = std::env::temp_dir().join("peelbox-integration-test.tar");
 
             harness
-                .build_image(&spec_path, &context_path, &image_name)
+                .build_image_with_output(&spec_path, &context_path, &image_name, &output_tar)
                 .await
                 .expect("Failed to build peelbox image");
 
@@ -249,9 +254,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
     );
 
     // Verify squash layer exists (FileOp: copy / /)
-    let squash_layer = history
-        .iter()
-        .find(|l| l.created_by.contains("copy / /"));
+    let squash_layer = history.iter().find(|l| l.created_by.contains("copy / /"));
     assert!(
         squash_layer.is_some(),
         "Squash layer (copy / /) should exist"
@@ -262,10 +265,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
     let artifact_layer = history
         .iter()
         .find(|l| l.created_by.contains("/usr/local/bin/peelbox"));
-    assert!(
-        artifact_layer.is_some(),
-        "Artifact copy layer should exist"
-    );
+    assert!(artifact_layer.is_some(), "Artifact copy layer should exist");
     println!("✓ Artifact copy layer present");
 
     Ok(())
@@ -376,20 +376,24 @@ async fn test_buildctl_output_types() -> Result<()> {
     // Get the shared BuildKit container
     let (port, _container_id) = support::container_harness::get_buildkit_container().await?;
 
-    let peelbox_binary = std::env::current_dir()?.join("target/release/peelbox");
+    let mut peelbox_binary = std::env::current_exe()
+        .context("Failed to get current executable path")?
+        .parent()
+        .context("No parent directory")?
+        .to_path_buf();
+
+    // If we're in deps/, go up one more level
+    if peelbox_binary.ends_with("deps") {
+        peelbox_binary = peelbox_binary
+            .parent()
+            .context("No parent directory")?
+            .to_path_buf();
+    }
+
+    let peelbox_binary = peelbox_binary.join("peelbox");
+
     if !peelbox_binary.exists() {
-        let build_status = std::process::Command::new("cargo")
-            .args([
-                "build",
-                "--release",
-                "--bin",
-                "peelbox",
-                "--no-default-features",
-            ])
-            .status()?;
-        if !build_status.success() {
-            anyhow::bail!("Failed to build peelbox binary");
-        }
+        anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
     }
 
     let spec_path = std::env::current_dir()?.join("universalbuild.json");

@@ -51,13 +51,13 @@ impl LLMBuildSystem {
             .unwrap_or_else(|_| String::new());
 
         let prompt = format!(
-            r#"Analyze this build manifest and extract build system information.
+            r#"Analyze this build manifest and extract build system information. Respond with JSON ONLY.
 
 Manifest: {}
 Content:
 {}
 
-Return JSON with build configuration using Wolfi package names:
+Return JSON ONLY with build configuration using Wolfi package names:
 {{
   "name": "zig",
   "manifest_files": ["build.zig"],
@@ -75,7 +75,7 @@ Wolfi package name guidance:
 - For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18
 - For Python, use packages like: python-3.12, python-3.11, python-3.10
 - For Java, use packages like: openjdk-21, openjdk-17, openjdk-11
-- For common packages: glibc, ca-certificates, build-base, gcc
+- For common packages: glibc, ca-certificates, build-base, gcc, openssl-dev, pkgconf
 - Leave packages empty if you're unsure - the build system will validate
 "#,
             manifest_name, content
@@ -130,23 +130,29 @@ impl BuildSystem for LLMBuildSystem {
     ) -> Result<Vec<DetectionStack>> {
         let summary = create_file_tree_summary(file_tree);
 
+        let repo_name = repo_root
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown-repo");
+
         let prompt = format!(
-            r#"Analyze this repository to identify build system manifests.
+            r#"Analyze this repository to identify build system manifests. Respond with JSON ONLY.
 
 Repository: {}
 File tree summary:
 {}
 
-Identify manifest files and their build systems. Return JSON array:
-[{{
-  "manifest_path": "build.zig",
-  "build_system": "zig",
-  "language": "Zig",
-  "confidence": 0.85
-}}]
+Identify manifest files and their build systems. Return JSON array ONLY:
+[
+  {{
+    "manifest_path": "build.zig",
+    "build_system": "zig",
+    "language": "Zig",
+    "confidence": 0.85
+  }}
+]
 "#,
-            repo_root.display(),
-            summary
+            repo_name, summary
         );
 
         let request = LLMRequest::new(vec![ChatMessage::user(prompt)]);

@@ -1,0 +1,19 @@
+{
+  "request_hash": "f66fcc0c322b16d2626a6c178efcd68d",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: deno.json\nContent:\n{\n  \"lock\": false,\n  \"tasks\": {\n    \"check\": \"deno fmt --check && deno lint && deno check **/*.ts && deno check **/*.tsx\",\n    \"cli\": \"echo \\\"import '\\\\$fresh/src/dev/cli.ts'\\\" | deno run --unstable -A -\",\n    \"manifest\": \"deno task cli manifest $(pwd)\",\n    \"start\": \"deno run -A --watch=static/,routes/ dev.ts\",\n    \"build\": \"deno run -A dev.ts build\",\n    \"preview\": \"deno run -A main.ts\",\n    \"update\": \"deno run -A -r https://fresh.deno.dev/update .\"\n  },\n  \"lint\": {\n    \"rules\": {\n      \"tags\": [\n        \"fresh\",\n        \"recommended\"\n      ]\n    }\n  },\n  \"exclude\": [\n    \"**/_fresh/*\"\n  ],\n  \"imports\": {\n    \"$fresh/\": \"https://deno.land/x/fresh@1.6.1/\",\n    \"preact\": \"https://esm.sh/preact@10.19.2\",\n    \"preact/\": \"https://esm.sh/preact@10.19.2/\"\n  },\n  \"compilerOptions\": {\n    \"jsx\": \"react-jsx\",\n    \"jsxImportSource\": \"preact\"\n  }\n}\n\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"deno\",\n  \"manifest_files\": [\"deno.json\"],\n  \"build_commands\": [\"deno run -A dev.ts build\"],\n  \"cache_dirs\": [],\n  \"build_packages\": [\"deno\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
+    "tool_call": null,
+    "response_time": 1202
+  },
+  "recorded_at": "2026-01-10T02:50:33.535973328+00:00"
+}

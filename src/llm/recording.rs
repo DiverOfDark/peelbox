@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::debug;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordingMode {
@@ -47,8 +48,18 @@ pub struct RecordedRequest {
 
 impl RecordedRequest {
     pub fn from_llm_request(req: &LLMRequest, model: Option<String>) -> Self {
+        let messages = req
+            .messages
+            .iter()
+            .map(|msg| {
+                let mut m = msg.clone();
+                m.content = Self::normalize_content(&m.content);
+                m
+            })
+            .collect();
+
         Self {
-            messages: req.messages.clone(),
+            messages,
             tools: req
                 .tools
                 .iter()
@@ -62,6 +73,20 @@ impl RecordedRequest {
                 .collect(),
             model,
         }
+    }
+
+    fn normalize_content(content: &str) -> String {
+        let mut normalized = content.to_string();
+
+        // Replace current working directory with a placeholder to ensure determinism across different environments
+        if let Ok(cwd) = std::env::current_dir() {
+            let cwd_str = cwd.to_string_lossy().to_string();
+            if !cwd_str.is_empty() && cwd_str != "/" {
+                normalized = normalized.replace(&cwd_str, "[REPO_ROOT]");
+            }
+        }
+
+        normalized
     }
 
     pub fn canonical_hash(&self) -> String {

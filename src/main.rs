@@ -1,5 +1,7 @@
 use genai::adapter::AdapterKind;
-use peelbox::buildkit::{progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, ProvenanceMode};
+use peelbox::buildkit::{
+    progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, ProvenanceMode,
+};
 use peelbox::cli::commands::{BuildArgs, CliArgs, Commands, DetectArgs, HealthArgs};
 use peelbox::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
 use peelbox::config::PeelboxConfig;
@@ -624,6 +626,11 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         .clone()
         .unwrap_or_else(|| env::current_dir().expect("Failed to get current directory"));
 
+    // Canonicalize context path to ensure deterministic session ID across different ways of specifying the same path
+    let context_path = context_path
+        .canonicalize()
+        .unwrap_or_else(|_| context_path.clone());
+
     // Determine output path for tar export
     let output_path = if let Some(output_spec) = &args.output {
         // Parse output spec (e.g., "type=oci,dest=file.tar", "oci,dest=file.tar", "dest=file.tar", or just "file.tar")
@@ -659,12 +666,15 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
             "min" => Some(ProvenanceMode::Min),
             "max" => Some(ProvenanceMode::Max),
             _ => {
-                error!("Invalid provenance mode '{}'. Valid values: min, max", mode_str);
+                error!(
+                    "Invalid provenance mode '{}'. Valid values: min, max",
+                    mode_str
+                );
                 return 1;
             }
         }
     } else {
-        Some(ProvenanceMode::Max)  // Default to max
+        Some(ProvenanceMode::Max) // Default to max
     };
 
     let attestation_config = AttestationConfig {
@@ -683,9 +693,30 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         debug!("Build context scanning enabled for SBOM");
     }
 
-    // Create build session with attestation config
+    // Generate deterministic session ID based on context path and project name
+    // This allows BuildKit to reuse internal caches across different runs
+    let session_id = {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(context_path.to_string_lossy().as_bytes());
+        hasher.update(
+            spec.metadata
+                .project_name
+                .as_deref()
+                .unwrap_or("default")
+                .as_bytes(),
+        );
+        let hash = hasher.finalize();
+        // Create a deterministic UUID from the hash
+        uuid::Uuid::from_slice(&hash[..16])
+            .unwrap_or_else(|_| uuid::Uuid::new_v4())
+            .to_string()
+    };
+
+    // Create build session with attestation config and deterministic session ID
     let mut session = BuildSession::new(connection, context_path, output_path, args.tag.clone())
-        .with_attestations(attestation_config);
+        .with_attestations(attestation_config)
+        .with_session_id(session_id);
 
     // Initialize session
     if let Err(e) = session.initialize().await {
@@ -697,7 +728,10 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     let progress_tracker = ProgressTracker::new(quiet, verbose);
 
     // Execute build
-    let result = match session.build(&spec, &args.tag, Some(&progress_tracker)).await {
+    let result = match session
+        .build(&spec, &args.tag, Some(&progress_tracker))
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             error!("Build failed: {}", e);
@@ -705,6 +739,10 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
             return 1;
         }
     };
+
+    if quiet {
+        println!("{}", result.image_id);
+    }
 
     // Progress tracker already printed build completion summary
     debug!("Build completed successfully");
@@ -714,7 +752,10 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     info!("Build successful!");
     info!("  Image: {}", args.tag);
     info!("  ID: {}", result.image_id);
-    info!("  Size: {:.2} MB", result.size_bytes as f64 / 1024.0 / 1024.0);
+    info!(
+        "  Size: {:.2} MB",
+        result.size_bytes as f64 / 1024.0 / 1024.0
+    );
 
     0
 }
