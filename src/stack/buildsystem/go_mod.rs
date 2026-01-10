@@ -85,8 +85,8 @@ impl BuildSystem for GoModBuildSystem {
             .expect("Failed to get go version from Wolfi index");
 
         let mut build_env = std::collections::HashMap::new();
-        build_env.insert("GOCACHE".to_string(), ".cache/go-build".to_string());
-        build_env.insert("GOMODCACHE".to_string(), ".cache/go-mod".to_string());
+        build_env.insert("GOCACHE".to_string(), "/build/.cache/go-build".to_string());
+        build_env.insert("GOMODCACHE".to_string(), "/build/.cache/go-mod".to_string());
         build_env.insert("GOSUMDB".to_string(), "off".to_string());
 
         BuildTemplate {

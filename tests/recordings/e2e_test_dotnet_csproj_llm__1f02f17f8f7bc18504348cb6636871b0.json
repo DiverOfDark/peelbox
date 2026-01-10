@@ -1,0 +1,19 @@
+{
+  "request_hash": "1f02f17f8f7bc18504348cb6636871b0",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests.\n\nRepository: /var/home/diverofdark/Projects/AppBahn/aipack-buildkit/tests/fixtures/single-language/dotnet-csproj\nFile tree summary:\nRoot files: App.csproj, Program.cs, universalbuild.json, localhost-peelbox-test-single-language-dotnet-csproj-latest.tar\nExtensions: {\"cs\": 1, \"csproj\": 1, \"json\": 1, \"tar\": 1}\n\nIdentify manifest files and their build systems. Return JSON array:\n[{\n  \"manifest_path\": \"build.zig\",\n  \"build_system\": \"zig\",\n  \"language\": \"Zig\",\n  \"confidence\": 0.85\n}]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"App.csproj\",\n    \"build_system\": \"MSBuild\",\n    \"language\": \"C#\",\n    \"confidence\": 0.95\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 676
+  },
+  "recorded_at": "2026-01-09T23:27:35.213632246+00:00"
+}

@@ -1,0 +1,19 @@
+{
+  "request_hash": "c6fa01223736aad9f03064a8c8bf16e4",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information.\n\nManifest: universalbuild.json\nContent:\n[\n  {\n    \"build\": {\n      \"cache\": [\n        \".cache/pip\"\n      ],\n      \"commands\": [\n        \"pip install --user --no-cache-dir -r requirements.txt\"\n      ],\n      \"env\": {},\n      \"packages\": [\n        \"python-3.14\",\n        \"py3.14-pip\",\n        \"build-base\"\n      ]\n    },\n    \"metadata\": {\n      \"build_system\": \"pip\",\n      \"confidence\": 0.949999988079071,\n      \"framework\": \"Flask\",\n      \"language\": \"Python\",\n      \"project_name\": \"app\",\n      \"reasoning\": \"Detected from requirements.txt in \"\n    },\n    \"runtime\": {\n      \"command\": [\n        \"/usr/bin/python3\",\n        \"-m\",\n        \"flask\",\n        \"run\",\n        \"--host=0.0.0.0\",\n        \"--port=5000\"\n      ],\n      \"copy\": [\n        {\n          \"from\": \".\",\n          \"to\": \"/app\"\n        },\n        {\n          \"from\": \"/root/.local/\",\n          \"to\": \"/root/.local\"\n        }\n      ],\n      \"env\": {\n        \"FLASK_APP\": \"/app/app.py\"\n      },\n      \"health\": {\n        \"endpoint\": \"/health\"\n      },\n      \"packages\": [\n        \"python-3.14\"\n      ],\n      \"ports\": [\n        5000\n      ]\n    },\n    \"version\": \"1.0\"\n  }\n]\n\n\nReturn JSON with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"python-3.14\",\n  \"manifest_files\": [\"universalbuild.json\"],\n  \"build_commands\": [\"pip install --user --no-cache-dir -r requirements.txt\"],\n  \"cache_dirs\": [\".cache/pip\"],\n  \"build_packages\": [\"python-3.14\", \"py3.14-pip\", \"build-base\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [],\n  \"common_ports\": [5000],\n  \"confidence\": 0.949999988079071\n}\n```",
+    "tool_call": null,
+    "response_time": 1931
+  },
+  "recorded_at": "2026-01-10T01:17:52.510203274+00:00"
+}

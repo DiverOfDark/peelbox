@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "zig-out/bin/hello"
-      ],
       "cache": [
         "zig-cache",
         ".zig-cache"

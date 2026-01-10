@@ -391,17 +391,51 @@ impl LLBBuilder {
 
             let mut last_idx = base_idx;
 
+            // Use runtime.copy to determine artifact paths
+            let artifact_paths: Vec<String> = spec.runtime.copy.iter()
+                .map(|c| c.from.clone())
+                .collect();
+
             for (i, command) in spec.build.commands.iter().enumerate() {
                 // Build script: copy context to /build, run build, copy artifacts to /artifacts
                 let script = if i == 0 {
                     // First command: setup, build, and stage artifacts at root level
-                    format!(
-                        "mkdir -p /build && cp -r /context/. /build && cd /build && {} && mkdir -p /artifacts && cp -r target/release/peelbox /artifacts/",
-                        command
-                    )
+                    let artifact_cmds: String = if !artifact_paths.is_empty() {
+                        artifact_paths.iter()
+                            .map(|path| format!("cp -r {} /artifacts/ 2>/dev/null || true", path))
+                            .collect::<Vec<_>>()
+                            .join(" && ")
+                    } else {
+                        String::new()
+                    };
+
+                    if artifact_cmds.is_empty() {
+                        format!(
+                            "mkdir -p /build && cp -r /context/. /build && cd /build && {}",
+                            command
+                        )
+                    } else {
+                        format!(
+                            "mkdir -p /build && cp -r /context/. /build && cd /build && {} && mkdir -p /artifacts && {}",
+                            command, artifact_cmds
+                        )
+                    }
                 } else {
                     // Subsequent commands: continue building and update artifacts
-                    format!("cd /build && {} && cp -r target/release/peelbox /artifacts/", command)
+                    let artifact_cmds: String = if !artifact_paths.is_empty() {
+                        artifact_paths.iter()
+                            .map(|path| format!("cp -r {} /artifacts/ 2>/dev/null || true", path))
+                            .collect::<Vec<_>>()
+                            .join(" && ")
+                    } else {
+                        String::new()
+                    };
+
+                    if artifact_cmds.is_empty() {
+                        format!("cd /build && {}", command)
+                    } else {
+                        format!("cd /build && {} && {}", command, artifact_cmds)
+                    }
                 };
 
                 let meta = pb::Meta {

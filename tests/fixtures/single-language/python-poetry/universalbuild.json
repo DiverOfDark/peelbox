@@ -1,10 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        ".",
-        ".venv/"
-      ],
       "cache": [
         ".cache/pypoetry"
       ],

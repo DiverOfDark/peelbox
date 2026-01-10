@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "target/release/hello-world"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -16,9 +13,7 @@
       },
       "packages": [
         "rust-1.92",
-        "build-base",
-        "openssl-dev",
-        "pkgconf"
+        "build-base"
       ]
     },
     "metadata": {
@@ -45,8 +40,7 @@
       },
       "packages": [
         "glibc",
-        "ca-certificates",
-        "openssl"
+        "ca-certificates"
       ],
       "ports": [
         8080

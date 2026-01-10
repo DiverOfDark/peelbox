@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "build/libs/*.jar"
-      ],
       "cache": [
         ".gradle",
         "build"

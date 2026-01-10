@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "target/release/lib-a"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -49,9 +46,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/release/lib-b"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -97,9 +91,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/release/app"
-      ],
       "cache": [
         "target",
         ".cargo"

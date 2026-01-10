@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "bazel-bin/hello"
-      ],
       "cache": [
         "bazel-cache",
         ".bazel-cache"

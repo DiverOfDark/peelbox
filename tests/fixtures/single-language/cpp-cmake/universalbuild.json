@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "build/app"
-      ],
       "cache": [
         "build",
         "CMakeCache.txt"

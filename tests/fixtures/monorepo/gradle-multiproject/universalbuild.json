@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "build/libs/*.jar"
-      ],
       "cache": [
         ".gradle",
         "build"
@@ -55,9 +52,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "build/libs/*.jar"
-      ],
       "cache": [
         ".gradle",
         "build"
@@ -108,9 +102,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "build/libs/*.jar"
-      ],
       "cache": [
         ".gradle",
         "build"
@@ -161,9 +152,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "build/libs/*.jar"
-      ],
       "cache": [
         ".gradle",
         "build"

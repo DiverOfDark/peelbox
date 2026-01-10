@@ -1,0 +1,19 @@
+{
+  "request_hash": "9e5cb4a49fb76f55de25964de7477bdf",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests.\n\nRepository: /var/home/diverofdark/Projects/AppBahn/aipack-buildkit/tests/fixtures/single-language/python-pip\nFile tree summary:\nRoot files: app.py, requirements.txt, test_app.py, universalbuild.json, localhost-peelbox-test-single-language-python-pip-latest.tar\nExtensions: {\"json\": 1, \"py\": 2, \"tar\": 1, \"txt\": 1}\n\nIdentify manifest files and their build systems. Return JSON array:\n[{\n  \"manifest_path\": \"build.zig\",\n  \"build_system\": \"zig\",\n  \"language\": \"Zig\",\n  \"confidence\": 0.85\n}]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"universalbuild\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.95\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 617
+  },
+  "recorded_at": "2026-01-09T23:30:32.545181103+00:00"
+}

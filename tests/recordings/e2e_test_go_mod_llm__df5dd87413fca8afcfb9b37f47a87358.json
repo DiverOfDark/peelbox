@@ -1,0 +1,19 @@
+{
+  "request_hash": "df5dd87413fca8afcfb9b37f47a87358",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests.\n\nRepository: /var/home/diverofdark/Projects/AppBahn/aipack-buildkit/tests/fixtures/single-language/go-mod\nFile tree summary:\nRoot files: go.mod, go.sum, main.go, main_test.go, universalbuild.json, localhost-peelbox-test-single-language-go-mod-latest.tar\nExtensions: {\"go\": 2, \"json\": 1, \"mod\": 1, \"sum\": 1, \"tar\": 1}\n\nIdentify manifest files and their build systems. Return JSON array:\n[{\n  \"manifest_path\": \"build.zig\",\n  \"build_system\": \"zig\",\n  \"language\": \"Zig\",\n  \"confidence\": 0.85\n}]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"go.mod\",\n    \"build_system\": \"go\",\n    \"language\": \"Go\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"json\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1000
+  },
+  "recorded_at": "2026-01-09T23:27:45.776663923+00:00"
+}

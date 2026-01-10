@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "target/*.jar"
-      ],
       "cache": [
         ".m2/repository",
         "target"
@@ -52,9 +49,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "target/release/admin-service"
-      ],
       "cache": [
         "target",
         ".cargo"
@@ -104,10 +98,6 @@
   },
   {
     "build": {
-      "artifacts": [
-        "dist/",
-        "build/"
-      ],
       "cache": [
         "node_modules",
         ".npm"

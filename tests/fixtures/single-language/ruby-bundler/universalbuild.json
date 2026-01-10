@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "/build/"
-      ],
       "cache": [
         "vendor",
         ".bundle"

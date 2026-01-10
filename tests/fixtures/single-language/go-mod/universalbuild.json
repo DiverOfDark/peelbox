@@ -1,9 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [
-        "app"
-      ],
       "cache": [
         ".cache/go-build",
         ".cache/go-mod"
@@ -19,8 +16,8 @@
         }
       ],
       "env": {
-        "GOCACHE": ".cache/go-build",
-        "GOMODCACHE": ".cache/go-mod",
+        "GOCACHE": "/build/.cache/go-build",
+        "GOMODCACHE": "/build/.cache/go-mod",
         "GOSUMDB": "off"
       },
       "packages": [
