@@ -220,9 +220,7 @@ impl AsyncWrite for StreamConn {
 impl Connected for StreamConn {
     type ConnectInfo = ();
 
-    fn connect_info(&self) -> Self::ConnectInfo {
-        ()
-    }
+    fn connect_info(&self) -> Self::ConnectInfo {}
 }
 
 // Implement std::io::Read/Write for compatibility

@@ -252,6 +252,7 @@ pub fn assert_detection_with_mode(
 
 /// Helper to load port, health endpoint (optional), and command from committed universalbuild.json
 #[allow(dead_code)]
+#[allow(clippy::type_complexity)]
 pub fn get_fixture_container_info(
     category: &str,
     fixture_name: &str,

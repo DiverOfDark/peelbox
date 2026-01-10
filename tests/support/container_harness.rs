@@ -142,10 +142,7 @@ impl ContainerTestHarness {
         image_name: &str,
     ) -> Result<String> {
         // Default output path: image_name.tar in context directory
-        let output_tar = context_path.join(format!(
-            "{}.tar",
-            image_name.replace(':', "-").replace('/', "-")
-        ));
+        let output_tar = context_path.join(format!("{}.tar", image_name.replace([':', '/'], "-")));
         self.build_image_with_output(spec_path, context_path, image_name, &output_tar)
             .await
     }

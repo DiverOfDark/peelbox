@@ -19,6 +19,12 @@ impl AuthService {
     }
 }
 
+impl Default for AuthService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[tonic::async_trait]
 impl AuthServer for AuthService {
     async fn credentials(

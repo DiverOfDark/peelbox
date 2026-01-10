@@ -14,6 +14,12 @@ impl HealthService {
     }
 }
 
+impl Default for HealthService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[tonic::async_trait]
 impl tonic_health::pb::health_server::Health for HealthService {
     type WatchStream = tokio_stream::wrappers::ReceiverStream<

@@ -178,7 +178,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 processed_dir.join("auth.proto"),
                 processed_dir.join("exporter.proto"),
             ],
-            &[processed_dir.clone()],
+            std::slice::from_ref(&processed_dir),
         )?;
 
     println!("cargo:rerun-if-changed=proto/");
@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn download_proto_if_missing(
-    proto_dir: &PathBuf,
+    proto_dir: &std::path::Path,
     filename: &str,
     url: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -210,8 +210,8 @@ fn download_proto_if_missing(
 }
 
 fn process_proto_file(
-    source_dir: &PathBuf,
-    dest_dir: &PathBuf,
+    source_dir: &std::path::Path,
+    dest_dir: &std::path::Path,
     filename: &str,
     replacements: &[(&str, &str)],
 ) -> Result<(), Box<dyn std::error::Error>> {

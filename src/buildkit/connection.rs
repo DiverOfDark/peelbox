@@ -15,11 +15,12 @@ pub enum BuildKitAddr {
 }
 
 impl BuildKitAddr {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(addr: &str) -> Result<Self> {
-        if addr.starts_with("unix://") {
-            Ok(BuildKitAddr::Unix(addr[7..].to_string()))
-        } else if addr.starts_with("docker-container://") {
-            Ok(BuildKitAddr::DockerContainer(addr[19..].to_string()))
+        if let Some(path) = addr.strip_prefix("unix://") {
+            Ok(BuildKitAddr::Unix(path.to_string()))
+        } else if let Some(path) = addr.strip_prefix("docker-container://") {
+            Ok(BuildKitAddr::DockerContainer(path.to_string()))
         } else if addr.starts_with("tcp://") {
             Ok(BuildKitAddr::Tcp(addr.to_string()))
         } else {

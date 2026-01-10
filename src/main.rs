@@ -651,7 +651,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         }
     } else {
         // Default to {tag}.tar in current directory (replace : and / with - for valid filename)
-        let sanitized_tag = args.tag.replace(':', "-").replace('/', "-");
+        let sanitized_tag = args.tag.replace([':', '/'], "-");
         context_path.join(format!("{}.tar", sanitized_tag))
     };
 

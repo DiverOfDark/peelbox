@@ -16,3 +16,9 @@ impl CallTracker {
         self.counter.fetch_add(1, Ordering::SeqCst)
     }
 }
+
+impl Default for CallTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -232,10 +232,10 @@ mod tests {
         assert_eq!(stats.len(), 2); // subdir + nested.txt
         assert!(stats
             .iter()
-            .any(|s| s.path == PathBuf::from("subdir") && s.is_dir));
+            .any(|s| s.path == Path::new("subdir") && s.is_dir));
         assert!(stats
             .iter()
-            .any(|s| s.path == PathBuf::from("subdir/nested.txt") && !s.is_dir));
+            .any(|s| s.path == Path::new("subdir/nested.txt") && !s.is_dir));
     }
 
     #[tokio::test]

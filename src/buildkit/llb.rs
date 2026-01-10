@@ -89,8 +89,7 @@ impl LLBBuilder {
     fn load_gitignore_patterns(&self) -> Vec<String> {
         let context_root = self
             .context_path
-            .as_ref()
-            .map(|p| p.as_path())
+            .as_deref()
             .unwrap_or_else(|| Path::new("."));
         let gitignore_path = context_root.join(".gitignore");
 
