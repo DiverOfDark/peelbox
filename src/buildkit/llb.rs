@@ -164,12 +164,17 @@ impl LLBBuilder {
             attrs.insert("exclude-patterns".to_string(), exclude_patterns.join(","));
         }
 
-        // Add session-id and sharedkey attributes to associate the local source with the current session
-        // This is critical for BuildKit to know where to pull the local files from
-        if let Some(ref session_id) = self.session_id {
-            attrs.insert("local.session-id".to_string(), session_id.clone());
-            attrs.insert("local.sharedkey".to_string(), session_id.clone());
-        }
+        // Add sharedkey attribute to allow caching across sessions
+        // We use project_name (if available) or context_name as the stable key
+        // We explicitly DO NOT include "local.session-id" in the Op attributes because
+        // it changes every run and would invalidate the cache (changing the Op digest).
+        // BuildKit uses the session from the SolveRequest to find the actual session.
+        let shared_key = self
+            .project_name
+            .as_deref()
+            .unwrap_or(&self.context_name)
+            .to_string();
+        attrs.insert("local.sharedkey".to_string(), shared_key);
 
         let op = pb::Op {
             inputs: vec![],
@@ -476,14 +481,18 @@ impl LLBBuilder {
                     script = format!("{} && {}", script, artifact_cmds);
                 }
 
+                // Sort environment variables for deterministic build
+                let mut env_vars: Vec<String> = spec
+                    .build
+                    .env
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect();
+                env_vars.sort();
+
                 let meta = pb::Meta {
                     args: vec!["sh".to_string(), "-c".to_string(), script],
-                    env: spec
-                        .build
-                        .env
-                        .iter()
-                        .map(|(k, v)| format!("{}={}", k, v))
-                        .collect(),
+                    env: env_vars,
                     cwd: "/".to_string(),
                     user: String::new(),
                     proxy_env: None,

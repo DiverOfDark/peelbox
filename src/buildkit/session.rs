@@ -375,14 +375,17 @@ impl BuildSession {
         }
 
         // Extract OCI image config from spec before generating LLB
+        let mut env_vars: Vec<String> = spec
+            .runtime
+            .env
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect();
+        env_vars.sort(); // Sort for deterministic hash
+
         let image_config = ImageConfig {
             cmd: spec.runtime.command.clone(),
-            env: spec
-                .runtime
-                .env
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
-                .collect(),
+            env: env_vars,
             working_dir: "/".to_string(), // Default working dir
             entrypoint: vec![],           // No entrypoint by default
         };
