@@ -7,6 +7,7 @@ use std::time::Duration;
 
 /// Setup test APKINDEX cache from committed snapshot
 /// This ensures tests use a consistent set of package versions
+#[allow(dead_code)]
 pub fn setup_test_apkindex_cache() {
     use std::sync::Once;
     static INIT: Once = Once::new();
@@ -47,6 +48,7 @@ pub fn setup_test_apkindex_cache() {
 }
 
 /// Helper to get the path to the peelbox binary
+#[allow(dead_code)]
 pub fn peelbox_bin() -> PathBuf {
     // In tests, the binary should be at target/debug/peelbox
     let mut path = env::current_exe()
@@ -66,12 +68,14 @@ pub fn peelbox_bin() -> PathBuf {
 }
 
 /// Helper to get fixture path
+#[allow(dead_code)]
 pub fn fixture_path(category: &str, name: &str) -> PathBuf {
     PathBuf::from("tests/fixtures").join(category).join(name)
 }
 
 /// Helper to load expected UniversalBuild(s) from JSON
 /// Loads universalbuild.json from the fixture directory itself (same for all modes)
+#[allow(dead_code)]
 pub fn load_expected(
     category: &str,
     fixture_name: &str,
@@ -110,6 +114,7 @@ pub fn load_expected(
 }
 
 /// Helper to run detection with specified mode
+#[allow(dead_code)]
 pub fn run_detection_with_mode(
     fixture: PathBuf,
     test_name: &str,
@@ -168,6 +173,7 @@ pub fn run_detection_with_mode(
 }
 
 /// Helper to assert detection results against expected output
+#[allow(dead_code)]
 pub fn assert_detection_with_mode(
     results: &[UniversalBuild],
     category: &str,
@@ -245,6 +251,7 @@ pub fn assert_detection_with_mode(
 }
 
 /// Helper to load port, health endpoint (optional), and command from committed universalbuild.json
+#[allow(dead_code)]
 pub fn get_fixture_container_info(
     category: &str,
     fixture_name: &str,
@@ -278,6 +285,7 @@ pub fn get_fixture_container_info(
 }
 
 /// Helper to run container integration test for a single fixture
+#[allow(dead_code)]
 pub async fn run_container_integration_test(
     category: &str,
     fixture_name: &str,

@@ -25,6 +25,7 @@ use yare::parameterized;
     dotnet_csproj = { "dotnet-csproj" },
     php_symfony = { "php-symfony" },
 )]
+#[serial]
 fn test_container_integration_single_language(fixture_name: &str) {
     let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
     runtime.block_on(async {
