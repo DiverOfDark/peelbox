@@ -78,10 +78,8 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
 
     let container = BUILDKIT_CONTAINER
         .get_or_init(|| async {
-            // Use .buildkit-cache in project root (separate from target/ to avoid Rust cache conflicts)
-            let cache_dir = std::env::current_dir()
-                .expect("Failed to get current directory")
-                .join(".buildkit-cache");
+            // Use temporary directory for BuildKit cache to avoid polluting project root
+            let cache_dir = std::env::temp_dir().join("peelbox-test-buildkit-cache");
             std::fs::create_dir_all(&cache_dir).expect("Failed to create BuildKit cache directory");
 
             // Start new BuildKit container with TCP port exposed
