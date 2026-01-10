@@ -12,9 +12,10 @@ use support::e2e::run_container_integration_test;
 use yare::parameterized;
 
 // Container integration tests for single-language fixtures
-// Tests run serially to avoid BuildKit conflicts
+// Tests run serially to avoid resource exhaustion (network/cpu/ram) on the buildkit daemon
 #[parameterized(
     rust_cargo = { "rust-cargo" },
+
     go_mod = { "go-mod" },
     python_pip = { "python-pip" },
     python_poetry = { "python-poetry" },
