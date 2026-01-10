@@ -13,7 +13,8 @@ pub mod stack;
 pub mod validation;
 
 pub use config::{ConfigError, PeelboxConfig};
-pub use detection::service::{DetectionService, ServiceError};
+pub use detection::service::DetectionService;
+pub use detection::error::ServiceError;
 pub use fs::{FileSystem, MockFileSystem, RealFileSystem};
 pub use llm::{AdapterKind, BackendError};
 pub use llm::{GenAIClient, LLMClient, MockLLMClient, MockResponse};
