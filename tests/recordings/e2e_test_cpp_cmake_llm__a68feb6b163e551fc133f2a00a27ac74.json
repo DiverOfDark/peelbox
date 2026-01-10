@@ -1,0 +1,19 @@
+{
+  "request_hash": "a68feb6b163e551fc133f2a00a27ac74",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: cpp-cmake\nFile tree summary:\nRoot files: CMakeLists.txt, universalbuild.json\nExtensions: {\"cpp\": 1, \"json\": 1, \"txt\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"CMakeLists.txt\",\n    \"build_system\": \"CMake\",\n    \"language\": \"C++\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"JSON\",\n    \"language\": \"None\",\n    \"confidence\": 0.75\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1145
+  },
+  "recorded_at": "2026-01-10T20:49:34.065513112+00:00"
+}
