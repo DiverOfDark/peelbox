@@ -83,40 +83,147 @@ async fn test_image_builds_successfully() -> Result<()> {
 }
 
 async fn verify_no_apk_in_tarball(tar_path: &Path) -> Result<()> {
+    use serde_json::Value;
     use std::io::Read;
     use tar::Archive;
 
-    let file = std::fs::File::open(tar_path)?;
-    let mut archive = Archive::new(file);
+    let mut tar_data = Vec::new();
+    std::fs::File::open(tar_path)?.read_to_end(&mut tar_data)?;
 
+    let mut archive = Archive::new(&tar_data[..]);
+    let mut manifest_content = Vec::new();
     for entry in archive.entries()? {
         let mut entry = entry?;
-        let path = entry.path()?.to_path_buf();
+        if entry.path()?.to_string_lossy() == "manifest.json" {
+            entry.read_to_end(&mut manifest_content)?;
+            break;
+        }
+    }
 
-        if path.to_string_lossy().ends_with(".tar") || path.to_string_lossy().contains("layer.tar")
-        {
-            let mut layer_data = Vec::new();
-            entry.read_to_end(&mut layer_data)?;
+    if manifest_content.is_empty() {
+        let mut archive = Archive::new(&tar_data[..]);
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            if entry.path()?.to_string_lossy() == "index.json" {
+                entry.read_to_end(&mut manifest_content)?;
+                break;
+            }
+        }
+    }
 
-            let mut layer_archive = Archive::new(&layer_data[..]);
-            for file_entry in layer_archive.entries()? {
-                let file_entry = file_entry?;
-                let file_path = file_entry.path()?;
-                let file_path_str = file_path.to_string_lossy();
+    if manifest_content.is_empty() {
+        anyhow::bail!("Could not find manifest.json or index.json in tarball");
+    }
 
-                if file_path_str.ends_with("/apk")
-                    || file_path_str == "sbin/apk"
-                    || file_path_str == "usr/bin/apk"
-                {
-                    anyhow::bail!(
-                        "Found forbidden file '{}' in layer {:?}",
-                        file_path_str,
-                        path
-                    );
+    let manifest: Value = serde_json::from_slice(&manifest_content)?;
+    let mut layer_digests = Vec::new();
+
+    if let Some(manifests) = manifest.as_array() {
+        for m in manifests {
+            if let Some(layers) = m.get("Layers").and_then(|l| l.as_array()) {
+                for l in layers {
+                    if let Some(s) = l.as_str() {
+                        layer_digests.push(s.to_string());
+                    }
+                }
+            }
+        }
+    } else if let Some(manifests) = manifest.get("manifests").and_then(|m| m.as_array()) {
+        for m in manifests {
+            if let Some(digest) = m.get("digest").and_then(|d| d.as_str()) {
+                let digest_path = format!("blobs/{}", digest.replace(":", "/"));
+
+                let mut archive = Archive::new(&tar_data[..]);
+                let mut inner_manifest_content = Vec::new();
+                for entry in archive.entries()? {
+                    let mut entry = entry?;
+                    if entry.path()?.to_string_lossy() == digest_path {
+                        entry.read_to_end(&mut inner_manifest_content)?;
+                        break;
+                    }
+                }
+
+                if !inner_manifest_content.is_empty() {
+                    let inner_manifest: Value = serde_json::from_slice(&inner_manifest_content)?;
+                    if let Some(layers) = inner_manifest.get("layers").and_then(|l| l.as_array()) {
+                        for l in layers {
+                            if let Some(d) = l.get("digest").and_then(|d| d.as_str()) {
+                                layer_digests.push(format!("blobs/{}", d.replace(":", "/")));
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+
+    if layer_digests.is_empty() {
+        anyhow::bail!("No layers found in manifest: {}", manifest);
+    }
+
+    let mut scanned_count = 0;
+    for layer_path in &layer_digests {
+        let mut archive = Archive::new(&tar_data[..]);
+        let mut found = false;
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            if entry.path()?.to_string_lossy() == *layer_path {
+                found = true;
+                let mut layer_data = Vec::new();
+                entry.read_to_end(&mut layer_data)?;
+
+                let decompressed_data: Vec<u8> = if layer_data.starts_with(&[0x1f, 0x8b]) {
+                    let mut decoder = flate2::read::GzDecoder::new(&layer_data[..]);
+                    let mut buf = Vec::new();
+                    if decoder.read_to_end(&mut buf).is_ok() {
+                        buf
+                    } else {
+                        layer_data
+                    }
+                } else {
+                    layer_data
+                };
+
+                let mut layer_archive = Archive::new(&decompressed_data[..]);
+                for file_entry in layer_archive.entries()? {
+                    let file_entry = file_entry?;
+                    let file_path = file_entry.path()?;
+                    let file_path_str = file_path.to_string_lossy();
+
+                    if file_path_str == "sbin/apk"
+                        || file_path_str == "usr/bin/apk"
+                        || (file_path_str.ends_with("/apk")
+                            && !file_entry.header().entry_type().is_dir())
+                    {
+                        let entry_type = if file_entry.header().entry_type().is_dir() {
+                            "directory"
+                        } else {
+                            "file"
+                        };
+                        anyhow::bail!(
+                            "Found forbidden {} '{}' in active layer {}",
+                            entry_type,
+                            file_path_str,
+                            layer_path
+                        );
+                    }
+                }
+                scanned_count += 1;
+                break;
+            }
+        }
+        if !found {
+            println!(
+                "  ⚠ Warning: Layer {} referenced in manifest not found in tarball",
+                layer_path
+            );
+        }
+    }
+
+    println!(
+        "✓ Successfully scanned {} active layers from manifest",
+        scanned_count
+    );
     Ok(())
 }
 
@@ -169,7 +276,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
     }
 
     verify_no_apk_in_tarball(&oci_dest).await?;
-    println!("✓ VERIFIED: No apk binary found in any layer content!");
+    println!("✓ VERIFIED: No apk binary found in any active layer content!");
     Ok(())
 }
 

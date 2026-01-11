@@ -247,64 +247,6 @@ impl LLBBuilder {
         self.add_op(op)
     }
 
-    fn create_file_copy(
-        &mut self,
-        base_idx: i64,
-        src_idx: i64,
-        src_path: &str,
-        dest_path: &str,
-        description: Option<String>,
-    ) -> i64 {
-        let op_inputs: Vec<pb::Input> = vec![
-            pb::Input {
-                digest: self.digests[base_idx as usize].clone(),
-                index: 0,
-            },
-            pb::Input {
-                digest: self.digests[src_idx as usize].clone(),
-                index: 0,
-            },
-        ];
-
-        let action = pb::FileAction {
-            input: 1,
-            secondary_input: -1,
-            output: 0,
-            action: Some(pb::file_action::Action::Copy(pb::FileActionCopy {
-                src: src_path.to_string(),
-                dest: dest_path.to_string(),
-                owner: None,
-                mode: -1,
-                follow_symlink: false,
-                dir_copy_contents: true,
-                attempt_unpack_docker_compatibility: false,
-                create_dest_path: true,
-                allow_wildcard: true,
-                allow_empty_wildcard: true,
-                timestamp: -1,
-                include_patterns: vec![],
-                exclude_patterns: vec![],
-            })),
-        };
-
-        let op = pb::Op {
-            inputs: op_inputs,
-            op: Some(pb::op::Op::File(pb::FileOp {
-                actions: vec![action],
-            })),
-            platform: None,
-            constraints: None,
-        };
-
-        let idx = self.add_op(op);
-
-        if let Some(desc) = description {
-            debug!("Created file copy: {} (op {})", desc, idx);
-        }
-
-        idx
-    }
-
     fn cache_mount(&self, dest: &str, cache_path: &str) -> pb::Mount {
         pb::Mount {
             input: -1,
@@ -535,12 +477,13 @@ impl LLBBuilder {
 
         let runtime_packages_idx = if !spec.runtime.packages.is_empty() {
             let packages = spec.runtime.packages.join(" ");
+            let empty_dir_idx = self.create_empty_dir();
 
             let install_meta = pb::Meta {
                 args: vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    format!("apk add --no-cache {} && rm -rf /sbin/apk /etc/apk /lib/apk /var/lib/apk /var/cache/apk /usr/share/apk", packages),
+                    format!("apk add --root /runtime-root --no-cache --initdb --repository https://packages.wolfi.dev/os --keys-dir /etc/apk/keys {} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages),
                 ],
                 env: vec![],
                 cwd: "/".to_string(),
@@ -553,25 +496,20 @@ impl LLBBuilder {
                 remove_mount_stubs_recursive: false,
             };
 
-            let install_mounts = vec![self.layer_mount(0, 0, "/"), self.scratch_mount("/tmp")];
+            let install_mounts = vec![
+                self.readonly_mount(0, "/"),
+                self.layer_mount(1, 0, "/runtime-root"),
+                self.scratch_mount("/tmp"),
+            ];
 
             let pkg_install_idx = self.create_exec(
-                vec![(wolfi_base_idx, 0)],
+                vec![(wolfi_base_idx, 0), (empty_dir_idx, 0)],
                 install_mounts,
                 install_meta,
-                Some("Install runtime packages and cleanup".to_string()),
+                Some("Install runtime packages into clean root".to_string()),
             );
 
-            let empty_dir_idx = self.create_empty_dir();
-            let independent_diff_idx = self.create_file_copy(
-                empty_dir_idx,
-                pkg_install_idx,
-                "/",
-                "/",
-                Some("Extract independent diff layer".to_string()),
-            );
-
-            Some(independent_diff_idx)
+            Some(pkg_install_idx)
         } else {
             None
         };
@@ -592,7 +530,7 @@ impl LLBBuilder {
                 let src_path = format!("/build-src/peelbox-artifacts/{}/res", idx);
 
                 copy_cmds.push(format!(
-                    "mkdir -p $(dirname {}) && cp -rp {} {}",
+                    "mkdir -p $(dirname /target{}) && cp -rp {} /target{}",
                     copy.to, src_path, copy.to
                 ));
             }
@@ -613,7 +551,8 @@ impl LLBBuilder {
             };
 
             let copy_mounts = vec![
-                self.layer_mount(1, 0, "/"),
+                self.layer_mount(0, 0, "/"),
+                self.layer_mount(1, 0, "/target"),
                 self.readonly_mount(2, "/build-src"),
                 self.scratch_mount("/tmp"),
             ];
@@ -626,7 +565,38 @@ impl LLBBuilder {
             )
         };
 
-        let _ = self.create_output_reference(final_idx);
+        let truly_final_idx = {
+            let cleanup_meta = pb::Meta {
+                args: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    "find /target -name \"*apk*\" -exec rm -rf {} +".to_string(),
+                ],
+                env: vec![],
+                cwd: "/".to_string(),
+                user: String::new(),
+                proxy_env: None,
+                extra_hosts: vec![],
+                hostname: String::new(),
+                ulimit: vec![],
+                cgroup_parent: String::new(),
+                remove_mount_stubs_recursive: false,
+            };
+
+            let cleanup_mounts = vec![
+                self.layer_mount(0, 0, "/"),
+                self.layer_mount(1, 0, "/target"),
+            ];
+
+            self.create_exec(
+                vec![(busybox_idx, 0), (final_idx, 0)],
+                cleanup_mounts,
+                cleanup_meta,
+                Some("Final distroless cleanup".to_string()),
+            )
+        };
+
+        let _ = self.create_output_reference(truly_final_idx);
         Ok(())
     }
 
