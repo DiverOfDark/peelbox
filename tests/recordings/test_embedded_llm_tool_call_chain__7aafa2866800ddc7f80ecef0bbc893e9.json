@@ -1,0 +1,72 @@
+{
+  "request_hash": "7aafa2866800ddc7f80ecef0bbc893e9",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."
+      },
+      {
+        "role": "user",
+        "content": "Analyze this directory by first listing files, then reading one file, then submitting a summary"
+      }
+    ],
+    "tools": [
+      {
+        "description": "List files in a directory",
+        "name": "list_files",
+        "parameters": {
+          "properties": {
+            "path": {
+              "description": "Directory path to list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Read the contents of a file",
+        "name": "read_file",
+        "parameters": {
+          "properties": {
+            "path": {
+              "description": "File path to read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Submit the final analysis result",
+        "name": "submit_result",
+        "parameters": {
+          "properties": {
+            "summary": {
+              "description": "Summary of findings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "summary"
+          ],
+          "type": "object"
+        }
+      }
+    ],
+    "model": "Qwen2.5-Coder 1.5B GGUF (1.5B)"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"list_files\",\n  \"arguments\": {\n    \"path\": \"/path/to/directory\"\n  }\n}\n```",
+    "tool_call": null,
+    "response_time": 16750
+  },
+  "recorded_at": "2026-01-11T22:35:25.481790450+00:00"
+}

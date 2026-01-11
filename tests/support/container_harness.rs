@@ -140,6 +140,7 @@ impl ContainerTestHarness {
         spec_path: &Path,
         context_path: &Path,
         image_name: &str,
+        cache_dir: Option<&Path>,
     ) -> Result<String> {
         // Get or create the shared BuildKit container
         let (port, _container_id) = get_buildkit_container().await?;
@@ -187,6 +188,10 @@ impl ContainerTestHarness {
 
         if let Ok(rust_log) = std::env::var("RUST_LOG") {
             cmd.env("RUST_LOG", rust_log);
+        }
+
+        if let Some(cache) = cache_dir {
+            cmd.env("PEELBOX_CACHE_DIR", cache.to_str().unwrap());
         }
 
         let peelbox_output = cmd.output().context("Failed to run peelbox build")?;

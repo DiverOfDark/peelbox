@@ -47,6 +47,10 @@ async fn get_or_build_peelbox_image() -> Result<String> {
     });
     std::fs::write(&spec_path, serde_json::to_string_pretty(&spec)?)?;
 
+    let temp_cache_dir =
+        std::env::temp_dir().join(format!("peelbox-cache-itest-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_cache_dir)?;
+
     let image_name = "localhost/peelbox-test:integration";
     let mut cmd = std::process::Command::new(&peelbox_binary);
     cmd.args([
@@ -61,6 +65,7 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         context_path.to_str().unwrap(),
         "--quiet",
     ]);
+    cmd.env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
 
     let output = cmd.output()?;
     if !output.status.success() {
@@ -271,6 +276,10 @@ async fn test_distroless_layer_structure() -> Result<()> {
     let (port, _container_id) = get_buildkit_container().await?;
     let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
+    let temp_cache_dir =
+        std::env::temp_dir().join(format!("peelbox-cache-verify-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&temp_cache_dir)?;
+
     let mut cmd = std::process::Command::new(&peelbox_binary);
     cmd.args([
         "build",
@@ -283,6 +292,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
         "--output",
         &format!("dest={}", oci_dest.display()),
     ]);
+    cmd.env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
 
     let output = cmd.output()?;
     if !output.status.success() {
