@@ -242,22 +242,14 @@ jobs:
           echo ""
           echo "BuildKit is ready"
 
-      - name: Generate LLB using peelbox frontend
+      - name: Build image with peelbox
         run: |
-          ./target/release/peelbox frontend --spec universalbuild.json > /tmp/peelbox.llb
-
-      - name: Build image with BuildKit
-        run: |
-          # Generate OCI image config from UniversalBuild spec (escape quotes for shell)
-          OCI_CONFIG=$(jq -c '.[] | {Config: {Entrypoint: .runtime.command, Env: [.runtime.env | to_entries[] | "\(.key)=\(.value)"]}}' universalbuild.json | sed 's/"/\\"/g')
-
-          # Build with image config embedded in output
-          cat /tmp/peelbox.llb | buildctl --addr tcp://127.0.0.1:1234 build \
-            --local context=. \
-            --output "type=docker,name=peelbox:latest,\"containerimage.config=$OCI_CONFIG\"" > /tmp/peelbox.tar
-
-      - name: Load image into Docker
-        run: docker load < /tmp/peelbox.tar
+          ./target/release/peelbox build \
+            --spec universalbuild.json \
+            --tag peelbox:latest \
+            --buildkit tcp://127.0.0.1:1234 \
+            --context . \
+            --verbose
 
       - name: Test the built image
         run: |
