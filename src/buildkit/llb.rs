@@ -141,6 +141,29 @@ impl LLBBuilder {
         self.add_op(op)
     }
 
+    fn create_empty_dir(&mut self) -> i64 {
+        let op = pb::Op {
+            inputs: vec![],
+            op: Some(pb::op::Op::File(pb::FileOp {
+                actions: vec![pb::FileAction {
+                    input: -1,
+                    secondary_input: -1,
+                    output: 0,
+                    action: Some(pb::file_action::Action::Mkdir(pb::FileActionMkDir {
+                        path: "/".to_string(),
+                        mode: 0o755,
+                        make_parents: true,
+                        owner: None,
+                        timestamp: -1,
+                    })),
+                }],
+            })),
+            platform: None,
+            constraints: None,
+        };
+        self.add_op(op)
+    }
+
     fn create_image_source(&mut self, image_ref: &str) -> i64 {
         let op = pb::Op {
             inputs: vec![],
@@ -222,6 +245,64 @@ impl LLBBuilder {
         };
 
         self.add_op(op)
+    }
+
+    fn create_file_copy(
+        &mut self,
+        base_idx: i64,
+        src_idx: i64,
+        src_path: &str,
+        dest_path: &str,
+        description: Option<String>,
+    ) -> i64 {
+        let op_inputs: Vec<pb::Input> = vec![
+            pb::Input {
+                digest: self.digests[base_idx as usize].clone(),
+                index: 0,
+            },
+            pb::Input {
+                digest: self.digests[src_idx as usize].clone(),
+                index: 0,
+            },
+        ];
+
+        let action = pb::FileAction {
+            input: 1,
+            secondary_input: -1,
+            output: 0,
+            action: Some(pb::file_action::Action::Copy(pb::FileActionCopy {
+                src: src_path.to_string(),
+                dest: dest_path.to_string(),
+                owner: None,
+                mode: -1,
+                follow_symlink: false,
+                dir_copy_contents: true,
+                attempt_unpack_docker_compatibility: false,
+                create_dest_path: true,
+                allow_wildcard: true,
+                allow_empty_wildcard: true,
+                timestamp: -1,
+                include_patterns: vec![],
+                exclude_patterns: vec![],
+            })),
+        };
+
+        let op = pb::Op {
+            inputs: op_inputs,
+            op: Some(pb::op::Op::File(pb::FileOp {
+                actions: vec![action],
+            })),
+            platform: None,
+            constraints: None,
+        };
+
+        let idx = self.add_op(op);
+
+        if let Some(desc) = description {
+            debug!("Created file copy: {} (op {})", desc, idx);
+        }
+
+        idx
     }
 
     fn cache_mount(&self, dest: &str, cache_path: &str) -> pb::Mount {
@@ -355,8 +436,6 @@ impl LLBBuilder {
         let base_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
 
         let build_result_idx = if !spec.build.commands.is_empty() {
-            debug!("Build stage starting from base_idx={}", base_idx);
-
             let mut last_idx = base_idx;
 
             let artifact_paths: Vec<String> =
@@ -448,10 +527,7 @@ impl LLBBuilder {
                     meta,
                     Some(format!("Build command {}", i + 1)),
                 );
-                debug!("Build command {} created layer {}", i + 1, last_idx);
             }
-
-            debug!("Build stage complete, build_result_idx={}", last_idx);
             last_idx
         } else {
             base_idx
@@ -464,7 +540,7 @@ impl LLBBuilder {
                 args: vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    format!("apk add --no-cache {} && rm -rf /sbin/apk /etc/apk /lib/apk /var/lib/apk /var/cache/apk", packages),
+                    format!("apk add --no-cache {} && rm -rf /sbin/apk /etc/apk /lib/apk /var/lib/apk /var/cache/apk /usr/share/apk", packages),
                 ],
                 env: vec![],
                 cwd: "/".to_string(),
@@ -486,7 +562,16 @@ impl LLBBuilder {
                 Some("Install runtime packages and cleanup".to_string()),
             );
 
-            Some(pkg_install_idx)
+            let empty_dir_idx = self.create_empty_dir();
+            let independent_diff_idx = self.create_file_copy(
+                empty_dir_idx,
+                pkg_install_idx,
+                "/",
+                "/",
+                Some("Extract independent diff layer".to_string()),
+            );
+
+            Some(independent_diff_idx)
         } else {
             None
         };
@@ -533,10 +618,6 @@ impl LLBBuilder {
                 self.scratch_mount("/tmp"),
             ];
 
-            debug!(
-                "Creating combined artifact copy layer ({} copies)",
-                spec.runtime.copy.len()
-            );
             self.create_exec(
                 vec![(busybox_idx, 0), (squashed_idx, 0), (build_result_idx, 0)],
                 copy_mounts,
@@ -545,15 +626,7 @@ impl LLBBuilder {
             )
         };
 
-        let output_ref_idx = self.create_output_reference(final_idx);
-
-        debug!(
-            "Built LLB graph with {} operations (final output: op {}, reference: op {})",
-            self.ops.len(),
-            final_idx,
-            output_ref_idx
-        );
-
+        let _ = self.create_output_reference(final_idx);
         Ok(())
     }
 
