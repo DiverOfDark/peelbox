@@ -3,6 +3,7 @@ pub mod e2e;
 
 pub use container_harness::ContainerTestHarness;
 
+#[allow(dead_code)]
 pub fn get_peelbox_binary() -> std::path::PathBuf {
     let mut path = std::env::current_exe().unwrap();
     path.pop();
