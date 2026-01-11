@@ -125,6 +125,46 @@ impl LLBBuilder {
         patterns
     }
 
+    fn create_scratch_source(&mut self) -> i64 {
+        let op = pb::Op {
+            inputs: vec![],
+            op: Some(pb::op::Op::Source(pb::SourceOp {
+                identifier: "scratch://".to_string(),
+                attrs: HashMap::new(),
+            })),
+            platform: None,
+            constraints: None,
+        };
+        self.add_op(op)
+    }
+
+    fn create_merge(&mut self, inputs: Vec<(i64, i64)>) -> i64 {
+        let op_inputs: Vec<pb::Input> = inputs
+            .iter()
+            .map(|&(input_idx, output_idx)| pb::Input {
+                digest: self.digests[input_idx as usize].clone(),
+                index: output_idx,
+            })
+            .collect();
+
+        let merge_inputs = inputs
+            .iter()
+            .enumerate()
+            .map(|(i, _)| pb::MergeInput { input: i as i64 })
+            .collect();
+
+        let op = pb::Op {
+            inputs: op_inputs,
+            op: Some(pb::op::Op::Merge(pb::MergeOp {
+                inputs: merge_inputs,
+            })),
+            platform: None,
+            constraints: None,
+        };
+
+        self.add_op(op)
+    }
+
     /// Create image source operation
     fn create_image_source(&mut self, image_ref: &str) -> i64 {
         let op = pb::Op {
@@ -538,16 +578,14 @@ impl LLBBuilder {
             base_idx
         };
 
-        // Stage 3: Runtime prep - Install runtime packages and remove apk
-        let runtime_prep_idx = if !spec.runtime.packages.is_empty() {
+        let runtime_packages_idx = if !spec.runtime.packages.is_empty() {
             let packages = spec.runtime.packages.join(" ");
 
-            // Install runtime packages
             let install_meta = pb::Meta {
                 args: vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    format!("apk add --no-cache {}", packages),
+                    format!("apk add --no-cache --root /dest {}", packages),
                 ],
                 env: vec![],
                 cwd: "/".to_string(),
@@ -560,25 +598,50 @@ impl LLBBuilder {
                 remove_mount_stubs_recursive: false,
             };
 
+            let scratch_idx = self.create_scratch_source();
             let install_mounts = vec![
-                self.layer_mount(0, 0, "/"), // Input 0: wolfi_base_idx
+                self.layer_mount(0, 0, "/"),
+                self.layer_mount(1, 1, "/dest"),
                 self.scratch_mount("/tmp"),
             ];
 
-            let runtime_with_packages_idx = self.create_exec(
-                vec![wolfi_base_idx],
+            let pkg_install_idx = self.create_exec(
+                vec![wolfi_base_idx, scratch_idx],
                 install_mounts,
                 install_meta,
                 Some("Install runtime packages".to_string()),
             );
 
-            // Remove apk tooling
-            let cleanup_meta = pb::Meta {
-                args: vec![
-                    "sh".to_string(),
-                    "-c".to_string(),
-                    "rm -rf /sbin/apk /etc/apk /lib/apk /var/cache/apk".to_string(),
-                ],
+            Some(pkg_install_idx)
+        } else {
+            None
+        };
+
+        let mut merge_inputs = vec![(glibc_dynamic_idx, 0)];
+        if let Some(pkg_idx) = runtime_packages_idx {
+            merge_inputs.push((pkg_idx, 1));
+        }
+
+        let squashed_idx = self.create_merge(merge_inputs);
+
+        let final_idx = if spec.runtime.copy.is_empty() {
+            squashed_idx
+        } else {
+            let mut copy_cmds = Vec::new();
+
+            for (idx, copy) in spec.runtime.copy.iter().enumerate() {
+                let src_path = format!("/build-src/peelbox-artifacts/{}/res", idx);
+
+                copy_cmds.push(format!(
+                    "mkdir -p $(dirname {}) && cp -rp {} {}",
+                    copy.to, src_path, copy.to
+                ));
+            }
+
+            let copy_script = copy_cmds.join(" && ");
+
+            let copy_meta = pb::Meta {
+                args: vec!["sh".to_string(), "-c".to_string(), copy_script],
                 env: vec![],
                 cwd: "/".to_string(),
                 user: String::new(),
@@ -590,94 +653,22 @@ impl LLBBuilder {
                 remove_mount_stubs_recursive: false,
             };
 
-            let cleanup_mounts = vec![
-                self.layer_mount(0, 0, "/"), // Input 0: runtime_with_packages_idx
+            let copy_mounts = vec![
+                self.layer_mount(1, 0, "/"),
+                self.readonly_mount(2, "/build-src"),
                 self.scratch_mount("/tmp"),
             ];
 
-            Some(self.create_exec(
-                vec![runtime_with_packages_idx],
-                cleanup_mounts,
-                cleanup_meta,
-                Some("Remove apk tooling".to_string()),
-            ))
-        } else {
-            None
-        };
-
-        // Stage 4: Squash to glibc-dynamic base (using FileOp - glibc-dynamic has no shell)
-        let squashed_idx = if let Some(runtime_prep) = runtime_prep_idx {
             debug!(
-                "Squash stage: glibc_dynamic_idx={}, runtime_prep={}",
-                glibc_dynamic_idx, runtime_prep
+                "Creating combined artifact copy layer ({} copies)",
+                spec.runtime.copy.len()
             );
-            let project_name = self.project_name.as_deref().unwrap_or("app");
-
-            // Use FileOp to copy runtime_prep onto glibc-dynamic (no shell available in glibc-dynamic)
-            Some(self.create_file_copy(
-                glibc_dynamic_idx,
-                runtime_prep,
-                "/",
-                "/",
-                Some(format!("peelbox {} runtime", project_name)),
-            ))
-        } else {
-            Some(glibc_dynamic_idx)
-        };
-
-        // Stage 5: Copy artifacts after squash using busybox as exec environment
-        let final_idx = if let Some(squashed) = squashed_idx {
-            if spec.runtime.copy.is_empty() {
-                squashed
-            } else {
-                // Use busybox image as exec base with mounts for source and destination
-                // Combine all copy operations into a single layer
-                let mut copy_cmds = Vec::new();
-
-                for (idx, copy) in spec.runtime.copy.iter().enumerate() {
-                    let src_path = format!("/build-src/peelbox-artifacts/{}/res", idx);
-
-                    copy_cmds.push(format!(
-                        "mkdir -p $(dirname {}) && cp -rp {} {}",
-                        copy.to, src_path, copy.to
-                    ));
-                }
-
-                let copy_script = copy_cmds.join(" && ");
-
-                let copy_meta = pb::Meta {
-                    args: vec!["sh".to_string(), "-c".to_string(), copy_script],
-                    env: vec![],
-                    cwd: "/".to_string(),
-                    user: String::new(),
-                    proxy_env: None,
-                    extra_hosts: vec![],
-                    hostname: String::new(),
-                    ulimit: vec![],
-                    cgroup_parent: String::new(),
-                    remove_mount_stubs_recursive: false,
-                };
-
-                // Use busybox as base (input 0), mount squashed at / (input 1, output 0), mount build result readonly (input 2)
-                let copy_mounts = vec![
-                    self.layer_mount(1, 0, "/"),          // Input 1: squashed -> Output 0
-                    self.readonly_mount(2, "/build-src"), // Input 2: build_result_idx
-                    self.scratch_mount("/tmp"),
-                ];
-
-                debug!(
-                    "Creating combined artifact copy layer ({} copies)",
-                    spec.runtime.copy.len()
-                );
-                self.create_exec(
-                    vec![busybox_idx, squashed, build_result_idx],
-                    copy_mounts,
-                    copy_meta,
-                    Some("Copy build artifacts".to_string()),
-                )
-            }
-        } else {
-            build_result_idx
+            self.create_exec(
+                vec![busybox_idx, squashed_idx, build_result_idx],
+                copy_mounts,
+                copy_meta,
+                Some("Copy build artifacts".to_string()),
+            )
         };
 
         // Add final reference-only node for provenance (required by BuildKit)
