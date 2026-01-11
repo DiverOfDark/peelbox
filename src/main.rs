@@ -634,9 +634,10 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     // Determine output destination
     let output_dest = if let Some(output_spec) = &args.output {
-        if output_spec == "type=docker" || output_spec == "docker" {
-            OutputDestination::DockerLoad
-        } else if output_spec.starts_with("type=docker,") {
+        if output_spec == "type=docker"
+            || output_spec == "docker"
+            || output_spec.starts_with("type=docker,")
+        {
             OutputDestination::DockerLoad
         } else {
             let (path_buf, format) = if output_spec == "type=oci" || output_spec == "oci" {

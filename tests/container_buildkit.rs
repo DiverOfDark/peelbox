@@ -41,7 +41,7 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         "runtime": {
             "base_image": "cgr.dev/chainguard/glibc-dynamic:latest",
             "command": ["/usr/local/bin/peelbox", "--help"],
-            "packages": ["glibc", "ca-certificates"],
+            "packages": ["glibc", "ca-certificates", "openssl"],
             "copy": [{"from": "/build/target/release/peelbox", "to": "/usr/local/bin/peelbox"}]
         }
     });
@@ -315,6 +315,7 @@ async fn test_binary_exists_and_executable() -> Result<()> {
     let docker = Docker::connect_with_local_defaults()?;
     let container_config = Config {
         image: Some(image_name.clone()),
+        user: Some("root".to_string()),
         cmd: Some(vec![
             "/usr/local/bin/peelbox".to_string(),
             "--version".to_string(),
@@ -330,6 +331,25 @@ async fn test_binary_exists_and_executable() -> Result<()> {
     let mut wait_stream =
         docker.wait_container(&test_container.id, None::<WaitContainerOptions<String>>);
     let wait_result = wait_stream.next().await.context("No wait result")??;
+
+    if wait_result.status_code != 0 {
+        let mut log_stream = docker.logs(
+            &test_container.id,
+            Some(LogsOptions::<String> {
+                stdout: true,
+                stderr: true,
+                ..Default::default()
+            }),
+        );
+        let mut output = String::new();
+        while let Some(log) = log_stream.next().await {
+            if let Ok(log_output) = log {
+                output.push_str(&log_output.to_string());
+            }
+        }
+        println!("Container output (fail): {}", output);
+    }
+
     docker
         .remove_container(
             &test_container.id,
@@ -351,6 +371,7 @@ async fn test_image_runs_help_command() -> Result<()> {
     let docker = Docker::connect_with_local_defaults()?;
     let container_config = Config {
         image: Some(image_name.clone()),
+        user: Some("root".to_string()),
         cmd: Some(vec![
             "/usr/local/bin/peelbox".to_string(),
             "--help".to_string(),
@@ -366,6 +387,7 @@ async fn test_image_runs_help_command() -> Result<()> {
     let mut wait_stream =
         docker.wait_container(&test_container.id, None::<WaitContainerOptions<String>>);
     let wait_result = wait_stream.next().await.context("No wait result")??;
+
     let mut log_stream = docker.logs(
         &test_container.id,
         Some(LogsOptions::<String> {
@@ -380,6 +402,11 @@ async fn test_image_runs_help_command() -> Result<()> {
             output.push_str(&log_output.to_string());
         }
     }
+
+    if wait_result.status_code != 0 {
+        println!("Container output (fail): {}", output);
+    }
+
     docker
         .remove_container(
             &test_container.id,
