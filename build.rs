@@ -10,40 +10,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(&proto_dir)?;
 
     // Download proto files if they don't exist (for caching/committing)
+    // Pin to BuildKit v0.12.5 (Dec 2023) for stability
     download_proto_if_missing(
         &proto_dir,
         "control.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/api/services/control/control.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/api/services/control/control.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
         "filesync.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/session/filesync/filesync.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/session/filesync/filesync.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
         "auth.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/session/auth/auth.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/session/auth/auth.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
         "exporter.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/session/exporter/exporter.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/session/exporter/exporter.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
         "ops.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/solver/pb/ops.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/solver/pb/ops.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
         "worker.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/api/types/worker.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/api/types/worker.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
         "policy.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/master/sourcepolicy/pb/policy.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/sourcepolicy/pb/policy.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
