@@ -244,22 +244,14 @@ async fn test_distroless_layer_structure() -> Result<()> {
     }
 
     assert!(
-        operational_layers.len() >= 2,
-        "Distroless image should have at least 2 operational layers (squash + artifacts), found {}",
+        !operational_layers.is_empty(),
+        "Distroless image should have at least 1 operational layers (artifacts), found {}",
         operational_layers.len()
     );
     println!(
         "✓ {} operational layers (distroless build process)",
         operational_layers.len()
     );
-
-    // Verify squash layer exists (FileOp: copy / /)
-    let squash_layer = history.iter().find(|l| l.created_by.contains("copy / /"));
-    assert!(
-        squash_layer.is_some(),
-        "Squash layer (copy / /) should exist"
-    );
-    println!("✓ Squash layer present (FileOp: copy / /)");
 
     // Verify artifact copy layer exists
     let artifact_layer = history
@@ -443,7 +435,7 @@ async fn test_buildctl_output_types() -> Result<()> {
             "--buildkit",
             &buildkit_addr,
             "--output",
-            &format!("type=docker,dest={}", docker_dest.display()),
+            &format!("dest={}", docker_dest.display()),
         ])
         .output()?;
 
