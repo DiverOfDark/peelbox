@@ -195,16 +195,16 @@ impl LLBBuilder {
 
     fn create_exec(
         &mut self,
-        inputs: Vec<i64>,
+        inputs: Vec<(i64, i64)>,
         mounts: Vec<pb::Mount>,
         meta: pb::Meta,
         _name: Option<String>,
     ) -> i64 {
         let op_inputs: Vec<pb::Input> = inputs
             .iter()
-            .map(|&input_idx| pb::Input {
+            .map(|&(input_idx, output_idx)| pb::Input {
                 digest: self.digests[input_idx as usize].clone(),
-                index: 0,
+                index: output_idx,
             })
             .collect();
 
@@ -343,7 +343,7 @@ impl LLBBuilder {
             let mounts = vec![self.layer_mount(0, 0, "/"), self.scratch_mount("/tmp")];
 
             Some(self.create_exec(
-                vec![wolfi_base_idx],
+                vec![(wolfi_base_idx, 0)],
                 mounts,
                 meta,
                 Some("Install build packages".to_string()),
@@ -437,9 +437,9 @@ impl LLBBuilder {
                 }
 
                 let inputs = if i == 0 {
-                    vec![base_idx, context_idx]
+                    vec![(base_idx, 0), (context_idx, 0)]
                 } else {
-                    vec![last_idx]
+                    vec![(last_idx, 0)]
                 };
 
                 last_idx = self.create_exec(
@@ -464,7 +464,7 @@ impl LLBBuilder {
                 args: vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    format!("apk add --no-cache --root /dest {}", packages),
+                    format!("apk add --no-cache {} && rm -rf /sbin/apk /etc/apk /lib/apk /var/lib/apk /var/cache/apk", packages),
                 ],
                 env: vec![],
                 cwd: "/".to_string(),
@@ -477,58 +477,23 @@ impl LLBBuilder {
                 remove_mount_stubs_recursive: false,
             };
 
-            let install_mounts = vec![
-                self.layer_mount(0, 0, "/"),
-                self.layer_mount(1, 1, "/dest"),
-                self.scratch_mount("/tmp"),
-            ];
+            let install_mounts = vec![self.layer_mount(0, 0, "/"), self.scratch_mount("/tmp")];
 
             let pkg_install_idx = self.create_exec(
-                vec![wolfi_base_idx, wolfi_base_idx],
+                vec![(wolfi_base_idx, 0)],
                 install_mounts,
                 install_meta,
-                Some("Install runtime packages".to_string()),
+                Some("Install runtime packages and cleanup".to_string()),
             );
 
-            let cleanup_meta = pb::Meta {
-                args: vec![
-                    "sh".to_string(),
-                    "-c".to_string(),
-                    "rm -rf /dest/sbin/apk /dest/etc/apk /dest/lib/apk /dest/var/lib/apk /dest/var/cache/apk"
-                        .to_string(),
-                ],
-                env: vec![],
-                cwd: "/".to_string(),
-                user: String::new(),
-                proxy_env: None,
-                extra_hosts: vec![],
-                hostname: String::new(),
-                ulimit: vec![],
-                cgroup_parent: String::new(),
-                remove_mount_stubs_recursive: false,
-            };
-
-            let cleanup_mounts = vec![
-                self.layer_mount(0, 0, "/"),
-                self.layer_mount(1, 1, "/dest"),
-                self.scratch_mount("/tmp"),
-            ];
-
-            let cleaned_pkg_idx = self.create_exec(
-                vec![wolfi_base_idx, pkg_install_idx],
-                cleanup_mounts,
-                cleanup_meta,
-                Some("Cleanup apk from runtime layer".to_string()),
-            );
-
-            Some(cleaned_pkg_idx)
+            Some(pkg_install_idx)
         } else {
             None
         };
 
         let mut merge_inputs = vec![(glibc_dynamic_idx, 0)];
         if let Some(pkg_idx) = runtime_packages_idx {
-            merge_inputs.push((pkg_idx, 1));
+            merge_inputs.push((pkg_idx, 0));
         }
 
         let squashed_idx = self.create_merge(merge_inputs);
@@ -573,7 +538,7 @@ impl LLBBuilder {
                 spec.runtime.copy.len()
             );
             self.create_exec(
-                vec![busybox_idx, squashed_idx, build_result_idx],
+                vec![(busybox_idx, 0), (squashed_idx, 0), (build_result_idx, 0)],
                 copy_mounts,
                 copy_meta,
                 Some("Copy build artifacts".to_string()),

@@ -218,7 +218,13 @@ async fn test_distroless_layer_structure() -> Result<()> {
         None => true,
     };
     // Verify no apk in ANY layer by checking history
-    for layer in &history {
+    for (i, layer) in history.iter().enumerate() {
+        println!(
+            "Inspecting Layer {}: ID={}, CreatedBy={}",
+            i + 1,
+            layer.id,
+            layer.created_by
+        );
         assert!(
             !layer.created_by.contains("apk")
                 || layer.created_by.contains("apk add")
