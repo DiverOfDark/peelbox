@@ -120,10 +120,18 @@ pub fn run_detection_with_mode(
     test_name: &str,
     mode: Option<&str>,
 ) -> Result<Vec<UniversalBuild>, String> {
-    // Setup: Copy test APKINDEX snapshot to cache so tests use consistent package versions
-    setup_test_apkindex_cache();
+    let temp_cache_dir =
+        std::env::temp_dir().join(format!("peelbox-cache-{}", uuid::Uuid::new_v4()));
+    let apkindex_cache_dir = temp_cache_dir.join("apkindex");
+    std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
 
-    // Create .git directory in fixture to prevent WalkBuilder from looking up the tree
+    let test_apkindex =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
+    if test_apkindex.exists() {
+        std::fs::copy(&test_apkindex, apkindex_cache_dir.join("APKINDEX.tar.gz"))
+            .expect("Failed to copy test APKINDEX to temp cache");
+    }
+
     let git_dir = fixture.join(".git");
     if !git_dir.exists() {
         std::fs::create_dir_all(&git_dir).ok();
@@ -134,7 +142,8 @@ pub fn run_detection_with_mode(
         .env("PEELBOX_MODEL_SIZE", "7B")
         .env("PEELBOX_ENABLE_RECORDING", "1")
         .env("PEELBOX_RECORDING_MODE", "auto")
-        .env("PEELBOX_TEST_NAME", test_name);
+        .env("PEELBOX_TEST_NAME", test_name)
+        .env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
 
     if let Ok(rust_log) = std::env::var("RUST_LOG") {
         cmd.env("RUST_LOG", rust_log);
@@ -291,8 +300,17 @@ pub async fn run_container_integration_test(
     category: &str,
     fixture_name: &str,
 ) -> Result<(), String> {
-    // Setup test APKINDEX cache
-    setup_test_apkindex_cache();
+    let temp_cache_dir =
+        std::env::temp_dir().join(format!("peelbox-cache-container-{}", uuid::Uuid::new_v4()));
+    let apkindex_cache_dir = temp_cache_dir.join("apkindex");
+    std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
+
+    let test_apkindex =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
+    if test_apkindex.exists() {
+        std::fs::copy(&test_apkindex, apkindex_cache_dir.join("APKINDEX.tar.gz"))
+            .expect("Failed to copy test APKINDEX to temp cache");
+    }
 
     let fixture_path = fixture_path(category, fixture_name);
 
@@ -321,7 +339,12 @@ pub async fn run_container_integration_test(
     );
 
     let image = harness
-        .build_image(&spec_path, &fixture_path, &image_name)
+        .build_image(
+            &spec_path,
+            &fixture_path,
+            &image_name,
+            Some(&temp_cache_dir),
+        )
         .await
         .map_err(|e| format!("Failed to build image: {}", e))?;
 

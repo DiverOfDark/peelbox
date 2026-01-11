@@ -1,9 +1,3 @@
-//! End-to-end LLM detection tests
-//!
-//! These tests verify the detection pipeline using LLM (and Full) modes.
-//!
-//! Tests use RecordingMode::Auto to replay cached LLM responses.
-
 #![allow(clippy::unnecessary_literal_unwrap)]
 #![allow(clippy::type_complexity)]
 
@@ -13,7 +7,6 @@ use serial_test::serial;
 use support::e2e::{assert_detection_with_mode, fixture_path, run_detection_with_mode};
 use yare::parameterized;
 
-// Single-language fixtures - LLM and Full modes
 #[parameterized(
     rust_cargo_full = { "rust-cargo", None },
     rust_cargo_llm = { "rust-cargo", Some("llm") },
@@ -63,7 +56,6 @@ fn test_single_language(fixture_name: &str, mode: Option<&str>) {
     assert_detection_with_mode(&results, "single-language", fixture_name, mode);
 }
 
-// Monorepo fixtures - LLM and Full modes
 #[parameterized(
     npm_workspaces_full = { "npm-workspaces", None },
     npm_workspaces_llm = { "npm-workspaces", Some("llm") },
@@ -91,7 +83,6 @@ fn test_monorepo(fixture_name: &str, mode: Option<&str>) {
     assert_detection_with_mode(&results, "monorepo", fixture_name, mode);
 }
 
-// Edge-cases fixtures - LLM mode only for unknown technologies
 #[parameterized(
     bazel_build_llm = { "bazel-build", Some("llm") },
 )]
