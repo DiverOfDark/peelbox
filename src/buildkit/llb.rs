@@ -141,29 +141,6 @@ impl LLBBuilder {
         self.add_op(op)
     }
 
-    fn create_empty_dir(&mut self) -> i64 {
-        let op = pb::Op {
-            inputs: vec![],
-            op: Some(pb::op::Op::File(pb::FileOp {
-                actions: vec![pb::FileAction {
-                    input: -1,
-                    secondary_input: -1,
-                    output: 0,
-                    action: Some(pb::file_action::Action::Mkdir(pb::FileActionMkDir {
-                        path: "/".to_string(),
-                        mode: 0o755,
-                        make_parents: true,
-                        owner: None,
-                        timestamp: -1,
-                    })),
-                }],
-            })),
-            platform: None,
-            constraints: None,
-        };
-        self.add_op(op)
-    }
-
     fn create_image_source(&mut self, image_ref: &str) -> i64 {
         let op = pb::Op {
             inputs: vec![],
@@ -477,7 +454,6 @@ impl LLBBuilder {
 
         let runtime_packages_idx = if !spec.runtime.packages.is_empty() {
             let packages = spec.runtime.packages.join(" ");
-            let empty_dir_idx = self.create_empty_dir();
 
             let install_meta = pb::Meta {
                 args: vec![
@@ -498,12 +474,12 @@ impl LLBBuilder {
 
             let install_mounts = vec![
                 self.readonly_mount(0, "/"),
-                self.layer_mount(1, 0, "/runtime-root"),
+                self.layer_mount(-1, 0, "/runtime-root"),
                 self.scratch_mount("/tmp"),
             ];
 
             let pkg_install_idx = self.create_exec(
-                vec![(wolfi_base_idx, 0), (empty_dir_idx, 0)],
+                vec![(wolfi_base_idx, 0)],
                 install_mounts,
                 install_meta,
                 Some("Install runtime packages into clean root".to_string()),
@@ -516,7 +492,6 @@ impl LLBBuilder {
 
         let artifacts_idx = if !spec.runtime.copy.is_empty() {
             let mut copy_cmds = Vec::new();
-            let empty_dir_idx = self.create_empty_dir();
 
             for (idx, copy) in spec.runtime.copy.iter().enumerate() {
                 let src_path = format!("/build-src/peelbox-artifacts/{}/res", idx);
@@ -547,12 +522,12 @@ impl LLBBuilder {
 
             let copy_mounts = vec![
                 self.readonly_mount(0, "/"),
-                self.layer_mount(1, 0, "/target"),
-                self.readonly_mount(2, "/build-src"),
+                self.layer_mount(-1, 0, "/target"),
+                self.readonly_mount(1, "/build-src"),
             ];
 
             Some(self.create_exec(
-                vec![(busybox_idx, 0), (empty_dir_idx, 0), (build_result_idx, 0)],
+                vec![(busybox_idx, 0), (build_result_idx, 0)],
                 copy_mounts,
                 copy_meta,
                 Some("Prepare clean artifact layer".to_string()),
