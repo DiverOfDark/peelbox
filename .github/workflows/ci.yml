@@ -254,15 +254,18 @@ jobs:
           # Lowercase repository owner for GHCR
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
 
+          # Generate timestamp once to use for both tagging and pushing
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
           # Tag with multiple versions
           docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:latest
           docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
-          docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:$(date +%Y%m%d-%H%M%S)
+          docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:${TIMESTAMP}
 
           # Push all tags
           docker push ghcr.io/${REPO_OWNER}/peelbox:latest
           docker push ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
-          docker push ghcr.io/${REPO_OWNER}/peelbox:$(date +%Y%m%d-%H%M%S)
+          docker push ghcr.io/${REPO_OWNER}/peelbox:${TIMESTAMP}
 
       - name: Create BuildKit cache archive
         if: always()
