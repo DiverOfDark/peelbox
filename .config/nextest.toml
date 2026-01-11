@@ -1,0 +1,9 @@
+[profile.default]
+slow-timeout = { period = "120s", terminate-after = 3 }
+
+[test-groups]
+docker-tests = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = 'test(container_) | test(e2e)'
+test-group = 'docker-tests'
