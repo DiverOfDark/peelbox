@@ -85,7 +85,7 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
             // Start new BuildKit container with TCP port exposed
             // Map port 1234 to random host port and run BuildKit with TCP listener
             let buildkit_container: ContainerAsync<GenericImage> =
-                GenericImage::new("moby/buildkit", "latest")
+                GenericImage::new("moby/buildkit", "v0.12.5")
                     .with_wait_for(WaitFor::message_on_stderr("running server on"))
                     .with_privileged(true)
                     .with_mount(Mount::bind_mount(

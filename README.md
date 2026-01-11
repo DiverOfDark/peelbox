@@ -134,7 +134,6 @@ Note: No base images! peelbox uses `cgr.dev/chainguard/wolfi-base` automatically
 
 - **Rust 1.70+**: [rustup.rs](https://rustup.rs/)
 - **BuildKit v0.11.0+**: Docker Desktop 4.17+, Docker Engine 23.0+, or standalone buildkit
-- **buildctl CLI**: Included with BuildKit installations
 - **Ollama** (optional, for local LLM): [ollama.ai](https://ollama.ai/)
 
 ### From Source
@@ -190,111 +189,41 @@ Detection output includes:
 - Cache directories and artifacts
 - Runtime configuration (ports, health checks, environment)
 
-### BuildKit Frontend
-
-Generate LLB (Low-Level Build) definition from UniversalBuild spec:
-
-```bash
-# Generate LLB to stdout
-peelbox frontend --spec universalbuild.json
-
-# Pipe directly to buildctl
-peelbox frontend --spec universalbuild.json | buildctl build ...
-```
-
-The frontend command:
-- Reads `UniversalBuild` JSON specification
-- Generates BuildKit LLB protobuf
-- Applies gitignore-based context filtering (99.995% reduction)
-- Creates 2-stage distroless build graph
-
 ### Building Images
 
-#### Complete Build Workflow
+Build container images directly from UniversalBuild spec (no buildctl required):
 
-**Step 1: Generate LLB**
+```bash
+# Build using local BuildKit daemon (auto-detects Docker or standalone)
+peelbox build --spec universalbuild.json --tag myapp:latest
+
+# Build specific service in monorepo
+peelbox build --spec universalbuild.json --tag api:latest --service api
+
+# Output to OCI tarball instead of Docker daemon
+peelbox build --spec universalbuild.json --tag myapp:latest --output type=oci,dest=image.tar
+```
+
+The build command:
+- Connects directly to BuildKit (gRPC)
+- Transfers build context efficiently (gitignore-aware)
+- Streams real-time build progress
+- Generates SBOM and Provenance attestations by default
+- Loads result into Docker daemon automatically (default) or exports to file
+
+#### Complete Workflow
 
 ```bash
 cd /path/to/your/project
 
-# Generate LLB using static detection (fast, no LLM needed)
-PEELBOX_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
+# 1. Detect build configuration
+peelbox detect . > universalbuild.json
 
-# Or use full detection with LLM for unknown build systems
-cargo run --release -- frontend > /tmp/llb.pb
-```
+# 2. Build image
+peelbox build --spec universalbuild.json --tag localhost/myapp:latest
 
-**Step 2: Start BuildKit daemon**
-
-```bash
-# Start BuildKit in Docker container
-docker run -d --rm --name buildkitd --privileged \
-  -p 127.0.0.1:1234:1234 \
-  moby/buildkit:latest --addr tcp://0.0.0.0:1234
-
-# BuildKit is now listening on tcp://127.0.0.1:1234
-```
-
-**Step 3: Build with buildctl**
-
-```bash
-# Build and export to tar
-cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
-  --local context=/path/to/your/project \
-  --output type=docker,name=localhost/myapp:latest > /tmp/myapp.tar
-
-# Load into Docker
-docker load < /tmp/myapp.tar
-
-# Or pipe directly to docker load
-cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
-  --local context=/path/to/your/project \
-  --output type=docker,name=localhost/myapp:latest | docker load
-```
-
-**Step 4: Verify distroless image**
-
-```bash
-# Run your application
+# 3. Run it
 docker run --rm localhost/myapp:latest
-
-# Verify no package manager (should fail)
-docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
-
-# Check no wolfi-base in history (should output nothing)
-docker history localhost/myapp:latest | grep wolfi-base
-
-# View clean layer metadata
-docker history localhost/myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
-```
-
-Expected output:
-```
-SIZE      CREATED BY
-16.2MB    sh -c : peelbox myapp application && ...
-10.2MB    sh -c : peelbox glibc ca-certificates runtime; ...
-...       pulled from cgr.dev/chainguard/glibc-dynamic:latest
-```
-
-#### With SBOM and Provenance
-
-```bash
-cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
-  --local context=/path/to/your/project \
-  --output type=docker,name=localhost/myapp:latest \
-  --opt attest:sbom= \
-  --opt attest:provenance=mode=max \
-  | docker load
-```
-
-#### One-Liner (for automation)
-
-```bash
-PEELBOX_DETECTION_MODE=static cargo run --release -- frontend | \
-  buildctl --addr tcp://127.0.0.1:1234 build \
-    --local context=$(pwd) \
-    --output type=docker,name=localhost/myapp:latest | \
-  docker load
 ```
 
 ## Wolfi-First Architecture

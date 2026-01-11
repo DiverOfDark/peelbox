@@ -2633,6 +2633,7 @@ dependencies = [
  "hf-hub",
  "hyper-util",
  "ignore",
+ "indicatif 0.17.11",
  "md5",
  "prost",
  "prost-build",

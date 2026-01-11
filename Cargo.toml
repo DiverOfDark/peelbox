@@ -39,6 +39,7 @@ strsim = "0.11"
 uuid = { version = "1.11", features = ["v4", "fast-rng"] }
 sha2 = "0.10"
 hex = "0.4"
+indicatif = "0.17"
 
 # BuildKit dependencies (we implement LLB generation ourselves)
 tonic = "0.12"

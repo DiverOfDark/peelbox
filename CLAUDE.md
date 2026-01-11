@@ -262,15 +262,14 @@ fn build_template(&self, wolfi_index: &WolfiPackageIndex, manifest_content: Opti
 - **KEPT**: `build_packages` field
 - **KEPT**: `runtime_packages` field
 
-## BuildKit Frontend Architecture
+## BuildKit Integration
 
-peelbox acts as a BuildKit frontend, generating Low-Level Build (LLB) definitions for image building.
+peelbox connects directly to BuildKit using the gRPC API, eliminating the need for `buildctl`.
 
-### Frontend Workflow
+### Build Workflow
 
 1. **Detection** (`peelbox detect`): Analyze repository → Generate UniversalBuild JSON
-2. **LLB Generation** (`peelbox frontend`): Read UniversalBuild → Generate LLB protobuf
-3. **Build** (`buildctl build`): Execute LLB with BuildKit daemon
+2. **Build** (`peelbox build`): Connect to BuildKit → Generate LLB → Execute build -> Stream progress
 
 ### LLB Generation
 
@@ -329,57 +328,30 @@ Located in `LLBBuilder::load_gitignore_patterns()`:
 - Validates packages against Wolfi APKINDEX
 - Outputs JSON to stdout
 
-**`peelbox frontend --spec <file>`**: Generate LLB from UniversalBuild spec
-- Reads UniversalBuild JSON
-- Generates BuildKit LLB protobuf
-- Outputs raw LLB to stdout for buildctl
+**`peelbox build --spec <file> --tag <tag>`**: Build container image
+- Connects to BuildKit (auto-detects Docker or standalone)
+- Generates LLB from spec
+- Executes build with real-time progress
+- Generates SBOM and Provenance
+- Outputs to Docker daemon (default) or OCI tarball
 
-### BuildKit Integration
+### Building Distroless Images
 
-#### Building Distroless Images
-
-**Step 1: Generate LLB**
+**Step 1: Detect**
 ```bash
-# Auto-detect and generate LLB (uses static detection by default)
-PEELBOX_DETECTION_MODE=static cargo run --release -- frontend > /tmp/llb.pb
-
-# Or use full detection with LLM
-cargo run --release -- frontend > /tmp/llb.pb
+peelbox detect . > universalbuild.json
 ```
 
-**Step 2: Start BuildKit**
+**Step 2: Build**
 ```bash
-# Using Docker container
-docker run -d --rm --name buildkitd --privileged -p 127.0.0.1:1234:1234 \
-  moby/buildkit:latest --addr tcp://0.0.0.0:1234
+# Build using local BuildKit daemon (Docker or standalone)
+peelbox build --spec universalbuild.json --tag myapp:latest
 ```
 
-**Step 3: Build with buildctl**
-```bash
-# Build and export to Docker tar
-cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
-  --local context=/path/to/repo \
-  --output type=docker,name=localhost/myapp:latest > /tmp/myapp.tar
-
-# Load into Docker
-docker load < /tmp/myapp.tar
-
-# Or build and pipe directly to docker load
-cat /tmp/llb.pb | buildctl --addr tcp://127.0.0.1:1234 build \
-  --local context=/path/to/repo \
-  --output type=docker,name=localhost/myapp:latest | docker load
-```
-
-**Step 4: Verify**
+**Step 3: Verify**
 ```bash
 # Check no apk in filesystem
-docker run --rm localhost/myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
-
-# Check no wolfi-base in history
-docker history localhost/myapp:latest | grep wolfi-base && echo "FAIL" || echo "PASS"
-
-# View layer metadata
-docker history localhost/myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
+docker run --rm myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
 ```
 
 #### With SBOM and Provenance

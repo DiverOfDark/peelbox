@@ -6,7 +6,6 @@ use tracing::{debug, error, info, warn};
 
 use super::proto::moby::buildkit::v1::{StatusResponse, Vertex, VertexStatus};
 
-/// Log stream type
 #[derive(Debug, Copy, Clone)]
 enum LogStream {
     Stdout = 1,
@@ -30,27 +29,22 @@ impl LogStream {
     }
 
     fn log_line(&self, vertex: &str, line: &str) {
+        let msg = format!("  [{}:{}] {}", vertex, self.label(), line);
         match self {
-            Self::Stdout => info!("  [{}:{}] {}", vertex, self.label(), line),
-            Self::Stderr => warn!("  [{}:{}] {}", vertex, self.label(), line),
+            Self::Stdout => info!("{}", msg),
+            Self::Stderr => warn!("{}", msg),
         }
     }
 }
 
-/// Mutable state for progress tracking
 struct ProgressState {
-    /// Map of vertex digest -> Vertex info
     vertices: HashMap<String, Vertex>,
-    /// Map of vertex digest -> latest status
     statuses: HashMap<String, VertexStatus>,
-    /// Total vertices started
     total_started: usize,
-    /// Total vertices cached
     total_cached: usize,
-    /// Total vertices completed
     total_completed: usize,
-    /// Total vertices errored
     total_errored: usize,
+    current_active: Option<String>,
 }
 
 impl ProgressState {
@@ -62,13 +56,11 @@ impl ProgressState {
             total_cached: 0,
             total_completed: 0,
             total_errored: 0,
+            current_active: None,
         }
     }
 }
 
-/// Progress tracker for build operations
-///
-/// Tracks BuildKit vertex states and displays progress to the user.
 pub struct ProgressTracker {
     start_time: Instant,
     quiet: bool,
@@ -77,7 +69,6 @@ pub struct ProgressTracker {
 }
 
 impl ProgressTracker {
-    /// Create a new progress tracker
     pub fn new(quiet: bool, verbose: bool) -> Self {
         Self {
             start_time: Instant::now(),
@@ -87,7 +78,6 @@ impl ProgressTracker {
         }
     }
 
-    /// Report build started
     pub fn build_started(&self, image_tag: &str) {
         if !self.quiet {
             info!("Building image {}", image_tag);
@@ -95,19 +85,19 @@ impl ProgressTracker {
         debug!("Build started");
     }
 
-    /// Process a StatusResponse from BuildKit
     pub fn process_status(&self, status: StatusResponse) {
         let mut state = self.state.lock().unwrap();
 
-        // Update vertices
         for vertex in status.vertexes {
             let digest = vertex.digest.clone();
 
-            // Track state changes
             if vertex.started.is_some() && !state.vertices.contains_key(&digest) {
                 state.total_started += 1;
+                state.current_active = Some(digest.clone());
+
+                let msg = format!("Started [{}] {}", state.total_started, vertex.name);
                 if !self.quiet {
-                    info!("[{}] {}", state.total_started, vertex.name);
+                    info!("{}", msg);
                 }
             }
 
@@ -119,8 +109,9 @@ impl ProgressTracker {
                     .unwrap_or(false);
                 if !was_cached {
                     state.total_cached += 1;
+                    let msg = format!("  CACHED {}", vertex.name);
                     if !self.quiet {
-                        info!("  CACHED {}", vertex.name);
+                        info!("{}", msg);
                     }
                 }
             }
@@ -133,8 +124,14 @@ impl ProgressTracker {
                     .is_none()
             {
                 state.total_completed += 1;
-                if self.verbose {
-                    info!("  DONE {}", vertex.name);
+
+                if !self.quiet {
+                    let msg = format!("  DONE {}", vertex.name);
+                    info!("{}", msg);
+                }
+
+                if state.current_active.as_ref() == Some(&digest) {
+                    state.current_active = None;
                 }
             }
 
@@ -146,14 +143,14 @@ impl ProgressTracker {
                     .unwrap_or(false);
                 if !had_error {
                     state.total_errored += 1;
-                    error!("  ERROR {} - {}", vertex.name, vertex.error);
+                    let msg = format!("  ERROR {} - {}", vertex.name, vertex.error);
+                    error!("{}", msg);
                 }
             }
 
             state.vertices.insert(digest, vertex);
         }
 
-        // Update statuses
         for status_update in status.statuses {
             let vertex_digest = status_update.vertex.clone();
             state
@@ -166,14 +163,14 @@ impl ProgressTracker {
                     .get(&vertex_digest)
                     .map(|v| v.name.as_str())
                     .unwrap_or("<unknown>");
-                info!(
+                let msg = format!(
                     "  {} {} / {} {}",
                     vertex_name, status_update.current, status_update.total, status_update.name
                 );
+                info!("{}", msg);
             }
         }
 
-        // Display logs
         for log in status.logs {
             let msg = std::str::from_utf8(&log.msg)
                 .map(Cow::Borrowed)
@@ -202,7 +199,6 @@ impl ProgressTracker {
             );
         }
 
-        // Display warnings
         for warning in status.warnings {
             let msg = std::str::from_utf8(&warning.short)
                 .map(Cow::Borrowed)
@@ -215,13 +211,13 @@ impl ProgressTracker {
                 .unwrap_or("<unknown>");
 
             if !self.quiet {
-                warn!("  WARNING [{}] {}", vertex_name, msg.trim_end());
+                let warn_msg = format!("  WARNING [{}] {}", vertex_name, msg.trim_end());
+                warn!("{}", warn_msg);
             }
             debug!("Build warning from {} {}", vertex_name, msg.trim_end());
         }
     }
 
-    /// Report build completed
     pub fn build_completed(&self, image_id: &str, size_bytes: u64) {
         let duration = self.start_time.elapsed();
         let state = self.state.lock().unwrap();
@@ -250,7 +246,6 @@ impl ProgressTracker {
         );
     }
 
-    /// Report build failed
     pub fn build_failed(&self, error: &str) {
         let duration = self.start_time.elapsed();
         let state = self.state.lock().unwrap();
@@ -266,7 +261,6 @@ impl ProgressTracker {
     }
 }
 
-/// Build progress event (for future use with async channels)
 #[derive(Debug, Clone)]
 pub enum ProgressEvent {
     StatusUpdate(StatusResponse),
@@ -403,13 +397,13 @@ mod tests {
             logs: vec![
                 VertexLog {
                     vertex: "test".to_string(),
-                    stream: 1, // stdout
+                    stream: 1,
                     msg: b"stdout message".to_vec(),
                     timestamp: Some(prost_types::Timestamp::default()),
                 },
                 VertexLog {
                     vertex: "test".to_string(),
-                    stream: 2, // stderr
+                    stream: 2,
                     msg: b"stderr message".to_vec(),
                     timestamp: Some(prost_types::Timestamp::default()),
                 },

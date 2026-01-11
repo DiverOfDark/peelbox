@@ -369,7 +369,6 @@ async fn test_binary_exists_and_executable() -> Result<()> {
 /// until output format implementation is complete.
 #[tokio::test]
 #[serial]
-#[ignore = "Output format implementation not complete (Phase 7)"]
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
 

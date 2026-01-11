@@ -639,28 +639,31 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         } else if output_spec.starts_with("type=docker,") {
             OutputDestination::DockerLoad
         } else {
-            // Assume file output (OCI tar)
-            let path_buf = if output_spec == "type=oci" || output_spec == "oci" {
-                // Default filename for OCI type
+            let (path_buf, format) = if output_spec == "type=oci" || output_spec == "oci" {
                 let sanitized_tag = args.tag.replace([':', '/'], "-");
-                context_path.join(format!("{}.tar", sanitized_tag))
+                (
+                    context_path.join(format!("{}.tar", sanitized_tag)),
+                    "oci".to_string(),
+                )
             } else if let Some(after_type) = output_spec.strip_prefix("type=oci,") {
-                // Handle "type=oci,dest=..."
-                if let Some(dest) = after_type.strip_prefix("dest=") {
+                let path = if let Some(dest) = after_type.strip_prefix("dest=") {
                     PathBuf::from(dest)
                 } else {
                     PathBuf::from(after_type)
-                }
+                };
+                (path, "oci".to_string())
             } else if let Some(dest) = output_spec.strip_prefix("oci,dest=") {
-                PathBuf::from(dest)
+                (PathBuf::from(dest), "oci".to_string())
             } else if let Some(dest) = output_spec.strip_prefix("dest=") {
-                PathBuf::from(dest)
+                (PathBuf::from(dest), "docker".to_string())
             } else {
-                // Assume it's just a file path
-                PathBuf::from(output_spec)
+                (PathBuf::from(output_spec), "docker".to_string())
             };
 
-            OutputDestination::File(path_buf)
+            OutputDestination::File {
+                path: path_buf,
+                format,
+            }
         }
     } else {
         // Default to Docker daemon load
@@ -726,7 +729,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     };
 
     // Create build session with attestation config and deterministic session ID
-    let mut session = BuildSession::new(connection, context_path, output_dest, args.tag.clone())
+    let mut session = BuildSession::new(connection, context_path, output_dest)
         .with_attestations(attestation_config)
         .with_session_id(session_id);
 

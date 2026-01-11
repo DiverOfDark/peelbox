@@ -10,7 +10,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all(&proto_dir)?;
 
     // Download proto files if they don't exist (for caching/committing)
-    // Pin to BuildKit v0.12.5 (Dec 2023) for stability
     download_proto_if_missing(
         &proto_dir,
         "control.proto",
@@ -26,11 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "auth.proto",
         "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/session/auth/auth.proto",
     )?;
-    download_proto_if_missing(
-        &proto_dir,
-        "exporter.proto",
-        "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/session/exporter/exporter.proto",
-    )?;
+
     download_proto_if_missing(
         &proto_dir,
         "ops.proto",
@@ -45,6 +40,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &proto_dir,
         "policy.proto",
         "https://raw.githubusercontent.com/moby/buildkit/v0.12.5/sourcepolicy/pb/policy.proto",
+    )?;
+
+    download_proto_if_missing(
+        &proto_dir,
+        "filesync.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.13.0/session/filesync/filesync.proto",
+    )?;
+    download_proto_if_missing(
+        &proto_dir,
+        "auth.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.13.0/session/auth/auth.proto",
+    )?;
+
+    download_proto_if_missing(
+        &proto_dir,
+        "ops.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.13.0/solver/pb/ops.proto",
+    )?;
+
+    // Exporter proto removed - 404 on GitHub and not required when enable_session_exporter=false
+
+    download_proto_if_missing(
+        &proto_dir,
+        "ops.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.13.0/solver/pb/ops.proto",
+    )?;
+    download_proto_if_missing(
+        &proto_dir,
+        "worker.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.13.0/api/types/worker.proto",
+    )?;
+    download_proto_if_missing(
+        &proto_dir,
+        "policy.proto",
+        "https://raw.githubusercontent.com/moby/buildkit/v0.13.0/sourcepolicy/pb/policy.proto",
     )?;
     download_proto_if_missing(
         &proto_dir,
@@ -79,8 +109,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://raw.githubusercontent.com/googleapis/googleapis/master/google/rpc/status.proto",
     )?;
 
+    let gogo_dir = proto_dir
+        .join("github.com")
+        .join("gogo")
+        .join("protobuf")
+        .join("gogoproto");
+    fs::create_dir_all(&gogo_dir)?;
+    download_proto_if_missing(
+        &gogo_dir,
+        "gogo.proto",
+        "https://raw.githubusercontent.com/gogo/protobuf/master/gogoproto/gogo.proto",
+    )?;
+
     // Create processed versions of proto files with fixed import paths
     let processed_dir = out_dir.join("proto_processed");
+
     fs::create_dir_all(&processed_dir)?;
 
     process_proto_file(
@@ -97,6 +140,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "github.com/moby/buildkit/sourcepolicy/pb/policy.proto",
                 "policy.proto",
             ),
+            (
+                "github.com/gogo/googleapis/google/rpc/status.proto",
+                "google/rpc/status.proto",
+            ),
         ],
     )?;
 
@@ -111,8 +158,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     process_proto_file(&proto_dir, &processed_dir, "auth.proto", &[])?;
-
-    process_proto_file(&proto_dir, &processed_dir, "exporter.proto", &[])?;
 
     process_proto_file(&proto_dir, &processed_dir, "ops.proto", &[])?;
 
@@ -167,6 +212,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         processed_google_rpc_dir.join("status.proto"),
     )?;
 
+    let processed_gogo_dir = processed_dir
+        .join("github.com")
+        .join("gogo")
+        .join("protobuf")
+        .join("gogoproto");
+    fs::create_dir_all(&processed_gogo_dir)?;
+    fs::copy(
+        gogo_dir.join("gogo.proto"),
+        processed_gogo_dir.join("gogo.proto"),
+    )?;
+
     // Generate Rust code from proto files
     tonic_build::configure()
         .build_server(true) // We need server for FileSync
@@ -177,7 +233,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 processed_dir.join("control.proto"),
                 processed_dir.join("filesync.proto"),
                 processed_dir.join("auth.proto"),
-                processed_dir.join("exporter.proto"),
             ],
             std::slice::from_ref(&processed_dir),
         )?;

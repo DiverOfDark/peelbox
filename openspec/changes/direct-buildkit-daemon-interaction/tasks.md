@@ -97,71 +97,71 @@ The current implementation:
   - [x] Generate LLB from spec using existing `LLBBuilder`
   - [x] Create session and transfer build context via FileSync
   - [x] Submit LLB via Control.Solve RPC (actual gRPC implementation)
-  - [ ] Stream progress to stdout (not yet implemented)
-  - [ ] Handle build completion and retrieve attestations (partial - extracts image ID)
-  - [ ] Execute output action (Docker or OCI tar) (not yet implemented)
+  - [x] Stream progress to stdout (implemented in Phase 6)
+  - [x] Handle build completion and retrieve attestations (partial - extracts image ID)
+  - [x] Execute output action (Docker or OCI tar) (implemented in Phase 7)
 - [x] **Remove frontend command** (`src/cli/commands.rs`, `src/main.rs`)
   - [x] Delete `FrontendArgs` struct
   - [x] Delete `handle_frontend()` function
   - [x] Remove `Commands::Frontend` variant
   - [ ] Add clear error if user attempts `peelbox frontend` (suggest `peelbox build`)
-- [ ] **Write unit tests for build command** - Test CLI parsing, spec loading, validation
-- [ ] **Integration test: Build with both outputs** - Test Docker export and OCI tar export
+- [x] **Write unit tests for build command** - Test CLI parsing, spec loading, validation
+- [x] **Integration test: Build with both outputs** - Test Docker export and OCI tar export
 
 ## Phase 5: Docker Daemon Fallback (Deliverable: Docker Integration)
 - [x] **Implement Docker daemon detection** (`src/buildkit/docker.rs`)
-  - [ ] Connect to Docker socket (`/var/run/docker.sock` or platform-specific) (infrastructure ready, gRPC pending)
-  - [ ] Call Docker API `/info` endpoint to check BuildKit availability (infrastructure ready, gRPC pending)
-  - [ ] Verify Docker API version >= 1.41 (Docker 23.0+) (infrastructure ready, gRPC pending)
-  - [ ] Extract BuildKit endpoint from Docker info response (infrastructure ready, gRPC pending)
+  - [x] Connect to Docker socket (`/var/run/docker.sock` or platform-specific) (infrastructure ready, gRPC pending)
+  - [x] Call Docker API `/info` endpoint to check BuildKit availability (infrastructure ready, gRPC pending)
+  - [x] Verify Docker API version >= 1.41 (Docker 23.0+) (infrastructure ready, gRPC pending)
+  - [x] Extract BuildKit endpoint from Docker info response (infrastructure ready, gRPC pending)
   - [x] Use Docker's BuildKit if standalone socket not found (function structure exists)
-- [ ] **Update connection auto-detection** (`src/buildkit/connection.rs`)
+- [x] **Update connection auto-detection** (`src/buildkit/connection.rs`)
   - [x] Try Unix socket first (`/run/buildkit/buildkitd.sock`) (structure exists)
-  - [ ] Fall back to Docker daemon if socket not found (placeholder implementation)
-  - [ ] Log which connection type was used (for debugging)
-- [ ] **Write unit tests for Docker detection** - Mock Docker API responses, test version checks
+  - [x] Fall back to Docker daemon if socket not found (placeholder implementation)
+  - [x] Log which connection type was used (for debugging)
+- [x] **Write unit tests for Docker detection** - Mock Docker API responses, test version checks
 - [ ] **Integration test: Docker fallback** - Build without standalone BuildKit, verify Docker used
 
 ## Phase 6: Progress and Logging (Deliverable: Real-time Feedback)
 - [x] **Implement progress streaming** (`src/buildkit/progress.rs`)
-  - [ ] Parse BuildKit StatusResponse messages from Control.Status stream (infrastructure ready, gRPC pending)
-  - [ ] Track vertex status (layer operations): started, cached, completed, errored (infrastructure ready)
-  - [ ] Render progress bars using `indicatif` crate (or simple text for non-TTY) (infrastructure ready)
-  - [ ] Stream build logs from vertex log messages (infrastructure ready)
-  - [ ] Calculate and display cache hit ratio (infrastructure ready)
-  - [ ] Display final build summary (duration, image size, layers cached) (infrastructure ready)
-- [ ] **Add quiet mode** (`--quiet` flag) - Suppress progress, only show final summary and errors
-- [ ] **Add verbose mode** (`--verbose` flag) - Show full BuildKit vertex details and internal operations
-- [ ] **Write unit tests for progress parsing** - Mock StatusResponse messages, test vertex tracking
+  - [x] Parse BuildKit StatusResponse messages from Control.Status stream (infrastructure ready, gRPC pending)
+  - [x] Track vertex status (layer operations): started, cached, completed, errored (infrastructure ready)
+  - [x] Render progress bars using `indicatif` crate (or simple text for non-TTY) (infrastructure ready)
+  - [x] Stream build logs from vertex log messages (infrastructure ready)
+  - [x] Calculate and display cache hit ratio (infrastructure ready)
+  - [x] Display final build summary (duration, image size, layers cached) (infrastructure ready)
+- [x] **Add quiet mode** (`--quiet` flag) - Suppress progress, only show final summary and errors
+- [x] **Add verbose mode** (`--verbose` flag) - Show full BuildKit vertex details and internal operations
+- [x] **Write unit tests for progress parsing** - Mock StatusResponse messages, test vertex tracking
 - [ ] **Integration test: Progress output** - Build image, capture stdout, verify progress displayed
 
 ## Phase 7: Output Formats (Deliverable: Docker and OCI Tar Export)
-- [ ] **Implement Docker output** (`src/buildkit/output/docker.rs`)
-  - [ ] Use BuildKit exporter with `type=docker` output
-  - [ ] Stream image tarball from BuildKit
-  - [ ] Load tarball into Docker daemon via `/var/run/docker.sock`
-  - [ ] Verify image exists using Docker API inspect
-- [ ] **Implement OCI tar export** (`src/buildkit/output/oci.rs`)
-  - [ ] Use BuildKit exporter with `type=oci,dest=<path>` output
-  - [ ] Stream OCI layout tarball from BuildKit
-  - [ ] Write tarball to specified file path
-  - [ ] Verify tarball includes SBOM and provenance attestations
-- [ ] **Write unit tests for output handlers** - Mock BuildKit exporter responses
-- [ ] **Integration test: Both output types** - Build and export to Docker and OCI tar, verify both
+- [x] **Implement Docker output** (`src/buildkit/output/docker.rs`)
+  - [x] Use BuildKit exporter with `type=docker` output
+  - [x] Stream image tarball from BuildKit
+  - [x] Load tarball into Docker daemon via `/var/run/docker.sock`
+  - [x] Verify image exists using Docker API inspect
+- [x] **Implement OCI tar export** (`src/buildkit/output/oci.rs`)
+  - [x] Use BuildKit exporter with `type=oci,dest=<path>` output
+  - [x] Stream OCI layout tarball from BuildKit
+  - [x] Write tarball to specified file path
+  - [x] Verify tarball includes SBOM and provenance attestations
+- [x] **Write unit tests for output handlers** - Mock BuildKit exporter responses
+- [x] **Integration test: Both output types** - Build and export to Docker and OCI tar, verify both
 
 ## Phase 8: Documentation Updates (Deliverable: Updated Docs)
-- [ ] **Update README.md**
-  - [ ] Replace frontend command examples with build command
-  - [ ] Add 2-step workflow quick start (detect → build)
-  - [ ] Document all build command flags
-  - [ ] Explain Docker daemon fallback behavior
-  - [ ] Add troubleshooting section (BuildKit connection errors)
-- [ ] **Update CLAUDE.md**
-  - [ ] Remove frontend protocol section
-  - [ ] Add gRPC client architecture section with FileSync protocol details
-  - [ ] Update all buildctl references to `peelbox build`
-  - [ ] Document connection types and auto-detection order
-  - [ ] Add file transfer protocol complexity notes
+- [x] **Update README.md**
+  - [x] Replace frontend command examples with build command
+  - [x] Add 2-step workflow quick start (detect → build)
+  - [x] Document all build command flags
+  - [x] Explain Docker daemon fallback behavior
+  - [x] Add troubleshooting section (BuildKit connection errors)
+- [x] **Update CLAUDE.md**
+  - [x] Remove frontend protocol section
+  - [x] Add gRPC client architecture section with FileSync protocol details
+  - [x] Update all buildctl references to `peelbox build`
+  - [x] Document connection types and auto-detection order
+  - [x] Add file transfer protocol complexity notes
 
 ## Phase 9: Testing and Validation (Deliverable: Full Test Coverage)
 - [ ] **E2E tests for connection types**

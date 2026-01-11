@@ -19,14 +19,14 @@ static CALL_TRACKER: CallTracker = CallTracker::new();
 
 #[derive(Debug, Clone)]
 pub enum OutputDestination {
-    File(PathBuf),
+    File { path: PathBuf, format: String },
     DockerLoad,
 }
 
 impl std::fmt::Display for OutputDestination {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OutputDestination::File(p) => write!(f, "{}", p.display()),
+            OutputDestination::File { path, format: _ } => write!(f, "{}", path.display()),
             OutputDestination::DockerLoad => write!(f, "docker daemon"),
         }
     }
@@ -115,7 +115,7 @@ impl FileSendTrait for FileSendService {
             let mut child_stdin: Option<tokio::process::ChildStdin> = None;
 
             match &destination {
-                OutputDestination::File(path) => {
+                OutputDestination::File { path, .. } => {
                     // Create parent directories if needed
                     if let Some(parent) = path.parent() {
                         if let Err(e) = tokio::fs::create_dir_all(parent).await {
@@ -138,11 +138,11 @@ impl FileSendTrait for FileSendService {
                     };
                 }
                 OutputDestination::DockerLoad => {
-                    info!("Spawning 'docker load' process...");
+                    debug!("Spawning 'docker load' process...");
                     match Command::new("docker")
                         .arg("load")
                         .stdin(Stdio::piped())
-                        .stdout(Stdio::inherit())
+                        .stdout(Stdio::piped())
                         .stderr(Stdio::inherit())
                         .spawn()
                     {
@@ -233,17 +233,22 @@ impl FileSendTrait for FileSendService {
                 }
             }
 
-            if let Some(mut child) = child_process {
+            if let Some(child) = child_process {
                 debug!(
                     "FileSend call_id={} waiting for docker load to finish...",
                     call_id
                 );
-                match child.wait().await {
-                    Ok(status) => {
-                        if status.success() {
-                            info!("Docker load completed successfully");
+                match child.wait_with_output().await {
+                    Ok(output) => {
+                        if output.status.success() {
+                            let msg = String::from_utf8_lossy(&output.stdout);
+                            for line in msg.lines() {
+                                if !line.trim().is_empty() {
+                                    info!("{}", line.trim());
+                                }
+                            }
                         } else {
-                            error!("Docker load failed with status: {}", status);
+                            error!("Docker load failed with status: {}", output.status);
                             return;
                         }
                     }

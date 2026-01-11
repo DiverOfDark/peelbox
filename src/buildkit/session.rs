@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tonic::transport::Server;
@@ -8,14 +8,12 @@ use tracing::{debug, error, info, warn};
 
 use super::auth_service::AuthService;
 use super::connection::BuildKitConnection;
-use super::exporter_service::{ExporterService, ImageConfig};
 use super::filesend_service::{FileSendService, OutputDestination};
 use super::filesync::FileSync;
 use super::filesync_service::FileSyncService;
 use super::llb::LLBBuilder;
 use super::proto::{
-    AuthServerBuilder, BytesMessage, ControlClient, ExporterServerBuilder, FileSendServerBuilder,
-    FileSyncServerBuilder,
+    AuthServerBuilder, BytesMessage, ControlClient, FileSendServerBuilder, FileSyncServerBuilder,
 };
 use super::stream_conn::StreamConn;
 use crate::output::schema::UniversalBuild;
@@ -62,8 +60,6 @@ pub struct BuildSession {
     context_path: PathBuf,
     output_dest: OutputDestination,
 
-    image_tag: Option<String>,
-    image_config: Arc<Mutex<Option<ImageConfig>>>,
     attestation_config: AttestationConfig,
     session_server: Option<JoinHandle<Result<()>>>,
     session_tx: Option<mpsc::Sender<BytesMessage>>,
@@ -78,7 +74,6 @@ impl BuildSession {
         connection: BuildKitConnection,
         context_path: PathBuf,
         output_dest: OutputDestination,
-        image_tag: String,
     ) -> Self {
         let session_id = Self::generate_session_id();
         debug!("Creating new build session: {}", session_id);
@@ -88,8 +83,6 @@ impl BuildSession {
             session_id,
             context_path,
             output_dest,
-            image_tag: Some(image_tag),
-            image_config: Arc::new(Mutex::new(None)),
             attestation_config: AttestationConfig::default(),
             session_server: None,
             session_tx: None,
@@ -241,12 +234,6 @@ impl BuildSession {
         );
         request.metadata_mut().append(
             "x-docker-expose-session-grpc-method",
-            "/moby.exporter.v1.Exporter/FindExporters"
-                .parse()
-                .context("Failed to parse method")?,
-        );
-        request.metadata_mut().append(
-            "x-docker-expose-session-grpc-method",
             "/grpc.health.v1.Health/Check"
                 .parse()
                 .context("Failed to parse method")?,
@@ -284,15 +271,9 @@ impl BuildSession {
             self.bytes_written.clone(),
         );
         let auth_service = AuthService::new();
-        let image_tag = self
-            .image_tag
-            .clone()
-            .unwrap_or_else(|| "peelbox:latest".to_string());
-        let exporter_service =
-            ExporterService::new(image_tag, "oci".to_string(), self.image_config.clone());
         let health_service = super::health_service::HealthService::new();
 
-        info!("Creating unified gRPC server with FileSync, FileSend, Auth, Exporter, and Health services");
+        info!("Creating unified gRPC server with FileSync, FileSend, Auth, and Health services");
 
         // Create an infinite connection stream that yields the single StreamConn
         // and then blocks forever to keep the server alive
@@ -312,7 +293,6 @@ impl BuildSession {
         debug!("  - FileSync (moby.filesync.v1.FileSync)");
         debug!("  - FileSend (moby.filesync.v1.FileSend)");
         debug!("  - Auth (moby.filesync.v1.Auth)");
-        debug!("  - Exporter (moby.exporter.v1.Exporter)");
         debug!("  - Health (grpc.health.v1.Health)");
 
         let server = Server::builder()
@@ -320,7 +300,6 @@ impl BuildSession {
             .add_service(FileSyncServerBuilder::new(filesync_service))
             .add_service(FileSendServerBuilder::new(filesend_service))
             .add_service(AuthServerBuilder::new(auth_service))
-            .add_service(ExporterServerBuilder::new(exporter_service))
             .add_service(tonic_health::pb::health_server::HealthServer::new(
                 health_service,
             ))
@@ -390,21 +369,24 @@ impl BuildSession {
             .collect();
         env_vars.sort(); // Sort for deterministic hash
 
+        #[derive(Debug, Clone, serde::Serialize)]
+        struct ImageConfig {
+            #[serde(rename = "Cmd")]
+            cmd: Vec<String>,
+            #[serde(rename = "Env")]
+            env: Vec<String>,
+            #[serde(rename = "WorkingDir")]
+            working_dir: String,
+            #[serde(rename = "Entrypoint")]
+            entrypoint: Vec<String>,
+        }
+
         let image_config = ImageConfig {
             cmd: spec.runtime.command.clone(),
             env: env_vars,
             working_dir: "/".to_string(), // Default working dir
             entrypoint: vec![],           // No entrypoint by default
         };
-
-        // Store config for exporter to use
-        if let Ok(mut guard) = self.image_config.lock() {
-            *guard = Some(image_config.clone());
-            debug!(
-                "Set OCI config: cmd={:?}, env={:?}",
-                spec.runtime.command, spec.runtime.env
-            );
-        }
 
         // Serialize OCI config to JSON for exporter attribute
         // BuildKit expects {"Config": {...}} wrapper (see https://github.com/moby/buildkit/issues/1041)
@@ -508,8 +490,13 @@ impl BuildSession {
             debug!("Enabled build context scanning for SBOM");
         }
 
+        let exporter_type = match &self.output_dest {
+            OutputDestination::DockerLoad => "docker",
+            OutputDestination::File { format, .. } => format.as_str(),
+        };
+
         let exporter = super::proto::moby::buildkit::v1::Exporter {
-            r#type: "docker".to_string(), // Use docker exporter (supports containerimage.config)
+            r#type: exporter_type.to_string(),
             attrs: exporter_attrs,
         };
 
@@ -519,27 +506,22 @@ impl BuildSession {
             // but keep the session ID stable for caching
             r#ref: format!("{}-{}", self.session_id, uuid::Uuid::new_v4()),
             definition: Some(definition),
+            exporter: exporter.r#type,
+            exporter_attrs: exporter.attrs,
             session: self.session_id.clone(),
-            exporter_deprecated: String::new(),
-            exporter_attrs_deprecated: Default::default(),
             frontend: String::new(),
             frontend_attrs: Default::default(),
             cache: None,
             entitlements: vec![],
             frontend_inputs,
             source_policy: None,
-            exporters: vec![exporter], // OCI exporter with containerimage.config
-            enable_session_exporter: false, // Not using session exporter - config passed directly
             internal: false, // Enable provenance/SBOM generation (LLB has reference-only final node)
-            source_policy_session: String::new(),
         };
 
         debug!("Submitting build request to BuildKit...");
         debug!(
-            "Request details: ref={}, session={}, exporter_count={}",
-            request.r#ref,
-            request.session,
-            request.exporters.len()
+            "Request details: ref={}, session={}, exporter={}",
+            request.r#ref, request.session, request.exporter
         );
 
         let build_ref = request.r#ref.clone();

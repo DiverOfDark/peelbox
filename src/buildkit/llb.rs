@@ -211,7 +211,6 @@ impl LLBBuilder {
                 network: pb::NetMode::Unset as i32,
                 security: pb::SecurityMode::Sandbox as i32,
                 secretenv: vec![],
-                cdi_devices: vec![],
             })),
             platform: None,
             constraints: None,
@@ -249,7 +248,6 @@ impl LLBBuilder {
                 dest: dest_path.to_string(),
                 owner: None,
                 mode: -1,
-                mode_str: String::new(),
                 follow_symlink: false,
                 dir_copy_contents: true,
                 attempt_unpack_docker_compatibility: false,
@@ -259,8 +257,6 @@ impl LLBBuilder {
                 timestamp: -1,
                 include_patterns: vec![],
                 exclude_patterns: vec![],
-                required_paths: vec![],
-                always_replace_existing_dest_paths: false,
             })),
         };
 
@@ -299,7 +295,6 @@ impl LLBBuilder {
             secret_opt: None,
             ssh_opt: None,
             result_id: String::new(),
-            content_cache: pb::MountContentCache::Default as i32,
         }
     }
 
@@ -317,7 +312,6 @@ impl LLBBuilder {
             secret_opt: None,
             ssh_opt: None,
             result_id: String::new(),
-            content_cache: pb::MountContentCache::Default as i32,
         }
     }
 
@@ -335,7 +329,6 @@ impl LLBBuilder {
             secret_opt: None,
             ssh_opt: None,
             result_id: String::new(),
-            content_cache: pb::MountContentCache::Default as i32,
         }
     }
 
@@ -353,7 +346,6 @@ impl LLBBuilder {
             secret_opt: None,
             ssh_opt: None,
             result_id: String::new(),
-            content_cache: pb::MountContentCache::Default as i32,
         }
     }
 
@@ -410,7 +402,6 @@ impl LLBBuilder {
                 ulimit: vec![],
                 cgroup_parent: String::new(),
                 remove_mount_stubs_recursive: false,
-                valid_exit_codes: vec![],
             };
 
             let mounts = vec![
@@ -500,7 +491,6 @@ impl LLBBuilder {
                     ulimit: vec![],
                     cgroup_parent: String::new(),
                     remove_mount_stubs_recursive: false,
-                    valid_exit_codes: vec![],
                 };
 
                 // Simple mount configuration: root (output 0), context (readonly, first command only), tmp
@@ -568,7 +558,6 @@ impl LLBBuilder {
                 ulimit: vec![],
                 cgroup_parent: String::new(),
                 remove_mount_stubs_recursive: false,
-                valid_exit_codes: vec![],
             };
 
             let install_mounts = vec![
@@ -599,7 +588,6 @@ impl LLBBuilder {
                 ulimit: vec![],
                 cgroup_parent: String::new(),
                 remove_mount_stubs_recursive: false,
-                valid_exit_codes: vec![],
             };
 
             let cleanup_mounts = vec![
@@ -668,7 +656,6 @@ impl LLBBuilder {
                     ulimit: vec![],
                     cgroup_parent: String::new(),
                     remove_mount_stubs_recursive: false,
-                    valid_exit_codes: vec![],
                 };
 
                 // Use busybox as base (input 0), mount squashed at / (input 1, output 0), mount build result readonly (input 2)

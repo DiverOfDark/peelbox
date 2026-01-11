@@ -12,6 +12,7 @@ pub enum BuildKitAddr {
     Unix(String),
     Tcp(String),
     DockerContainer(String),
+    DockerNative(String),
 }
 
 impl BuildKitAddr {
@@ -21,11 +22,18 @@ impl BuildKitAddr {
             Ok(BuildKitAddr::Unix(path.to_string()))
         } else if let Some(path) = addr.strip_prefix("docker-container://") {
             Ok(BuildKitAddr::DockerContainer(path.to_string()))
+        } else if let Some(path) = addr.strip_prefix("docker://") {
+            let socket_path = if path.is_empty() {
+                DEFAULT_DOCKER_SOCKET
+            } else {
+                path
+            };
+            Ok(BuildKitAddr::DockerNative(socket_path.to_string()))
         } else if addr.starts_with("tcp://") {
             Ok(BuildKitAddr::Tcp(addr.to_string()))
         } else {
             anyhow::bail!(
-                "Invalid BuildKit address format. Expected unix://, tcp://, or docker-container://"
+                "Invalid BuildKit address format. Expected unix://, tcp://, docker:// or docker-container://"
             )
         }
     }
@@ -45,24 +53,19 @@ pub struct BuildKitConnection {
 }
 
 impl BuildKitConnection {
-    /// Connect to BuildKit daemon with auto-detection
     pub async fn connect(addr: Option<&str>) -> Result<Self> {
         if let Some(addr_str) = addr {
-            // Explicit address provided
             let addr = BuildKitAddr::from_str(addr_str)?;
             info!("Connecting to BuildKit at explicit address: {:?}", addr);
             Self::connect_to_addr(addr).await
         } else {
-            // Auto-detect
             Self::auto_detect().await
         }
     }
 
-    /// Auto-detect BuildKit daemon
     async fn auto_detect() -> Result<Self> {
         debug!("Auto-detecting BuildKit daemon...");
 
-        // Try 1: Unix socket (standalone BuildKit)
         let unix_addr = BuildKitAddr::default_unix();
         if Path::new(DEFAULT_UNIX_SOCKET).exists() {
             debug!(
@@ -85,19 +88,18 @@ impl BuildKitConnection {
             );
         }
 
-        // Try 2: Docker daemon
         debug!("Trying Docker daemon...");
-        if let Ok(has_docker) = super::docker::check_docker_buildkit().await {
-            if has_docker {
-                let docker_endpoint = super::docker::get_docker_buildkit_endpoint();
-                match BuildKitAddr::from_str(&docker_endpoint) {
+        match super::docker::detect_docker_buildkit_endpoint().await {
+            Ok(Some(endpoint)) => {
+                debug!("Found Docker BuildKit endpoint: {}", endpoint);
+                match BuildKitAddr::from_str(&endpoint) {
                     Ok(addr) => match Self::connect_to_addr(addr).await {
                         Ok(conn) => {
                             info!("Connected to Docker daemon BuildKit");
                             return Ok(conn);
                         }
                         Err(e) => {
-                            debug!("Failed to connect to Docker daemon: {}", e);
+                            debug!("Failed to connect to Docker daemon BuildKit: {}", e);
                         }
                     },
                     Err(e) => {
@@ -105,9 +107,14 @@ impl BuildKitConnection {
                     }
                 }
             }
+            Ok(None) => {
+                debug!("No BuildKit container found in Docker");
+            }
+            Err(e) => {
+                debug!("Failed to detect Docker BuildKit: {}", e);
+            }
         }
 
-        // No BuildKit found
         anyhow::bail!(
             "Failed to connect to BuildKit daemon\n\n\
             Tried:\n\
@@ -126,7 +133,6 @@ impl BuildKitConnection {
         );
     }
 
-    /// Connect to specific BuildKit address
     async fn connect_to_addr(addr: BuildKitAddr) -> Result<Self> {
         let channel = match &addr {
             BuildKitAddr::Unix(path) => {
@@ -140,10 +146,9 @@ impl BuildKitConnection {
                     let path = path.clone();
                     Endpoint::try_from("http://[::]:50051")
                         .context("Failed to create endpoint")?
-                        // Configure HTTP/2 settings for BuildKit compatibility
                         .http2_adaptive_window(true)
-                        .initial_connection_window_size(Some(2 * 1024 * 1024)) // 2MB
-                        .initial_stream_window_size(Some(2 * 1024 * 1024)) // 2MB
+                        .initial_connection_window_size(Some(2 * 1024 * 1024))
+                        .initial_stream_window_size(Some(2 * 1024 * 1024))
                         .http2_keep_alive_interval(std::time::Duration::from_secs(30))
                         .connect_with_connector(service_fn(move |_: Uri| {
                             let path = path.clone();
@@ -173,9 +178,6 @@ impl BuildKitConnection {
             BuildKitAddr::DockerContainer(container_id) => {
                 debug!("Connecting to Docker container: {}", container_id);
 
-                // BuildKit in Docker container exposes Unix socket at /run/buildkit/buildkitd.sock
-                // We connect via docker exec to access the socket inside the container
-
                 #[cfg(unix)]
                 {
                     use tower::service_fn;
@@ -185,11 +187,7 @@ impl BuildKitConnection {
                         .context("Failed to create endpoint")?
                         .connect_with_connector(service_fn(move |_: Uri| {
                             let container_id = container_id.clone();
-                            async move {
-                                // Use docker exec to access BuildKit socket inside container
-                                // This creates a proxy connection: local -> docker exec -> buildkit socket
-                                connect_docker_container(&container_id).await
-                            }
+                            async move { connect_docker_container(&container_id).await }
                         }))
                         .await
                         .context("Failed to connect to BuildKit via docker-container")?
@@ -200,29 +198,51 @@ impl BuildKitConnection {
                     anyhow::bail!("Docker container connections require Unix platform");
                 }
             }
+            BuildKitAddr::DockerNative(path) => {
+                debug!("Connecting to Docker native (POST /grpc): {}", path);
+
+                #[cfg(unix)]
+                {
+                    use hyper_util::rt::TokioIo;
+                    use tower::service_fn;
+
+                    let path = path.clone();
+                    Endpoint::try_from("http://[::]:50051")
+                        .context("Failed to create endpoint")?
+                        .http2_adaptive_window(true)
+                        .initial_connection_window_size(Some(2 * 1024 * 1024))
+                        .initial_stream_window_size(Some(2 * 1024 * 1024))
+                        .http2_keep_alive_interval(std::time::Duration::from_secs(30))
+                        .connect_with_connector(service_fn(move |_: Uri| {
+                            let path = path.clone();
+                            async move { connect_docker_native(&path).await.map(TokioIo::new) }
+                        }))
+                        .await
+                        .context("Failed to connect to Docker native socket")?
+                }
+
+                #[cfg(not(unix))]
+                {
+                    anyhow::bail!("Docker native connections require Unix platform");
+                }
+            }
         };
 
         let mut conn = Self { channel, addr };
 
-        // Health check
         conn.health_check().await?;
 
-        // Version check
         conn.version_check().await?;
 
         Ok(conn)
     }
 
-    /// Health check using BuildKit Control service
     async fn health_check(&mut self) -> Result<()> {
-        // This will be implemented when we add the Control service client
         debug!("Health check: OK (placeholder)");
         Ok(())
     }
 
-    /// Check BuildKit version
     async fn version_check(&mut self) -> Result<()> {
-        // This will be implemented when we add the Control service client
         debug!(
             "Version check: OK (placeholder - will require v{}+)",
             MIN_BUILDKIT_VERSION
@@ -240,13 +260,67 @@ impl BuildKitConnection {
 }
 
 #[cfg(unix)]
+async fn connect_docker_native(path: &str) -> std::io::Result<tokio::io::DuplexStream> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+    use tokio::net::UnixStream;
+
+    let mut stream = UnixStream::connect(path).await?;
+
+    let request = "POST /grpc HTTP/1.1\r\n\
+                   Host: docker\r\n\
+                   Connection: Upgrade\r\n\
+                   Upgrade: h2c\r\n\
+                   \r\n";
+
+    stream.write_all(request.as_bytes()).await?;
+
+    let mut reader = tokio::io::BufReader::new(stream);
+    let mut line = String::new();
+
+    reader.read_line(&mut line).await?;
+    if !line.starts_with("HTTP/1.1 101") {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Docker daemon failed to switch protocols: {}", line.trim()),
+        ));
+    }
+
+    loop {
+        line.clear();
+        reader.read_line(&mut line).await?;
+        if line == "\r\n" {
+            break;
+        }
+    }
+
+    if reader.buffer().is_empty() {
+        let stream = reader.into_inner();
+        let (client, server) = tokio::io::duplex(1024 * 1024);
+
+        tokio::spawn(async move {
+            let (mut r, mut w) = tokio::io::split(stream);
+            let (mut cr, mut cw) = tokio::io::split(server);
+
+            let _ = tokio::join!(
+                tokio::io::copy(&mut r, &mut cw),
+                tokio::io::copy(&mut cr, &mut w)
+            );
+        });
+
+        Ok(client)
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Buffered data remaining after handshake",
+        ))
+    }
+}
+
+#[cfg(unix)]
 async fn connect_docker_container(
     container_id: &str,
 ) -> std::io::Result<hyper_util::rt::TokioIo<tokio::io::DuplexStream>> {
     use bollard::Docker;
-
-    // Docker exec doesn't provide true bidirectional streams needed for HTTP/2
-    // Instead, we'll use the Docker API to find or create a port binding for BuildKit
 
     let docker = Docker::connect_with_local_defaults().map_err(|e| {
         std::io::Error::new(
@@ -255,7 +329,6 @@ async fn connect_docker_container(
         )
     })?;
 
-    // Inspect container to see if BuildKit port is already exposed
     let container_info = docker
         .inspect_container(container_id, None)
         .await
@@ -266,7 +339,6 @@ async fn connect_docker_container(
             )
         })?;
 
-    // Check if port 1234 (BuildKit default) is mapped
     let port_opt = container_info
         .network_settings
         .and_then(|ns| ns.ports)
@@ -277,7 +349,6 @@ async fn connect_docker_container(
         .and_then(|port| port.parse::<u16>().ok());
 
     if let Some(port) = port_opt {
-        // Port is already exposed, return error telling user to use tcp:// instead
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             format!(
@@ -288,7 +359,6 @@ async fn connect_docker_container(
         ));
     }
 
-    // Port not exposed - docker exec is the only option, but it doesn't work for gRPC
     Err(std::io::Error::new(
         std::io::ErrorKind::Other,
         format!(

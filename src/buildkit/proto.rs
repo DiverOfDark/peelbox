@@ -25,12 +25,6 @@ pub mod moby {
             include!(concat!(env!("OUT_DIR"), "/moby.filesync.v1.rs"));
         }
     }
-
-    pub mod exporter {
-        pub mod v1 {
-            include!(concat!(env!("OUT_DIR"), "/moby.exporter.v1.rs"));
-        }
-    }
 }
 
 pub mod fsutil {
@@ -53,9 +47,6 @@ pub mod google {
 pub use fsutil::types::{packet::PacketType, Packet, Stat};
 pub use moby::buildkit::v1::control_client::ControlClient;
 pub use moby::buildkit::v1::BytesMessage;
-pub use moby::exporter::v1::exporter_server::{
-    Exporter as ExporterServer, ExporterServer as ExporterServerBuilder,
-};
 pub use moby::filesync::v1::auth_server::{Auth as AuthServer, AuthServer as AuthServerBuilder};
 pub use moby::filesync::v1::file_send_server::{
     FileSend as FileSendServer, FileSendServer as FileSendServerBuilder,

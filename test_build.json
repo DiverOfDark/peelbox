@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "project_name": "peelbox-test"
+  },
+  "build": {
+    "steps": [
+      {
+        "name": "base",
+        "image": "cgr.dev/chainguard/wolfi-base:latest",
+        "commands": [
+          "echo 'hello world' > /hello.txt"
+        ]
+      }
+    ],
+    "packages": []
+  },
+  "runtime": {
+    "base_image": "cgr.dev/chainguard/glibc-dynamic:latest",
+    "command": ["cat", "/hello.txt"],
+    "packages": [],
+    "env": {}
+  }
+}
