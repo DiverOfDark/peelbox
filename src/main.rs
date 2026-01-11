@@ -1,4 +1,5 @@
 use genai::adapter::AdapterKind;
+use peelbox::buildkit::filesend_service::OutputDestination;
 use peelbox::buildkit::{
     progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, ProvenanceMode,
 };
@@ -631,31 +632,42 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         .canonicalize()
         .unwrap_or_else(|_| context_path.clone());
 
-    // Determine output path for tar export
-    let output_path = if let Some(output_spec) = &args.output {
-        // Parse output spec (e.g., "type=oci,dest=file.tar", "oci,dest=file.tar", "dest=file.tar", or just "file.tar")
-        if let Some(after_type) = output_spec.strip_prefix("type=oci,") {
-            // Handle "type=oci,dest=..."
-            if let Some(dest) = after_type.strip_prefix("dest=") {
+    // Determine output destination
+    let output_dest = if let Some(output_spec) = &args.output {
+        if output_spec == "type=docker" || output_spec == "docker" {
+            OutputDestination::DockerLoad
+        } else if output_spec.starts_with("type=docker,") {
+            OutputDestination::DockerLoad
+        } else {
+            // Assume file output (OCI tar)
+            let path_buf = if output_spec == "type=oci" || output_spec == "oci" {
+                // Default filename for OCI type
+                let sanitized_tag = args.tag.replace([':', '/'], "-");
+                context_path.join(format!("{}.tar", sanitized_tag))
+            } else if let Some(after_type) = output_spec.strip_prefix("type=oci,") {
+                // Handle "type=oci,dest=..."
+                if let Some(dest) = after_type.strip_prefix("dest=") {
+                    PathBuf::from(dest)
+                } else {
+                    PathBuf::from(after_type)
+                }
+            } else if let Some(dest) = output_spec.strip_prefix("oci,dest=") {
+                PathBuf::from(dest)
+            } else if let Some(dest) = output_spec.strip_prefix("dest=") {
                 PathBuf::from(dest)
             } else {
-                PathBuf::from(after_type)
-            }
-        } else if let Some(dest) = output_spec.strip_prefix("oci,dest=") {
-            PathBuf::from(dest)
-        } else if let Some(dest) = output_spec.strip_prefix("dest=") {
-            PathBuf::from(dest)
-        } else {
-            // Assume it's just a file path
-            PathBuf::from(output_spec)
+                // Assume it's just a file path
+                PathBuf::from(output_spec)
+            };
+
+            OutputDestination::File(path_buf)
         }
     } else {
-        // Default to {tag}.tar in current directory (replace : and / with - for valid filename)
-        let sanitized_tag = args.tag.replace([':', '/'], "-");
-        context_path.join(format!("{}.tar", sanitized_tag))
+        // Default to Docker daemon load
+        OutputDestination::DockerLoad
     };
 
-    info!("Output will be written to: {}", output_path.display());
+    info!("Output destination: {}", output_dest);
 
     // Configure attestations based on CLI flags
     let sbom_enabled = args.sbom && !args.no_sbom;
@@ -714,7 +726,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     };
 
     // Create build session with attestation config and deterministic session ID
-    let mut session = BuildSession::new(connection, context_path, output_path, args.tag.clone())
+    let mut session = BuildSession::new(connection, context_path, output_dest, args.tag.clone())
         .with_attestations(attestation_config)
         .with_session_id(session_id);
 

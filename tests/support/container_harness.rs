@@ -134,17 +134,82 @@ impl ContainerTestHarness {
 
     /// Build a container image from a UniversalBuild JSON spec using peelbox build
     /// Returns the image name
-    /// Uses BuildKit gRPC protocol directly via TCP (no buildctl needed)
+    /// Uses BuildKit gRPC protocol directly via TCP and loads directly into Docker
     pub async fn build_image(
         &self,
         spec_path: &Path,
         context_path: &Path,
         image_name: &str,
     ) -> Result<String> {
-        // Default output path: image_name.tar in context directory
-        let output_tar = context_path.join(format!("{}.tar", image_name.replace([':', '/'], "-")));
-        self.build_image_with_output(spec_path, context_path, image_name, &output_tar)
+        // Get or create the shared BuildKit container
+        let (port, _container_id) = get_buildkit_container().await?;
+
+        // Use the same binary that is running this test
+        let mut peelbox_binary = std::env::current_exe()
+            .context("Failed to get current executable path")?
+            .parent()
+            .context("No parent directory")?
+            .to_path_buf();
+
+        // If we're in deps/, go up one more level
+        if peelbox_binary.ends_with("deps") {
+            peelbox_binary = peelbox_binary
+                .parent()
+                .context("No parent directory")?
+                .to_path_buf();
+        }
+
+        let peelbox_binary = peelbox_binary.join("peelbox");
+
+        if !peelbox_binary.exists() {
+            anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
+        }
+
+        // Build image using peelbox build command (direct BuildKit gRPC via TCP)
+        // Using direct docker load (type=docker)
+        let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
+
+        let mut cmd = std::process::Command::new(&peelbox_binary);
+        cmd.args([
+            "build",
+            "--spec",
+            spec_path.to_str().unwrap(),
+            "--tag",
+            image_name,
+            "--buildkit",
+            &buildkit_addr,
+            "--context",
+            context_path.to_str().unwrap(),
+            "--output",
+            "type=docker", // Direct load to Docker
+            "--quiet",
+        ]);
+
+        if let Ok(rust_log) = std::env::var("RUST_LOG") {
+            cmd.env("RUST_LOG", rust_log);
+        }
+
+        let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
+
+        if !peelbox_output.status.success() {
+            eprintln!(
+                "peelbox build stdout:\n{}",
+                String::from_utf8_lossy(&peelbox_output.stdout)
+            );
+            eprintln!(
+                "peelbox build stderr:\n{}",
+                String::from_utf8_lossy(&peelbox_output.stderr)
+            );
+            anyhow::bail!("peelbox build failed");
+        }
+
+        // Verify image exists in Docker registry
+        self.docker
+            .inspect_image(image_name)
             .await
+            .context("Failed to inspect image after build - image may not have been loaded")?;
+
+        Ok(image_name.to_string())
     }
 
     /// Build a container image with a specific output path

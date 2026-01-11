@@ -9,7 +9,7 @@ use tracing::{debug, error, info, warn};
 use super::auth_service::AuthService;
 use super::connection::BuildKitConnection;
 use super::exporter_service::{ExporterService, ImageConfig};
-use super::filesend_service::FileSendService;
+use super::filesend_service::{FileSendService, OutputDestination};
 use super::filesync::FileSync;
 use super::filesync_service::FileSyncService;
 use super::llb::LLBBuilder;
@@ -19,6 +19,7 @@ use super::proto::{
 };
 use super::stream_conn::StreamConn;
 use crate::output::schema::UniversalBuild;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -59,7 +60,7 @@ pub struct BuildSession {
     connection: BuildKitConnection,
     session_id: String,
     context_path: PathBuf,
-    output_path: PathBuf,
+    output_dest: OutputDestination,
 
     image_tag: Option<String>,
     image_config: Arc<Mutex<Option<ImageConfig>>>,
@@ -68,6 +69,7 @@ pub struct BuildSession {
     session_tx: Option<mpsc::Sender<BytesMessage>>,
     conn_tx: Option<mpsc::Sender<Result<StreamConn, std::io::Error>>>,
     export_complete_rx: Option<tokio::sync::oneshot::Receiver<()>>,
+    bytes_written: Arc<AtomicU64>,
 }
 
 impl BuildSession {
@@ -75,7 +77,7 @@ impl BuildSession {
     pub fn new(
         connection: BuildKitConnection,
         context_path: PathBuf,
-        output_path: PathBuf,
+        output_dest: OutputDestination,
         image_tag: String,
     ) -> Self {
         let session_id = Self::generate_session_id();
@@ -85,7 +87,7 @@ impl BuildSession {
             connection,
             session_id,
             context_path,
-            output_path,
+            output_dest,
             image_tag: Some(image_tag),
             image_config: Arc::new(Mutex::new(None)),
             attestation_config: AttestationConfig::default(),
@@ -93,6 +95,7 @@ impl BuildSession {
             session_tx: None,
             conn_tx: None,
             export_complete_rx: None,
+            bytes_written: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -275,7 +278,11 @@ impl BuildSession {
 
         // Create unified gRPC server with FileSync, FileSend, Auth, Exporter, and Health services
         let filesync_service = FileSyncService::new(self.context_path.clone());
-        let filesend_service = FileSendService::new(self.output_path.clone(), export_tx);
+        let filesend_service = FileSendService::new(
+            self.output_dest.clone(),
+            export_tx,
+            self.bytes_written.clone(),
+        );
         let auth_service = AuthService::new();
         let image_tag = self
             .image_tag
@@ -674,14 +681,8 @@ impl BuildSession {
             .cloned()
             .unwrap_or_else(|| format!("sha256:{}", self.session_id));
 
-        // Get tar file size from filesystem
-        let tar_size_bytes = match tokio::fs::metadata(&self.output_path).await {
-            Ok(metadata) => metadata.len(),
-            Err(e) => {
-                warn!("Failed to get tar file size: {}", e);
-                0
-            }
-        };
+        // Get bytes written from FileSendService
+        let tar_size_bytes = self.bytes_written.load(Ordering::Relaxed);
 
         // Extract layer count from exporter response if available
         let layers = if let Some(config_json) = solve_response
