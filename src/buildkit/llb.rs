@@ -481,11 +481,11 @@ impl LLBBuilder {
 
             let install_meta = pb::Meta {
                 args: vec![
-                    "sh".to_string(),
+                    "/bin/sh".to_string(),
                     "-c".to_string(),
-                    format!("apk add --root /runtime-root --no-cache --initdb --repository https://packages.wolfi.dev/os --keys-dir /etc/apk/keys {} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages),
+                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk add --root /runtime-root --no-cache --initdb {} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages),
                 ],
-                env: vec![],
+                env: vec!["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string()],
                 cwd: "/".to_string(),
                 user: String::new(),
                 proxy_env: None,
@@ -514,31 +514,24 @@ impl LLBBuilder {
             None
         };
 
-        let mut merge_inputs = vec![(glibc_dynamic_idx, 0)];
-        if let Some(pkg_idx) = runtime_packages_idx {
-            merge_inputs.push((pkg_idx, 0));
-        }
-
-        let squashed_idx = self.create_merge(merge_inputs);
-
-        let final_idx = if spec.runtime.copy.is_empty() {
-            squashed_idx
-        } else {
+        let artifacts_idx = if !spec.runtime.copy.is_empty() {
             let mut copy_cmds = Vec::new();
+            let empty_dir_idx = self.create_empty_dir();
 
             for (idx, copy) in spec.runtime.copy.iter().enumerate() {
                 let src_path = format!("/build-src/peelbox-artifacts/{}/res", idx);
-
                 copy_cmds.push(format!(
                     "mkdir -p $(dirname /target{}) && cp -rp {} /target{}",
                     copy.to, src_path, copy.to
                 ));
             }
 
-            let copy_script = copy_cmds.join(" && ");
-
             let copy_meta = pb::Meta {
-                args: vec!["/bin/sh".to_string(), "-c".to_string(), copy_script],
+                args: vec![
+                    "/bin/sh".to_string(),
+                    "-c".to_string(),
+                    copy_cmds.join(" && "),
+                ],
                 env: vec![
                     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
                 ],
@@ -556,51 +549,28 @@ impl LLBBuilder {
                 self.readonly_mount(0, "/"),
                 self.layer_mount(1, 0, "/target"),
                 self.readonly_mount(2, "/build-src"),
-                self.scratch_mount("/tmp"),
             ];
 
-            self.create_exec(
-                vec![(busybox_idx, 0), (squashed_idx, 0), (build_result_idx, 0)],
+            Some(self.create_exec(
+                vec![(busybox_idx, 0), (empty_dir_idx, 0), (build_result_idx, 0)],
                 copy_mounts,
                 copy_meta,
-                Some("Copy build artifacts".to_string()),
-            )
+                Some("Prepare clean artifact layer".to_string()),
+            ))
+        } else {
+            None
         };
 
-        let truly_final_idx = {
-            let cleanup_meta = pb::Meta {
-                args: vec![
-                    "/bin/sh".to_string(),
-                    "-c".to_string(),
-                    "find /target -name \"*apk*\" -exec rm -rf {} +".to_string(),
-                ],
-                env: vec![
-                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
-                ],
-                cwd: "/".to_string(),
-                user: String::new(),
-                proxy_env: None,
-                extra_hosts: vec![],
-                hostname: String::new(),
-                ulimit: vec![],
-                cgroup_parent: String::new(),
-                remove_mount_stubs_recursive: false,
-            };
+        let mut merge_inputs = vec![(glibc_dynamic_idx, 0)];
+        if let Some(pkg_idx) = runtime_packages_idx {
+            merge_inputs.push((pkg_idx, 0));
+        }
+        if let Some(art_idx) = artifacts_idx {
+            merge_inputs.push((art_idx, 0));
+        }
 
-            let cleanup_mounts = vec![
-                self.readonly_mount(0, "/"),
-                self.layer_mount(1, 0, "/target"),
-            ];
-
-            self.create_exec(
-                vec![(busybox_idx, 0), (final_idx, 0)],
-                cleanup_mounts,
-                cleanup_meta,
-                Some("Final distroless cleanup".to_string()),
-            )
-        };
-
-        let _ = self.create_output_reference(truly_final_idx);
+        let final_image_idx = self.create_merge(merge_inputs);
+        let _ = self.create_output_reference(final_image_idx);
         Ok(())
     }
 
