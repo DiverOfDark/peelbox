@@ -82,7 +82,7 @@ async fn test_image_builds_successfully() -> Result<()> {
     Ok(())
 }
 
-async fn verify_no_apk_in_tarball(tar_path: &Path) -> Result<()> {
+async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()> {
     use serde_json::Value;
     use std::io::Read;
     use tar::Archive;
@@ -162,6 +162,7 @@ async fn verify_no_apk_in_tarball(tar_path: &Path) -> Result<()> {
     }
 
     let mut scanned_count = 0;
+    let mut found_required = false;
     for layer_path in &layer_digests {
         let mut archive = Archive::new(&tar_data[..]);
         let mut found = false;
@@ -207,6 +208,12 @@ async fn verify_no_apk_in_tarball(tar_path: &Path) -> Result<()> {
                             layer_path
                         );
                     }
+
+                    if file_path_str.contains(required_file)
+                        && !file_entry.header().entry_type().is_dir()
+                    {
+                        found_required = true;
+                    }
                 }
                 scanned_count += 1;
                 break;
@@ -220,9 +227,16 @@ async fn verify_no_apk_in_tarball(tar_path: &Path) -> Result<()> {
         }
     }
 
+    if !found_required {
+        anyhow::bail!(
+            "Could not find required file '{}' in any image layer",
+            required_file
+        );
+    }
+
     println!(
-        "✓ Successfully scanned {} active layers from manifest",
-        scanned_count
+        "✓ Successfully scanned {} active layers from manifest (found {})",
+        scanned_count, required_file
     );
     Ok(())
 }
@@ -275,8 +289,8 @@ async fn test_distroless_layer_structure() -> Result<()> {
         anyhow::bail!("Build failed: {}", String::from_utf8_lossy(&output.stderr));
     }
 
-    verify_no_apk_in_tarball(&oci_dest).await?;
-    println!("✓ VERIFIED: No apk binary found in any active layer content!");
+    verify_image_content(&oci_dest, "hello.txt").await?;
+    println!("✓ VERIFIED: No apk binary found and hello.txt exists in active layers!");
     Ok(())
 }
 

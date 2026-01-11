@@ -538,8 +538,10 @@ impl LLBBuilder {
             let copy_script = copy_cmds.join(" && ");
 
             let copy_meta = pb::Meta {
-                args: vec!["sh".to_string(), "-c".to_string(), copy_script],
-                env: vec![],
+                args: vec!["/bin/sh".to_string(), "-c".to_string(), copy_script],
+                env: vec![
+                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+                ],
                 cwd: "/".to_string(),
                 user: String::new(),
                 proxy_env: None,
@@ -551,7 +553,7 @@ impl LLBBuilder {
             };
 
             let copy_mounts = vec![
-                self.layer_mount(0, 0, "/"),
+                self.readonly_mount(0, "/"),
                 self.layer_mount(1, 0, "/target"),
                 self.readonly_mount(2, "/build-src"),
                 self.scratch_mount("/tmp"),
@@ -568,11 +570,13 @@ impl LLBBuilder {
         let truly_final_idx = {
             let cleanup_meta = pb::Meta {
                 args: vec![
-                    "sh".to_string(),
+                    "/bin/sh".to_string(),
                     "-c".to_string(),
                     "find /target -name \"*apk*\" -exec rm -rf {} +".to_string(),
                 ],
-                env: vec![],
+                env: vec![
+                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+                ],
                 cwd: "/".to_string(),
                 user: String::new(),
                 proxy_env: None,
@@ -584,7 +588,7 @@ impl LLBBuilder {
             };
 
             let cleanup_mounts = vec![
-                self.layer_mount(0, 0, "/"),
+                self.readonly_mount(0, "/"),
                 self.layer_mount(1, 0, "/target"),
             ];
 
