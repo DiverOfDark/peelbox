@@ -136,9 +136,11 @@ jobs:
           sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
 
       - name: Run all integration tests
+        env:
+          NEXTEST_JUNIT_PATH: integration-test-results.xml
         run: |
           # Run all integration tests from tests/*.rs
-          cargo nextest run --test '*' --release --no-default-features --verbose --reporter junit --junit-path integration-test-results.xml
+          cargo nextest run --test '*' --release --no-default-features --profile ci --verbose
 
       - name: Upload integration test results
         if: always()
