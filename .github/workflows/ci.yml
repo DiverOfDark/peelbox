@@ -124,24 +124,10 @@ jobs:
           mkdir -p .buildkit-cache
           sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
 
-      - name: Run integration tests (static mode)
+      - name: Run all integration tests
         run: |
-          # Run fast deterministic tests without LLM (CPU-only, no CUDA)
-          cargo test --test cli_integration --release --no-default-features --verbose
-          cargo test --test backend_health_test --release --no-default-features --verbose
-          cargo test --test mock_detection_test --release --no-default-features --verbose
-
-          # Skip e2e tests for now (recording cache not working properly)
-          # cargo test --test e2e --release --no-default-features --verbose
-
-      - name: Run embedded LLM tests
-        run: cargo test --test embedded_llm_test --release --no-default-features --verbose
-
-      - name: Run BuildKit integration tests
-        run: |
-          # Tests use testcontainers with bind-mounted cache directory
-          # Build cache is shared across test runs for faster execution
-          cargo test --test buildkit_integration --release --no-default-features --verbose
+          # Run all integration tests from tests/*.rs
+          cargo test --test '*' --release --no-default-features --verbose
 
       - name: Create BuildKit cache archive
         if: always()
