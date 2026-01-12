@@ -70,9 +70,13 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
+      - name: Install cargo-nextest and cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest,cargo-llvm-cov
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -83,7 +87,7 @@ jobs:
         env:
           NEXTEST_JUNIT_PATH: unit-test-results.xml
         run: |
-          cargo nextest run --lib --bins --release --no-default-features --profile ci --verbose
+          cargo llvm-cov nextest --lib --bins --release --no-default-features --profile ci --no-report --verbose
 
       - name: Upload test results
         if: always()
@@ -91,6 +95,13 @@ jobs:
         with:
           name: unit-test-results
           path: unit-test-results.xml
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-coverage
+          path: "target/llvm-cov-target/**/*.profraw"
+          if-no-files-found: ignore
 
   integration-test:
     name: Run Integration Tests
@@ -108,9 +119,13 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
+      - name: Install cargo-nextest and cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest,cargo-llvm-cov
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -145,7 +160,7 @@ jobs:
           NEXTEST_JUNIT_PATH: integration-test-results.xml
         run: |
           # Run all integration tests from tests/*.rs
-          cargo nextest run --test '*' --release --no-default-features --profile ci --verbose
+          cargo llvm-cov nextest --test '*' --release --no-default-features --profile ci --no-report --verbose
 
       - name: Upload integration test results
         if: always()
@@ -153,6 +168,13 @@ jobs:
         with:
           name: integration-test-results
           path: integration-test-results.xml
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-coverage
+          path: "target/llvm-cov-target/**/*.profraw"
+          if-no-files-found: ignore
 
       - name: Create BuildKit cache archive
         if: always()
