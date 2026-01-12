@@ -80,8 +80,10 @@ jobs:
           shared-key: peelbox
 
       - name: Run unit tests
+        env:
+          NEXTEST_JUNIT_PATH: unit-test-results.xml
         run: |
-          cargo nextest run --lib --bins --release --no-default-features --verbose --reporter junit --junit-path unit-test-results.xml
+          cargo nextest run --lib --bins --release --no-default-features --profile ci --verbose
 
       - name: Upload test results
         if: always()
