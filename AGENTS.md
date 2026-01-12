@@ -17,38 +17,77 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
-# Project Guidelines
+# PROJECT KNOWLEDGE BASE
 
-## 1. Development Principles (CRITICAL)
-- **NO BACKWARDS COMPATIBILITY**: Breaking changes are preferred if they improve the codebase. Never maintain compatibility with old APIs, configurations, or interfaces.
-- **ZERO DEAD CODE**: Always remove dead code immediately. If you find unused code, delete it.
-- **CLEAN SLATE**: When refactoring, completely remove old code and update all references. The codebase should read as if it was always implemented the current way.
-- **SINGLE RESPONSIBILITY**: Each module must have a single, well-defined responsibility.
-    - **BuildSystem Trait**: Build-time concerns ONLY (packages, commands, cache).
-    - **Runtime Trait**: Runtime concerns ONLY (base images, entrypoints, health checks).
-    - **Framework Trait**: Framework-specific patterns ONLY (default ports, special endpoints).
-    - **Pipeline Phases**: Discrete logic per phase (Scan, Classify, Structure, etc.).
+**Generated:** 2026-01-12T21:15:00Z
+**Commit:** e7ca064
+**Branch:** feature/buildkit-client
 
-## 2. Comment and Documentation Policy
-- **NO UNNECESSARY COMMENTS**: Code must be self-documenting. Use descriptive names instead of explanatory comments.
-- **MANDATORY COMMENT REMOVAL**: Remove all "todo", "debug", or temporary comments before committing.
-- **NO HISTORICAL COMMENTS**: Never include comments explaining past changes (e.g., "removed X because...").
-- **EXCEPTIONS**: Only for truly complex logic, security, or mandatory BDD comments.
+## OVERVIEW
+peelbox is a Rust-based AI-powered buildkit frontend for intelligent build command detection. It uses a 9-phase pipeline to produce distroless Wolfi-based container images.
 
-## 3. LLM Testing and Safety
-- **CUDA IS MANDATORY LOCALLY**: LLM tests **MUST NEVER** run without `--features cuda` locally. Parallel CPU inference will crash the host.
-- **SERIAL GROUPS**: Sensitive tests (Docker, LLM) must use `serial-tests` group in `nextest.toml`.
-- **ISOLATED CACHE**: Use unique `PEELBOX_CACHE_DIR` per test process to avoid race conditions.
-- **RAM SAFETY**: Embedded LLM will fail to start on CPU if less than 4GB of RAM remains after loading.
-- **REPLAY MODE IN CI**: CI must always run in `replay` mode (no real LLM calls).
+## STRUCTURE
+```
+.
+├── src/
+│   ├── buildkit/    # Native gRPC client & LLB generation
+│   ├── llm/         # Pluggable backends (Embedded, Ollama, Claude, etc.)
+│   ├── pipeline/    # 9-phase deterministic orchestration
+│   ├── stack/       # Language, BuildSystem, and Framework traits
+│   └── main.rs      # CLI Entry point
+└── tests/           # Integration tests with OCI/Docker verification
+```
 
-## 4. Architecture: Wolfi-First & Distroless
-- **WOLFI EXCLUSIVE**: Use Wolfi packages exclusively for all images.
-- **DISTROLESS BY DEFAULT**: Final images must be truly distroless (no `apk` binary or metadata).
-- **OPTIMIZED LLB**: Use `MergeOp` with independent snapshots to minimize layers and avoid whiteouts.
-- **CONTEXT OPTIMIZATION**: Always use `.gitignore` filtering to minimize context transfer to BuildKit.
+## WHERE TO LOOK
+| Task | Location | Notes |
+|------|----------|-------|
+| Add Language/Tool | `src/stack/` | Implement BuildSystem or Framework traits |
+| Pipeline Logic | `src/pipeline/` | Modify WorkflowPhase or ServicePhase |
+| BuildKit/LLB | `src/buildkit/` | Core gRPC and LLB graph builders |
+| LLM Backends | `src/llm/` | Add new providers via LLMClient trait |
 
-## 5. Tooling
-- **NEXTEST**: Use `cargo-nextest` for all test executions.
-- **LLVM-COV**: Use `cargo-llvm-cov` for coverage. Always `clean` first.
-- **CLIPPY & FMT**: Code must be clean and formatted according to project standards.
+## CONVENTIONS
+- **Strict Distroless**: Final images must contain ZERO apk binary or metadata.
+- **Merge-First**: Use `MergeOp` with independent snapshots to minimize layers.
+- **Isolated Tests**: Use unique `PEELBOX_CACHE_DIR` per test process.
+- **Imports**: Standard library (`std::*`), then external, then crate-local.
+- **Error Handling**: `anyhow::Result` with `context()` for apps; `thiserror` for core logic.
+- **Documentation**: Minimalist. Code must be self-documenting. Remove "todo"/"debug" before commit.
+
+## ANTI-PATTERNS
+- **No unwrap/expect**: Use proper error handling in non-test code.
+- **No backwards compatibility**: Breaking changes preferred over technical debt.
+- **No manual buildctl**: Use native gRPC implementation in `src/buildkit/`.
+- **Zero Dead Code**: Always remove unused code immediately.
+- **Clean Slate**: Refactor properly rather than patching.
+
+## DEVELOPMENT PRINCIPLES
+- **Single Responsibility**: 
+    - `BuildSystem`: Commands, packages, cache ONLY.
+    - `Runtime`: Base images, ports, entrypoints ONLY.
+    - `Framework`: Framework-specific defaults ONLY.
+- **No Historical Comments**: Documentation reflects current state ONLY.
+
+## LLM TESTING SAFETY
+- **CUDA IS MANDATORY LOCALLY**: LLM tests **MUST NEVER** run without `--features cuda` locally.
+- **RAM Safety**: Embedded LLM bails if <4GB RAM remains after loading on CPU.
+- **Serial Execution**: Sensitive tests (Docker, LLM) MUST use `serial-tests` group in `nextest.toml`.
+- **CI Mode**: CI must always run in `replay` mode (using recordings).
+
+
+## COMMANDS
+```bash
+# Full local verification
+cargo nextest run --release --no-default-features --features cuda
+
+# Single test
+cargo nextest run <substring>
+
+# Accurate Coverage
+cargo llvm-cov clean --workspace
+cargo llvm-cov nextest --release --no-default-features
+```
+
+## NOTES
+- Embedded LLM fails on CPU if <4GB RAM remains after loading (Safety check).
+- CI runs in `replay` mode using recordings in `tests/recordings/`.
