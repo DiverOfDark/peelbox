@@ -83,6 +83,9 @@ jobs:
         with:
           shared-key: peelbox
 
+      - name: Clean coverage data
+        run: cargo llvm-cov clean --workspace
+
       - name: Run unit tests
         env:
           NEXTEST_JUNIT_PATH: unit-test-results.xml
@@ -131,6 +134,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: peelbox
+
+      - name: Clean coverage data
+        run: cargo llvm-cov clean --workspace
 
       - name: Install buildctl
         run: |
