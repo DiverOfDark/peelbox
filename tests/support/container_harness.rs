@@ -9,132 +9,111 @@ use testcontainers::core::{Mount, WaitFor};
 use testcontainers::runners::AsyncRunner;
 use testcontainers::{ContainerAsync, GenericImage, ImageExt};
 use tokio::sync::OnceCell;
-use tokio::time::timeout;
 
-/// Global shared BuildKit container for parallel tests
-///
-/// Uses a single BuildKit container instance across all parallel test builds to:
-/// - Avoid lock conflicts on /var/lib/buildkit/buildkitd.lock
-/// - Reduce container startup overhead
-/// - Share build cache across all tests
-/// - Enable parallel builds (BuildKit handles concurrent build requests)
-///
-/// Stores (TCP port, container ID)
-static BUILDKIT_CONTAINER: OnceCell<Arc<(u16, String, ContainerAsync<GenericImage>)>> =
+static BUILDKIT_CONTAINER: OnceCell<Arc<Option<(u16, String, ContainerAsync<GenericImage>)>>> =
     OnceCell::const_new();
 
-/// Fixed container name for the shared BuildKit instance
 const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 
-/// Get or create the shared BuildKit container
-///
-/// This function is thread-safe and will only create one BuildKit container
-/// for all parallel tests across all test binaries. Subsequent calls return
-/// the existing TCP port and container ID.
-///
-/// Uses a fixed container name to enable reuse across test binaries.
-/// Returns (TCP port, container ID)
 pub async fn get_buildkit_container() -> Result<(u16, String)> {
     let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
 
-    // Check if container already exists (may be from another test binary)
-    match docker
-        .inspect_container(BUILDKIT_CONTAINER_NAME, None)
-        .await
-    {
-        Ok(inspect) => {
-            // Container exists, check if it's running
-            if inspect.state.and_then(|s| s.running) == Some(true) {
-                // Container is running, get its port mapping
-                let port = inspect
-                    .network_settings
-                    .and_then(|ns| ns.ports)
-                    .and_then(|ports| ports.get("1234/tcp").cloned())
-                    .and_then(|bindings| bindings)
-                    .and_then(|mut b| b.pop())
-                    .and_then(|binding| binding.host_port)
-                    .and_then(|port| port.parse::<u16>().ok())
-                    .context("Failed to get BuildKit port from existing container")?;
+    for attempt in 0..10 {
+        match docker
+            .inspect_container(BUILDKIT_CONTAINER_NAME, None)
+            .await
+        {
+            Ok(inspect) => {
+                if inspect.state.and_then(|s| s.running) == Some(true) {
+                    let port = inspect
+                        .network_settings
+                        .and_then(|ns| ns.ports)
+                        .and_then(|ports| ports.get("1234/tcp").cloned())
+                        .and_then(|bindings| bindings)
+                        .and_then(|mut b| b.pop())
+                        .and_then(|binding| binding.host_port)
+                        .and_then(|port| port.parse::<u16>().ok())
+                        .context("Failed to get BuildKit port from existing container")?;
 
-                let container_id = inspect.id.context("Container ID missing")?;
-                return Ok((port, container_id));
-            } else {
-                // Container exists but not running, remove it
-                let _ = docker
-                    .remove_container(
-                        BUILDKIT_CONTAINER_NAME,
-                        Some(bollard::container::RemoveContainerOptions {
-                            force: true,
-                            ..Default::default()
-                        }),
-                    )
-                    .await;
+                    let container_id = inspect.id.context("Container ID missing")?;
+                    return Ok((port, container_id));
+                } else if attempt == 0 {
+                    let _ = docker
+                        .remove_container(
+                            BUILDKIT_CONTAINER_NAME,
+                            Some(RemoveContainerOptions {
+                                force: true,
+                                ..Default::default()
+                            }),
+                        )
+                        .await;
+                }
+            }
+            Err(_) => {}
+        }
+
+        if let Some(arc_opt) = BUILDKIT_CONTAINER.get() {
+            if let Some(c) = arc_opt.as_ref() {
+                return Ok((c.0, c.1.clone()));
             }
         }
-        Err(_) => {
-            // Container doesn't exist, we'll create it below
+
+        let cache_dir = std::env::temp_dir().join("peelbox-test-buildkit-cache");
+        let _ = std::fs::create_dir_all(&cache_dir);
+
+        let buildkit_container_res = GenericImage::new("moby/buildkit", "v0.12.5")
+            .with_wait_for(WaitFor::message_on_stderr("running server on"))
+            .with_privileged(true)
+            .with_mount(Mount::bind_mount(
+                cache_dir.to_str().expect("Invalid cache path"),
+                "/var/lib/buildkit",
+            ))
+            .with_container_name(BUILDKIT_CONTAINER_NAME)
+            .with_mapped_port(0, 1234.into())
+            .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
+            .start()
+            .await;
+
+        match buildkit_container_res {
+            Ok(container) => {
+                let container_id = container.id().to_string();
+                let port: u16 = container
+                    .get_host_port_ipv4(1234)
+                    .await
+                    .expect("Failed to get BuildKit host port");
+                tokio::time::sleep(Duration::from_secs(2)).await;
+
+                let _ =
+                    BUILDKIT_CONTAINER.set(Arc::new(Some((port, container_id.clone(), container))));
+
+                return Ok((port, container_id));
+            }
+            Err(e) => {
+                let err_str = e.to_string();
+                if err_str.contains("409") || err_str.contains("Conflict") {
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    continue;
+                }
+                anyhow::bail!("Failed to start BuildKit container: {}", e);
+            }
         }
     }
 
-    let container = BUILDKIT_CONTAINER
-        .get_or_init(|| async {
-            // Use temporary directory for BuildKit cache to avoid polluting project root
-            let cache_dir = std::env::temp_dir().join("peelbox-test-buildkit-cache");
-            std::fs::create_dir_all(&cache_dir).expect("Failed to create BuildKit cache directory");
-
-            // Start new BuildKit container with TCP port exposed
-            // Map port 1234 to random host port and run BuildKit with TCP listener
-            let buildkit_container: ContainerAsync<GenericImage> =
-                GenericImage::new("moby/buildkit", "v0.12.5")
-                    .with_wait_for(WaitFor::message_on_stderr("running server on"))
-                    .with_privileged(true)
-                    .with_mount(Mount::bind_mount(
-                        cache_dir.to_str().expect("Invalid cache path"),
-                        "/var/lib/buildkit",
-                    ))
-                    .with_container_name(BUILDKIT_CONTAINER_NAME)
-                    .with_mapped_port(0, 1234.into())
-                    .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
-                    .start()
-                    .await
-                    .expect("Failed to start BuildKit container");
-
-            let container_id = buildkit_container.id().to_string();
-
-            // Get the mapped host port for BuildKit TCP
-            let port: u16 = buildkit_container
-                .get_host_port_ipv4(1234)
-                .await
-                .expect("Failed to get BuildKit host port");
-
-            // Small delay to ensure BuildKit is fully ready
-            tokio::time::sleep(Duration::from_secs(2)).await;
-
-            // Store container to keep it alive for the duration of the test run
-            Arc::new((port, container_id, buildkit_container))
-        })
-        .await;
-
-    Ok((container.0, container.1.clone()))
+    anyhow::bail!("Failed to obtain BuildKit container after multiple attempts");
 }
 
-/// Container test harness for building and running images from UniversalBuild specs
 pub struct ContainerTestHarness {
     docker: Docker,
 }
 
 #[allow(dead_code)]
 impl ContainerTestHarness {
-    /// Create a new harness instance
     pub fn new() -> Result<Self> {
         let docker =
             Docker::connect_with_local_defaults().context("Failed to connect to Docker/Podman")?;
         Ok(Self { docker })
     }
 
-    /// Build a container image from a UniversalBuild JSON spec using peelbox build
-    /// Returns the image name
-    /// Uses BuildKit gRPC protocol directly via TCP and loads directly into Docker
     pub async fn build_image(
         &self,
         spec_path: &Path,
@@ -142,17 +121,14 @@ impl ContainerTestHarness {
         image_name: &str,
         cache_dir: Option<&Path>,
     ) -> Result<String> {
-        // Get or create the shared BuildKit container
         let (port, _container_id) = get_buildkit_container().await?;
 
-        // Use the same binary that is running this test
         let mut peelbox_binary = std::env::current_exe()
             .context("Failed to get current executable path")?
             .parent()
             .context("No parent directory")?
             .to_path_buf();
 
-        // If we're in deps/, go up one more level
         if peelbox_binary.ends_with("deps") {
             peelbox_binary = peelbox_binary
                 .parent()
@@ -166,8 +142,6 @@ impl ContainerTestHarness {
             anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
         }
 
-        // Build image using peelbox build command (direct BuildKit gRPC via TCP)
-        // Using direct docker load (type=docker)
         let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
         let mut cmd = std::process::Command::new(&peelbox_binary);
@@ -182,7 +156,7 @@ impl ContainerTestHarness {
             "--context",
             context_path.to_str().unwrap(),
             "--output",
-            "type=docker", // Direct load to Docker
+            "type=docker",
             "--quiet",
         ]);
 
@@ -208,7 +182,6 @@ impl ContainerTestHarness {
             anyhow::bail!("peelbox build failed");
         }
 
-        // Verify image exists in Docker registry
         self.docker
             .inspect_image(image_name)
             .await
@@ -217,7 +190,6 @@ impl ContainerTestHarness {
         Ok(image_name.to_string())
     }
 
-    /// Build a container image with a specific output path
     pub async fn build_image_with_output(
         &self,
         spec_path: &Path,
@@ -225,18 +197,14 @@ impl ContainerTestHarness {
         image_name: &str,
         output_tar: &Path,
     ) -> Result<String> {
-        // Get or create the shared BuildKit container
         let (port, _container_id) = get_buildkit_container().await?;
 
-        // Use the same binary that is running this test
-        // This is much faster than rebuilding in release mode
         let mut peelbox_binary = std::env::current_exe()
             .context("Failed to get current executable path")?
             .parent()
             .context("No parent directory")?
             .to_path_buf();
 
-        // If we're in deps/, go up one more level
         if peelbox_binary.ends_with("deps") {
             peelbox_binary = peelbox_binary
                 .parent()
@@ -250,7 +218,6 @@ impl ContainerTestHarness {
             anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
         }
 
-        // Build image using peelbox build command (direct BuildKit gRPC via TCP)
         let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
         let mut cmd = std::process::Command::new(&peelbox_binary);
@@ -266,7 +233,7 @@ impl ContainerTestHarness {
             context_path.to_str().unwrap(),
             "--output",
             output_tar.to_str().unwrap(),
-            "--quiet", // This will make it output ONLY the image ID to stdout on success
+            "--quiet",
         ]);
 
         if let Ok(rust_log) = std::env::var("RUST_LOG") {
@@ -290,7 +257,6 @@ impl ContainerTestHarness {
             .trim()
             .to_string();
 
-        // Check if image already exists in Docker
         let image_exists = if !image_id.is_empty() {
             self.docker.inspect_image(&image_id).await.is_ok()
         } else {
@@ -298,7 +264,6 @@ impl ContainerTestHarness {
         };
 
         if !image_exists {
-            // Load the tar file into Docker
             let load_output = std::process::Command::new("docker")
                 .args(["load", "-i", output_tar.to_str().unwrap()])
                 .output()
@@ -311,13 +276,11 @@ impl ContainerTestHarness {
                 );
             }
         } else {
-            // Ensure it has the requested tag if it already exists
             let _ = std::process::Command::new("docker")
                 .args(["tag", &image_id, image_name])
                 .status();
         }
 
-        // Verify image exists in Docker registry
         self.docker
             .inspect_image(image_name)
             .await
@@ -326,9 +289,6 @@ impl ContainerTestHarness {
         Ok(image_name.to_string())
     }
 
-    /// Start a container from an image with dynamic port binding
-    /// Returns the container ID
-    /// The container_port will be bound to a random available host port
     pub async fn start_container(
         &self,
         image_name: &str,
@@ -354,7 +314,7 @@ impl ContainerTestHarness {
                         format!("{}/tcp", container_port),
                         Some(vec![bollard::service::PortBinding {
                             host_ip: Some("127.0.0.1".to_string()),
-                            host_port: Some("0".to_string()), // 0 means Docker assigns random available port
+                            host_port: Some("0".to_string()),
                         }]),
                     )]
                     .into_iter()
@@ -379,8 +339,6 @@ impl ContainerTestHarness {
         Ok(container.id)
     }
 
-    /// Get the dynamically assigned host port for a container
-    /// Returns the host port that maps to the given container port
     pub async fn get_host_port(&self, container_id: &str, container_port: u16) -> Result<u16> {
         let inspect = self
             .docker
@@ -403,16 +361,14 @@ impl ContainerTestHarness {
             .context("Failed to parse host port as u16")
     }
 
-    /// Wait for a port to become accessible with timeout
     pub async fn wait_for_port(
         &self,
         container_id: &str,
         port: u16,
-        timeout_duration: Duration,
+        timeout_duration: std::time::Duration,
     ) -> Result<()> {
         let check = async {
             loop {
-                // Try to connect to the port
                 if tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
                     .await
                     .is_ok()
@@ -420,7 +376,6 @@ impl ContainerTestHarness {
                     return Ok(());
                 }
 
-                // Check if container is still running
                 let inspect = self.docker.inspect_container(container_id, None).await?;
                 if inspect.state.and_then(|s| s.running) != Some(true) {
                     anyhow::bail!("Container stopped before port became accessible");
@@ -430,17 +385,16 @@ impl ContainerTestHarness {
             }
         };
 
-        timeout(timeout_duration, check)
+        tokio::time::timeout(timeout_duration, check)
             .await
             .context("Timeout waiting for port")?
     }
 
-    /// Perform HTTP health check with retries
     pub async fn http_health_check(
         &self,
         port: u16,
         path: &str,
-        timeout_duration: Duration,
+        timeout_duration: std::time::Duration,
     ) -> Result<bool> {
         let url = format!("http://127.0.0.1:{}{}", port, path);
         let client = reqwest::Client::builder()
@@ -451,19 +405,19 @@ impl ContainerTestHarness {
             loop {
                 match client.get(&url).send().await {
                     Ok(response) if response.status().is_success() => return Ok(true),
-                    Ok(_) => return Ok(false), // Non-2xx status
+                    Ok(_) => return Ok(false),
                     Err(_) => {
-                        // Connection error, retry
                         tokio::time::sleep(Duration::from_millis(200)).await;
                     }
                 }
             }
         };
 
-        timeout(timeout_duration, check).await.unwrap_or(Ok(false))
+        tokio::time::timeout(timeout_duration, check)
+            .await
+            .unwrap_or(Ok(false))
     }
 
-    /// Stop and remove a container
     pub async fn cleanup_container(&self, container_id: &str) -> Result<()> {
         self.docker
             .remove_container(
@@ -478,13 +432,11 @@ impl ContainerTestHarness {
         Ok(())
     }
 
-    /// Remove an image
     pub async fn cleanup_image(&self, image_name: &str) -> Result<()> {
         let _ = self.docker.remove_image(image_name, None, None).await;
         Ok(())
     }
 
-    /// Get container logs
     pub async fn get_container_logs(&self, container_id: &str) -> Result<String> {
         let logs_options = LogsOptions::<String> {
             stdout: true,

@@ -16,3 +16,19 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+# Project Guidelines
+
+## 1. Comment and Documentation Policy
+- **NO UNNECESSARY COMMENTS**: Code must be self-documenting.
+- **MANDATORY COMMENT REMOVAL**: Remove all "todo", "debug", or temporary comments before committing.
+- **EXCEPTIONS**: Only for truly complex logic, security, or mandatory BDD comments.
+
+## 2. LLM Testing Safety
+- **CUDA IS MANDATORY**: LLM tests **MUST NEVER** run without `--features cuda` locally. Parallel CPU inference will crash the host.
+- **SERIAL GROUPS**: Sensitive tests (Docker, LLM) must use `serial-tests` group in `nextest.toml`.
+- **ISOLATED CACHE**: Use unique `PEELBOX_CACHE_DIR` per test process.
+
+## 3. Tooling
+- Use `cargo-nextest` for execution.
+- Use `cargo-llvm-cov` for coverage (always `clean` first).

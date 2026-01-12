@@ -132,6 +132,8 @@ pub fn run_detection_with_mode(
             .expect("Failed to copy test APKINDEX to temp cache");
     }
 
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
     let git_dir = fixture.join(".git");
     if !git_dir.exists() {
         std::fs::create_dir_all(&git_dir).ok();

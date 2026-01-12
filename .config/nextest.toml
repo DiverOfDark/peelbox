@@ -8,5 +8,5 @@ junit = { path = "junit.xml" }
 serial-tests = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'test(container_) | test(e2e) | test(llm_)'
+filter = 'test(container_) | test(e2e) | test(llm_) | binary(container_buildkit) | binary(container_e2e) | binary(llm_e2e) | binary(llm_embedded) | binary(static_e2e)'
 test-group = 'serial-tests'

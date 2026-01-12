@@ -85,6 +85,18 @@ impl EmbeddedClient {
             Err(e) => return Err(e),
         };
 
+        if device.is_cpu() {
+            let current_caps = HardwareDetector::detect();
+            let free_ram = current_caps.available_ram_gb();
+            if free_ram < 4.0 {
+                anyhow::bail!(
+                    "Insufficient RAM remaining after loading model on CPU ({:.1}GB free). \
+                     At least 4GB free RAM is required for system stability during CPU inference.",
+                    free_ram
+                );
+            }
+        }
+
         info!("Embedded client ready: {}", model_info.display_name);
 
         Ok(Self {
