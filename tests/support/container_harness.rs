@@ -10,8 +10,9 @@ use testcontainers::runners::AsyncRunner;
 use testcontainers::{ContainerAsync, GenericImage, ImageExt};
 use tokio::sync::OnceCell;
 
-static BUILDKIT_CONTAINER: OnceCell<Arc<Option<(u16, String, ContainerAsync<GenericImage>)>>> =
-    OnceCell::const_new();
+type BuildKitContainerCell = Arc<Option<(u16, String, ContainerAsync<GenericImage>)>>;
+
+static BUILDKIT_CONTAINER: OnceCell<BuildKitContainerCell> = OnceCell::const_new();
 
 const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 
@@ -19,37 +20,34 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
     let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
 
     for attempt in 0..10 {
-        match docker
+        if let Ok(inspect) = docker
             .inspect_container(BUILDKIT_CONTAINER_NAME, None)
             .await
         {
-            Ok(inspect) => {
-                if inspect.state.and_then(|s| s.running) == Some(true) {
-                    let port = inspect
-                        .network_settings
-                        .and_then(|ns| ns.ports)
-                        .and_then(|ports| ports.get("1234/tcp").cloned())
-                        .and_then(|bindings| bindings)
-                        .and_then(|mut b| b.pop())
-                        .and_then(|binding| binding.host_port)
-                        .and_then(|port| port.parse::<u16>().ok())
-                        .context("Failed to get BuildKit port from existing container")?;
+            if inspect.state.and_then(|s| s.running) == Some(true) {
+                let port = inspect
+                    .network_settings
+                    .and_then(|ns| ns.ports)
+                    .and_then(|ports| ports.get("1234/tcp").cloned())
+                    .and_then(|bindings| bindings)
+                    .and_then(|mut b| b.pop())
+                    .and_then(|binding| binding.host_port)
+                    .and_then(|port| port.parse::<u16>().ok())
+                    .context("Failed to get BuildKit port from existing container")?;
 
-                    let container_id = inspect.id.context("Container ID missing")?;
-                    return Ok((port, container_id));
-                } else if attempt == 0 {
-                    let _ = docker
-                        .remove_container(
-                            BUILDKIT_CONTAINER_NAME,
-                            Some(RemoveContainerOptions {
-                                force: true,
-                                ..Default::default()
-                            }),
-                        )
-                        .await;
-                }
+                let container_id = inspect.id.context("Container ID missing")?;
+                return Ok((port, container_id));
+            } else if attempt == 0 {
+                let _ = docker
+                    .remove_container(
+                        BUILDKIT_CONTAINER_NAME,
+                        Some(RemoveContainerOptions {
+                            force: true,
+                            ..Default::default()
+                        }),
+                    )
+                    .await;
             }
-            Err(_) => {}
         }
 
         if let Some(arc_opt) = BUILDKIT_CONTAINER.get() {
