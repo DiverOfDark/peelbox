@@ -50,7 +50,8 @@ jobs:
 
       - name: Compile everything with coverage
         run: |
-          cargo llvm-cov nextest --no-run --release --no-default-features --profile ci
+          export RUSTFLAGS="-C instrument-coverage"
+          cargo test --no-run --release --no-default-features
 
       - name: Build release binary
         run: |
