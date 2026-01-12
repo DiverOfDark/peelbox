@@ -173,7 +173,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
-          path: integration-test-results.xml
+          path: "**/junit.xml"
+          if-no-files-found: error
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
