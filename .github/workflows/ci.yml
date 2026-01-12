@@ -30,17 +30,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy, llvm-tools-preview
-
-      - name: Install cargo-nextest and cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest,cargo-llvm-cov
+          components: rustfmt, clippy
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: peelbox
+          shared-key: build
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -48,23 +43,9 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --no-default-features -- -D warnings
 
-      - name: Compile everything with coverage
-        run: |
-          export RUSTFLAGS="-C instrument-coverage"
-          cargo test --no-run --release --no-default-features
-
       - name: Build release binary
         run: |
           cargo build --release --no-default-features --verbose
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: |
-            target/
-            !target/**/*.profraw
-          retention-days: 1
 
       - name: Upload release binary
         uses: actions/upload-artifact@v4
@@ -82,12 +63,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: .
-
       - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -102,6 +77,14 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: nextest,cargo-llvm-cov
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: unit-test
+
+      - name: Clean coverage data
+        run: cargo llvm-cov clean --workspace
 
       - name: Run unit tests
         env:
@@ -133,12 +116,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: .
-
       - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -153,6 +130,14 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: nextest,cargo-llvm-cov
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: integration-test
+
+      - name: Clean coverage data
+        run: cargo llvm-cov clean --workspace
 
       - name: Install buildctl
         run: |
@@ -244,11 +229,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download build artifacts
+      - name: Download release binary
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
-          path: .
+          name: peelbox-release-binary
+          path: target/release/
 
       - name: Make peelbox executable
         run: chmod +x target/release/peelbox
