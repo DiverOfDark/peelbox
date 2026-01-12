@@ -113,6 +113,25 @@ pub fn load_expected(
     }
 }
 
+/// RAII guard for temporary directory cleanup
+struct AutoCleanupDir {
+    path: PathBuf,
+}
+
+impl AutoCleanupDir {
+    fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+}
+
+impl Drop for AutoCleanupDir {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+}
+
 /// Helper to run detection with specified mode
 #[allow(dead_code)]
 pub fn run_detection_with_mode(
@@ -122,6 +141,9 @@ pub fn run_detection_with_mode(
 ) -> Result<Vec<UniversalBuild>, String> {
     let temp_cache_dir =
         std::env::temp_dir().join(format!("peelbox-cache-{}", uuid::Uuid::new_v4()));
+    // Ensure cleanup happens when this guard is dropped (end of function)
+    let _cleanup_guard = AutoCleanupDir::new(temp_cache_dir.clone());
+
     let apkindex_cache_dir = temp_cache_dir.join("apkindex");
     std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
 
@@ -304,6 +326,9 @@ pub async fn run_container_integration_test(
 ) -> Result<(), String> {
     let temp_cache_dir =
         std::env::temp_dir().join(format!("peelbox-cache-container-{}", uuid::Uuid::new_v4()));
+    // Ensure cleanup happens when this guard is dropped
+    let _cleanup_guard = AutoCleanupDir::new(temp_cache_dir.clone());
+
     let apkindex_cache_dir = temp_cache_dir.join("apkindex");
     std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
 

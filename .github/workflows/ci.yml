@@ -113,6 +113,18 @@ jobs:
     needs: build
 
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          # Free up space for integration tests
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false # Keep Docker images as we need them
+          swap-storage: false
+
       - name: Checkout code
         uses: actions/checkout@v4
 
