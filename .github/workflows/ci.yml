@@ -16,9 +16,8 @@ env:
 
 jobs:
   build:
-    name: Build Release Binary
+    name: Build & Prepare
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,7 +30,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Install cargo-nextest and cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest,cargo-llvm-cov
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -44,15 +48,29 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --no-default-features -- -D warnings
 
+      - name: Compile everything with coverage
+        run: |
+          cargo llvm-cov nextest --no-run --release --no-default-features --profile ci
+
       - name: Build release binary
-        run: cargo build --release --no-default-features --verbose
+        run: |
+          cargo build --release --no-default-features --verbose
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            target/
+            !target/**/*.profraw
+          retention-days: 1
 
       - name: Upload release binary
         uses: actions/upload-artifact@v4
         with:
           name: peelbox-release-binary
           path: target/release/peelbox
-          retention-days: 30
+          retention-days: 1
 
   unit-test:
     name: Run Unit Tests
