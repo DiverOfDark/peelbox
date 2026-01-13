@@ -105,7 +105,7 @@ jobs:
         env:
           NEXTEST_JUNIT_PATH: junit.xml
         run: |
-          cargo llvm-cov nextest --lib --bins --release --no-default-features --profile ci --no-report --verbose
+          cargo llvm-cov nextest --lib --bins --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
       - name: Upload test results
         if: always()
@@ -203,7 +203,7 @@ jobs:
           NEXTEST_JUNIT_PATH: junit.xml
         run: |
           # Run all integration tests from tests/*.rs
-          cargo llvm-cov nextest --test '*' --release --no-default-features --profile ci --no-report --verbose
+          cargo llvm-cov nextest --test '*' --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
       - name: Upload integration test results
         if: always()
