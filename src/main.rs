@@ -148,9 +148,13 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
         |client: Arc<dyn peelbox::llm::LLMClient>| -> Arc<dyn peelbox::llm::LLMClient> {
             if std::env::var("PEELBOX_ENABLE_RECORDING").is_ok() {
                 let recordings_dir = std::path::PathBuf::from("tests/recordings");
-                match RecordingLLMClient::new(client.clone(), RecordingMode::Auto, recordings_dir) {
+                let mode = RecordingMode::from_env(RecordingMode::Auto);
+                match RecordingLLMClient::new(client.clone(), mode, recordings_dir) {
                     Ok(recording_client) => {
-                        debug!("Recording enabled, using tests/recordings/ directory");
+                        debug!(
+                            "Recording enabled, using tests/recordings/ directory (mode: {:?})",
+                            mode
+                        );
                         return Arc::new(recording_client) as Arc<dyn peelbox::llm::LLMClient>;
                     }
                     Err(e) => {

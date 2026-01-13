@@ -241,10 +241,30 @@ impl LLMClient for RecordingLLMClient {
                     return Ok(response);
                 }
 
+                // Dump the request to help debugging
+                let dump_path = self.recordings_dir.join(format!(
+                    "MISSING_{}.json",
+                    TestContext::current_test_name().unwrap_or_else(|| "unknown_test".to_string())
+                ));
+                let _ = std::fs::write(
+                    &dump_path,
+                    serde_json::to_string_pretty(&recorded_request).unwrap_or_default(),
+                );
+
+                let dump_path = self.recordings_dir.join(format!(
+                    "MISSING_{}.json",
+                    TestContext::current_test_name().unwrap_or_else(|| "unknown_test".to_string())
+                ));
+                let _ = std::fs::write(
+                    &dump_path,
+                    serde_json::to_string_pretty(&recorded_request).unwrap_or_default(),
+                );
+
                 Err(BackendError::Other {
                     message: format!(
-                        "No recording found for request hash: {} (mode: Replay)",
-                        request_hash
+                        "No recording found for request hash: {} (mode: Replay). Dumped request to {}",
+                        request_hash,
+                        dump_path.display()
                     ),
                 })
             }

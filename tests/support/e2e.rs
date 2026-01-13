@@ -165,7 +165,10 @@ pub fn run_detection_with_mode(
     cmd.env("PEELBOX_PROVIDER", "embedded")
         .env("PEELBOX_MODEL_SIZE", "7B")
         .env("PEELBOX_ENABLE_RECORDING", "1")
-        .env("PEELBOX_RECORDING_MODE", "auto")
+        .env(
+            "PEELBOX_RECORDING_MODE",
+            std::env::var("PEELBOX_RECORDING_MODE").unwrap_or_else(|_| "auto".to_string()),
+        )
         .env("PEELBOX_TEST_NAME", test_name)
         .env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
 
