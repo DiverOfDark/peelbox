@@ -405,7 +405,7 @@ jobs:
 
       - name: Generate coverage report
         run: |
-          cargo llvm-cov report --release --xml --output-path cobertura.xml
+          cargo llvm-cov report --release --cobertura --output-path cobertura.xml
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
