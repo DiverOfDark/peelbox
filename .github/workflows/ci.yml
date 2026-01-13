@@ -41,7 +41,7 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -93,10 +93,10 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-cargo-unittest-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-unittest-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-unittest-
-            ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+            ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
 
       - name: Clean coverage data
         run: cargo llvm-cov clean --workspace
@@ -116,6 +116,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload coverage data
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-coverage
@@ -167,10 +168,10 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-integration-
-            ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+            ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
 
       - name: Clean coverage data
         run: cargo llvm-cov clean --workspace
@@ -214,6 +215,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload coverage data
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-coverage
@@ -376,6 +378,7 @@ jobs:
     name: Code Coverage Report
     runs-on: ubuntu-latest
     needs: [unit-test, integration-test]
+    if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -416,6 +419,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [unit-test, integration-test]
     if: always()
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     steps:
       - name: Download unit test results
         uses: actions/download-artifact@v4
@@ -432,4 +439,4 @@ jobs:
       - name: Publish Test Report
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: "*.xml"
+          files: "**/*.xml"
