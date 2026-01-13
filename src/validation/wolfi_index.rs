@@ -181,21 +181,27 @@ impl WolfiPackageIndex {
     }
 
     fn cache_path() -> Result<PathBuf> {
-        let cache_dir = dirs::cache_dir()
-            .context("Failed to get user cache directory")?
-            .join("peelbox")
-            .join("apkindex");
+        let base_dir = if let Ok(d) = std::env::var("PEELBOX_CACHE_DIR") {
+            PathBuf::from(d)
+        } else {
+            dirs::cache_dir()
+                .context("Failed to get user cache directory")?
+                .join("peelbox")
+        };
 
-        Ok(cache_dir.join("APKINDEX.tar.gz"))
+        Ok(base_dir.join("apkindex").join("APKINDEX.tar.gz"))
     }
 
     fn parsed_cache_path() -> Result<PathBuf> {
-        let cache_dir = dirs::cache_dir()
-            .context("Failed to get user cache directory")?
-            .join("peelbox")
-            .join("apkindex");
+        let base_dir = if let Ok(d) = std::env::var("PEELBOX_CACHE_DIR") {
+            PathBuf::from(d)
+        } else {
+            dirs::cache_dir()
+                .context("Failed to get user cache directory")?
+                .join("peelbox")
+        };
 
-        Ok(cache_dir.join("packages.bin"))
+        Ok(base_dir.join("apkindex").join("packages.bin"))
     }
 
     fn load_parsed_cache(
