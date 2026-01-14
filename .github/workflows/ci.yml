@@ -22,6 +22,7 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
+      id-token: write
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
@@ -120,6 +121,7 @@ jobs:
           fail_ci_if_error: false
           files: cobertura.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
 
       - name: Upload test results
         if: success() || failure()
