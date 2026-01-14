@@ -97,17 +97,8 @@ jobs:
         run: cargo llvm-cov clean --workspace
 
       - name: Run unit tests
-        env:
-          NEXTEST_JUNIT_PATH: unit-junit.xml
         run: |
-          cargo llvm-cov nextest --lib --bins --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
-
-      - name: Run integration tests
-        if: success() || failure()
-        env:
-          NEXTEST_JUNIT_PATH: integration-junit.xml
-        run: |
-          cargo llvm-cov nextest --test '*' --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
+          cargo llvm-cov nextest --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
       - name: Generate coverage report
         if: success() || failure()
@@ -123,19 +114,11 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           use_oidc: true
 
-      - name: Upload test results
-        if: success() || failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: "*-junit.xml"
-          if-no-files-found: ignore
-
       - name: Publish Test Report
         if: success() || failure()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: "*-junit.xml"
+          files: "target/nextest/ci/junit.xml"
 
       - name: Build release binary
         if: success()

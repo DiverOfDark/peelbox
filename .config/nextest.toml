@@ -1,8 +1,8 @@
 [profile.default]
 slow-timeout = { period = "300s", terminate-after = 3 }
 
-[profile.ci]
-junit = { path = "junit.xml" }
+[profile.ci.junit]
+path = "junit.xml"
 
 [test-groups]
 serial-tests = { max-threads = 1 }
