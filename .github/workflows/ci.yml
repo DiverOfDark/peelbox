@@ -15,130 +15,19 @@ env:
   PEELBOX_DETECTION_MODE: static
 
 jobs:
-  build:
-    name: Build & Prepare
+  build-and-test:
+    name: Build, Test & Coverage
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --no-default-features -- -D warnings
-
-      - name: Build release binary
-        run: |
-          cargo build --release --no-default-features --verbose
-
-      - name: Upload release binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: peelbox-release-binary
-          path: target/release/peelbox
-          retention-days: 1
-
-  unit-test:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-
-      - name: Install cargo-nextest and cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest,cargo-llvm-cov
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            target
-          key: ${{ runner.os }}-cargo-unittest-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-unittest-
-            ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-
-      - name: Clean coverage data
-        run: cargo llvm-cov clean --workspace
-
-      - name: Run unit tests
-        env:
-          NEXTEST_JUNIT_PATH: junit.xml
-        run: |
-          cargo llvm-cov nextest --lib --bins --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: "**/junit.xml"
-          if-no-files-found: error
-
-      - name: Upload coverage data
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-coverage
-          path: "target/llvm-cov-target/**/*.profraw"
-          if-no-files-found: ignore
-
-  integration-test:
-    name: Run Integration Tests
-    runs-on: ubuntu-latest
-    needs: build
-
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
-          # Free up space for integration tests
           tool-cache: false
           android: true
           dotnet: true
           haskell: true
           large-packages: true
-          docker-images: false # Keep Docker images as we need them
+          docker-images: false
           swap-storage: false
 
       - name: Checkout code
@@ -152,12 +41,20 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: llvm-tools-preview
+          components: rustfmt, clippy, llvm-tools-preview
 
       - name: Install cargo-nextest and cargo-llvm-cov
         uses: taiki-e/install-action@v2
         with:
           tool: nextest,cargo-llvm-cov
+
+      - name: Install buildctl
+        run: |
+          BUILDKIT_VERSION=v0.16.0
+          wget -q https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
+          tar xzf buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
+          sudo install bin/buildctl /usr/local/bin/
+          buildctl --version
 
       - name: Cache Rust dependencies
         uses: actions/cache@v4
@@ -168,21 +65,7 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: ${{ runner.os }}-cargo-integration-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-integration-
-            ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-
-      - name: Clean coverage data
-        run: cargo llvm-cov clean --workspace
-
-      - name: Install buildctl
-        run: |
-          BUILDKIT_VERSION=v0.16.0
-          wget -q https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
-          tar xzf buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
-          sudo install bin/buildctl /usr/local/bin/
-          buildctl --version
+          key: ${{ runner.os }}-cargo-ci-${{ hashFiles('Cargo.lock') }}
 
       - name: Restore BuildKit cache
         id: cache-buildkit
@@ -199,34 +82,66 @@ jobs:
           mkdir -p .buildkit-cache
           sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
 
-      - name: Run all integration tests
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --no-default-features -- -D warnings
+
+      - name: Clean coverage data
+        run: cargo llvm-cov clean --workspace
+
+      - name: Run unit tests
         env:
-          NEXTEST_JUNIT_PATH: junit.xml
+          NEXTEST_JUNIT_PATH: unit-junit.xml
         run: |
-          # Run all integration tests from tests/*.rs
+          cargo llvm-cov nextest --lib --bins --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
+
+      - name: Run integration tests
+        if: success() || failure()
+        env:
+          NEXTEST_JUNIT_PATH: integration-junit.xml
+        run: |
           cargo llvm-cov nextest --test '*' --release --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
-      - name: Upload integration test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-test-results
-          path: "**/junit.xml"
-          if-no-files-found: error
+      - name: Generate coverage report
+        if: success() || failure()
+        run: |
+          cargo llvm-cov report --release --cobertura --output-path cobertura.xml
 
-      - name: Upload coverage data
-        if: always()
+      - name: Upload to Codecov
+        if: success() || failure()
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
+          files: cobertura.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
-          name: integration-test-coverage
-          path: "target/llvm-cov-target/**/*.profraw"
+          name: test-results
+          path: "*-junit.xml"
           if-no-files-found: ignore
+
+      - name: Build release binary
+        if: success()
+        run: |
+          # Clean build for release binary (to avoid using instrumented artifacts)
+          cargo build --release --no-default-features --verbose
+
+      - name: Upload release binary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: peelbox-release-binary
+          path: target/release/peelbox
+          retention-days: 1
 
       - name: Create BuildKit cache archive
         if: always()
         run: |
-          # Create tar archive with sudo to handle root-owned files
-          # Cache the archive file instead of the directory to avoid permission issues
           if [ -d .buildkit-cache ]; then
             sudo tar -cf .buildkit-cache.tar.zst --zstd -C .buildkit-cache . || true
             sudo chown $USER:$USER .buildkit-cache.tar.zst || true
@@ -235,7 +150,6 @@ jobs:
       - name: Upload new recording files
         if: always()
         run: |
-          # Find all uncommitted files in tests/recordings/
           git status --porcelain tests/recordings/ > /tmp/new_recordings.txt
           if [ -s /tmp/new_recordings.txt ]; then
             echo "New recording files created during tests:"
@@ -253,16 +167,35 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  publish-results:
+    name: Publish Test Results
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: always()
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          if-no-files-found: ignore
+
+      - name: Publish Test Report
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: "*-junit.xml"
+
   docker:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: [unit-test, integration-test]
+    needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -281,7 +214,6 @@ jobs:
 
       - name: Install buildctl
         run: |
-          # Download buildctl binary
           BUILDKIT_VERSION=v0.16.0
           wget -q https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
           tar xzf buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
@@ -311,7 +243,6 @@ jobs:
             moby/buildkit:latest \
             --addr tcp://0.0.0.0:1234
 
-          # Wait for BuildKit to be ready (up to 60s)
           echo "Waiting for BuildKit to start..."
           timeout 60 sh -c 'until buildctl --addr tcp://127.0.0.1:1234 debug workers >/dev/null 2>&1; do echo -n "."; sleep 2; done' || {
             echo "BuildKit failed to start within 60s"
@@ -344,18 +275,13 @@ jobs:
 
       - name: Tag and push image
         run: |
-          # Lowercase repository owner for GHCR
           REPO_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-
-          # Generate timestamp once to use for both tagging and pushing
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
-          # Tag with multiple versions
           docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:latest
           docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
           docker tag peelbox:latest ghcr.io/${REPO_OWNER}/peelbox:${TIMESTAMP}
 
-          # Push all tags
           docker push ghcr.io/${REPO_OWNER}/peelbox:latest
           docker push ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
           docker push ghcr.io/${REPO_OWNER}/peelbox:${TIMESTAMP}
@@ -363,8 +289,6 @@ jobs:
       - name: Create BuildKit cache archive
         if: always()
         run: |
-          # Create tar archive with sudo to handle root-owned files
-          # Cache the archive file instead of the directory to avoid permission issues
           if [ -d .buildkit-cache ]; then
             sudo tar -cf .buildkit-cache.tar.zst --zstd -C .buildkit-cache . || true
             sudo chown $USER:$USER .buildkit-cache.tar.zst || true
@@ -373,89 +297,3 @@ jobs:
       - name: Cleanup BuildKit
         if: always()
         run: docker rm -f buildkitd || true
-
-  coverage:
-    name: Code Coverage Report
-    runs-on: ubuntu-latest
-    needs: [unit-test, integration-test]
-    if: always()
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: llvm-tools-preview
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-            target
-          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-integration-
-            ${{ runner.os }}-cargo-unittest-
-            ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
-
-      - name: Download unit test coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: unit-test-coverage
-          path: target/llvm-cov-target
-
-      - name: Download integration test coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-test-coverage
-          path: target/llvm-cov-target
-
-      - name: Generate coverage report
-        run: |
-          # Rebuild binaries so llvm-cov can find object files
-          cargo llvm-cov --no-run --release --workspace --tests --bins --lib
-          cargo llvm-cov report --release --cobertura --output-path cobertura.xml
-
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: false
-          files: cobertura.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  publish-results:
-    name: Publish Test Results
-    runs-on: ubuntu-latest
-    needs: [unit-test, integration-test]
-    if: always()
-    permissions:
-      contents: read
-      checks: write
-      pull-requests: write
-    steps:
-      - name: Download unit test results
-        uses: actions/download-artifact@v4
-        with:
-          name: unit-test-results
-          path: test-results/unit
-          if-no-files-found: ignore
-
-      - name: Download integration test results
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-test-results
-          path: test-results/integration
-          if-no-files-found: ignore
-
-      - name: Publish Test Report
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: "test-results/**/*.xml"
