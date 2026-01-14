@@ -391,6 +391,21 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-integration-
+            ${{ runner.os }}-cargo-unittest-
+            ${{ runner.os }}-cargo-build-${{ hashFiles('Cargo.lock') }}
+
       - name: Download unit test coverage
         uses: actions/download-artifact@v4
         with:
@@ -405,6 +420,8 @@ jobs:
 
       - name: Generate coverage report
         run: |
+          # Rebuild binaries so llvm-cov can find object files
+          cargo llvm-cov --no-run --release --workspace --tests --bins --lib
           cargo llvm-cov report --release --cobertura --output-path cobertura.xml
 
       - name: Upload to Codecov
