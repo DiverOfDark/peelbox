@@ -103,7 +103,7 @@ jobs:
       - name: Generate coverage report
         if: success() || failure()
         run: |
-          cargo llvm-cov report --release --cobertura --output-path cobertura.xml
+          cargo llvm-cov report --cobertura --output-path cobertura.xml
 
       - name: Upload to Codecov
         if: success() || failure()
