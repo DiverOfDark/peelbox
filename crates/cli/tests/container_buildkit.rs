@@ -26,7 +26,12 @@ async fn get_or_build_peelbox_image() -> Result<String> {
     let temp_dir = std::env::temp_dir().join(format!("peelbox-itest-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("universalbuild.json");
-    let context_path = std::env::current_dir()?;
+    let context_path = std::env::current_dir()?
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
 
     let spec = serde_json::json!({
         "version": "1.0",
@@ -34,7 +39,7 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         "build": {
             "packages": ["rust-1.92", "build-base", "openssl-dev", "pkgconf", "protoc"],
             "commands": [
-                "mkdir -p /build && cp -r /context/. /build && cd /build && cargo build --release --no-default-features"
+                "mkdir -p /build && cp -r /context/. /build && cd /build && cargo build --release --no-default-features -p peelbox-cli"
             ],
             "cache": ["/root/.cargo/registry", "/root/.cargo/git", "/build/target"]
         },

@@ -603,7 +603,7 @@ impl BuildSession {
                             Err(e) => {
                                 error!("BuildKit Solve RPC error: status={:?}, message={}", e.code(), e.message());
                                 error!("Full error: {:?}", e);
-                                return Err(anyhow::anyhow!("Failed to submit build to BuildKit: {}", e));
+                                return Err(anyhow::anyhow!("Failed to submit build to BuildKit: status: {}, message: \"{}\"", e.code(), e.message()));
                             }
                         }
                     }
@@ -627,7 +627,11 @@ impl BuildSession {
                         e.message()
                     );
                     error!("Full error: {:?}", e);
-                    anyhow::anyhow!("Failed to submit build to BuildKit: {}", e)
+                    anyhow::anyhow!(
+                        "Failed to submit build to BuildKit: status: {}, message: \"{}\"",
+                        e.code(),
+                        e.message()
+                    )
                 })?
                 .into_inner()
         };
