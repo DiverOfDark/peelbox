@@ -176,10 +176,7 @@ impl LLBBuilder {
 
         // Generate a shared key that includes the context path hash to prevent collisions
         // when multiple projects have the same name but different source directories.
-        let base_key = self
-            .project_name
-            .as_deref()
-            .unwrap_or(&self.context_name);
+        let base_key = self.project_name.as_deref().unwrap_or(&self.context_name);
 
         let path_hash = if let Some(path) = &self.context_path {
             format!("{:x}", Sha256::digest(path.to_string_lossy().as_bytes()))
