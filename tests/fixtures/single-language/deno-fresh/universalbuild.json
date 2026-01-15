@@ -1,7 +1,6 @@
 [
   {
     "build": {
-      "artifacts": [],
       "cache": [],
       "commands": [
         "deno run -A dev.ts build"

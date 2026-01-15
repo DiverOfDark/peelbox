@@ -1,0 +1,19 @@
+{
+  "request_hash": "afb58dacbe84f2d5720977cc6ccb2401",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: gradle-multiproject\nFile tree summary:\nRoot files: build.gradle, settings.gradle, universalbuild.json\nExtensions: {\"gradle\": 5, \"java\": 4, \"json\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY:\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"build.gradle\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Groovy\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"settings.gradle\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Groovy\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"JSON\",\n    \"language\": \"None\",\n    \"confidence\": 1.00\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1523
+  },
+  "recorded_at": "2026-01-13T19:05:21.559301596+00:00"
+}

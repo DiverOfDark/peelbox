@@ -14,7 +14,9 @@
       "packages": [
         "rust-1.92",
         "build-base",
-        "openssl-dev"
+        "openssl-dev",
+        "pkgconf",
+        "protoc"
       ]
     },
     "metadata": {

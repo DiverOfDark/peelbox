@@ -1,9 +1,10 @@
 use crate::llm::{BackendError, ChatMessage, LLMClient, LLMRequest, LLMResponse, TestContext};
 use anyhow::{Context, Result};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordingMode {
@@ -47,8 +48,18 @@ pub struct RecordedRequest {
 
 impl RecordedRequest {
     pub fn from_llm_request(req: &LLMRequest, model: Option<String>) -> Self {
+        let messages = req
+            .messages
+            .iter()
+            .map(|msg| {
+                let mut m = msg.clone();
+                m.content = Self::normalize_content(&m.content);
+                m
+            })
+            .collect();
+
         Self {
-            messages: req.messages.clone(),
+            messages,
             tools: req
                 .tools
                 .iter()
@@ -62,6 +73,36 @@ impl RecordedRequest {
                 .collect(),
             model,
         }
+    }
+
+    fn normalize_content(content: &str) -> String {
+        let mut normalized = content.to_string();
+
+        // Replace current working directory with a placeholder to ensure determinism across different environments
+        if let Ok(cwd) = std::env::current_dir() {
+            let cwd_str = cwd.to_string_lossy().to_string();
+            if !cwd_str.is_empty() && cwd_str != "/" {
+                normalized = normalized.replace(&cwd_str, "[REPO_ROOT]");
+            }
+        }
+
+        // Normalize /tmp paths (e.g. /tmp/.tmpXXXXXX)
+        static TEMP_PATH_REGEX: OnceLock<Regex> = OnceLock::new();
+        let temp_re = TEMP_PATH_REGEX.get_or_init(|| {
+            // Match /tmp/ followed by path characters
+            Regex::new(r"/tmp/[\w\-\./]+").expect("Invalid temp path regex")
+        });
+        normalized = temp_re.replace_all(&normalized, "[TEMP_DIR]").to_string();
+
+        // Normalize UUIDs
+        static UUID_REGEX: OnceLock<Regex> = OnceLock::new();
+        let uuid_re = UUID_REGEX.get_or_init(|| {
+            Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                .expect("Invalid UUID regex")
+        });
+        normalized = uuid_re.replace_all(&normalized, "[UUID]").to_string();
+
+        normalized
     }
 
     pub fn canonical_hash(&self) -> String {
@@ -200,10 +241,30 @@ impl LLMClient for RecordingLLMClient {
                     return Ok(response);
                 }
 
+                // Dump the request to help debugging
+                let dump_path = self.recordings_dir.join(format!(
+                    "MISSING_{}.json",
+                    TestContext::current_test_name().unwrap_or_else(|| "unknown_test".to_string())
+                ));
+                let _ = std::fs::write(
+                    &dump_path,
+                    serde_json::to_string_pretty(&recorded_request).unwrap_or_default(),
+                );
+
+                let dump_path = self.recordings_dir.join(format!(
+                    "MISSING_{}.json",
+                    TestContext::current_test_name().unwrap_or_else(|| "unknown_test".to_string())
+                ));
+                let _ = std::fs::write(
+                    &dump_path,
+                    serde_json::to_string_pretty(&recorded_request).unwrap_or_default(),
+                );
+
                 Err(BackendError::Other {
                     message: format!(
-                        "No recording found for request hash: {} (mode: Replay)",
-                        request_hash
+                        "No recording found for request hash: {} (mode: Replay). Dumped request to {}",
+                        request_hash,
+                        dump_path.display()
                     ),
                 })
             }
