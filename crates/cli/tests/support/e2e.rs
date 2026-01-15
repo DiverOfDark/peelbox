@@ -349,59 +349,28 @@ pub async fn run_container_integration_test(
         .ok_or_else(|| format!("No container info found for fixture {}", fixture_name))?;
 
     // Use committed universalbuild.json directly
-    let original_spec_path = fixture_path.join("universalbuild.json");
+    let spec_path = fixture_path.join("universalbuild.json");
 
-    if !original_spec_path.exists() {
+    if !spec_path.exists() {
         return Err(format!(
             "universalbuild.json not found for fixture {}",
             fixture_name
         ));
     }
 
-    // Create a temporary modified spec with unique project_name to prevent BuildKit context collisions
-    // and unique output tag to prevent parallel test conflicts
-    let spec_content = std::fs::read_to_string(&original_spec_path)
-        .map_err(|e| format!("Failed to read universalbuild.json: {}", e))?;
-
-    // Handle both single object and array formats
-    let mut specs: Vec<UniversalBuild> = serde_json::from_str(&spec_content)
-        .or_else(|_| serde_json::from_str::<UniversalBuild>(&spec_content).map(|single| vec![single]))
-        .map_err(|e| format!("Failed to parse universalbuild.json: {}", e))?;
-
-    // Inject unique suffix into project_name
-    let unique_suffix = uuid::Uuid::new_v4().to_string();
-    for spec in &mut specs {
-        if let Some(project_name) = &spec.metadata.project_name {
-            spec.metadata.project_name = Some(format!("{}-{}", project_name, unique_suffix));
-        }
-    }
-
-    let temp_spec_path = temp_cache_dir.join("universalbuild_modified.json");
-    let modified_json = if specs.len() == 1 {
-        serde_json::to_string_pretty(&specs[0])
-    } else {
-        serde_json::to_string_pretty(&specs)
-    }
-    .map_err(|e| format!("Failed to serialize modified spec: {}", e))?;
-
-    std::fs::write(&temp_spec_path, modified_json)
-        .map_err(|e| format!("Failed to write modified spec: {}", e))?;
-
     // Build and test container
     let harness =
         ContainerTestHarness::new().map_err(|e| format!("Failed to create harness: {}", e))?;
 
-    // Use unique tag for this test execution
     let image_name = format!(
-        "localhost/peelbox-test-{}-{}-{}",
+        "localhost/peelbox-test-{}-{}:latest",
         category.replace("/", "-"),
-        fixture_name,
-        unique_suffix
+        fixture_name
     );
 
     let image = harness
         .build_image(
-            &temp_spec_path,
+            &spec_path,
             &fixture_path,
             &image_name,
             Some(&temp_cache_dir),
