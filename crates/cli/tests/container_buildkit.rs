@@ -4,7 +4,6 @@ use bollard::container::LogsOptions;
 use bollard::container::{RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
 use bollard::Docker;
 use futures_util::StreamExt;
-use serial_test::serial;
 use std::path::Path;
 
 mod support;
