@@ -88,7 +88,7 @@ fn parse_level(level_str: &str) -> Level {
     }
 }
 
-async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
+async fn handle_detect(args: &DetectArgs, quiet: bool, _verbose: bool) -> i32 {
     info!("Starting build system detection");
 
     let repo_path = args

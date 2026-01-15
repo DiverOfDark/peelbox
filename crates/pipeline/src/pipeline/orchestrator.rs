@@ -12,6 +12,12 @@ use tracing::info;
 
 pub struct PipelineOrchestrator;
 
+impl Default for PipelineOrchestrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PipelineOrchestrator {
     pub fn new() -> Self {
         Self
