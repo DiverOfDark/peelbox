@@ -1,0 +1,42 @@
+[package]
+name = "peelbox-cli"
+version = "0.3.0"
+edition = "2021"
+
+[[bin]]
+name = "peelbox"
+path = "src/main.rs"
+
+[dependencies]
+peelbox-core = { path = "../core" }
+peelbox-llm = { path = "../llm" }
+peelbox-stack = { path = "../stack" }
+peelbox-pipeline = { path = "../pipeline" }
+peelbox-buildkit = { path = "../buildkit" }
+peelbox-wolfi = { path = "../wolfi" }
+
+clap = { version = "4.4", features = ["derive"] }
+tokio = { version = "1.35", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+atty = "0.2"
+reqwest = { version = "0.12.25", features = ["json", "blocking"] }
+uuid = { version = "1.11", features = ["v4", "fast-rng"] }
+sha2 = "0.10"
+dirs = "6.0.0"
+genai = "0.4"
+
+[dev-dependencies]
+tempfile = "3.8"
+serial_test = "3.0"
+yare = "3.0.0"
+filetime = "0.2"
+testcontainers = "0.23"
+bollard = "0.18"
+futures-util = "0.3"
+tar = "0.4"
+flate2 = "1.0"

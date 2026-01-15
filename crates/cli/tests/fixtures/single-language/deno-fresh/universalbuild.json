@@ -1,0 +1,41 @@
+[
+  {
+    "build": {
+      "cache": [],
+      "commands": [
+        "deno run -A dev.ts build"
+      ],
+      "env": {},
+      "packages": [
+        "deno"
+      ]
+    },
+    "metadata": {
+      "build_system": "deno",
+      "confidence": 0.7666666507720947,
+      "language": "TypeScript",
+      "project_name": "app",
+      "reasoning": "Detected from deno.json in "
+    },
+    "runtime": {
+      "command": [
+        "bin/app"
+      ],
+      "copy": [
+        {
+          "from": "/app",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  }
+]

@@ -1,0 +1,312 @@
+use super::{DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use crate::LanguageId;
+use peelbox_llm::{ChatMessage, LLMClient, LLMRequest};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct LanguageInfo {
+    name: String,
+    file_extensions: Vec<String>,
+    package_managers: Vec<String>,
+    excluded_dirs: Vec<String>,
+    workspace_configs: Vec<String>,
+    env_vars: Vec<String>,
+    health_endpoints: Vec<String>,
+    default_port: Option<u16>,
+    runtime_name: Option<String>,
+    version_pattern: Option<String>,
+    default_entrypoint: Option<String>,
+    env_var_patterns: Vec<(String, String)>,
+    port_patterns: Vec<(String, String)>,
+    health_check_patterns: Vec<(String, String)>,
+    confidence: f32,
+}
+
+pub struct LLMLanguage {
+    llm_client: Arc<dyn LLMClient>,
+    detected_info: Arc<Mutex<Option<LanguageInfo>>>,
+}
+
+impl LLMLanguage {
+    pub fn new(llm_client: Arc<dyn LLMClient>) -> Self {
+        Self {
+            llm_client,
+            detected_info: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+impl LanguageDefinition for LLMLanguage {
+    fn id(&self) -> LanguageId {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| LanguageId::Custom(info.name.clone()))
+            .unwrap_or_else(|| LanguageId::Custom("Unknown".to_string()))
+    }
+
+    fn extensions(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.file_extensions.clone())
+            .unwrap_or_default()
+    }
+
+    fn excluded_dirs(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.excluded_dirs.clone())
+            .unwrap_or_default()
+    }
+
+    fn workspace_configs(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.workspace_configs.clone())
+            .unwrap_or_default()
+    }
+
+    fn default_env_vars(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.env_vars.clone())
+            .unwrap_or_default()
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| {
+                info.health_endpoints
+                    .iter()
+                    .map(|endpoint| (endpoint.clone(), "GET".to_string()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|info| info.default_port)
+    }
+
+    fn detect(
+        &self,
+        manifest_name: &str,
+        manifest_content: Option<&str>,
+    ) -> Option<DetectionResult> {
+        let content_preview = manifest_content
+            .map(|c| c.chars().take(500).collect::<String>())
+            .unwrap_or_default();
+
+        let prompt = format!(
+            r#"Analyze this build manifest to identify the programming language. Respond with JSON ONLY.
+
+File: {}
+Content:
+{}
+
+Response format ONLY:
+{{
+  "name": "LanguageName",
+  "file_extensions": [".ext"],
+  "package_managers": ["manager1"],
+  "excluded_dirs": ["node_modules", "target"],
+  "workspace_configs": ["package.json"],
+  "env_vars": ["PORT", "NODE_ENV"],
+  "health_endpoints": ["/health", "/ready"],
+  "default_port": 3000,
+  "runtime_name": "node",
+  "version_pattern": "\"version\": \"(.+?)\"",
+  "default_entrypoint": "index.js",
+  "env_var_patterns": [["PORT", "\\bport\\s*=\\s*(\\d+)"]],
+  "port_patterns": [["listen", "\\blisten\\((\\d+)"]],
+  "health_check_patterns": [["health", "\\/health"]],
+  "confidence": 0.95
+}}
+"#,
+            manifest_name, content_preview
+        );
+
+        let request = LLMRequest::new(vec![ChatMessage::user(prompt)]);
+        let response = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(self.llm_client.chat(request))
+        })
+        .ok()?;
+
+        let info: LanguageInfo = serde_json::from_str(&response.content).ok()?;
+
+        if info.confidence < 0.5 {
+            return None;
+        }
+
+        *self.detected_info.lock().unwrap() = Some(info.clone());
+
+        Some(DetectionResult {
+            build_system: crate::BuildSystemId::Custom(
+                info.package_managers
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string()),
+            ),
+            confidence: info.confidence as f64,
+        })
+    }
+
+    fn compatible_build_systems(&self) -> Vec<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.package_managers.clone())
+            .unwrap_or_default()
+    }
+
+    fn parse_dependencies(
+        &self,
+        _manifest_content: &str,
+        _all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        DependencyInfo {
+            internal_deps: vec![],
+            external_deps: vec![],
+            detected_by: DetectionMethod::LLM,
+        }
+    }
+
+    fn runtime_name(&self) -> Option<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|info| info.runtime_name.clone())
+    }
+
+    fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
+        None
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .and_then(|info| info.default_entrypoint.clone())
+    }
+
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.env_var_patterns.clone())
+            .unwrap_or_default()
+    }
+
+    fn port_patterns(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.port_patterns.clone())
+            .unwrap_or_default()
+    }
+
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        self.detected_info
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|info| info.health_check_patterns.clone())
+            .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use peelbox_llm::{MockLLMClient, MockResponse};
+
+    #[test]
+    fn test_llm_language_id_default() {
+        let client = Arc::new(MockLLMClient::new());
+        let language = LLMLanguage::new(client);
+        assert_eq!(language.id(), LanguageId::Custom("Unknown".to_string()));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_llm_language_detect_success() {
+        let info = LanguageInfo {
+            name: "Zig".to_string(),
+            file_extensions: vec![".zig".to_string()],
+            package_managers: vec!["zig".to_string()],
+            excluded_dirs: vec!["zig-out".to_string(), "zig-cache".to_string()],
+            workspace_configs: vec!["build.zig".to_string()],
+            env_vars: vec!["ZIG_PATH".to_string()],
+            health_endpoints: vec!["/health".to_string()],
+            default_port: Some(8080),
+            runtime_name: Some("zig".to_string()),
+            version_pattern: Some("\"version\": \"(.+?)\"".to_string()),
+            default_entrypoint: Some("main.zig".to_string()),
+            env_var_patterns: vec![],
+            port_patterns: vec![],
+            health_check_patterns: vec![],
+            confidence: 0.9,
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        let client = Arc::new(MockLLMClient::new());
+        client.add_response(MockResponse::text(json));
+
+        let language = LLMLanguage::new(client);
+        let result = language.detect("build.zig", Some("const std = @import(\"std\");"));
+
+        assert!(result.is_some());
+        assert_eq!(language.id(), LanguageId::Custom("Zig".to_string()));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_confidence_validation() {
+        let low_confidence = LanguageInfo {
+            name: "Unknown".to_string(),
+            file_extensions: vec![],
+            package_managers: vec![],
+            excluded_dirs: vec![],
+            workspace_configs: vec![],
+            env_vars: vec![],
+            health_endpoints: vec![],
+            default_port: None,
+            runtime_name: None,
+            version_pattern: None,
+            default_entrypoint: None,
+            env_var_patterns: vec![],
+            port_patterns: vec![],
+            health_check_patterns: vec![],
+            confidence: 0.3,
+        };
+
+        let json = serde_json::to_string(&low_confidence).unwrap();
+        let client = Arc::new(MockLLMClient::new());
+        client.add_response(MockResponse::text(json));
+
+        let language = LLMLanguage::new(client);
+        let result = language.detect("unknown.txt", Some("content"));
+
+        assert!(result.is_none());
+    }
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "build": {
+      "cache": [
+        "node_modules",
+        ".pnpm-store"
+      ],
+      "commands": [
+        "pnpm install --frozen-lockfile",
+        "pnpm build"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-22",
+        "pnpm"
+      ]
+    },
+    "metadata": {
+      "build_system": "pnpm",
+      "confidence": 0.949999988079071,
+      "language": "JavaScript",
+      "project_name": "app",
+      "reasoning": "Detected from pnpm-lock.yaml in "
+    },
+    "runtime": {
+      "command": [
+        "bin/app"
+      ],
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-22"
+      ],
+      "ports": [
+        3000
+      ]
+    },
+    "version": "1.0"
+  }
+]

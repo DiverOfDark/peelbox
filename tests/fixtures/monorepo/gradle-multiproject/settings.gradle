@@ -1,2 +1,0 @@
-rootProject.name = 'multiproject'
-include 'lib', 'api-service', 'web-service'

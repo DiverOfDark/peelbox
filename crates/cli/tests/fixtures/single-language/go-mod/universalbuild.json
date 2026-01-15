@@ -1,0 +1,59 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
+      ],
+      "commands": [
+        "go mod download",
+        "go build -o app ."
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "env": {
+        "GOCACHE": "/build/.cache/go-build",
+        "GOMODCACHE": "/build/.cache/go-mod",
+        "GOSUMDB": "off"
+      },
+      "packages": [
+        "go-1.21"
+      ]
+    },
+    "metadata": {
+      "build_system": "go mod",
+      "confidence": 0.949999988079071,
+      "framework": "Gin",
+      "language": "Go",
+      "project_name": "app",
+      "reasoning": "Detected from go.mod in "
+    },
+    "runtime": {
+      "command": [
+        "/usr/local/bin/app"
+      ],
+      "copy": [
+        {
+          "from": "app",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".composer/cache",
+        "vendor"
+      ],
+      "commands": [
+        "composer install --no-dev --optimize-autoloader"
+      ],
+      "env": {},
+      "packages": [
+        "php-8.1",
+        "composer",
+        "php-8.1-ctype",
+        "php-8.1-phar",
+        "php-8.1-openssl",
+        "php-8.1-mbstring",
+        "php-8.1-xml",
+        "php-8.1-dom"
+      ]
+    },
+    "metadata": {
+      "build_system": "Composer",
+      "language": "PHP",
+      "project_name": "app",
+      "reasoning": "Detected from composer.json in "
+    },
+    "runtime": {
+      "command": [
+        "bin/app"
+      ],
+      "copy": [
+        {
+          "from": "vendor/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "php-8.1",
+        "php-8.1-ctype",
+        "php-8.1-phar",
+        "php-8.1-openssl",
+        "php-8.1-mbstring",
+        "php-8.1-xml",
+        "php-8.1-dom",
+        "php-8.1-curl",
+        "php-8.1-fileinfo",
+        "php-8.1-iconv"
+      ],
+      "ports": [
+        8000
+      ]
+    },
+    "version": "1.0"
+  }
+]
