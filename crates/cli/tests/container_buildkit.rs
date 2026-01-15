@@ -10,20 +10,13 @@ use std::path::Path;
 mod support;
 use support::container_harness::get_buildkit_container;
 
-static mut CACHED_IMAGE_NAME: Option<String> = None;
-
 async fn get_or_build_peelbox_image() -> Result<String> {
-    unsafe {
-        if let Some(ref name) = CACHED_IMAGE_NAME {
-            return Ok(name.clone());
-        }
-    }
-
     let peelbox_binary = support::get_peelbox_binary();
     let (port, _container_id) = get_buildkit_container().await?;
     let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
+    let unique_suffix = uuid::Uuid::new_v4().to_string();
 
-    let temp_dir = std::env::temp_dir().join(format!("peelbox-itest-{}", uuid::Uuid::new_v4()));
+    let temp_dir = std::env::temp_dir().join(format!("peelbox-itest-{}", unique_suffix));
     std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("universalbuild.json");
     let context_path = std::env::current_dir()?
@@ -35,7 +28,7 @@ async fn get_or_build_peelbox_image() -> Result<String> {
 
     let spec = serde_json::json!({
         "version": "1.0",
-        "metadata": { "project_name": "peelbox-itest" },
+        "metadata": { "project_name": format!("peelbox-itest-{}", unique_suffix) },
         "build": {
             "packages": ["rust-1.92", "build-base", "openssl-dev", "pkgconf", "protoc"],
             "commands": [
@@ -56,14 +49,14 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         std::env::temp_dir().join(format!("peelbox-cache-itest-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_cache_dir)?;
 
-    let image_name = "localhost/peelbox-test:integration";
+    let image_name = format!("localhost/peelbox-test:{}", unique_suffix);
     let mut cmd = std::process::Command::new(&peelbox_binary);
     cmd.args([
         "build",
         "--spec",
         spec_path.to_str().unwrap(),
         "--tag",
-        image_name,
+        &image_name,
         "--buildkit",
         &buildkit_addr,
         "--context",
@@ -77,14 +70,10 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         anyhow::bail!("Build failed: {}", String::from_utf8_lossy(&output.stderr));
     }
 
-    unsafe {
-        CACHED_IMAGE_NAME = Some(image_name.to_string());
-    }
-    Ok(image_name.to_string())
+    Ok(image_name)
 }
 
 #[tokio::test]
-#[serial]
 async fn test_image_builds_successfully() -> Result<()> {
     println!("=== Image Build Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -252,18 +241,18 @@ async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()
 }
 
 #[tokio::test]
-#[serial]
 async fn test_distroless_layer_structure() -> Result<()> {
     println!("=== Distroless Layer Structure Test ===\n");
 
-    let temp_dir = std::env::temp_dir().join(format!("peelbox-test-{}", uuid::Uuid::new_v4()));
+    let unique_suffix = uuid::Uuid::new_v4().to_string();
+    let temp_dir = std::env::temp_dir().join(format!("peelbox-test-{}", unique_suffix));
     std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("universalbuild.json");
     let oci_dest = temp_dir.join("image.tar");
 
     let spec = serde_json::json!({
         "version": "1.0",
-        "metadata": { "project_name": "peelbox-test" },
+        "metadata": { "project_name": format!("peelbox-test-{}", unique_suffix) },
         "build": {
             "commands": ["echo 'hello' > /hello.txt"],
             "packages": []
@@ -291,7 +280,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
         "--spec",
         spec_path.to_str().unwrap(),
         "--tag",
-        "peelbox-test:verify",
+        &format!("peelbox-test:verify-{}", unique_suffix),
         "--buildkit",
         &buildkit_addr,
         "--output",
@@ -310,7 +299,6 @@ async fn test_distroless_layer_structure() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_image_size_optimized() -> Result<()> {
     println!("=== Image Size Optimization Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -323,7 +311,6 @@ async fn test_image_size_optimized() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_binary_exists_and_executable() -> Result<()> {
     println!("=== Binary Location Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -379,7 +366,6 @@ async fn test_binary_exists_and_executable() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_image_runs_help_command() -> Result<()> {
     println!("=== Image Execution Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -437,16 +423,16 @@ async fn test_image_runs_help_command() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
-    let temp_dir = std::env::temp_dir().join(format!("peelbox-output-{}", uuid::Uuid::new_v4()));
+    let unique_suffix = uuid::Uuid::new_v4().to_string();
+    let temp_dir = std::env::temp_dir().join(format!("peelbox-output-{}", unique_suffix));
     std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("spec.json");
     std::fs::write(
         &spec_path,
         serde_json::to_string(&serde_json::json!({
-            "version": "1.0", "metadata": { "project_name": "test" },
+            "version": "1.0", "metadata": { "project_name": format!("test-{}", unique_suffix) },
             "build": { "steps": [], "packages": [] },
             "runtime": { "base_image": "cgr.dev/chainguard/wolfi-base:latest", "command": ["ls"], "packages": [], "env": {} }
         }))?,
@@ -463,7 +449,7 @@ async fn test_buildctl_output_types() -> Result<()> {
             "--spec",
             spec_path.to_str().unwrap(),
             "--tag",
-            "test:oci",
+            &format!("test:oci-{}", unique_suffix),
             "--buildkit",
             &buildkit_addr,
             "--output",
@@ -477,7 +463,7 @@ async fn test_buildctl_output_types() -> Result<()> {
             "--spec",
             spec_path.to_str().unwrap(),
             "--tag",
-            "test:docker",
+            &format!("test:docker-{}", unique_suffix),
             "--buildkit",
             &buildkit_addr,
             "--output",
