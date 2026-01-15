@@ -3,7 +3,6 @@ use super::phases::{
     build::BuildInfo, cache::CacheInfo, scan::ScanResult, service_analysis::Service,
 };
 use anyhow::Result;
-use peelbox_core::heuristics::HeuristicLogger;
 use peelbox_stack::runtime::RuntimeConfig;
 use peelbox_stack::{BuildSystemId, FrameworkId, LanguageId, RuntimeId, StackRegistry};
 use std::path::Path;
@@ -56,10 +55,6 @@ impl ServiceContext {
 
     pub fn stack_registry(&self) -> &Arc<StackRegistry> {
         &self.analysis_context.stack_registry
-    }
-
-    pub fn heuristic_logger(&self) -> &Arc<HeuristicLogger> {
-        &self.analysis_context.heuristic_logger
     }
 
     pub fn detection_mode(&self) -> peelbox_core::config::DetectionMode {

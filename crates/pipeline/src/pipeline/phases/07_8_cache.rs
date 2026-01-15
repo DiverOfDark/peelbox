@@ -54,7 +54,6 @@ mod tests {
     use super::*;
     use crate::pipeline::context::AnalysisContext;
     use crate::pipeline::phases::service_analysis::Service;
-    use peelbox_core::heuristics::HeuristicLogger;
     use peelbox_stack::StackRegistry;
     use std::sync::Arc;
 
@@ -62,14 +61,11 @@ mod tests {
         use peelbox_core::config::DetectionMode;
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let wolfi_index = Arc::new(peelbox_wolfi::WolfiPackageIndex::for_tests());
-        let heuristic_logger = Arc::new(HeuristicLogger::new(None));
 
         let analysis_context = AnalysisContext::new(
             &PathBuf::from("."),
             stack_registry,
             wolfi_index,
-            None,
-            heuristic_logger,
             DetectionMode::Full,
         );
 

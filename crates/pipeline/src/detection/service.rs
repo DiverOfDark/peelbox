@@ -1,5 +1,4 @@
-use peelbox_core::output::UniversalBuild;
-use peelbox_core::progress::LoggingHandler;
+use peelbox_core::output::schema::UniversalBuild;
 use peelbox_core::BackendError;
 use peelbox_llm::LLMClient;
 use std::path::{Path, PathBuf};
@@ -178,8 +177,7 @@ impl ServiceError {
                     Help: The detection process failed. Try:\n\
                     - Retry the operation\n\
                     - Check the repository is valid\n\
-                    - Try a different backend\n\
-                    - Check logs for more details\n\n\
+                    - Try a different backend\n\n\
                     Details: {}",
                     msg
                 )
@@ -211,24 +209,13 @@ impl DetectionService {
     }
 
     pub async fn detect(&self, repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError> {
-        self.detect_with_progress(repo_path, false).await
-    }
-
-    pub async fn detect_with_progress(
-        &self,
-        repo_path: PathBuf,
-        enable_progress: bool,
-    ) -> Result<Vec<UniversalBuild>, ServiceError> {
-        use peelbox_core::config::DetectionMode;
-        let mode = DetectionMode::from_env();
-        self.detect_with_mode(repo_path, enable_progress, mode)
-            .await
+        let mode = peelbox_core::config::DetectionMode::from_env();
+        self.detect_with_mode(repo_path, mode).await
     }
 
     pub async fn detect_with_mode(
         &self,
         repo_path: PathBuf,
-        enable_progress: bool,
         mode: peelbox_core::config::DetectionMode,
     ) -> Result<Vec<UniversalBuild>, ServiceError> {
         let start = Instant::now();
@@ -236,20 +223,13 @@ impl DetectionService {
         self.validate_repo_path(&repo_path)?;
 
         info!(
-            "Starting detection for repository: {} (mode: {:?})",
-            repo_path.display(),
-            mode
+            repo = %repo_path.display(),
+            mode = ?mode,
+            "Starting repository detection"
         );
 
         use crate::pipeline::{AnalysisContext, PipelineOrchestrator};
-        use peelbox_core::heuristics::HeuristicLogger;
         use peelbox_stack::StackRegistry;
-
-        let progress_handler = if enable_progress {
-            Some(LoggingHandler)
-        } else {
-            None
-        };
 
         let wolfi_index = peelbox_wolfi::WolfiPackageIndex::fetch().map_err(|e| {
             use peelbox_core::BackendError;
@@ -267,12 +247,10 @@ impl DetectionService {
             &repo_path,
             Arc::new(StackRegistry::with_defaults(llm_client)),
             Arc::new(wolfi_index),
-            None,
-            Arc::new(HeuristicLogger::disabled()),
             mode,
         );
 
-        let orchestrator = PipelineOrchestrator::new(progress_handler);
+        let orchestrator = PipelineOrchestrator::new();
 
         let results = orchestrator
             .execute(&repo_path, &mut context)
@@ -290,20 +268,20 @@ impl DetectionService {
         // Validate all builds with Wolfi package index
         let validator = crate::validation::Validator::with_wolfi_index(context.wolfi_index.clone());
         for build in &results {
-            validator.validate(build).map_err(|e| {
+            if let Err(e) = validator.validate(build) {
                 use peelbox_core::BackendError;
-                ServiceError::BackendError(BackendError::Other {
+                return Err(ServiceError::BackendError(BackendError::Other {
                     message: format!("Package validation failed: {}", e),
-                })
-            })?;
+                }));
+            }
         }
 
         let elapsed = start.elapsed();
 
         info!(
-            "Detection completed in {:.2}s: {} projects detected",
-            elapsed.as_secs_f64(),
-            results.len()
+            projects_found = results.len(),
+            duration_ms = elapsed.as_millis(),
+            "Detection complete"
         );
 
         Ok(results)

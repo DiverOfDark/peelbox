@@ -202,21 +202,17 @@ mod tests {
     }
 
     async fn execute_phase(scan: &ScanResult, workspace: &WorkspaceStructure) -> RootCacheInfo {
-        use peelbox_core::heuristics::HeuristicLogger;
         use peelbox_stack::StackRegistry;
         use std::sync::Arc;
 
         use peelbox_core::config::DetectionMode;
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let wolfi_index = Arc::new(peelbox_wolfi::WolfiPackageIndex::for_tests());
-        let heuristic_logger = Arc::new(HeuristicLogger::new(None));
 
         let mut context = AnalysisContext::new(
             &PathBuf::from("."),
             stack_registry,
             wolfi_index,
-            None,
-            heuristic_logger,
             DetectionMode::Full,
         );
         context.scan = Some(scan.clone());

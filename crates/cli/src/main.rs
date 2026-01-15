@@ -88,7 +88,7 @@ fn parse_level(level_str: &str) -> Level {
     }
 }
 
-async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
+async fn handle_detect(args: &DetectArgs, quiet: bool, _verbose: bool) -> i32 {
     info!("Starting build system detection");
 
     let repo_path = args
@@ -244,10 +244,7 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, verbose: bool) -> i32 {
 
     info!("Analyzing repository: {}", repo_path.display());
 
-    let results: Vec<UniversalBuild> = match service
-        .detect_with_progress(repo_path.clone(), verbose)
-        .await
-    {
+    let results: Vec<UniversalBuild> = match service.detect(repo_path.clone()).await {
         Ok(r) => r,
         Err(e) => {
             error!("Detection failed: {}", e);
