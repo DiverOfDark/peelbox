@@ -240,8 +240,7 @@ jobs:
             --spec universalbuild.json \
             --tag peelbox:latest \
             --buildkit tcp://127.0.0.1:1234 \
-            --context . \
-            --verbose
+            --context .
 
       - name: Test the built image
         run: |

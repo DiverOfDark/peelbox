@@ -493,7 +493,6 @@ impl ScanPhase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use peelbox_core::heuristics::HeuristicLogger;
     use std::fs;
     use std::io::Write;
     use tempfile::TempDir;
@@ -533,15 +532,7 @@ mod tests {
         use peelbox_core::config::DetectionMode;
         let stack_registry = Arc::new(StackRegistry::with_defaults(None));
         let wolfi_index = Arc::new(peelbox_wolfi::WolfiPackageIndex::for_tests());
-        let heuristic_logger = Arc::new(HeuristicLogger::disabled());
-        AnalysisContext::new(
-            repo_path,
-            stack_registry,
-            wolfi_index,
-            None,
-            heuristic_logger,
-            DetectionMode::Full,
-        )
+        AnalysisContext::new(repo_path, stack_registry, wolfi_index, DetectionMode::Full)
     }
 
     #[tokio::test]

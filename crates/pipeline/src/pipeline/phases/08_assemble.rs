@@ -227,14 +227,11 @@ mod tests {
 
         let stack_registry = Arc::new(peelbox_stack::StackRegistry::with_defaults(None));
         let wolfi_index = Arc::new(peelbox_wolfi::WolfiPackageIndex::for_tests());
-        let heuristic_logger = Arc::new(peelbox_core::heuristics::HeuristicLogger::new(None));
 
         let analysis_context = crate::pipeline::context::AnalysisContext::new(
             &PathBuf::from("."),
             stack_registry,
             wolfi_index,
-            None,
-            heuristic_logger,
             peelbox_core::config::DetectionMode::Full,
         );
 

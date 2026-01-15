@@ -27,18 +27,21 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/peelbox"
+        "peelbox"
       ],
       "copy": [
         {
           "from": "target/release/peelbox",
-          "to": "/usr/local/bin/peelbox"
+          "to": "/usr/bin/peelbox"
         }
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "glibc",
-        "ca-certificates"
+        "ca-certificates",
+        "openssl"
       ],
       "ports": []
     },
