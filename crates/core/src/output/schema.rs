@@ -143,8 +143,6 @@ mod tests {
     #[test]
     fn test_valid_build() {
         let _build = create_minimal_valid_build();
-        // Validator moved to peelbox-pipeline, cannot test here due to circular dependency
-        // assert!(crate::validation::Validator::new().validate(&build).is_ok());
     }
 
     #[test]
@@ -357,10 +355,6 @@ mod tests {
                 health: None,
             },
         };
-
-        // Validator moved to peelbox-pipeline
-        // let validation_result = crate::validation::Validator::new().validate(&minimal_build);
-        // assert!(validation_result.is_err());
     }
 
     #[test]
@@ -394,8 +388,6 @@ mod tests {
         assert!(result.is_ok());
 
         let build = result.unwrap();
-        // Validator moved to peelbox-pipeline
-        // assert!(crate::validation::Validator::new().validate(&build).is_ok());
         assert_eq!(build.metadata.reasoning, "");
         assert_eq!(build.build.packages, vec!["rust", "build-base"]);
         assert!(build.runtime.ports.is_empty());

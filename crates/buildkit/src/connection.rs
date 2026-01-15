@@ -279,9 +279,10 @@ async fn connect_docker_native(path: &str) -> std::io::Result<tokio::io::DuplexS
 
     reader.read_line(&mut line).await?;
     if !line.starts_with("HTTP/1.1 101") {
-        return Err(std::io::Error::other(
-            format!("Docker daemon failed to switch protocols: {}", line.trim()),
-        ));
+        return Err(std::io::Error::other(format!(
+            "Docker daemon failed to switch protocols: {}",
+            line.trim()
+        )));
     }
 
     loop {
@@ -320,20 +321,13 @@ async fn connect_docker_container(
 ) -> std::io::Result<hyper_util::rt::TokioIo<tokio::io::DuplexStream>> {
     use bollard::Docker;
 
-    let docker = Docker::connect_with_local_defaults().map_err(|e| {
-        std::io::Error::other(
-            format!("Failed to connect to Docker: {}", e),
-        )
-    })?;
+    let docker = Docker::connect_with_local_defaults()
+        .map_err(|e| std::io::Error::other(format!("Failed to connect to Docker: {}", e)))?;
 
     let container_info = docker
         .inspect_container(container_id, None)
         .await
-        .map_err(|e| {
-            std::io::Error::other(
-                format!("Failed to inspect container: {}", e),
-            )
-        })?;
+        .map_err(|e| std::io::Error::other(format!("Failed to inspect container: {}", e)))?;
 
     let port_opt = container_info
         .network_settings
@@ -345,13 +339,11 @@ async fn connect_docker_container(
         .and_then(|port| port.parse::<u16>().ok());
 
     if let Some(port) = port_opt {
-        return Err(std::io::Error::other(
-            format!(
-                "BuildKit container has TCP port exposed on localhost:{}. \
+        return Err(std::io::Error::other(format!(
+            "BuildKit container has TCP port exposed on localhost:{}. \
                  Use --buildkit tcp://127.0.0.1:{} instead of docker-container://",
-                port, port
-            ),
-        ));
+            port, port
+        )));
     }
 
     Err(std::io::Error::other(
