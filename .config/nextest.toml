@@ -6,12 +6,7 @@ path = "junit.xml"
 
 [test-groups]
 serial-tests = { max-threads = 1 }
-normal-tests = { max-threads = 2 }
 
 [[profile.default.overrides]]
-filter = 'test(container_) | test(e2e) | test(llm_) | binary(llm_e2e) | binary(llm_embedded) | binary(static_e2e)'
-test-group = 'normal-tests'
-
-[[profile.default.overrides]]
-filter = 'binary(container_buildkit) | binary(container_e2e)'
+filter = 'test(container_) | test(e2e) | test(llm_) | binary(container_buildkit) | binary(container_e2e) | binary(llm_e2e) | binary(llm_embedded) | binary(static_e2e)'
 test-group = 'serial-tests'
