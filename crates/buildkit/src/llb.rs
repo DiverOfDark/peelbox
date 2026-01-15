@@ -174,12 +174,25 @@ impl LLBBuilder {
             attrs.insert("exclude-patterns".to_string(), exclude_patterns.join(","));
         }
 
-        let shared_key = self
-            .project_name
-            .as_deref()
-            .unwrap_or(&self.context_name)
-            .to_string();
+        // Generate a shared key that includes the context path hash to prevent collisions
+        // when multiple projects have the same name but different source directories.
+        let base_key = self.project_name.as_deref().unwrap_or(&self.context_name);
+
+        let path_hash = if let Some(path) = &self.context_path {
+            format!("{:x}", Sha256::digest(path.to_string_lossy().as_bytes()))
+        } else {
+            // Use a hash of a constant to ensure consistent length and format
+            format!("{:x}", Sha256::digest(b"no-context-path"))
+        };
+
+        // Take first 8 chars of hash to keep key reasonably short but unique enough
+        let shared_key = format!("{}-{}", base_key, &path_hash[..8]);
+
         attrs.insert("local.sharedkey".to_string(), shared_key);
+
+        if let Some(session_id) = &self.session_id {
+            attrs.insert("local.session".to_string(), session_id.clone());
+        }
 
         let op = pb::Op {
             inputs: vec![],

@@ -4,25 +4,19 @@ use bollard::container::LogsOptions;
 use bollard::container::{RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
 use bollard::Docker;
 use futures_util::StreamExt;
-use serial_test::serial;
 use std::path::Path;
 
 mod support;
 use support::container_harness::get_buildkit_container;
 
-static mut CACHED_IMAGE_NAME: Option<String> = None;
-
 async fn get_or_build_peelbox_image() -> Result<String> {
-    unsafe {
-        if let Some(ref name) = CACHED_IMAGE_NAME {
-            return Ok(name.clone());
-        }
-    }
-
     let peelbox_binary = support::get_peelbox_binary();
     let (port, _container_id) = get_buildkit_container().await?;
     let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
+    // Use a shared temp dir name base to allow caching between tests if paths align,
+    // but here we use unique dirs per test execution to be safe with temp files.
+    // However, for LLB caching, we use a fixed project name.
     let temp_dir = std::env::temp_dir().join(format!("peelbox-itest-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("universalbuild.json");
@@ -77,14 +71,10 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         anyhow::bail!("Build failed: {}", String::from_utf8_lossy(&output.stderr));
     }
 
-    unsafe {
-        CACHED_IMAGE_NAME = Some(image_name.to_string());
-    }
     Ok(image_name.to_string())
 }
 
 #[tokio::test]
-#[serial]
 async fn test_image_builds_successfully() -> Result<()> {
     println!("=== Image Build Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -252,7 +242,6 @@ async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()
 }
 
 #[tokio::test]
-#[serial]
 async fn test_distroless_layer_structure() -> Result<()> {
     println!("=== Distroless Layer Structure Test ===\n");
 
@@ -310,7 +299,6 @@ async fn test_distroless_layer_structure() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_image_size_optimized() -> Result<()> {
     println!("=== Image Size Optimization Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -323,7 +311,6 @@ async fn test_image_size_optimized() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_binary_exists_and_executable() -> Result<()> {
     println!("=== Binary Location Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -379,7 +366,6 @@ async fn test_binary_exists_and_executable() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_image_runs_help_command() -> Result<()> {
     println!("=== Image Execution Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
@@ -437,7 +423,6 @@ async fn test_image_runs_help_command() -> Result<()> {
 }
 
 #[tokio::test]
-#[serial]
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
     let temp_dir = std::env::temp_dir().join(format!("peelbox-output-{}", uuid::Uuid::new_v4()));
