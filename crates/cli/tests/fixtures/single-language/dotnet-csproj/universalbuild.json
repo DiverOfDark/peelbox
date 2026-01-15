@@ -1,0 +1,57 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".nuget/packages",
+        "bin",
+        "obj"
+      ],
+      "commands": [
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
+      ],
+      "env": {
+        "DOTNET_CLI_HOME": "/tmp",
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
+      },
+      "packages": [
+        "dotnet-8-sdk"
+      ]
+    },
+    "metadata": {
+      "build_system": ".NET",
+      "confidence": 0.949999988079071,
+      "framework": "ASP.NET Core",
+      "language": "C#",
+      "project_name": "app",
+      "reasoning": "Detected from App.csproj in "
+    },
+    "runtime": {
+      "command": [
+        "dotnet",
+        "/app/App.dll"
+      ],
+      "copy": [
+        {
+          "from": "out/",
+          "to": "/app"
+        }
+      ],
+      "env": {
+        "ASPNETCORE_URLS": "http://0.0.0.0:5000"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "aspnet-8-runtime"
+      ],
+      "ports": [
+        5000
+      ]
+    },
+    "version": "1.0"
+  }
+]

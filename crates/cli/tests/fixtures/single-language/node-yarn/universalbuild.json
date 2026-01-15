@@ -1,0 +1,50 @@
+[
+  {
+    "build": {
+      "cache": [
+        "node_modules",
+        ".yarn"
+      ],
+      "commands": [
+        "yarn install --frozen-lockfile"
+      ],
+      "context": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "yarn"
+      ]
+    },
+    "metadata": {
+      "build_system": "Yarn",
+      "confidence": 0.949999988079071,
+      "language": "JavaScript",
+      "project_name": "app",
+      "reasoning": "Detected from yarn.lock in "
+    },
+    "runtime": {
+      "command": [
+        "bin/app"
+      ],
+      "copy": [
+        {
+          "from": "dist/",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25"
+      ],
+      "ports": [
+        3000
+      ]
+    },
+    "version": "1.0"
+  }
+]

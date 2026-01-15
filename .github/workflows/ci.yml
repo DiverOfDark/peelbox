@@ -105,13 +105,21 @@ jobs:
         run: |
           cargo llvm-cov report --cobertura --output-path cobertura.xml
 
-      - name: Upload to Codecov
+      - name: Upload to Codecov coverage
         if: success() || failure()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: false
           files: cobertura.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+
+      - name: Upload to Codecov tests
+        if: success() || failure()
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: false
+          report_type: test_results
+          files: junit.xml
           use_oidc: true
 
       - name: Publish Test Report

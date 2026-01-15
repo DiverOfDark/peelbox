@@ -6,7 +6,7 @@
         ".cargo"
       ],
       "commands": [
-        "cargo build --release --no-default-features"
+        "cargo build --release --no-default-features -p peelbox-cli"
       ],
       "env": {
         "CARGO_HOME": ".cargo"
@@ -22,8 +22,8 @@
     "metadata": {
       "build_system": "Cargo",
       "language": "Rust",
-      "project_name": "peelbox",
-      "reasoning": "Detected from Cargo.toml in "
+      "project_name": "peelbox-cli",
+      "reasoning": "Manual update for workspace structure"
     },
     "runtime": {
       "command": [

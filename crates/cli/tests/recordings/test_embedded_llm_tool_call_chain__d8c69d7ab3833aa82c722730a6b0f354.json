@@ -1,0 +1,78 @@
+{
+  "request_hash": "d8c69d7ab3833aa82c722730a6b0f354",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful assistant that uses tools to analyze repositories. Always call tools in sequence to gather information before submitting results."
+      },
+      {
+        "role": "user",
+        "content": "Analyze this directory by first listing files, then reading one file, then submitting a summary"
+      }
+    ],
+    "tools": [
+      {
+        "description": "List files in a directory",
+        "name": "list_files",
+        "parameters": {
+          "properties": {
+            "path": {
+              "description": "Directory path to list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Read the contents of a file",
+        "name": "read_file",
+        "parameters": {
+          "properties": {
+            "path": {
+              "description": "File path to read",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "description": "Submit the final analysis result",
+        "name": "submit_result",
+        "parameters": {
+          "properties": {
+            "summary": {
+              "description": "Summary of findings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "summary"
+          ],
+          "type": "object"
+        }
+      }
+    ],
+    "model": "Qwen2.5-Coder 7B GGUF (7B)"
+  },
+  "response": {
+    "content": "",
+    "tool_call": {
+      "call_id": "embedded_0",
+      "name": "list_files",
+      "arguments": {
+        "path": "/path/to/directory"
+      }
+    },
+    "response_time": 435
+  },
+  "recorded_at": "2026-01-13T19:05:43.923608990+00:00"
+}

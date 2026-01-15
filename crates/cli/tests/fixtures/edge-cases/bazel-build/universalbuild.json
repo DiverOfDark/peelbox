@@ -1,0 +1,42 @@
+[
+  {
+    "build": {
+      "cache": [
+        "bazel-cache",
+        ".bazel-cache"
+      ],
+      "commands": [
+        "bazel build //:hello"
+      ],
+      "env": {},
+      "packages": []
+    },
+    "metadata": {
+      "build_system": "bazel",
+      "confidence": 0.949999988079071,
+      "language": "Bazel",
+      "project_name": "app",
+      "reasoning": "Detected from BUILD in "
+    },
+    "runtime": {
+      "command": [
+        "bin/app"
+      ],
+      "copy": [
+        {
+          "from": "bazel-bin/hello",
+          "to": "/usr/local/bin/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  }
+]

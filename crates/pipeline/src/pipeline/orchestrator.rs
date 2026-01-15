@@ -1,0 +1,109 @@
+use super::context::AnalysisContext;
+use super::phase_trait::WorkflowPhase;
+use super::phases::{
+    assemble::AssemblePhase, root_cache::RootCachePhase, scan::ScanPhase,
+    service_analysis::ServiceAnalysisPhase, workspace::WorkspaceStructurePhase,
+};
+use anyhow::{Context, Result};
+use peelbox_core::output::schema::UniversalBuild;
+use peelbox_core::progress::{LoggingHandler, ProgressEvent};
+use std::path::Path;
+use std::time::Instant;
+use tracing::{debug, info};
+
+pub struct PipelineOrchestrator {
+    progress_handler: Option<LoggingHandler>,
+}
+
+impl PipelineOrchestrator {
+    pub fn new(progress_handler: Option<LoggingHandler>) -> Self {
+        Self { progress_handler }
+    }
+
+    pub async fn execute(
+        &self,
+        repo_path: &Path,
+        context: &mut AnalysisContext,
+    ) -> Result<Vec<UniversalBuild>> {
+        let start = Instant::now();
+        info!(
+            "Starting pipeline orchestration for: {}",
+            repo_path.display()
+        );
+
+        if let Some(handler) = &self.progress_handler {
+            let event = ProgressEvent::Started {
+                repo_path: repo_path.display().to_string(),
+            };
+            handler.on_progress(&event);
+        }
+
+        let workflow_phases: Vec<Box<dyn WorkflowPhase>> = vec![
+            Box::new(ScanPhase),
+            Box::new(WorkspaceStructurePhase),
+            Box::new(RootCachePhase),
+            Box::new(ServiceAnalysisPhase),
+            Box::new(AssemblePhase),
+        ];
+
+        for phase in workflow_phases {
+            let phase_name = phase.name();
+            info!("Phase: {}", phase_name);
+
+            if let Some(handler) = &self.progress_handler {
+                let event = ProgressEvent::PhaseStarted {
+                    phase: phase_name.to_string(),
+                };
+                handler.on_progress(&event);
+            }
+
+            let phase_start = Instant::now();
+            phase
+                .execute(context)
+                .await
+                .with_context(|| format!("Phase {} failed", phase_name))?;
+
+            if let Some(handler) = &self.progress_handler {
+                let event = ProgressEvent::PhaseComplete {
+                    phase: phase_name.to_string(),
+                    duration: phase_start.elapsed(),
+                };
+                handler.on_progress(&event);
+            }
+
+            debug!("Phase {} complete", phase_name);
+        }
+
+        info!(
+            "Pipeline complete: generated {} UniversalBuild(s)",
+            context.builds.len()
+        );
+        if let Some(handler) = &self.progress_handler {
+            let event = ProgressEvent::Completed {
+                total_iterations: 0,
+                total_time: start.elapsed(),
+            };
+            handler.on_progress(&event);
+        }
+
+        Ok(std::mem::take(&mut context.builds))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_orchestrator_creation() {
+        let orchestrator = PipelineOrchestrator::new(None);
+        assert!(orchestrator.progress_handler.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_orchestrator_with_progress() {
+        let handler = LoggingHandler;
+        let orchestrator = PipelineOrchestrator::new(Some(handler));
+        assert!(orchestrator.progress_handler.is_some());
+    }
+}

@@ -1,0 +1,19 @@
+{
+  "request_hash": "b3ffc99e2a349fc17f9dcda5b16e3bb8",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: build.gradle.kts\nContent:\nplugins {\n    kotlin(\"jvm\") version \"1.9.21\"\n    kotlin(\"plugin.spring\") version \"1.9.21\"\n    id(\"org.springframework.boot\") version \"3.2.0\"\n    id(\"io.spring.dependency-management\") version \"1.1.4\"\n}\n\ngroup = \"com.example\"\nversion = \"1.0.0\"\n\njava {\n    sourceCompatibility = JavaVersion.VERSION_17\n}\n\nrepositories {\n    mavenCentral()\n}\n\ndependencies {\n    implementation(\"org.springframework.boot:spring-boot-starter-web\")\n    implementation(\"org.jetbrains.kotlin:kotlin-reflect\")\n    testImplement\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "{\n  \"name\": \"Kotlin\",\n  \"file_extensions\": [\".kts\"],\n  \"package_managers\": [\"Maven\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}",
+    "tool_call": null,
+    "response_time": 1641
+  },
+  "recorded_at": "2026-01-13T19:13:13.570759204+00:00"
+}
