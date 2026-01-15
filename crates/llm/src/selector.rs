@@ -129,7 +129,7 @@ async fn try_embedded(interactive: bool) -> Option<SelectedClient> {
 fn provider_has_credentials(provider: AdapterKind) -> bool {
     provider
         .default_key_env_name()
-        .map_or(true, |env_var| std::env::var(env_var).is_ok())
+        .is_none_or(|env_var| std::env::var(env_var).is_ok())
 }
 
 async fn is_ollama_available() -> bool {

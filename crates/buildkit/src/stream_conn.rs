@@ -126,7 +126,7 @@ impl AsyncRead for StreamConn {
             }
             Poll::Ready(Some(Err(e))) => {
                 debug!("StreamConn receive error: {}", e);
-                Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, e)))
+                Poll::Ready(Err(io::Error::other(e)))
             }
             Poll::Ready(None) => {
                 // Stream closed

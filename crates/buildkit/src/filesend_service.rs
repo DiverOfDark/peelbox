@@ -179,7 +179,7 @@ impl FileSendTrait for FileSendService {
                         total_bytes += chunk_size as u64;
                         bytes_counter.store(total_bytes, Ordering::Relaxed);
 
-                        if chunk_count <= 3 || chunk_count % 100 == 0 {
+                        if chunk_count <= 3 || chunk_count.is_multiple_of(100) {
                             debug!(
                                 "FileSend call_id={} received chunk #{}: {} bytes (total: {} bytes)",
                                 call_id, chunk_count, chunk_size, total_bytes
