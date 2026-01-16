@@ -7,28 +7,18 @@ edition = "2021"
 peelbox-core = { path = "../core" }
 peelbox-llm = { path = "../llm" }
 peelbox-stack = { path = "../stack" }
-peelbox-buildkit = { path = "../buildkit" }
 peelbox-wolfi = { path = "../wolfi" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_yaml = "0.9"
-toml = "0.8"
 anyhow = "1.0"
 tracing = "0.1"
 async-trait = "0.1"
 regex = "1.10"
 ignore = "0.4"
 tokio = { version = "1.35", features = ["full"] }
-chrono = { version = "0.4", features = ["serde"] }
-dirs = "6.0.0"
-md5 = "0.7"
-sha2 = "0.10"
-hex = "0.4"
-roxmltree = "0.19"
 thiserror = "1.0"
 strsim = "0.11"
 genai = "0.4"
 
 [dev-dependencies]
 tempfile = "3.8"
-mockall = "0.13"

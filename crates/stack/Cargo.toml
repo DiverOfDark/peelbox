@@ -9,11 +9,8 @@ peelbox-llm = { path = "../llm" }
 peelbox-wolfi = { path = "../wolfi" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-async-trait = "0.1"
-tracing = "0.1"
 anyhow = "1.0"
 regex = "1.10"
-ignore = "0.4"
 tokio = { version = "1.35", features = ["full"] }
 toml = "0.8"
 roxmltree = "0.19"

@@ -150,6 +150,26 @@ impl BuildSession {
         &self.context_path
     }
 
+    async fn shutdown_session(&mut self) -> Result<()> {
+        if let Some(handle) = self.session_server.take() {
+            debug!("Aborting session server task");
+            handle.abort();
+
+            match tokio::time::timeout(Duration::from_secs(2), handle).await {
+                Ok(Ok(_)) => debug!("Session server stopped gracefully"),
+                Ok(Err(e)) => {
+                    if e.is_cancelled() {
+                        debug!("Session server aborted");
+                    } else {
+                        warn!("Session server error on shutdown: {}", e);
+                    }
+                }
+                Err(_) => debug!("Session server aborted (timeout)"),
+            }
+        }
+        Ok(())
+    }
+
     /// Attach session to BuildKit daemon via Control.Session RPC
     async fn attach_session(&mut self) -> Result<()> {
         info!("Attaching session {} to BuildKit daemon", self.session_id);
@@ -420,12 +440,12 @@ impl BuildSession {
             .project_name
             .clone()
             .unwrap_or_else(|| "unnamed".to_string());
-        let mut llb_builder = LLBBuilder::new("context")
+        let llb_builder = LLBBuilder::new("context")
             .with_context_path(self.context_path.clone())
             .with_project_name(project_name)
             .with_session_id(self.session_id.clone());
         let llb_bytes = llb_builder
-            .to_bytes(spec)
+            .to_bytes()
             .context("Failed to generate LLB")?;
 
         debug!("Generated LLB definition ({} bytes)", llb_bytes.len());
@@ -668,6 +688,8 @@ impl BuildSession {
         } else {
             debug!("No export completion signal configured");
         }
+
+        self.shutdown_session().await?;
 
         // Extract image ID from response
         let image_id = solve_response

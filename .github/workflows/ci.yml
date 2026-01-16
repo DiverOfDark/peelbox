@@ -222,29 +222,11 @@ jobs:
           mkdir -p .buildkit-cache
           sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
 
-      - name: Start BuildKit container
-        run: |
-          docker run -d --name buildkitd --privileged \
-            -p 127.0.0.1:1234:1234 \
-            -v $(pwd)/.buildkit-cache:/var/lib/buildkit \
-            moby/buildkit:latest \
-            --addr tcp://0.0.0.0:1234
-
-          echo "Waiting for BuildKit to start..."
-          timeout 60 sh -c 'until buildctl --addr tcp://127.0.0.1:1234 debug workers >/dev/null 2>&1; do echo -n "."; sleep 2; done' || {
-            echo "BuildKit failed to start within 60s"
-            docker logs buildkitd
-            exit 1
-          }
-          echo ""
-          echo "BuildKit is ready"
-
       - name: Build image with peelbox
         run: |
           ./target/release/peelbox build \
             --spec universalbuild.json \
             --tag peelbox:latest \
-            --buildkit tcp://127.0.0.1:1234 \
             --context .
 
       - name: Test the built image

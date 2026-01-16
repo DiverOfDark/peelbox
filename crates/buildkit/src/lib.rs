@@ -20,7 +20,7 @@ pub use filesend_service::FileSendService;
 pub use filesync::{FileStat, FileSync};
 pub use filesync_service::FileSyncService;
 pub use health_service::HealthService;
-pub use llb::LLBBuilder;
+pub use llb::{BuildStrategy, LLBBuilder, PeelboxStrategy};
 pub use progress::{ProgressEvent, ProgressTracker};
 pub use proto::{
     AuthServer, AuthServerBuilder, ControlClient, FileSendServer, FileSendServerBuilder,

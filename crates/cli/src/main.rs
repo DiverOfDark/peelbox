@@ -710,27 +710,8 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         debug!("Build context scanning enabled for SBOM");
     }
 
-    // Generate deterministic session ID based on context path and project name
-    // This allows BuildKit to reuse internal caches across different runs
-    let session_id = {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(context_path.to_string_lossy().as_bytes());
-        hasher.update(
-            spec.metadata
-                .project_name
-                .as_deref()
-                .unwrap_or("default")
-                .as_bytes(),
-        );
-        let hash = hasher.finalize();
-        // Create a deterministic UUID from the hash
-        uuid::Uuid::from_slice(&hash[..16])
-            .unwrap_or_else(|_| uuid::Uuid::new_v4())
-            .to_string()
-    };
+    let session_id = uuid::Uuid::new_v4().to_string();
 
-    // Create build session with attestation config and deterministic session ID
     let mut session = BuildSession::new(connection, context_path, output_dest)
         .with_attestations(attestation_config)
         .with_session_id(session_id);

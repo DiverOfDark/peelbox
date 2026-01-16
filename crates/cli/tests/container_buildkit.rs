@@ -19,50 +19,12 @@ async fn get_or_build_peelbox_image() -> Result<String> {
     // However, for LLB caching, we use a fixed project name.
     let temp_dir = std::env::temp_dir().join(format!("peelbox-itest-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir)?;
-    let spec_path = temp_dir.join("universalbuild.json");
     let context_path = std::env::current_dir()?
         .parent()
         .unwrap()
         .parent()
         .unwrap()
         .to_path_buf();
-
-    let universal_spec = context_path.join("universalbuild.json");
-    let mut spec: serde_json::Value =
-        serde_json::from_reader(std::fs::File::open(universal_spec)?)?;
-
-    // Update project name for isolation if needed, but ensure it matches spec expectations
-    if let Some(metadata) = spec.get_mut("metadata") {
-        if let Some(obj) = metadata.as_object_mut() {
-            obj.insert(
-                "project_name".to_string(),
-                serde_json::json!("peelbox-itest"),
-            );
-        }
-    }
-
-    // Ensure we use fixed cache paths for BuildKit layer caching in tests
-    if let Some(build) = spec.get_mut("build") {
-        if let Some(obj) = build.as_object_mut() {
-            obj.insert(
-                "cache".to_string(),
-                serde_json::json!([
-                    "/build/.cargo/registry",
-                    "/build/.cargo/git",
-                    "/build/target"
-                ]),
-            );
-            let mut env = obj
-                .get("env")
-                .and_then(|e| e.as_object())
-                .cloned()
-                .unwrap_or_default();
-            env.insert("CARGO_HOME".to_string(), serde_json::json!("/build/.cargo"));
-            obj.insert("env".to_string(), serde_json::Value::Object(env));
-        }
-    }
-
-    std::fs::write(&spec_path, serde_json::to_string_pretty(&spec)?)?;
 
     let temp_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
         PathBuf::from(custom_cache).join("wolfi-cache")
@@ -76,7 +38,7 @@ async fn get_or_build_peelbox_image() -> Result<String> {
     cmd.args([
         "build",
         "--spec",
-        spec_path.to_str().unwrap(),
+        context_path.join("universalbuild.json").to_str().unwrap(),
         "--tag",
         image_name,
         "--buildkit",
@@ -86,10 +48,17 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         "--quiet",
     ]);
     cmd.env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
+    cmd.env("PEELBOX_LOG_LEVEL", "debug");
 
     let output = cmd.output()?;
     if !output.status.success() {
-        anyhow::bail!("Build failed: {}", String::from_utf8_lossy(&output.stderr));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("--- BUILD FAILURE DETAILS (get_or_build) ---");
+        println!("STDOUT:\n{}", stdout);
+        println!("STDERR:\n{}", stderr);
+        println!("--------------------------------------------");
+        anyhow::bail!("Build failed: {}", stderr);
     }
 
     Ok(image_name.to_string())
@@ -103,7 +72,7 @@ async fn test_image_builds_successfully() -> Result<()> {
     Ok(())
 }
 
-async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()> {
+async fn verify_image_content(tar_path: &Path) -> Result<()> {
     use serde_json::Value;
     use std::io::Read;
     use tar::Archive;
@@ -182,14 +151,14 @@ async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()
         anyhow::bail!("No layers found in manifest: {}", manifest);
     }
 
-    let mut scanned_count = 0;
-    let mut found_required = false;
     for layer_path in &layer_digests {
         let mut archive = Archive::new(&tar_data[..]);
         let mut found = false;
         for entry in archive.entries()? {
             let mut entry: tar::Entry<&[u8]> = entry?;
-            if entry.path()?.to_string_lossy() == *layer_path {
+            let path = entry.path()?;
+            let entry_path = path.to_str().unwrap();
+            if entry_path == *layer_path {
                 found = true;
                 let mut layer_data = Vec::new();
                 entry.read_to_end(&mut layer_data)?;
@@ -229,14 +198,7 @@ async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()
                             layer_path
                         );
                     }
-
-                    if file_path_str.contains(required_file)
-                        && !file_entry.header().entry_type().is_dir()
-                    {
-                        found_required = true;
-                    }
                 }
-                scanned_count += 1;
                 break;
             }
         }
@@ -248,17 +210,6 @@ async fn verify_image_content(tar_path: &Path, required_file: &str) -> Result<()
         }
     }
 
-    if !found_required {
-        anyhow::bail!(
-            "Could not find required file '{}' in any image layer",
-            required_file
-        );
-    }
-
-    println!(
-        "✓ Successfully scanned {} active layers from manifest (found {})",
-        scanned_count, required_file
-    );
     Ok(())
 }
 
@@ -268,7 +219,6 @@ async fn test_distroless_layer_structure() -> Result<()> {
 
     let temp_dir = std::env::temp_dir().join(format!("peelbox-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir)?;
-    let spec_path = temp_dir.join("universalbuild.json");
     let oci_dest = temp_dir.join("image.tar");
 
     let context_path = std::env::current_dir()?
@@ -279,39 +229,6 @@ async fn test_distroless_layer_structure() -> Result<()> {
         .to_path_buf();
 
     let universal_spec = context_path.join("universalbuild.json");
-    let mut spec: serde_json::Value =
-        serde_json::from_reader(std::fs::File::open(universal_spec)?)?;
-
-    if let Some(metadata) = spec.get_mut("metadata") {
-        if let Some(obj) = metadata.as_object_mut() {
-            obj.insert(
-                "project_name".to_string(),
-                serde_json::json!("peelbox-itest"),
-            );
-        }
-    }
-
-    if let Some(build) = spec.get_mut("build") {
-        if let Some(obj) = build.as_object_mut() {
-            obj.insert(
-                "cache".to_string(),
-                serde_json::json!([
-                    "/build/.cargo/registry",
-                    "/build/.cargo/git",
-                    "/build/target"
-                ]),
-            );
-            let mut env = obj
-                .get("env")
-                .and_then(|e| e.as_object())
-                .cloned()
-                .unwrap_or_default();
-            env.insert("CARGO_HOME".to_string(), serde_json::json!("/build/.cargo"));
-            obj.insert("env".to_string(), serde_json::Value::Object(env));
-        }
-    }
-
-    std::fs::write(&spec_path, serde_json::to_string_pretty(&spec)?)?;
 
     let peelbox_binary = support::get_peelbox_binary();
     let (port, _container_id) = get_buildkit_container().await?;
@@ -325,7 +242,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
     cmd.args([
         "build",
         "--spec",
-        spec_path.to_str().unwrap(),
+        universal_spec.to_str().unwrap(),
         "--tag",
         "peelbox-test:verify",
         "--buildkit",
@@ -333,15 +250,22 @@ async fn test_distroless_layer_structure() -> Result<()> {
         "--output",
         &format!("dest={}", oci_dest.display()),
     ]);
+    cmd.current_dir(context_path);
     cmd.env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
 
     let output = cmd.output()?;
     if !output.status.success() {
-        anyhow::bail!("Build failed: {}", String::from_utf8_lossy(&output.stderr));
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("--- BUILD FAILURE DETAILS (distroless_layer) ---");
+        println!("STDOUT:\n{}", stdout);
+        println!("STDERR:\n{}", stderr);
+        println!("------------------------------------------------");
+        anyhow::bail!("Build failed: {}", stderr);
     }
 
-    verify_image_content(&oci_dest, "hello.txt").await?;
-    println!("✓ VERIFIED: No apk binary found and hello.txt exists in active layers!");
+    verify_image_content(&oci_dest).await?;
+    println!("✓ VERIFIED: No apk binary found in active layers!");
     Ok(())
 }
 

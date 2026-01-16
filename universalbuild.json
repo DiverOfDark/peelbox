@@ -3,14 +3,11 @@
     "build": {
       "cache": [
         "target",
-        ".cargo"
+        "/root/.cargo"
       ],
       "commands": [
         "cargo build --release --no-default-features -p peelbox-cli"
       ],
-      "env": {
-        "CARGO_HOME": ".cargo"
-      },
       "packages": [
         "rust-1.92",
         "build-base",

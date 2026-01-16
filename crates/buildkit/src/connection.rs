@@ -171,6 +171,7 @@ impl BuildKitConnection {
                 debug!("Connecting to TCP: {}", uri_str);
                 Endpoint::try_from(uri_str.clone())
                     .context("Invalid TCP URI")?
+                    .connect_timeout(std::time::Duration::from_secs(10))
                     .connect()
                     .await
                     .context("Failed to connect to TCP endpoint")?
