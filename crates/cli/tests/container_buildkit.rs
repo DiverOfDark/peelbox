@@ -4,7 +4,7 @@ use bollard::container::LogsOptions;
 use bollard::container::{RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
 use bollard::Docker;
 use futures_util::StreamExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 mod support;
 use support::container_harness::get_buildkit_container;
@@ -27,27 +27,48 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         .unwrap()
         .to_path_buf();
 
-    let spec = serde_json::json!({
-        "version": "1.0",
-        "metadata": { "project_name": "peelbox-itest" },
-        "build": {
-            "packages": ["rust-1.92", "build-base", "openssl-dev", "pkgconf", "protoc"],
-            "commands": [
-                "mkdir -p /build && cp -r /context/. /build && cd /build && cargo build --release --no-default-features -p peelbox-cli"
-            ],
-            "cache": ["/root/.cargo/registry", "/root/.cargo/git", "/build/target"]
-        },
-        "runtime": {
-            "base_image": "cgr.dev/chainguard/glibc-dynamic:latest",
-            "command": ["/usr/local/bin/peelbox", "--help"],
-            "packages": ["glibc", "ca-certificates", "openssl"],
-            "copy": [{"from": "/build/target/release/peelbox", "to": "/usr/local/bin/peelbox"}]
+    let universal_spec = context_path.join("universalbuild.json");
+    let mut spec: serde_json::Value =
+        serde_json::from_reader(std::fs::File::open(universal_spec)?)?;
+
+    // Update project name for isolation if needed, but ensure it matches spec expectations
+    if let Some(metadata) = spec.get_mut("metadata") {
+        if let Some(obj) = metadata.as_object_mut() {
+            obj.insert(
+                "project_name".to_string(),
+                serde_json::json!("peelbox-itest"),
+            );
         }
-    });
+    }
+
+    // Ensure we use fixed cache paths for BuildKit layer caching in tests
+    if let Some(build) = spec.get_mut("build") {
+        if let Some(obj) = build.as_object_mut() {
+            obj.insert(
+                "cache".to_string(),
+                serde_json::json!([
+                    "/build/.cargo/registry",
+                    "/build/.cargo/git",
+                    "/build/target"
+                ]),
+            );
+            let mut env = obj
+                .get("env")
+                .and_then(|e| e.as_object())
+                .cloned()
+                .unwrap_or_default();
+            env.insert("CARGO_HOME".to_string(), serde_json::json!("/build/.cargo"));
+            obj.insert("env".to_string(), serde_json::Value::Object(env));
+        }
+    }
+
     std::fs::write(&spec_path, serde_json::to_string_pretty(&spec)?)?;
 
-    let temp_cache_dir =
-        std::env::temp_dir().join(format!("peelbox-cache-itest-{}", uuid::Uuid::new_v4()));
+    let temp_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
+        PathBuf::from(custom_cache).join("wolfi-cache")
+    } else {
+        std::env::temp_dir().join(format!("peelbox-cache-itest-{}", uuid::Uuid::new_v4()))
+    };
     std::fs::create_dir_all(&temp_cache_dir)?;
 
     let image_name = "localhost/peelbox-test:integration";
@@ -250,20 +271,46 @@ async fn test_distroless_layer_structure() -> Result<()> {
     let spec_path = temp_dir.join("universalbuild.json");
     let oci_dest = temp_dir.join("image.tar");
 
-    let spec = serde_json::json!({
-        "version": "1.0",
-        "metadata": { "project_name": "peelbox-test" },
-        "build": {
-            "commands": ["echo 'hello' > /hello.txt"],
-            "packages": []
-        },
-        "runtime": {
-            "base_image": "cgr.dev/chainguard/glibc-dynamic:latest",
-            "command": ["cat", "/hello.txt"],
-            "packages": ["ca-certificates"],
-            "copy": [{"from": "/hello.txt", "to": "/hello.txt"}]
+    let context_path = std::env::current_dir()?
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+
+    let universal_spec = context_path.join("universalbuild.json");
+    let mut spec: serde_json::Value =
+        serde_json::from_reader(std::fs::File::open(universal_spec)?)?;
+
+    if let Some(metadata) = spec.get_mut("metadata") {
+        if let Some(obj) = metadata.as_object_mut() {
+            obj.insert(
+                "project_name".to_string(),
+                serde_json::json!("peelbox-itest"),
+            );
         }
-    });
+    }
+
+    if let Some(build) = spec.get_mut("build") {
+        if let Some(obj) = build.as_object_mut() {
+            obj.insert(
+                "cache".to_string(),
+                serde_json::json!([
+                    "/build/.cargo/registry",
+                    "/build/.cargo/git",
+                    "/build/target"
+                ]),
+            );
+            let mut env = obj
+                .get("env")
+                .and_then(|e| e.as_object())
+                .cloned()
+                .unwrap_or_default();
+            env.insert("CARGO_HOME".to_string(), serde_json::json!("/build/.cargo"));
+            obj.insert("env".to_string(), serde_json::Value::Object(env));
+        }
+    }
+
     std::fs::write(&spec_path, serde_json::to_string_pretty(&spec)?)?;
 
     let peelbox_binary = support::get_peelbox_binary();
@@ -318,10 +365,7 @@ async fn test_binary_exists_and_executable() -> Result<()> {
     let container_config = Config {
         image: Some(image_name.clone()),
         user: Some("root".to_string()),
-        cmd: Some(vec![
-            "/usr/local/bin/peelbox".to_string(),
-            "--version".to_string(),
-        ]),
+        cmd: Some(vec!["--version".to_string()]),
         ..Default::default()
     };
     let test_container = docker
@@ -334,22 +378,19 @@ async fn test_binary_exists_and_executable() -> Result<()> {
         docker.wait_container(&test_container.id, None::<WaitContainerOptions<String>>);
     let wait_result = wait_stream.next().await.context("No wait result")??;
 
-    if wait_result.status_code != 0 {
-        let mut log_stream = docker.logs(
-            &test_container.id,
-            Some(LogsOptions::<String> {
-                stdout: true,
-                stderr: true,
-                ..Default::default()
-            }),
-        );
-        let mut output = String::new();
-        while let Some(log) = log_stream.next().await {
-            if let Ok(log_output) = log {
-                output.push_str(&log_output.to_string());
-            }
+    let mut log_stream = docker.logs(
+        &test_container.id,
+        Some(LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            ..Default::default()
+        }),
+    );
+    let mut output = String::new();
+    while let Some(log) = log_stream.next().await {
+        if let Ok(log_output) = log {
+            output.push_str(&log_output.to_string());
         }
-        println!("Container output (fail): {}", output);
     }
 
     docker
@@ -362,6 +403,7 @@ async fn test_binary_exists_and_executable() -> Result<()> {
         )
         .await?;
     assert_eq!(wait_result.status_code, 0);
+    assert!(output.contains("peelbox"));
     Ok(())
 }
 
@@ -373,10 +415,7 @@ async fn test_image_runs_help_command() -> Result<()> {
     let container_config = Config {
         image: Some(image_name.clone()),
         user: Some("root".to_string()),
-        cmd: Some(vec![
-            "/usr/local/bin/peelbox".to_string(),
-            "--help".to_string(),
-        ]),
+        cmd: Some(vec!["--help".to_string()]),
         ..Default::default()
     };
     let test_container = docker

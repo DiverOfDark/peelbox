@@ -16,6 +16,8 @@ static BUILDKIT_CONTAINER: OnceCell<BuildKitContainerCell> = OnceCell::const_new
 
 const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 
+use std::path::PathBuf;
+
 pub async fn get_buildkit_container() -> Result<(u16, String)> {
     let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
 
@@ -56,7 +58,11 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
             }
         }
 
-        let cache_dir = std::env::temp_dir().join("peelbox-test-buildkit-cache");
+        let cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
+            PathBuf::from(custom_cache)
+        } else {
+            std::env::temp_dir().join("peelbox-test-buildkit-cache")
+        };
         let _ = std::fs::create_dir_all(&cache_dir);
 
         let buildkit_container_res = GenericImage::new("moby/buildkit", "v0.12.5")

@@ -385,7 +385,16 @@ impl BuildSession {
             cmd: spec.runtime.command.clone(),
             env: env_vars,
             working_dir: "/".to_string(), // Default working dir
-            entrypoint: vec![],           // No entrypoint by default
+            entrypoint: spec.runtime.command.clone(),
+        };
+
+        let image_config = if !image_config.entrypoint.is_empty() {
+            ImageConfig {
+                cmd: vec![],
+                ..image_config
+            }
+        } else {
+            image_config
         };
 
         // Serialize OCI config to JSON for exporter attribute
