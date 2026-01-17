@@ -396,23 +396,36 @@ impl LLBBuilder {
             .hidden(false)
             .filter_entry(|e| !e.path().to_string_lossy().contains("/.git/"))
             .build()
-            .filter_map(|e| e.ok())
+            .enumerate()
+            .filter_map(|(i, e)| match e {
+                Ok(entry) => Some(entry),
+                Err(err) => {
+                    tracing::warn!("Failed to read context directory entry #{}: {}", i, err);
+                    None
+                }
+            })
             .collect();
 
         entries.sort_by(|a, b| a.path().cmp(b.path()));
 
         for entry in entries {
-            let rel_path = entry.path().strip_prefix(path).unwrap_or(entry.path());
+            let entry_path = entry.path();
+            let rel_path = entry_path.strip_prefix(path).unwrap_or(entry_path);
             hasher.update(rel_path.to_string_lossy().as_bytes());
 
             if let Some(file_type) = entry.file_type() {
                 if file_type.is_file() {
-                    if let Ok(metadata) = entry.metadata() {
-                        hasher.update(metadata.len().to_le_bytes());
-                        if let Ok(mtime) = metadata.modified() {
-                            if let Ok(duration) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                                hasher.update(duration.as_secs().to_le_bytes());
+                    match entry.metadata() {
+                        Ok(metadata) => {
+                            hasher.update(metadata.len().to_le_bytes());
+                            if let Ok(mtime) = metadata.modified() {
+                                if let Ok(duration) = mtime.duration_since(std::time::UNIX_EPOCH) {
+                                    hasher.update(duration.as_secs().to_le_bytes());
+                                }
                             }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
                         }
                     }
                 }

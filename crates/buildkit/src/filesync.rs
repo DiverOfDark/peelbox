@@ -3,7 +3,7 @@ use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncReadExt;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 /// Maximum file chunk size for streaming (1MB)
 const CHUNK_SIZE: usize = 1024 * 1024;
@@ -43,8 +43,14 @@ impl FileSync {
             .git_exclude(false) // Ignore .git/info/exclude to match LLB exclude patterns
             .build();
 
-        for entry in walker {
-            let entry: ignore::DirEntry = entry.context("Failed to read directory entry")?;
+        for (i, entry) in walker.enumerate() {
+            let entry: ignore::DirEntry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    warn!("Failed to read directory entry #{}: {}", i, e);
+                    continue;
+                }
+            };
             let path = entry.path();
 
             // Skip root directory
@@ -52,11 +58,21 @@ impl FileSync {
                 continue;
             }
 
-            let metadata = entry.metadata().context("Failed to read metadata")?;
-            let relative_path = path
-                .strip_prefix(&self.root_path)
-                .context("Failed to strip prefix")?
-                .to_path_buf();
+            let metadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(e) => {
+                    warn!("Failed to read metadata for {:?}: {}", path, e);
+                    continue;
+                }
+            };
+
+            let relative_path = match path.strip_prefix(&self.root_path) {
+                Ok(p) => p.to_path_buf(),
+                Err(e) => {
+                    warn!("Failed to strip prefix for {:?}: {}", path, e);
+                    continue;
+                }
+            };
 
             let stat = FileStat {
                 path: relative_path.clone(),

@@ -124,7 +124,7 @@ impl BuildSession {
         let file_stats = file_sync
             .scan_files()
             .await
-            .context("Failed to scan build context")?;
+            .with_context(|| format!("Failed to scan build context at {:?}", self.context_path))?;
 
         info!(
             "Build context contains {} files/directories",
