@@ -444,9 +444,7 @@ impl BuildSession {
             .with_context_path(self.context_path.clone())
             .with_project_name(project_name)
             .with_session_id(self.session_id.clone());
-        let llb_bytes = llb_builder
-            .to_bytes()
-            .context("Failed to generate LLB")?;
+        let llb_bytes = llb_builder.to_bytes().context("Failed to generate LLB")?;
 
         debug!("Generated LLB definition ({} bytes)", llb_bytes.len());
 
