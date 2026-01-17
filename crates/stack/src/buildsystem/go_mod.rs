@@ -88,6 +88,7 @@ impl BuildSystem for GoModBuildSystem {
         build_env.insert("GOCACHE".to_string(), "/build/.cache/go-build".to_string());
         build_env.insert("GOMODCACHE".to_string(), "/build/.cache/go-mod".to_string());
         build_env.insert("GOSUMDB".to_string(), "off".to_string());
+        build_env.insert("CGO_ENABLED".to_string(), "0".to_string());
 
         BuildTemplate {
             build_packages: vec![go_package],

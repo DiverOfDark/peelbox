@@ -175,6 +175,12 @@ impl Runtime for RubyRuntime {
             }
         }
 
+        // Always include shared libraries (libgcc, libstdc++) for interpreted languages
+        // as many Ruby gems (json, nokogiri, puma) require them
+        // and strict distroless images don't include them by default.
+        packages.push("libgcc".to_string());
+        packages.push("libstdc++".to_string());
+
         packages
     }
 }

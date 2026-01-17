@@ -24,12 +24,8 @@
     },
     "runtime": {
       "command": [
-        "/usr/bin/python3",
-        "-m",
         "flask",
-        "run",
-        "--host=0.0.0.0",
-        "--port=5000"
+        "run"
       ],
       "copy": [
         {
@@ -42,13 +38,19 @@
         }
       ],
       "env": {
-        "FLASK_APP": "/app/app.py"
+        "FLASK_APP": "/app/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PYTHONPATH": "/root/.local/lib/python3.14/site-packages",
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"
       },
       "health": {
         "endpoint": "/health"
       },
       "packages": [
-        "python-3.14"
+        "python-3.14",
+        "libgcc",
+        "libstdc++"
       ],
       "ports": [
         5000

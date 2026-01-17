@@ -16,6 +16,7 @@ use super::proto::{
     AuthServerBuilder, BytesMessage, ControlClient, FileSendServerBuilder, FileSyncServerBuilder,
 };
 use super::stream_conn::StreamConn;
+use crate::{BuildStrategy, PeelboxStrategy};
 use peelbox_core::output::schema::UniversalBuild;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
@@ -179,9 +180,6 @@ impl BuildSession {
         // Create channel for outgoing session messages
         let (tx, rx) = mpsc::channel::<BytesMessage>(32);
 
-        // Generate shared key for session security
-        let shared_key = format!("{}-key", self.session_id);
-
         // Convert to stream - start with empty stream
         // BuildKit will initiate gRPC calls over the tunneled connection
         let outgoing_stream = ReceiverStream::new(rx);
@@ -206,7 +204,9 @@ impl BuildSession {
 
         request.metadata_mut().insert(
             "x-docker-expose-session-sharedkey",
-            shared_key.parse().context("Failed to parse shared key")?,
+            self.session_id
+                .parse()
+                .context("Failed to parse shared key")?,
         );
 
         // Advertise all available gRPC methods
@@ -404,7 +404,7 @@ impl BuildSession {
         let image_config = ImageConfig {
             cmd: spec.runtime.command.clone(),
             env: env_vars,
-            working_dir: "/".to_string(), // Default working dir
+            working_dir: "/app".to_string(),
             entrypoint: spec.runtime.command.clone(),
         };
 
@@ -440,11 +440,19 @@ impl BuildSession {
             .project_name
             .clone()
             .unwrap_or_else(|| "unnamed".to_string());
-        let llb_builder = LLBBuilder::new("context")
+        let mut llb_builder = LLBBuilder::new("context")
             .with_context_path(self.context_path.clone())
             .with_project_name(project_name)
             .with_session_id(self.session_id.clone());
-        let llb_bytes = llb_builder.to_bytes().context("Failed to generate LLB")?;
+
+        PeelboxStrategy.build_graph(&mut llb_builder, spec)?;
+
+        let llb_bytes = llb_builder.to_bytes()?;
+
+        if llb_bytes.is_empty() {
+            error!("Generated LLB definition is empty! Check LLBBuilder::write_definition.");
+            return Err(anyhow::anyhow!("Generated LLB definition is empty"));
+        }
 
         debug!("Generated LLB definition ({} bytes)", llb_bytes.len());
 

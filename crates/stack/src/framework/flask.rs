@@ -48,17 +48,12 @@ impl Framework for FlaskFramework {
         let mut env = HashMap::new();
         env.insert("FLASK_APP".to_string(), "app:app".to_string());
         env.insert("FLASK_RUN_HOST".to_string(), "0.0.0.0".to_string());
-        env.insert("FLASK_RUN_PORT".to_string(), "8080".to_string());
+        env.insert("FLASK_RUN_PORT".to_string(), "5000".to_string());
         env
     }
 
     fn entrypoint_command(&self) -> Option<Vec<String>> {
-        Some(vec![
-            "python".to_string(),
-            "-m".to_string(),
-            "flask".to_string(),
-            "run".to_string(),
-        ])
+        Some(vec!["flask".to_string(), "run".to_string()])
     }
 
     fn env_var_patterns(&self) -> Vec<(String, String)> {

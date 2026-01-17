@@ -101,9 +101,26 @@ impl BuildSystem for PipBuildSystem {
             build_env: std::collections::HashMap::new(),
             runtime_copy: vec![
                 (".".to_string(), "/app".to_string()),
-                (".local/".to_string(), "/root/.local".to_string()),
+                ("/root/.local/".to_string(), "/root/.local".to_string()),
             ],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: {
+                let mut env = std::collections::HashMap::new();
+                env.insert(
+                    "PYTHONPATH".to_string(),
+                    format!(
+                        "/root/.local/lib/{}/site-packages",
+                        python_version
+                            .strip_prefix("python-")
+                            .map(|v| format!("python{}", v))
+                            .unwrap_or_else(|| "python3.12".to_string())
+                    ),
+                );
+                env.insert(
+                    "PATH".to_string(),
+                    "/root/.local/bin:/usr/local/bin:/usr/bin:/bin".to_string(),
+                );
+                env
+            },
         }
     }
 

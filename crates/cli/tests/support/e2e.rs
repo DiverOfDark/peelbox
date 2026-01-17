@@ -345,7 +345,7 @@ pub async fn run_container_integration_test(
     let fixture_path = fixture_path(category, fixture_name);
 
     // Get port, health endpoint, command, and env from committed universalbuild.json
-    let (port, health_path, cmd, env) = get_fixture_container_info(category, fixture_name)
+    let (port, health_path, _cmd, env) = get_fixture_container_info(category, fixture_name)
         .ok_or_else(|| format!("No container info found for fixture {}", fixture_name))?;
 
     // Use committed universalbuild.json directly
@@ -382,7 +382,7 @@ pub async fn run_container_integration_test(
         .start_container(
             &image,
             port,
-            Some(cmd),
+            None,
             if env.is_empty() { None } else { Some(env) },
         )
         .await
@@ -420,11 +420,15 @@ pub async fn run_container_integration_test(
             .map_err(|e| format!("Health check failed: {}", e))?;
 
         if !health_ok {
+            let logs = harness
+                .get_container_logs(&container_id)
+                .await
+                .unwrap_or_default();
             let _ = harness.cleanup_container(&container_id).await;
             let _ = harness.cleanup_image(&image_name).await;
             return Err(format!(
-                "Health check returned non-2xx status for {}",
-                health_endpoint
+                "Health check returned non-2xx status for {}.\nContainer Logs:\n{}",
+                health_endpoint, logs
             ));
         }
     }

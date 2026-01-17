@@ -87,18 +87,27 @@ impl BuildSystem for PoetryBuildSystem {
                 pip_package,
                 "build-base".to_string(),
             ],
+            // Install poetry and dependencies directly into .venv
             build_commands: vec![
                 "pip install --user poetry".to_string(),
-                "/root/.local/bin/poetry install --compile --only main --no-root".to_string(),
+                "/root/.local/bin/poetry install --no-root --only main".to_string(),
             ],
-            cache_paths: vec!["/root/.cache/pypoetry/".to_string()],
+            cache_paths: vec![
+                "/root/.cache/pypoetry/".to_string(),
+                "/root/.cache/pip/".to_string(),
+            ],
             common_ports: vec![8000, 5000],
             build_env,
-            runtime_copy: vec![
-                (".".to_string(), "/app".to_string()),
-                (".venv/".to_string(), "/app/.venv".to_string()),
-            ],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_copy: vec![(".".to_string(), "/build".to_string())],
+            runtime_env: {
+                let mut env = std::collections::HashMap::new();
+                env.insert("VIRTUAL_ENV".to_string(), "/build/.venv".to_string());
+                env.insert(
+                    "PATH".to_string(),
+                    "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin".to_string(),
+                );
+                env
+            },
         }
     }
 

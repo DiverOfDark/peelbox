@@ -22,7 +22,9 @@ impl BuildStrategy for PeelboxStrategy {
         let context_idx = builder.create_local_source(&exclude);
 
         let with_build_packages_idx = if !spec.build.packages.is_empty() {
-            let packages = spec.build.packages.join(" ");
+            let mut packages_list = spec.build.packages.clone();
+            packages_list.sort();
+            let packages = packages_list.join(" ");
             let meta = pb::Meta {
                 args: vec![
                     "sh".to_string(),
@@ -67,7 +69,7 @@ impl BuildStrategy for PeelboxStrategy {
             for (i, command) in spec.build.commands.iter().enumerate() {
                 let is_last = i == num_commands - 1;
 
-                let mut script = format!("cd /context && {}", command);
+                let mut script = format!("cd /build && {}", command);
 
                 if is_last && !artifact_paths.is_empty() {
                     let artifact_cmds: String = artifact_paths
@@ -77,7 +79,7 @@ impl BuildStrategy for PeelboxStrategy {
                             let src = if path.starts_with('/') {
                                 path.clone()
                             } else {
-                                format!("/context/{}", path)
+                                format!("/build/{}", path)
                             };
                             format!(
                                 "mkdir -p /peelbox-artifacts/{} && cp -rp {} /peelbox-artifacts/{}/res",
@@ -111,24 +113,17 @@ impl BuildStrategy for PeelboxStrategy {
                     remove_mount_stubs_recursive: false,
                 };
 
-                let mut mounts = if i == 0 {
-                    vec![
-                        builder.layer_mount(0, 0, "/"),
-                        builder.layer_mount(1, 1, "/context"),
-                        builder.scratch_mount("/tmp"),
-                    ]
-                } else {
-                    vec![
-                        builder.layer_mount(0, 0, "/"),
-                        builder.scratch_mount("/tmp"),
-                    ]
-                };
+                let mut mounts = vec![
+                    builder.layer_mount(0, 0, "/"),
+                    builder.layer_mount(1, 1, "/build"),
+                    builder.scratch_mount("/tmp"),
+                ];
 
                 for cache_path in &spec.build.cache {
                     let absolute: String = if cache_path.starts_with('/') {
                         cache_path.clone()
                     } else {
-                        format!("/context/{}", cache_path)
+                        format!("/build/{}", cache_path)
                     };
                     mounts.push(builder.cache_mount(&absolute, cache_path));
                 }
@@ -136,7 +131,7 @@ impl BuildStrategy for PeelboxStrategy {
                 let inputs = if i == 0 {
                     vec![(base_idx, 0), (context_idx, 0)]
                 } else {
-                    vec![(last_idx, 0)]
+                    vec![(last_idx, 0), (last_idx, 1)]
                 };
 
                 last_idx = builder.create_exec(
@@ -152,7 +147,9 @@ impl BuildStrategy for PeelboxStrategy {
         };
 
         let runtime_packages_idx = if !spec.runtime.packages.is_empty() {
-            let packages = spec.runtime.packages.join(" ");
+            let mut packages_list = spec.runtime.packages.clone();
+            packages_list.sort();
+            let packages = packages_list.join(" ");
 
             let install_meta = pb::Meta {
                 args: vec![

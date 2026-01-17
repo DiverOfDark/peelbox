@@ -1,7 +1,5 @@
-use super::strategy::{BuildStrategy, PeelboxStrategy};
 use crate::proto::pb;
 use anyhow::Result;
-use peelbox_core::output::schema::UniversalBuild;
 use prost::Message as ProstMessage;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -391,10 +389,13 @@ impl LLBBuilder {
     fn calculate_context_hash(&self, path: &Path) -> Result<String> {
         let mut hasher = Sha256::new();
 
-        let mut entries: Vec<_> = ignore::WalkBuilder::new(path)
+        let entries: Vec<_> = ignore::WalkBuilder::new(path)
             .standard_filters(true)
             .hidden(false)
-            .filter_entry(|e| !e.path().to_string_lossy().contains("/.git/"))
+            .filter_entry(|e| {
+                let path_str = e.path().to_string_lossy();
+                !path_str.contains("/.git/")
+            })
             .build()
             .enumerate()
             .filter_map(|(i, e)| match e {
@@ -405,8 +406,6 @@ impl LLBBuilder {
                 }
             })
             .collect();
-
-        entries.sort_by(|a, b| a.path().cmp(b.path()));
 
         for entry in entries {
             let entry_path = entry.path();
@@ -433,16 +432,5 @@ impl LLBBuilder {
         }
 
         Ok(hex::encode(hasher.finalize()))
-    }
-
-    pub fn write_definition<W: std::io::Write>(
-        &mut self,
-        spec: &UniversalBuild,
-        mut writer: W,
-    ) -> Result<()> {
-        PeelboxStrategy.build_graph(self, spec)?;
-        let bytes = self.to_bytes()?;
-        writer.write_all(&bytes)?;
-        Ok(())
     }
 }

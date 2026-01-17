@@ -2,14 +2,15 @@
   {
     "build": {
       "cache": [
-        ".cache/pypoetry"
+        "/root/.cache/pypoetry/",
+        "/root/.cache/pip/"
       ],
       "commands": [
         "pip install --user poetry",
-        "/root/.local/bin/poetry install --compile --only main --no-root"
+        "/root/.local/bin/poetry install --no-root --only main"
       ],
       "env": {
-        "POETRY_CACHE_DIR": "/tmp/poetry-cache",
+        "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
         "POETRY_VIRTUALENVS_IN_PROJECT": "true"
       },
       "packages": [
@@ -28,27 +29,29 @@
     },
     "runtime": {
       "command": [
-        "/app/.venv/bin/python3",
-        "-m",
         "flask",
-        "run",
-        "--host=0.0.0.0",
-        "--port=5000"
+        "run"
       ],
       "copy": [
         {
           "from": ".",
-          "to": "/app"
+          "to": "/build"
         }
       ],
       "env": {
-        "FLASK_APP": "/app/app.py"
+        "FLASK_APP": "/build/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "VIRTUAL_ENV": "/build/.venv",
+        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"
       },
       "health": {
         "endpoint": "/health"
       },
       "packages": [
-        "python-3.14"
+        "python-3.14",
+        "libgcc",
+        "libstdc++"
       ],
       "ports": [
         5000

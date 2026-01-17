@@ -84,7 +84,7 @@ impl BuildSystem for BundlerBuildSystem {
 
             common_ports: vec![3000],
             build_env,
-            runtime_copy: vec![("/build/".to_string(), "/app".to_string())],
+            runtime_copy: vec![(".".to_string(), "/app".to_string())],
             runtime_env,
         }
     }

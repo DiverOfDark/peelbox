@@ -15,16 +15,10 @@ impl BuildSystem for NpmBuildSystem {
     }
 
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
-        vec![
-            ManifestPattern {
-                filename: "package.json".to_string(),
-                priority: 10,
-            },
-            ManifestPattern {
-                filename: "package-lock.json".to_string(),
-                priority: 12,
-            },
-        ]
+        vec![ManifestPattern {
+            filename: "package.json".to_string(),
+            priority: 10,
+        }]
     }
 
     fn detect_all(
@@ -39,7 +33,6 @@ impl BuildSystem for NpmBuildSystem {
             let filename = rel_path.file_name().and_then(|n| n.to_str());
 
             let is_match = match filename {
-                Some("package-lock.json") => true,
                 Some("package.json") => {
                     let abs_path = repo_root.join(rel_path);
                     let content = fs.read_to_string(&abs_path).ok();

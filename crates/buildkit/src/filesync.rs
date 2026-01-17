@@ -41,6 +41,7 @@ impl FileSync {
             .git_ignore(true)
             .git_global(false) // Ignore global gitignore to match LLB exclude patterns
             .git_exclude(false) // Ignore .git/info/exclude to match LLB exclude patterns
+            .filter_entry(|e| !e.path().to_string_lossy().contains("/.git/"))
             .build();
 
         for (i, entry) in walker.enumerate() {

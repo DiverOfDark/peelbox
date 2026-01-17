@@ -28,6 +28,9 @@ sha2 = "0.10"
 dirs = "6.0.0"
 genai = "0.4"
 
+[features]
+cuda = ["peelbox-llm/cuda"]
+
 [dev-dependencies]
 tempfile = "3.8"
 serial_test = "3.0"

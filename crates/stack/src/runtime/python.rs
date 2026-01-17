@@ -7,6 +7,19 @@ use std::path::{Path, PathBuf};
 pub struct PythonRuntime;
 
 impl PythonRuntime {
+    fn find_entrypoint(&self, files: &[PathBuf]) -> Option<String> {
+        const ENTRYPOINT_CANDIDATES: &[&str] = &["app.py", "main.py", "server.py", "wsgi.py"];
+
+        for candidate in ENTRYPOINT_CANDIDATES {
+            for file in files {
+                if file.file_name().and_then(|n| n.to_str()) == Some(candidate) {
+                    return Some(format!("python /app/{}", candidate));
+                }
+            }
+        }
+        None
+    }
+
     fn extract_env_vars(&self, files: &[PathBuf]) -> Vec<String> {
         let mut env_vars = HashSet::new();
         let os_environ_pattern = Regex::new(
@@ -116,9 +129,12 @@ impl Runtime for PythonRuntime {
                 })
         });
 
+        // Prefer detected file entrypoint only if framework entrypoint is missing
+        // For Flask, we prefer 'flask run' (from framework) over 'python app.py'
         let entrypoint = framework
             .and_then(|f| f.entrypoint_command())
-            .map(|cmd| cmd.join(" "));
+            .map(|cmd| cmd.join(" "))
+            .or_else(|| self.find_entrypoint(files));
 
         Some(RuntimeConfig {
             entrypoint,
@@ -157,7 +173,10 @@ impl Runtime for PythonRuntime {
             .or_else(|| wolfi_index.get_latest_version("python"))
             .unwrap_or_else(|| "python-3.12".to_string());
 
-        vec![version]
+        // Always include shared libraries (libgcc, libstdc++) for interpreted languages
+        // as many Python packages (numpy, pandas, anything with C extensions) require them
+        // and strict distroless images don't include them by default.
+        vec![version, "libgcc".to_string(), "libstdc++".to_string()]
     }
 }
 
