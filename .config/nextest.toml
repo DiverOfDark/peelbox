@@ -1,5 +1,5 @@
 [profile.default]
-slow-timeout = { period = "300s", terminate-after = 3 }
+slow-timeout = { period = "100s", terminate-after = 15 }
 
 [profile.ci.junit]
 path = "junit.xml"
