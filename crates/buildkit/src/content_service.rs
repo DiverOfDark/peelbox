@@ -15,6 +15,24 @@ use super::proto::containerd::services::content::v1::{
     StatusResponse, UpdateRequest, UpdateResponse, WriteContentRequest, WriteContentResponse,
 };
 
+/// Compute blob path from digest and cache directory
+fn compute_blob_path(cache_dir: &std::path::Path, digest: &str) -> PathBuf {
+    let parts: Vec<&str> = digest.split(':').collect();
+    if parts.len() == 2 {
+        cache_dir
+            .join("blobs")
+            .join(parts[0])
+            .join(parts[1])
+    } else {
+        cache_dir.join("blobs").join("unknown").join(digest)
+    }
+}
+
+/// Sanitize ref name for filesystem usage
+fn sanitize_ref_name(ref_name: &str) -> String {
+    ref_name.replace(['/', ':', '\\'], "_")
+}
+
 /// Content service implementation for BuildKit cache export/import
 ///
 /// Implements containerd's Content service protocol to enable:
@@ -50,22 +68,7 @@ impl ContentService {
     }
 
     fn blob_path(&self, digest: &str) -> PathBuf {
-        // Extract algorithm and hex from digest (e.g., "sha256:abc123")
-        let parts: Vec<&str> = digest.split(':').collect();
-        if parts.len() == 2 {
-            self.cache_dir
-                .join("blobs")
-                .join(parts[0])
-                .join(parts[1])
-        } else {
-            self.cache_dir.join("blobs").join("unknown").join(digest)
-        }
-    }
-
-    fn ingest_path(&self, ref_name: &str) -> PathBuf {
-        // Sanitize ref name for filesystem
-        let sanitized = ref_name.replace(['/', ':', '\\'], "_");
-        self.cache_dir.join("ingest").join(sanitized)
+        compute_blob_path(&self.cache_dir, digest)
     }
 
     async fn ensure_directories(&self) -> Result<()> {
@@ -90,36 +93,38 @@ impl ContentTrait for ContentService {
         request: Request<InfoRequest>,
     ) -> Result<Response<InfoResponse>, Status> {
         let req = request.into_inner();
-        debug!("Content::Info called for digest={}", req.digest);
+        let digest = req.digest;
 
-        let blob_path = self.blob_path(&req.digest);
+        debug!("Content::Info called for digest={}", digest);
+
+        let blob_path = self.blob_path(&digest);
 
         match fs::metadata(&blob_path).await {
             Ok(metadata) => {
                 let info = super::proto::containerd::services::content::v1::Info {
-                    digest: req.digest.clone(),
+                    digest: digest.clone(),
                     size: metadata.len() as i64,
-                    created_at: None, // Optional
-                    updated_at: None, // Optional
+                    created_at: None,
+                    updated_at: None,
                     labels: HashMap::new(),
                 };
 
                 debug!(
                     "Content::Info found blob {} size={}",
-                    req.digest,
+                    digest,
                     metadata.len()
                 );
                 Ok(Response::new(InfoResponse { info: Some(info) }))
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                warn!("Content::Info blob not found: {}", req.digest);
+                warn!("Content::Info blob not found: {}", digest);
                 Err(Status::not_found(format!(
                     "content blob {} not found",
-                    req.digest
+                    digest
                 )))
             }
             Err(e) => {
-                error!("Content::Info error for {}: {}", req.digest, e);
+                error!("Content::Info error for {}: {}", digest, e);
                 Err(Status::internal(format!("failed to get info: {}", e)))
             }
         }
@@ -387,9 +392,7 @@ impl ContentTrait for ContentService {
                     current_ref = Some(ref_name.clone());
                     current_offset = 0;
 
-                    // Create ingest file using helper method
-                    let sanitized = ref_name.replace(['/', ':', '\\'], "_");
-                    let ingest_path = cache_dir.join("ingest").join(sanitized);
+                    let ingest_path = cache_dir.join("ingest").join(sanitize_ref_name(&ref_name));
 
                     debug!("Content::Write creating ingest file at: {}", ingest_path.display());
 
@@ -499,22 +502,13 @@ impl ContentTrait for ContentService {
 
                             // Move from ingest to blob storage
                             let digest = req.expected.clone();
-                            let blob_path = if digest.contains(':') {
-                                let parts: Vec<&str> = digest.split(':').collect();
-                                cache_dir
-                                    .join("blobs")
-                                    .join(parts[0])
-                                    .join(parts[1])
-                            } else {
-                                cache_dir.join("blobs").join("sha256").join(&digest)
-                            };
+                            let blob_path = compute_blob_path(&cache_dir, &digest);
 
                             if let Some(parent) = blob_path.parent() {
                                 let _ = tokio::fs::create_dir_all(parent).await;
                             }
 
-                            let sanitized = effective_ref.replace(['/', ':', '\\'], "_");
-                            let ingest_path = cache_dir.join("ingest").join(sanitized);
+                            let ingest_path = cache_dir.join("ingest").join(sanitize_ref_name(&effective_ref));
 
                             debug!(
                                 "Content::Write committing: rename {} -> {}",
@@ -529,9 +523,11 @@ impl ContentTrait for ContentService {
                                         effective_ref, digest, current_offset, blob_path.display()
                                     );
 
-                                    // Remove from write sessions
-                                    let mut sessions = write_sessions.lock().await;
-                                    sessions.remove(&effective_ref);
+                                    // Remove from write sessions before sending response
+                                    {
+                                        let mut sessions = write_sessions.lock().await;
+                                        sessions.remove(&effective_ref);
+                                    }
 
                                     // Send commit response
                                     let response = WriteContentResponse {

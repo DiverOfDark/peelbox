@@ -91,8 +91,9 @@ impl OciIndex {
         });
 
         // Add new manifest
-        let mut annotations = HashMap::new();
-        annotations.insert(ANNOTATION_REF_NAME.to_string(), tag.to_string());
+        let annotations = HashMap::from([
+            (ANNOTATION_REF_NAME.to_string(), tag.to_string())
+        ]);
 
         self.manifests.push(OciDescriptor {
             media_type: Some(OCI_MANIFEST_MEDIA_TYPE.to_string()),
@@ -153,18 +154,19 @@ pub fn find_latest_manifest(cache_dir: &Path) -> Result<Option<(String, i64)>> {
             continue;
         }
 
-        // Try to read and parse as JSON
-        if let Ok(content) = fs::read_to_string(&path) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                // Check if it looks like an OCI image manifest
-                // (has "config" and "layers" fields)
-                if json.get("config").is_some() && json.get("layers").is_some() {
-                    let digest = format!("sha256:{}", path.file_name().unwrap().to_string_lossy());
-                    let modified = metadata.modified()?;
-                    debug!("Found OCI manifest candidate: {} (size={})", digest, size);
-                    manifests.push((digest, size, modified));
-                }
-            }
+        // Try to read and parse as JSON, check if it's an OCI manifest
+        if let Some((digest, modified)) = fs::read_to_string(&path)
+            .ok()
+            .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+            .filter(|json| json.get("config").is_some() && json.get("layers").is_some())
+            .and_then(|_| {
+                path.file_name()
+                    .map(|name| format!("sha256:{}", name.to_string_lossy()))
+                    .zip(metadata.modified().ok())
+            })
+        {
+            debug!("Found OCI manifest candidate: {} (size={})", digest, size);
+            manifests.push((digest, size, modified));
         }
     }
 

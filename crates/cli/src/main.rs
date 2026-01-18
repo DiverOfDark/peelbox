@@ -714,14 +714,14 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     let session_id = uuid::Uuid::new_v4().to_string();
 
     // Check for automatic caching via PEELBOX_CACHE_DIR env var
-    let auto_cache_base_dir = std::env::var("PEELBOX_CACHE_DIR").ok();
-    let using_auto_cache = auto_cache_base_dir.is_some()
+    let cache_base = std::env::var("PEELBOX_CACHE_DIR").ok();
+    let using_auto_cache = cache_base.is_some()
         && args.cache_from.is_empty()
         && args.cache_to.is_empty();
 
     // Generate app-specific cache key if using auto-cache
     let (auto_cache_dir, auto_cache_key) = if using_auto_cache {
-        let base_dir = auto_cache_base_dir.as_ref().unwrap();
+        let base_dir = cache_base.as_ref().unwrap();
         let cache_key = generate_cache_key(&args.spec, &context_path);
         let cache_path = PathBuf::from(base_dir);
 
@@ -886,19 +886,20 @@ fn parse_cache_option(cache_str: &str, is_export: bool) -> Option<HashMap<String
     Some(attrs)
 }
 
+/// Get index filename based on cache key
+fn get_index_filename(cache_key: Option<&str>) -> String {
+    cache_key
+        .map(|key| format!("{}.json", key))
+        .unwrap_or_else(|| "index.json".to_string())
+}
+
 /// Resolve cache digest from index file in the cache directory
 fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Result<String> {
     use std::path::PathBuf;
     use peelbox_buildkit::OciIndex;
 
     let cache_path = PathBuf::from(cache_dir);
-
-    // Determine index filename: <cache_key>.json or index.json
-    let index_filename = if let Some(key) = cache_key {
-        format!("{}.json", key)
-    } else {
-        "index.json".to_string()
-    };
+    let index_filename = get_index_filename(cache_key);
     let index_path = cache_path.join(&index_filename);
 
     // Check if index file exists first
@@ -976,16 +977,12 @@ fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<Ca
                     if let Some(src) = attrs.get("src") {
                         match resolve_cache_digest(src, cache_key) {
                             Ok(digest) => {
-                                let index_file = if let Some(key) = cache_key {
-                                    format!("{}.json", key)
-                                } else {
-                                    "index.json".to_string()
-                                };
+                                let index_file = get_index_filename(cache_key);
                                 info!("Auto-resolved cache digest from {}: {}", index_file, digest);
                                 attrs.insert("digest".to_string(), digest);
                             }
                             Err(e) => {
-                                warn!("Failed to auto-resolve cache digest: {}", e);
+                                warn!("Failed to auto-resolve cache digest for {}: {}", src, e);
                             }
                         }
                     }
