@@ -5,7 +5,7 @@ use futures_util::stream::StreamExt;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use testcontainers::core::{Mount, WaitFor};
+use testcontainers::core::WaitFor;
 use testcontainers::runners::AsyncRunner;
 use testcontainers::{ContainerAsync, GenericImage, ImageExt};
 use tokio::sync::OnceCell;

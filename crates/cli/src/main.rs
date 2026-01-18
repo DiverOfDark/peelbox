@@ -835,67 +835,91 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     0
 }
 
-/// Parse cache option strings into structured cache imports/exports
-/// Supports formats:
-/// - "user/app:cache" (shorthand for registry cache)
-/// - "type=registry,ref=user/app:cache"
-/// - "type=local,src=path" (for imports)
-/// - "type=local,dest=path" (for exports)
-fn parse_cache_option(cache_str: &str, is_export: bool) -> Option<HashMap<String, String>> {
-    let mut attrs = HashMap::new();
-
-    // Check if it's a simple registry reference (no commas, looks like image ref)
-    if !cache_str.contains(',') && cache_str.contains('/') {
-        // Shorthand: "user/app:cache" -> type=registry,ref=user/app:cache
-        return Some(HashMap::from([
-            ("type".to_string(), "registry".to_string()),
-            ("ref".to_string(), cache_str.to_string()),
-        ]));
-    }
-
-    // Parse key=value pairs
-    for pair in cache_str.split(',') {
-        if let Some((key, value)) = pair.split_once('=') {
-            attrs.insert(key.trim().to_string(), value.trim().to_string());
-        } else {
-            warn!("Invalid cache option format: {}", pair);
-            return None;
-        }
-    }
-
-    // Validate required fields based on type
-    let cache_type = attrs.get("type")?;
-    match cache_type.as_str() {
-        "registry" => {
-            if !attrs.contains_key("ref") {
-                warn!("Registry cache requires 'ref' attribute");
-                return None;
-            }
-        }
-        "local" => {
-            let required_key = if is_export { "dest" } else { "src" };
-            if !attrs.contains_key(required_key) {
-                warn!("Local cache requires '{}' attribute", required_key);
-                return None;
-            }
-        }
-        "gha" | "s3" | "azblob" | "inline" => {
-            // Other cache types - basic validation passed
-        }
-        _ => {
-            warn!("Unknown cache type: {}", cache_type);
-            return None;
-        }
-    }
-
-    Some(attrs)
+/// Builder for cache options - parses and validates cache configuration
+struct CacheOptionBuilder {
+    cache_type: String,
+    attrs: HashMap<String, String>,
 }
 
-/// Get index filename based on cache key
-fn get_index_filename(cache_key: Option<&str>) -> String {
-    cache_key
-        .map(|key| format!("{}.json", key))
-        .unwrap_or_else(|| "index.json".to_string())
+impl CacheOptionBuilder {
+    fn parse(cache_str: &str) -> anyhow::Result<Self> {
+        // Shorthand for registry: "user/app:cache"
+        if !cache_str.contains(',') && cache_str.contains('/') {
+            return Ok(Self {
+                cache_type: "registry".into(),
+                attrs: HashMap::from([("ref".into(), cache_str.into())]),
+            });
+        }
+
+        let mut attrs: HashMap<String, String> = cache_str
+            .split(',')
+            .filter_map(|pair| {
+                pair.split_once('=')
+                    .map(|(k, v)| (k.trim().into(), v.trim().into()))
+            })
+            .collect();
+
+        if attrs.is_empty() {
+            anyhow::bail!("Invalid cache option format: {}", cache_str);
+        }
+
+        let cache_type = attrs.remove("type").unwrap_or_else(|| "registry".into());
+        Ok(Self { cache_type, attrs })
+    }
+
+    fn validate(&self, is_export: bool) -> anyhow::Result<()> {
+        match self.cache_type.as_str() {
+            "registry" => {
+                if !self.attrs.contains_key("ref") {
+                    anyhow::bail!("Registry cache requires 'ref' attribute");
+                }
+            }
+            "local" => {
+                let key = if is_export { "dest" } else { "src" };
+                if !self.attrs.contains_key(key) {
+                    anyhow::bail!("Local cache requires '{}' attribute", key);
+                }
+            }
+            "gha" | "s3" | "azblob" | "inline" => {}
+            unknown => anyhow::bail!("Unknown cache type: {}", unknown),
+        }
+        Ok(())
+    }
+
+    fn into_import(mut self, cache_key: Option<&str>) -> anyhow::Result<CacheImport> {
+        self.validate(false)?;
+
+        // Auto-resolve digest for local caches
+        if self.cache_type == "local" && !self.attrs.contains_key("digest") {
+            if let Some(src) = self.attrs.get("src") {
+                match resolve_cache_digest(src, cache_key) {
+                    Ok(digest) => {
+                        let index_file = peelbox_buildkit::OciIndex::filename(cache_key);
+                        info!("Auto-resolved digest from {}: {}", index_file, digest);
+                        self.attrs.insert("digest".into(), digest);
+                    }
+                    Err(e) => {
+                        warn!("Failed to auto-resolve digest for {}: {}", src, e);
+                    }
+                }
+            }
+        }
+
+        info!("Cache import: type={}, attrs={:?}", self.cache_type, self.attrs);
+        Ok(CacheImport {
+            r#type: self.cache_type,
+            attrs: self.attrs,
+        })
+    }
+
+    fn into_export(self) -> anyhow::Result<CacheExport> {
+        self.validate(true)?;
+        info!("Cache export: type={}, attrs={:?}", self.cache_type, self.attrs);
+        Ok(CacheExport {
+            r#type: self.cache_type,
+            attrs: self.attrs,
+        })
+    }
 }
 
 /// Resolve cache digest from index file in the cache directory
@@ -904,111 +928,59 @@ fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Res
     use std::path::PathBuf;
 
     let cache_path = PathBuf::from(cache_dir);
-    let index_filename = get_index_filename(cache_key);
-    let index_path = cache_path.join(&index_filename);
+    let index_file = OciIndex::filename(cache_key);
+    let index_path = cache_path.join(&index_file);
 
-    // Check if index file exists first
     if !index_path.exists() {
-        return Err(anyhow::anyhow!(
-            "No {} found (first build?)",
-            index_filename
-        ));
+        return Err(anyhow::anyhow!("No {} found (first build?)", index_file));
     }
 
-    let index = OciIndex::read_from_file(&index_path)?;
+    let index = OciIndex::read_with_key(&cache_path, cache_key)?;
 
     index
-        .get_digest(None) // Use default "latest" tag
-        .ok_or_else(|| anyhow::anyhow!("No 'latest' tag found in {}", index_filename))
+        .get_digest(None)
+        .ok_or_else(|| anyhow::anyhow!("No 'latest' tag found in {}", index_file))
 }
 
-/// Generate a cache key for the current build to isolate caches between different apps
-/// Uses context_path + app_name from spec for stable, semantic cache keys
+fn extract_project_name(spec_path: &Path) -> Option<String> {
+    let content = fs::read_to_string(spec_path).ok()?;
+    let specs: Vec<serde_json::Value> = serde_json::from_str(&content).ok()?;
+
+    specs.first()?
+        .get("metadata")?
+        .get("project_name")?
+        .as_str()
+        .map(|s| s.trim().to_lowercase())
+}
+
 fn generate_cache_key(spec_path: &Path, context_path: &Path) -> String {
     use sha2::{Digest, Sha256};
 
-    // Read and parse the spec to extract app name
-    let app_name = match fs::read_to_string(spec_path) {
-        Ok(spec_content) => {
-            // Parse as UniversalBuild array
-            match serde_json::from_str::<Vec<serde_json::Value>>(&spec_content) {
-                Ok(specs) if !specs.is_empty() => {
-                    // Extract metadata.project_name from first spec
-                    specs[0]
-                        .get("metadata")
-                        .and_then(|m| m.get("project_name"))
-                        .and_then(|n| n.as_str())
-                        .map(|name| {
-                            // Normalize: lowercase and trim
-                            name.trim().to_lowercase()
-                        })
-                }
-                _ => None,
-            }
-        }
-        _ => None,
-    };
-
-    // Canonicalize context path for stable key across different path representations
-    let canonical_context = context_path
-        .canonicalize()
-        .unwrap_or_else(|_| context_path.to_path_buf());
-
-    // Build cache key from context + app name
+    let ctx = context_path.canonicalize().unwrap_or_else(|_| context_path.to_owned());
     let mut hasher = Sha256::new();
-    hasher.update(canonical_context.to_string_lossy().as_bytes());
+    hasher.update(ctx.to_string_lossy().as_bytes());
 
-    if let Some(name) = app_name {
-        hasher.update(b":"); // Separator
+    if let Some(name) = extract_project_name(spec_path) {
+        hasher.update(b":");
         hasher.update(name.as_bytes());
-        debug!("Cache key generated from context + app_name: {}", name);
+        debug!("Cache key: context + app_name={}", name);
     } else {
-        // Fallback to spec path if app name not found
-        warn!("No app name found in spec, using spec path for cache key");
+        warn!("No app name in spec, using spec path");
         hasher.update(b":");
         hasher.update(spec_path.to_string_lossy().as_bytes());
     }
 
-    let hash = hasher.finalize();
-
-    // Use first 16 chars of hex hash for a reasonably short key
-    format!("{:x}", hash)[..16].to_string()
+    format!("{:x}", hasher.finalize())[..16].to_string()
 }
 
 fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<CacheImport> {
     cache_from
         .iter()
-        .filter_map(|cache_str| {
-            if let Some(mut attrs) = parse_cache_option(cache_str, false) {
-                let cache_type = attrs
-                    .remove("type")
-                    .unwrap_or_else(|| "registry".to_string());
-
-                // Auto-resolve digest from index file for local cache imports
-                if cache_type == "local" && !attrs.contains_key("digest") {
-                    if let Some(src) = attrs.get("src") {
-                        match resolve_cache_digest(src, cache_key) {
-                            Ok(digest) => {
-                                let index_file = get_index_filename(cache_key);
-                                info!("Auto-resolved cache digest from {}: {}", index_file, digest);
-                                attrs.insert("digest".to_string(), digest);
-                            }
-                            Err(e) => {
-                                warn!("Failed to auto-resolve cache digest for {}: {}", src, e);
-                            }
-                        }
-                    }
-                }
-
-                info!("Cache import: type={}, attrs={:?}", cache_type, attrs);
-                Some(CacheImport {
-                    r#type: cache_type,
-                    attrs,
-                })
-            } else {
-                warn!("Failed to parse cache import: {}", cache_str);
-                None
-            }
+        .filter_map(|s| {
+            CacheOptionBuilder::parse(s)
+                .and_then(|b| b.into_import(cache_key))
+                .map_err(|e| warn!("Failed to parse cache import '{}': {}", s, e))
+                .ok()
         })
         .collect()
 }
@@ -1016,20 +988,11 @@ fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<Ca
 fn parse_cache_exports(cache_to: &[String]) -> Vec<CacheExport> {
     cache_to
         .iter()
-        .filter_map(|cache_str| {
-            if let Some(mut attrs) = parse_cache_option(cache_str, true) {
-                let cache_type = attrs
-                    .remove("type")
-                    .unwrap_or_else(|| "registry".to_string());
-                info!("Cache export: type={}, attrs={:?}", cache_type, attrs);
-                Some(CacheExport {
-                    r#type: cache_type,
-                    attrs,
-                })
-            } else {
-                warn!("Failed to parse cache export: {}", cache_str);
-                None
-            }
+        .filter_map(|s| {
+            CacheOptionBuilder::parse(s)
+                .and_then(|b| b.into_export())
+                .map_err(|e| warn!("Failed to parse cache export '{}': {}", s, e))
+                .ok()
         })
         .collect()
 }

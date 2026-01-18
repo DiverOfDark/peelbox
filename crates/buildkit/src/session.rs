@@ -192,6 +192,21 @@ impl BuildSession {
         &self.context_path
     }
 
+    /// Extract local cache directory from cache exports or imports
+    fn local_cache_dir(&self) -> Option<&str> {
+        self.cache_exports
+            .iter()
+            .find(|export| export.r#type == "local")
+            .and_then(|export| export.attrs.get("dest"))
+            .or_else(|| {
+                self.cache_imports
+                    .iter()
+                    .find(|import| import.r#type == "local")
+                    .and_then(|import| import.attrs.get("src"))
+            })
+            .map(|s| s.as_str())
+    }
+
     async fn shutdown_session(&mut self) -> Result<()> {
         if let Some(handle) = self.session_server.take() {
             debug!("Aborting session server task");
@@ -218,28 +233,15 @@ impl BuildSession {
 
         let cache_path = PathBuf::from(cache_dir);
 
-        // Find the latest manifest in the cache directory
         let (digest, size) = crate::oci_index::find_latest_manifest(&cache_path)?
             .ok_or_else(|| anyhow::anyhow!("No OCI manifest found in cache directory"))?;
 
-        // Determine index filename: <cache_key>.json or index.json
-        let index_filename = if let Some(ref cache_key) = self.cache_key {
-            format!("{}.json", cache_key)
-        } else {
-            "index.json".to_string()
-        };
-        let index_path = cache_path.join(&index_filename);
-
-        // Read or create index file
-        let mut index = crate::OciIndex::read_from_file(&index_path)?;
-
-        // Add or update the manifest with "latest" tag
+        let mut index = crate::OciIndex::read_with_key(&cache_path, self.cache_key.as_deref())?;
         index.add_or_update_manifest(digest.clone(), size, "latest");
+        index.write_with_key(&cache_path, self.cache_key.as_deref())?;
 
-        // Write back to disk
-        index.write_to_file(&index_path)?;
-
-        info!("Updated {} with manifest {}", index_filename, digest);
+        let index_file = crate::OciIndex::filename(self.cache_key.as_deref());
+        info!("Updated {} with manifest {}", index_file, digest);
         Ok(())
     }
 
@@ -395,21 +397,7 @@ impl BuildSession {
         // Create oneshot channel for export completion signal
         let (export_tx, export_rx) = tokio::sync::oneshot::channel();
 
-        // Extract cache directory from cache exports if type=local
-        let cache_dir = self
-            .cache_exports
-            .iter()
-            .find(|export| export.r#type == "local")
-            .and_then(|export| export.attrs.get("dest"))
-            .map(PathBuf::from)
-            .or_else(|| {
-                // Also check cache imports for local directory
-                self.cache_imports
-                    .iter()
-                    .find(|import| import.r#type == "local")
-                    .and_then(|import| import.attrs.get("src"))
-                    .map(PathBuf::from)
-            });
+        let cache_dir = self.local_cache_dir().map(PathBuf::from);
 
         debug!(
             "Cache directory extraction: exports={}, imports={}, cache_dir={:?}",
@@ -892,13 +880,7 @@ impl BuildSession {
             debug!("No export completion signal configured");
         }
 
-        // Create/update index.json for local cache exports
-        if let Some(cache_dir) = self
-            .cache_exports
-            .iter()
-            .find(|export| export.r#type == "local")
-            .and_then(|export| export.attrs.get("dest"))
-        {
+        if let Some(cache_dir) = self.local_cache_dir() {
             debug!(
                 "Creating/updating index.json for local cache at {}",
                 cache_dir

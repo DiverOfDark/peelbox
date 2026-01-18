@@ -10,6 +10,7 @@ const OCI_INDEX_MEDIA_TYPE: &str = "application/vnd.oci.image.index.v1+json";
 const OCI_MANIFEST_MEDIA_TYPE: &str = "application/vnd.oci.image.manifest.v1+json";
 const ANNOTATION_REF_NAME: &str = "org.opencontainers.image.ref.name";
 const DEFAULT_TAG: &str = "latest";
+const MAX_MANIFEST_SIZE: i64 = 100_000; // 100KB
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +32,14 @@ pub struct OciDescriptor {
 }
 
 impl OciIndex {
+    /// Get index filename based on optional cache key
+    pub fn filename(cache_key: Option<&str>) -> String {
+        match cache_key {
+            Some(key) => format!("{}.json", key),
+            None => "index.json".to_string(),
+        }
+    }
+
     /// Create a new empty OCI index
     pub fn new() -> Self {
         Self {
@@ -38,6 +47,18 @@ impl OciIndex {
             media_type: Some(OCI_INDEX_MEDIA_TYPE.to_string()),
             manifests: Vec::new(),
         }
+    }
+
+    /// Read index file from cache directory with optional cache key
+    pub fn read_with_key(cache_dir: &Path, cache_key: Option<&str>) -> Result<Self> {
+        let filename = Self::filename(cache_key);
+        Self::read_from_file(&cache_dir.join(filename))
+    }
+
+    /// Write index file to cache directory with optional cache key
+    pub fn write_with_key(&self, cache_dir: &Path, cache_key: Option<&str>) -> Result<()> {
+        let filename = Self::filename(cache_key);
+        self.write_to_file(&cache_dir.join(filename))
     }
 
     /// Read index file from a specific path
@@ -153,8 +174,7 @@ pub fn find_latest_manifest(cache_dir: &Path) -> Result<Option<(String, i64)>> {
         let metadata = entry.metadata()?;
         let size = metadata.len() as i64;
 
-        // Only check small files (manifests are typically < 100KB)
-        if size > 100_000 {
+        if size > MAX_MANIFEST_SIZE {
             continue;
         }
 
