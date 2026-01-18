@@ -208,7 +208,7 @@ jobs:
             --spec universalbuild.json \
             --tag peelbox:latest \
             --context . \
-            --buildkit docker-container://buildkitd \
+            --buildkit tcp://127.0.0.1:1234 \
             --verbose
 
       - name: Test the built image
