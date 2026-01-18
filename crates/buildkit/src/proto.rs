@@ -43,6 +43,16 @@ pub mod google {
     }
 }
 
+pub mod containerd {
+    pub mod services {
+        pub mod content {
+            pub mod v1 {
+                include!(concat!(env!("OUT_DIR"), "/containerd.services.content.v1.rs"));
+            }
+        }
+    }
+}
+
 // Re-export commonly used types and clients
 pub use fsutil::types::{packet::PacketType, Packet, Stat};
 pub use moby::buildkit::v1::control_client::ControlClient;
@@ -55,3 +65,7 @@ pub use moby::filesync::v1::file_sync_client::FileSyncClient;
 pub use moby::filesync::v1::file_sync_server::{
     FileSync as FileSyncServer, FileSyncServer as FileSyncServerBuilder,
 };
+pub use containerd::services::content::v1::content_server::{
+    Content as ContentServer, ContentServer as ContentServerBuilder,
+};
+pub use containerd::services::content::v1::content_client::ContentClient;

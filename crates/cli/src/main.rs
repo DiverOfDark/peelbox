@@ -1,7 +1,8 @@
 use genai::adapter::AdapterKind;
 use peelbox_buildkit::filesend_service::OutputDestination;
 use peelbox_buildkit::{
-    progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, ProvenanceMode,
+    progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, CacheExport,
+    CacheImport, ProvenanceMode,
 };
 use peelbox_cli::cli::commands::{BuildArgs, CliArgs, Commands, DetectArgs, HealthArgs};
 use peelbox_cli::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
@@ -15,7 +16,7 @@ use clap::Parser;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::sync::Arc;
 use tracing::{debug, error, info, warn, Level};
@@ -712,9 +713,80 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     let session_id = uuid::Uuid::new_v4().to_string();
 
+    // Check for automatic caching via PEELBOX_CACHE_DIR env var
+    let auto_cache_base_dir = std::env::var("PEELBOX_CACHE_DIR").ok();
+    let using_auto_cache = auto_cache_base_dir.is_some()
+        && args.cache_from.is_empty()
+        && args.cache_to.is_empty();
+
+    // Generate app-specific cache key if using auto-cache
+    let (auto_cache_dir, auto_cache_key) = if using_auto_cache {
+        let base_dir = auto_cache_base_dir.as_ref().unwrap();
+        let cache_key = generate_cache_key(&args.spec, &context_path);
+        let cache_path = PathBuf::from(base_dir);
+
+        // Create base cache directory if it doesn't exist
+        if let Err(e) = std::fs::create_dir_all(&cache_path) {
+            warn!("Failed to create cache directory {}: {}", cache_path.display(), e);
+            (None, None)
+        } else {
+            info!("Auto-caching enabled: {} (key: {})",
+                cache_path.display(),
+                cache_key);
+            (Some(cache_path), Some(cache_key))
+        }
+    } else {
+        (None, None)
+    };
+
+    // Parse cache options (explicit flags take precedence over env var)
+    let cache_imports = if !args.cache_from.is_empty() {
+        let imports = parse_cache_imports(&args.cache_from, None);
+        if imports.is_empty() {
+            warn!("No valid cache imports after parsing");
+        }
+        imports
+    } else if let Some(ref cache_dir) = auto_cache_dir {
+        // Auto-configure cache import from env var (shared blobs, per-app index)
+        parse_cache_imports(
+            &[format!("type=local,src={}", cache_dir.display())],
+            auto_cache_key.as_deref()
+        )
+    } else {
+        Vec::new()
+    };
+
+    let cache_exports = if !args.cache_to.is_empty() {
+        let exports = parse_cache_exports(&args.cache_to);
+        if exports.is_empty() {
+            warn!("No valid cache exports after parsing");
+        }
+        exports
+    } else if let Some(ref cache_dir) = auto_cache_dir {
+        // Auto-configure cache export from env var (shared blobs, per-app index)
+        parse_cache_exports(&[format!("type=local,dest={}", cache_dir.display())])
+    } else {
+        Vec::new()
+    };
+
     let mut session = BuildSession::new(connection, context_path, output_dest)
         .with_attestations(attestation_config)
         .with_session_id(session_id);
+
+    // Set cache key for index file naming (used with local cache)
+    if let Some(cache_key) = auto_cache_key {
+        session = session.with_cache_key(cache_key);
+    }
+
+    // Configure external cache if provided
+    if !cache_imports.is_empty() {
+        info!("Configuring {} cache import(s)", cache_imports.len());
+        session = session.with_cache_imports(cache_imports);
+    }
+    if !cache_exports.is_empty() {
+        info!("Configuring {} cache export(s)", cache_exports.len());
+        session = session.with_cache_exports(cache_exports);
+    }
 
     // Initialize session
     if let Err(e) = session.initialize().await {
@@ -756,4 +828,197 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     );
 
     0
+}
+
+/// Parse cache option strings into structured cache imports/exports
+/// Supports formats:
+/// - "user/app:cache" (shorthand for registry cache)
+/// - "type=registry,ref=user/app:cache"
+/// - "type=local,src=path" (for imports)
+/// - "type=local,dest=path" (for exports)
+fn parse_cache_option(cache_str: &str, is_export: bool) -> Option<HashMap<String, String>> {
+    let mut attrs = HashMap::new();
+
+    // Check if it's a simple registry reference (no commas, looks like image ref)
+    if !cache_str.contains(',') && cache_str.contains('/') {
+        // Shorthand: "user/app:cache" -> type=registry,ref=user/app:cache
+        return Some(HashMap::from([
+            ("type".to_string(), "registry".to_string()),
+            ("ref".to_string(), cache_str.to_string()),
+        ]));
+    }
+
+    // Parse key=value pairs
+    for pair in cache_str.split(',') {
+        if let Some((key, value)) = pair.split_once('=') {
+            attrs.insert(key.trim().to_string(), value.trim().to_string());
+        } else {
+            warn!("Invalid cache option format: {}", pair);
+            return None;
+        }
+    }
+
+    // Validate required fields based on type
+    let cache_type = attrs.get("type")?;
+    match cache_type.as_str() {
+        "registry" => {
+            if !attrs.contains_key("ref") {
+                warn!("Registry cache requires 'ref' attribute");
+                return None;
+            }
+        }
+        "local" => {
+            let required_key = if is_export { "dest" } else { "src" };
+            if !attrs.contains_key(required_key) {
+                warn!("Local cache requires '{}' attribute", required_key);
+                return None;
+            }
+        }
+        "gha" | "s3" | "azblob" | "inline" => {
+            // Other cache types - basic validation passed
+        }
+        _ => {
+            warn!("Unknown cache type: {}", cache_type);
+            return None;
+        }
+    }
+
+    Some(attrs)
+}
+
+/// Resolve cache digest from index file in the cache directory
+fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Result<String> {
+    use std::path::PathBuf;
+    use peelbox_buildkit::OciIndex;
+
+    let cache_path = PathBuf::from(cache_dir);
+
+    // Determine index filename: <cache_key>.json or index.json
+    let index_filename = if let Some(key) = cache_key {
+        format!("{}.json", key)
+    } else {
+        "index.json".to_string()
+    };
+    let index_path = cache_path.join(&index_filename);
+
+    // Check if index file exists first
+    if !index_path.exists() {
+        return Err(anyhow::anyhow!("No {} found (first build?)", index_filename));
+    }
+
+    let index = OciIndex::read_from_file(&index_path)?;
+
+    index
+        .get_digest(None) // Use default "latest" tag
+        .ok_or_else(|| anyhow::anyhow!("No 'latest' tag found in {}", index_filename))
+}
+
+/// Generate a cache key for the current build to isolate caches between different apps
+/// Uses context_path + app_name from spec for stable, semantic cache keys
+fn generate_cache_key(spec_path: &Path, context_path: &Path) -> String {
+    use sha2::{Sha256, Digest};
+
+    // Read and parse the spec to extract app name
+    let app_name = match fs::read_to_string(spec_path) {
+        Ok(spec_content) => {
+            // Parse as UniversalBuild array
+            match serde_json::from_str::<Vec<serde_json::Value>>(&spec_content) {
+                Ok(specs) if !specs.is_empty() => {
+                    // Extract metadata.project_name from first spec
+                    specs[0]
+                        .get("metadata")
+                        .and_then(|m| m.get("project_name"))
+                        .and_then(|n| n.as_str())
+                        .map(|name| {
+                            // Normalize: lowercase and trim
+                            name.trim().to_lowercase()
+                        })
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+
+    // Canonicalize context path for stable key across different path representations
+    let canonical_context = context_path.canonicalize().unwrap_or_else(|_| context_path.to_path_buf());
+
+    // Build cache key from context + app name
+    let mut hasher = Sha256::new();
+    hasher.update(canonical_context.to_string_lossy().as_bytes());
+
+    if let Some(name) = app_name {
+        hasher.update(b":");  // Separator
+        hasher.update(name.as_bytes());
+        debug!("Cache key generated from context + app_name: {}", name);
+    } else {
+        // Fallback to spec path if app name not found
+        warn!("No app name found in spec, using spec path for cache key");
+        hasher.update(b":");
+        hasher.update(spec_path.to_string_lossy().as_bytes());
+    }
+
+    let hash = hasher.finalize();
+
+    // Use first 16 chars of hex hash for a reasonably short key
+    format!("{:x}", hash)[..16].to_string()
+}
+
+fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<CacheImport> {
+    cache_from
+        .iter()
+        .filter_map(|cache_str| {
+            if let Some(mut attrs) = parse_cache_option(cache_str, false) {
+                let cache_type = attrs.remove("type").unwrap_or_else(|| "registry".to_string());
+
+                // Auto-resolve digest from index file for local cache imports
+                if cache_type == "local" && !attrs.contains_key("digest") {
+                    if let Some(src) = attrs.get("src") {
+                        match resolve_cache_digest(src, cache_key) {
+                            Ok(digest) => {
+                                let index_file = if let Some(key) = cache_key {
+                                    format!("{}.json", key)
+                                } else {
+                                    "index.json".to_string()
+                                };
+                                info!("Auto-resolved cache digest from {}: {}", index_file, digest);
+                                attrs.insert("digest".to_string(), digest);
+                            }
+                            Err(e) => {
+                                warn!("Failed to auto-resolve cache digest: {}", e);
+                            }
+                        }
+                    }
+                }
+
+                info!("Cache import: type={}, attrs={:?}", cache_type, attrs);
+                Some(CacheImport {
+                    r#type: cache_type,
+                    attrs,
+                })
+            } else {
+                warn!("Failed to parse cache import: {}", cache_str);
+                None
+            }
+        })
+        .collect()
+}
+
+fn parse_cache_exports(cache_to: &[String]) -> Vec<CacheExport> {
+    cache_to
+        .iter()
+        .filter_map(|cache_str| {
+            if let Some(mut attrs) = parse_cache_option(cache_str, true) {
+                let cache_type = attrs.remove("type").unwrap_or_else(|| "registry".to_string());
+                info!("Cache export: type={}, attrs={:?}", cache_type, attrs);
+                Some(CacheExport {
+                    r#type: cache_type,
+                    attrs,
+                })
+            } else {
+                warn!("Failed to parse cache export: {}", cache_str);
+                None
+            }
+        })
+        .collect()
 }

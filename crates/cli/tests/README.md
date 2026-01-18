@@ -83,14 +83,50 @@ cargo test --test e2e test_container_integration_single_language_full
 
 **Performance:**
 - First run: ~2-5 minutes per fixture (downloads base images, builds from scratch)
-- Subsequent runs: ~10-30 seconds per fixture (BuildKit layer caching)
+- Subsequent runs: ~10-30 seconds per fixture (BuildKit layer caching + external cache)
 - Static mode tests: Faster (no LLM inference)
 - **Parallel execution: Enabled** - Tests use:
   - Dynamic port allocation (no port conflicts)
   - Shared BuildKit container (single instance for all parallel builds)
   - Concurrent image builds (BuildKit handles parallel requests)
 
-**Note:** BuildKit layer caching significantly speeds up subsequent runs. The cache persists across test runs in a Docker volume named `buildkit-cache`. A single shared BuildKit container handles all parallel builds, avoiding container startup overhead and lock conflicts. Dynamic port allocation prevents port conflicts between parallel test containers.
+**Caching Strategy:**
+The test harness now uses **two levels of caching** for maximum performance:
+
+1. **BuildKit Layer Cache** (internal to BuildKit daemon)
+   - Persists in BuildKit container at `/var/lib/buildkit`
+   - Shared across all test runs using the same BuildKit container
+   - Automatically managed by BuildKit's GC policies
+
+2. **External Cache** (mounted into BuildKit container)
+   - Host location: `/tmp/peelbox-test-buildkit-cache/external-cache` (default)
+   - Container path: `/cache` (mounted from host)
+   - Custom location: Set `PEELBOX_TEST_CACHE_DIR=/path/to/cache` environment variable
+   - Persists between test runs and BuildKit container restarts
+   - Uses `--cache-from type=local,src=/cache` and `--cache-to type=local,dest=/cache`
+   - Cache operations happen entirely within BuildKit container (no gRPC transfer)
+   - Significantly faster rebuild times (reuses layers even after BuildKit restart)
+
+**How it works:**
+- BuildKit container mounts host directory as `/cache`
+- Cache import/export uses container-side path `/cache`
+- BuildKit reads and writes cache locally without transferring over network
+- Cache persists on host filesystem between container restarts
+
+**Example with custom cache directory:**
+```bash
+# Use persistent cache directory for CI/local development
+export PEELBOX_TEST_CACHE_DIR=/var/cache/peelbox-tests
+cargo test --test e2e test_container_integration
+# Cache will be at: /var/cache/peelbox-tests/external-cache (mounted as /cache in container)
+```
+
+**Note:** External cache can be cleared to force clean builds:
+```bash
+rm -rf /tmp/peelbox-test-buildkit-cache/external-cache
+# or if using custom cache dir:
+rm -rf $PEELBOX_TEST_CACHE_DIR/external-cache
+```
 
 ### 4. BuildKit Integration Test (`tests/buildkit_integration.rs`)
 End-to-end test that verifies the complete BuildKit frontend workflow by building peelbox itself:

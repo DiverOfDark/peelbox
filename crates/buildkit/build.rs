@@ -87,6 +87,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://raw.githubusercontent.com/tonistiigi/fsutil/master/types/stat.proto",
     )?;
 
+    // Download containerd content store proto
+    download_proto_if_missing(
+        &proto_dir,
+        "content.proto",
+        "https://raw.githubusercontent.com/containerd/containerd/v1.7.13/api/services/content/v1/content.proto",
+    )?;
+
     // Download Google well-known types
     let google_dir = proto_dir.join("google").join("protobuf");
     fs::create_dir_all(&google_dir)?;
@@ -100,6 +107,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://raw.githubusercontent.com/protocolbuffers/protobuf/main/src/google/protobuf/empty.proto")?;
     download_proto_if_missing(&google_dir, "descriptor.proto",
         "https://raw.githubusercontent.com/protocolbuffers/protobuf/main/src/google/protobuf/descriptor.proto")?;
+    download_proto_if_missing(&google_dir, "field_mask.proto",
+        "https://raw.githubusercontent.com/protocolbuffers/protobuf/main/src/google/protobuf/field_mask.proto")?;
 
     let google_rpc_dir = proto_dir.join("google").join("rpc");
     fs::create_dir_all(&google_rpc_dir)?;
@@ -192,6 +201,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
     )?;
 
+    process_proto_file(
+        &proto_dir,
+        &processed_dir,
+        "content.proto",
+        &[], // No import path replacements needed
+    )?;
+
     // Copy Google proto files to processed directory (no replacements needed)
     let processed_google_dir = processed_dir.join("google").join("protobuf");
     fs::create_dir_all(&processed_google_dir)?;
@@ -201,6 +217,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "any.proto",
         "empty.proto",
         "descriptor.proto",
+        "field_mask.proto",
     ] {
         fs::copy(google_dir.join(file), processed_google_dir.join(file))?;
     }
@@ -225,7 +242,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Generate Rust code from proto files
     tonic_build::configure()
-        .build_server(true) // We need server for FileSync
+        .build_server(true) // We need server for FileSync and Content
         .build_client(true)
         .out_dir(&out_dir)
         .compile_protos(
@@ -233,6 +250,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 processed_dir.join("control.proto"),
                 processed_dir.join("filesync.proto"),
                 processed_dir.join("auth.proto"),
+                processed_dir.join("content.proto"),
             ],
             std::slice::from_ref(&processed_dir),
         )?;

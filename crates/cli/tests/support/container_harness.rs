@@ -58,20 +58,9 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
             }
         }
 
-        let cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
-            PathBuf::from(custom_cache)
-        } else {
-            std::env::temp_dir().join("peelbox-test-buildkit-cache")
-        };
-        let _ = std::fs::create_dir_all(&cache_dir);
-
         let buildkit_container_res = GenericImage::new("moby/buildkit", "v0.12.5")
             .with_wait_for(WaitFor::message_on_stderr("running server on"))
             .with_privileged(true)
-            .with_mount(Mount::bind_mount(
-                cache_dir.to_str().expect("Invalid cache path"),
-                "/var/lib/buildkit",
-            ))
             .with_container_name(BUILDKIT_CONTAINER_NAME)
             .with_mapped_port(0, 1234.into())
             .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
@@ -148,6 +137,19 @@ impl ContainerTestHarness {
 
         let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
+        // Set up external cache directory for test builds
+        // Cache will be transferred over gRPC when BuildKit exports
+        let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
+            PathBuf::from(custom_cache).join("external-cache")
+        } else {
+            std::env::temp_dir()
+                .join("peelbox-test-external-cache")
+        };
+        std::fs::create_dir_all(&external_cache_dir)
+            .context("Failed to create external cache directory")?;
+
+        eprintln!("Using external BuildKit cache at: {}", external_cache_dir.display());
+
         let mut cmd = std::process::Command::new(&peelbox_binary);
         cmd.args([
             "build",
@@ -164,12 +166,15 @@ impl ContainerTestHarness {
             "--quiet",
         ]);
 
+        // Use PEELBOX_CACHE_DIR env var for automatic caching
+        // Prefer cache_dir parameter if provided, otherwise use external_cache_dir
+        let cache_path = cache_dir
+            .map(|p| p.to_str().unwrap().to_string())
+            .unwrap_or_else(|| external_cache_dir.to_str().unwrap().to_string());
+        cmd.env("PEELBOX_CACHE_DIR", cache_path);
+
         if let Ok(rust_log) = std::env::var("RUST_LOG") {
             cmd.env("RUST_LOG", rust_log);
-        }
-
-        if let Some(cache) = cache_dir {
-            cmd.env("PEELBOX_CACHE_DIR", cache.to_str().unwrap());
         }
 
         let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
@@ -224,6 +229,21 @@ impl ContainerTestHarness {
 
         let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
+        // Set up external cache directory (same as build_image)
+        let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
+            PathBuf::from(custom_cache).join("external-cache")
+        } else {
+            std::env::temp_dir()
+                .join("peelbox-test-external-cache")
+        };
+        std::fs::create_dir_all(&external_cache_dir)
+            .context("Failed to create external cache directory")?;
+
+        eprintln!("Using external BuildKit cache at: {}", external_cache_dir.display());
+
+        let cache_from_path = format!("type=local,src={}", external_cache_dir.display());
+        let cache_to_path = format!("type=local,dest={}", external_cache_dir.display());
+
         let mut cmd = std::process::Command::new(&peelbox_binary);
         cmd.args([
             "build",
@@ -238,6 +258,10 @@ impl ContainerTestHarness {
             "--output",
             output_tar.to_str().unwrap(),
             "--quiet",
+            "--cache-from",
+            &cache_from_path,
+            "--cache-to",
+            &cache_to_path,
         ]);
 
         if let Ok(rust_log) = std::env::var("RUST_LOG") {
