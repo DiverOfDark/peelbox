@@ -174,7 +174,7 @@ fn test_config_validation_edge_cases() {
 
     // Test maximum valid timeout
     let config = PeelboxConfig {
-        request_timeout_secs: 600,
+        request_timeout_secs: 3600,
         ..Default::default()
     };
     assert!(config.validate().is_ok());

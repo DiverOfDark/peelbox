@@ -172,7 +172,7 @@ impl BuildKitConnection {
                 Endpoint::try_from(uri_str.clone())
                     .context("Invalid TCP URI")?
                     .connect_timeout(std::time::Duration::from_secs(10))
-                    .timeout(std::time::Duration::from_secs(600))
+                    .timeout(std::time::Duration::from_secs(3600))
                     .http2_adaptive_window(true)
                     .initial_connection_window_size(Some(2 * 1024 * 1024))
                     .initial_stream_window_size(Some(2 * 1024 * 1024))
@@ -191,7 +191,7 @@ impl BuildKitConnection {
                     let container_id = container_id.clone();
                     Endpoint::try_from("http://[::]:50051")
                         .context("Failed to create endpoint")?
-                        .timeout(std::time::Duration::from_secs(600))
+                        .timeout(std::time::Duration::from_secs(3600))
                         .http2_adaptive_window(true)
                         .initial_connection_window_size(Some(2 * 1024 * 1024))
                         .initial_stream_window_size(Some(2 * 1024 * 1024))

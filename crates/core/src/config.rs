@@ -162,9 +162,9 @@ impl PeelboxConfig {
                 "Request timeout must be at least 1 second".to_string(),
             ));
         }
-        if self.request_timeout_secs > 600 {
+        if self.request_timeout_secs > 3600 {
             return Err(ConfigError::ValidationFailed(
-                "Request timeout cannot exceed 10 minutes".to_string(),
+                "Request timeout cannot exceed 1 hour".to_string(),
             ));
         }
 
