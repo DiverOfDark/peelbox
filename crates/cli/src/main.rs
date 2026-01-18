@@ -905,7 +905,10 @@ impl CacheOptionBuilder {
             }
         }
 
-        info!("Cache import: type={}, attrs={:?}", self.cache_type, self.attrs);
+        info!(
+            "Cache import: type={}, attrs={:?}",
+            self.cache_type, self.attrs
+        );
         Ok(CacheImport {
             r#type: self.cache_type,
             attrs: self.attrs,
@@ -914,7 +917,10 @@ impl CacheOptionBuilder {
 
     fn into_export(self) -> anyhow::Result<CacheExport> {
         self.validate(true)?;
-        info!("Cache export: type={}, attrs={:?}", self.cache_type, self.attrs);
+        info!(
+            "Cache export: type={}, attrs={:?}",
+            self.cache_type, self.attrs
+        );
         Ok(CacheExport {
             r#type: self.cache_type,
             attrs: self.attrs,
@@ -946,7 +952,8 @@ fn extract_project_name(spec_path: &Path) -> Option<String> {
     let content = fs::read_to_string(spec_path).ok()?;
     let specs: Vec<serde_json::Value> = serde_json::from_str(&content).ok()?;
 
-    specs.first()?
+    specs
+        .first()?
         .get("metadata")?
         .get("project_name")?
         .as_str()
@@ -956,7 +963,9 @@ fn extract_project_name(spec_path: &Path) -> Option<String> {
 fn generate_cache_key(spec_path: &Path, context_path: &Path) -> String {
     use sha2::{Digest, Sha256};
 
-    let ctx = context_path.canonicalize().unwrap_or_else(|_| context_path.to_owned());
+    let ctx = context_path
+        .canonicalize()
+        .unwrap_or_else(|_| context_path.to_owned());
     let mut hasher = Sha256::new();
     hasher.update(ctx.to_string_lossy().as_bytes());
 

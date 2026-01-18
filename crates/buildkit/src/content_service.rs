@@ -94,7 +94,10 @@ impl ContentTrait for ContentService {
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 warn!("Content::Info not found: {}", digest);
-                Err(Status::not_found(format!("content blob {} not found", digest)))
+                Err(Status::not_found(format!(
+                    "content blob {} not found",
+                    digest
+                )))
             }
             Err(e) => {
                 error!("Content::Info error {}: {}", digest, e);
@@ -147,13 +150,19 @@ impl ContentTrait for ContentService {
                     if req.offset > 0 {
                         if let Err(e) = file.seek(std::io::SeekFrom::Start(req.offset as u64)).await
                         {
-                            let _ = tx.send(Err(Status::internal(format!("seek failed: {}", e)))).await;
+                            let _ = tx
+                                .send(Err(Status::internal(format!("seek failed: {}", e))))
+                                .await;
                             return;
                         }
                     }
 
                     let mut buffer = vec![0u8; STREAM_BUFFER_SIZE];
-                    let mut remaining = if req.size > 0 { req.size as usize } else { usize::MAX };
+                    let mut remaining = if req.size > 0 {
+                        req.size as usize
+                    } else {
+                        usize::MAX
+                    };
 
                     loop {
                         let to_read = std::cmp::min(buffer.len(), remaining);
@@ -178,7 +187,9 @@ impl ContentTrait for ContentService {
                             }
                             Err(e) => {
                                 error!("Content::Read error: {}", e);
-                                let _ = tx.send(Err(Status::internal(format!("read failed: {}", e)))).await;
+                                let _ = tx
+                                    .send(Err(Status::internal(format!("read failed: {}", e))))
+                                    .await;
                                 return;
                             }
                         }
@@ -187,15 +198,24 @@ impl ContentTrait for ContentService {
                     debug!("Content::Read complete for {}", req.digest);
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    let _ = tx.send(Err(Status::not_found(format!("content blob {} not found", req.digest)))).await;
+                    let _ = tx
+                        .send(Err(Status::not_found(format!(
+                            "content blob {} not found",
+                            req.digest
+                        ))))
+                        .await;
                 }
                 Err(e) => {
-                    let _ = tx.send(Err(Status::internal(format!("open failed: {}", e)))).await;
+                    let _ = tx
+                        .send(Err(Status::internal(format!("open failed: {}", e))))
+                        .await;
                 }
             }
         });
 
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            rx,
+        )))
     }
 
     async fn status(
@@ -217,9 +237,14 @@ impl ContentTrait for ContentService {
                 expected: String::new(),
             };
 
-            Ok(Response::new(StatusResponse { status: Some(status) }))
+            Ok(Response::new(StatusResponse {
+                status: Some(status),
+            }))
         } else {
-            Err(Status::not_found(format!("write ref {} not found", req.r#ref)))
+            Err(Status::not_found(format!(
+                "write ref {} not found",
+                req.r#ref
+            )))
         }
     }
 
@@ -231,14 +256,16 @@ impl ContentTrait for ContentService {
 
         let statuses = sessions
             .iter()
-            .map(|(ref_name, session)| super::proto::containerd::services::content::v1::Status {
-                started_at: None,
-                updated_at: None,
-                r#ref: ref_name.clone(),
-                offset: session.offset as i64,
-                total: 0,
-                expected: String::new(),
-            })
+            .map(
+                |(ref_name, session)| super::proto::containerd::services::content::v1::Status {
+                    started_at: None,
+                    updated_at: None,
+                    r#ref: ref_name.clone(),
+                    offset: session.offset as i64,
+                    total: 0,
+                    expected: String::new(),
+                },
+            )
             .collect();
 
         Ok(Response::new(ListStatusesResponse { statuses }))
@@ -286,7 +313,9 @@ impl ContentTrait for ContentService {
             debug!("Content::Write stream completed");
         });
 
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            rx,
+        )))
     }
 
     async fn abort(&self, request: Request<AbortRequest>) -> Result<Response<()>, Status> {
@@ -323,7 +352,10 @@ impl WriteSessionManager {
         }
     }
 
-    async fn handle_request(&mut self, req: WriteContentRequest) -> Result<Option<WriteContentResponse>, Status> {
+    async fn handle_request(
+        &mut self,
+        req: WriteContentRequest,
+    ) -> Result<Option<WriteContentResponse>, Status> {
         let ref_name = req.r#ref.clone();
 
         if ref_name.is_empty() {
@@ -337,7 +369,10 @@ impl WriteSessionManager {
         self.handle_action(req).await
     }
 
-    async fn handle_continuation(&mut self, req: WriteContentRequest) -> Result<Option<WriteContentResponse>, Status> {
+    async fn handle_continuation(
+        &mut self,
+        req: WriteContentRequest,
+    ) -> Result<Option<WriteContentResponse>, Status> {
         match req.action {
             STAT_ACTION => Ok(Some(self.stat_response(req.total))),
             WRITE_ACTION => {
@@ -360,30 +395,37 @@ impl WriteSessionManager {
             drop(file);
         }
 
-        let ingest_path = self.cache_dir.join("ingest").join(ContentService::sanitize_ref(&ref_name));
+        let ingest_path = self
+            .cache_dir
+            .join("ingest")
+            .join(ContentService::sanitize_ref(&ref_name));
         debug!("Starting write: {}", ingest_path.display());
 
-        let file = tokio::fs::File::create(&ingest_path)
-            .await
-            .map_err(|e| {
-                error!("Failed to create ingest file: {}", e);
-                Status::internal(format!("failed to create ingest file: {}", e))
-            })?;
+        let file = tokio::fs::File::create(&ingest_path).await.map_err(|e| {
+            error!("Failed to create ingest file: {}", e);
+            Status::internal(format!("failed to create ingest file: {}", e))
+        })?;
 
         self.current_file = Some(file);
         self.current_ref = Some(ref_name.clone());
         self.offset = 0;
 
         let mut sessions = self.sessions.lock().await;
-        sessions.insert(ref_name, WriteSession {
-            temp_path: ingest_path,
-            offset: 0,
-        });
+        sessions.insert(
+            ref_name,
+            WriteSession {
+                temp_path: ingest_path,
+                offset: 0,
+            },
+        );
 
         Ok(())
     }
 
-    async fn handle_action(&mut self, req: WriteContentRequest) -> Result<Option<WriteContentResponse>, Status> {
+    async fn handle_action(
+        &mut self,
+        req: WriteContentRequest,
+    ) -> Result<Option<WriteContentResponse>, Status> {
         match req.action {
             WRITE_ACTION => self.write_data(req).await,
             STAT_ACTION => Ok(Some(self.stat_response(req.total))),
@@ -395,14 +437,18 @@ impl WriteSessionManager {
         }
     }
 
-    async fn write_data(&mut self, req: WriteContentRequest) -> Result<Option<WriteContentResponse>, Status> {
+    async fn write_data(
+        &mut self,
+        req: WriteContentRequest,
+    ) -> Result<Option<WriteContentResponse>, Status> {
         if req.data.is_empty() {
             return Ok(None);
         }
 
-        let file = self.current_file.as_mut().ok_or_else(|| {
-            Status::failed_precondition("No active write session")
-        })?;
+        let file = self
+            .current_file
+            .as_mut()
+            .ok_or_else(|| Status::failed_precondition("No active write session"))?;
 
         file.write_all(&req.data).await.map_err(|e| {
             error!("Write failed: {}", e);
@@ -440,9 +486,10 @@ impl WriteSessionManager {
     }
 
     async fn commit(&mut self, req: WriteContentRequest) -> Result<WriteContentResponse, Status> {
-        let file = self.current_file.take().ok_or_else(|| {
-            Status::failed_precondition("No active write session to commit")
-        })?;
+        let file = self
+            .current_file
+            .take()
+            .ok_or_else(|| Status::failed_precondition("No active write session to commit"))?;
 
         file.sync_all().await.map_err(|e| {
             error!("Sync failed: {}", e);
@@ -460,16 +507,31 @@ impl WriteSessionManager {
         }
 
         let ref_name = self.current_ref.take().unwrap_or_default();
-        let ingest_path = self.cache_dir.join("ingest").join(ContentService::sanitize_ref(&ref_name));
+        let ingest_path = self
+            .cache_dir
+            .join("ingest")
+            .join(ContentService::sanitize_ref(&ref_name));
 
-        debug!("Committing: {} -> {}", ingest_path.display(), blob_path.display());
+        debug!(
+            "Committing: {} -> {}",
+            ingest_path.display(),
+            blob_path.display()
+        );
 
-        tokio::fs::rename(&ingest_path, &blob_path).await.map_err(|e| {
-            error!("Commit failed: {}", e);
-            Status::internal(format!("commit failed: {}", e))
-        })?;
+        tokio::fs::rename(&ingest_path, &blob_path)
+            .await
+            .map_err(|e| {
+                error!("Commit failed: {}", e);
+                Status::internal(format!("commit failed: {}", e))
+            })?;
 
-        info!("COMMITTED: ref='{}' digest='{}' size={} path={}", ref_name, digest, self.offset, blob_path.display());
+        info!(
+            "COMMITTED: ref='{}' digest='{}' size={} path={}",
+            ref_name,
+            digest,
+            self.offset,
+            blob_path.display()
+        );
 
         {
             let mut sessions = self.sessions.lock().await;

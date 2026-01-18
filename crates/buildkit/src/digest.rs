@@ -11,9 +11,12 @@ pub struct Digest {
 impl Digest {
     /// Parse a digest string in format "algorithm:hash"
     pub fn parse(digest: &str) -> Result<Self> {
-        let (algorithm, hash) = digest
-            .split_once(':')
-            .with_context(|| format!("Invalid digest format (expected 'algorithm:hash'): {}", digest))?;
+        let (algorithm, hash) = digest.split_once(':').with_context(|| {
+            format!(
+                "Invalid digest format (expected 'algorithm:hash'): {}",
+                digest
+            )
+        })?;
 
         Ok(Self {
             algorithm: algorithm.to_string(),
@@ -33,7 +36,10 @@ impl Digest {
 
     /// Convert digest to blob storage path within a cache directory
     pub fn to_blob_path(&self, cache_dir: &Path) -> PathBuf {
-        cache_dir.join("blobs").join(&self.algorithm).join(&self.hash)
+        cache_dir
+            .join("blobs")
+            .join(&self.algorithm)
+            .join(&self.hash)
     }
 
     /// Format as "algorithm:hash" string
