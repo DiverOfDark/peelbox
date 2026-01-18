@@ -389,7 +389,7 @@ impl LLBBuilder {
     fn calculate_context_hash(&self, path: &Path) -> Result<String> {
         let mut hasher = Sha256::new();
 
-        let entries: Vec<_> = ignore::WalkBuilder::new(path)
+        let mut entries: Vec<_> = ignore::WalkBuilder::new(path)
             .standard_filters(true)
             .hidden(false)
             .filter_entry(|e| {
@@ -397,15 +397,16 @@ impl LLBBuilder {
                 !path_str.contains("/.git/")
             })
             .build()
-            .enumerate()
-            .filter_map(|(i, e)| match e {
+            .filter_map(|e| match e {
                 Ok(entry) => Some(entry),
                 Err(err) => {
-                    tracing::warn!("Failed to read context directory entry #{}: {}", i, err);
+                    tracing::warn!("Failed to read context directory entry: {}", err);
                     None
                 }
             })
             .collect();
+
+        entries.sort_by(|a, b| a.path().cmp(b.path()));
 
         for entry in entries {
             let entry_path = entry.path();
@@ -417,10 +418,14 @@ impl LLBBuilder {
                     match entry.metadata() {
                         Ok(metadata) => {
                             hasher.update(metadata.len().to_le_bytes());
-                            if let Ok(mtime) = metadata.modified() {
-                                if let Ok(duration) = mtime.duration_since(std::time::UNIX_EPOCH) {
-                                    hasher.update(duration.as_secs().to_le_bytes());
-                                }
+
+                            if let Ok(content) = fs::read(entry_path) {
+                                hasher.update(&content);
+                            } else {
+                                tracing::warn!(
+                                    "Failed to read file content for hashing: {:?}",
+                                    entry_path
+                                );
                             }
                         }
                         Err(e) => {

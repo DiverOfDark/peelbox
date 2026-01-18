@@ -24,17 +24,17 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          docker-images: false
-          swap-storage: false
-
+      #- name: Free Disk Space (Ubuntu)
+      #  uses: jlumbroso/free-disk-space@v1.3.1
+      #  with:
+      #    tool-cache: false
+      #    android: true
+      #    dotnet: true
+      #    haskell: true
+      #    large-packages: false
+      #    docker-images: false
+      #    swap-storage: false
+#
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -179,35 +179,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Install buildctl
-        run: |
-          BUILDKIT_VERSION=v0.16.0
-          wget -q https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
-          tar xzf buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
-          sudo install bin/buildctl /usr/local/bin/
-          buildctl --version
-
-      - name: Restore BuildKit cache
-        id: cache-buildkit-docker
-        uses: actions/cache@v4
-        with:
-          path: .buildkit-cache.tar.zst
-          key: buildkit-${{ runner.os }}
-          restore-keys: |
-            buildkit-${{ runner.os }}
-
-      - name: Extract BuildKit cache
-        if: steps.cache-buildkit-docker.outputs.cache-hit == 'true'
-        run: |
-          mkdir -p .buildkit-cache
-          sudo tar -xf .buildkit-cache.tar.zst -C .buildkit-cache
-
       - name: Build image with peelbox
         run: |
           ./target/release/peelbox build \
             --spec universalbuild.json \
             --tag peelbox:latest \
-            --context .
+            --context . \
+            --verbose
 
       - name: Test the built image
         run: |
@@ -233,15 +211,3 @@ jobs:
           docker push ghcr.io/${REPO_OWNER}/peelbox:latest
           docker push ghcr.io/${REPO_OWNER}/peelbox:${{ github.sha }}
           docker push ghcr.io/${REPO_OWNER}/peelbox:${TIMESTAMP}
-
-      - name: Create BuildKit cache archive
-        if: always()
-        run: |
-          if [ -d .buildkit-cache ]; then
-            sudo tar -cf .buildkit-cache.tar.zst --zstd -C .buildkit-cache . || true
-            sudo chown $USER:$USER .buildkit-cache.tar.zst || true
-          fi
-
-      - name: Cleanup BuildKit
-        if: always()
-        run: docker rm -f buildkitd || true
