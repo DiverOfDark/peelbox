@@ -43,7 +43,10 @@ impl OciIndex {
     /// Read index file from a specific path
     pub fn read_from_file(index_path: &Path) -> Result<Self> {
         if !index_path.exists() {
-            debug!("No index file found at {}, creating new", index_path.display());
+            debug!(
+                "No index file found at {}, creating new",
+                index_path.display()
+            );
             return Ok(Self::new());
         }
 
@@ -64,13 +67,16 @@ impl OciIndex {
 
     /// Write index to a specific file path
     pub fn write_to_file(&self, index_path: &Path) -> Result<()> {
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize index")?;
+        let content = serde_json::to_string_pretty(self).context("Failed to serialize index")?;
 
         fs::write(index_path, content)
             .with_context(|| format!("Failed to write index to {}", index_path.display()))?;
 
-        info!("Wrote index with {} manifests to {}", self.manifests.len(), index_path.display());
+        info!(
+            "Wrote index with {} manifests to {}",
+            self.manifests.len(),
+            index_path.display()
+        );
         Ok(())
     }
 
@@ -91,9 +97,7 @@ impl OciIndex {
         });
 
         // Add new manifest
-        let annotations = HashMap::from([
-            (ANNOTATION_REF_NAME.to_string(), tag.to_string())
-        ]);
+        let annotations = HashMap::from([(ANNOTATION_REF_NAME.to_string(), tag.to_string())]);
 
         self.manifests.push(OciDescriptor {
             media_type: Some(OCI_MANIFEST_MEDIA_TYPE.to_string()),

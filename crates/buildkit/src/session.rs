@@ -420,10 +420,16 @@ impl BuildSession {
         if let Some(ref dir) = cache_dir {
             debug!("  Using cache directory: {}", dir.display());
             for export in &self.cache_exports {
-                debug!("  Cache export: type={}, attrs={:?}", export.r#type, export.attrs);
+                debug!(
+                    "  Cache export: type={}, attrs={:?}",
+                    export.r#type, export.attrs
+                );
             }
             for import in &self.cache_imports {
-                debug!("  Cache import: type={}, attrs={:?}", import.r#type, import.attrs);
+                debug!(
+                    "  Cache import: type={}, attrs={:?}",
+                    import.r#type, import.attrs
+                );
             }
         }
 
@@ -440,7 +446,10 @@ impl BuildSession {
         info!("Creating unified gRPC server with FileSync, FileSend, Auth, Content, and Health services");
 
         if let Some(ref dir) = cache_dir {
-            info!("Content service enabled with cache directory: {}", dir.display());
+            info!(
+                "Content service enabled with cache directory: {}",
+                dir.display()
+            );
         }
 
         // Create an infinite connection stream that yields the single StreamConn
@@ -890,7 +899,10 @@ impl BuildSession {
             .find(|export| export.r#type == "local")
             .and_then(|export| export.attrs.get("dest"))
         {
-            debug!("Creating/updating index.json for local cache at {}", cache_dir);
+            debug!(
+                "Creating/updating index.json for local cache at {}",
+                cache_dir
+            );
             if let Err(e) = self.update_cache_index(cache_dir) {
                 warn!("Failed to create/update index.json: {}", e);
             }

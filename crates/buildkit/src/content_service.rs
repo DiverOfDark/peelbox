@@ -11,18 +11,15 @@ use tracing::{debug, error, info, warn};
 use super::proto::containerd::services::content::v1::{
     content_server::Content as ContentTrait, AbortRequest, DeleteContentRequest, InfoRequest,
     InfoResponse, ListContentRequest, ListContentResponse, ListStatusesRequest,
-    ListStatusesResponse, ReadContentRequest, ReadContentResponse, StatusRequest,
-    StatusResponse, UpdateRequest, UpdateResponse, WriteContentRequest, WriteContentResponse,
+    ListStatusesResponse, ReadContentRequest, ReadContentResponse, StatusRequest, StatusResponse,
+    UpdateRequest, UpdateResponse, WriteContentRequest, WriteContentResponse,
 };
 
 /// Compute blob path from digest and cache directory
 fn compute_blob_path(cache_dir: &std::path::Path, digest: &str) -> PathBuf {
     let parts: Vec<&str> = digest.split(':').collect();
     if parts.len() == 2 {
-        cache_dir
-            .join("blobs")
-            .join(parts[0])
-            .join(parts[1])
+        cache_dir.join("blobs").join(parts[0]).join(parts[1])
     } else {
         cache_dir.join("blobs").join("unknown").join(digest)
     }
@@ -75,10 +72,16 @@ impl ContentService {
         let blobs_dir = self.cache_dir.join("blobs").join("sha256");
         let ingest_dir = self.cache_dir.join("ingest");
 
-        debug!("Content::ensure_directories creating: {}", blobs_dir.display());
+        debug!(
+            "Content::ensure_directories creating: {}",
+            blobs_dir.display()
+        );
         fs::create_dir_all(&blobs_dir).await?;
 
-        debug!("Content::ensure_directories creating: {}", ingest_dir.display());
+        debug!(
+            "Content::ensure_directories creating: {}",
+            ingest_dir.display()
+        );
         fs::create_dir_all(&ingest_dir).await?;
 
         Ok(())
@@ -88,10 +91,7 @@ impl ContentService {
 #[tonic::async_trait]
 impl ContentTrait for ContentService {
     /// Info returns metadata about a committed content blob
-    async fn info(
-        &self,
-        request: Request<InfoRequest>,
-    ) -> Result<Response<InfoResponse>, Status> {
+    async fn info(&self, request: Request<InfoRequest>) -> Result<Response<InfoResponse>, Status> {
         let req = request.into_inner();
         let digest = req.digest;
 
@@ -139,8 +139,7 @@ impl ContentTrait for ContentService {
         Err(Status::unimplemented("Update not implemented"))
     }
 
-    type ListStream =
-        tokio_stream::wrappers::ReceiverStream<Result<ListContentResponse, Status>>;
+    type ListStream = tokio_stream::wrappers::ReceiverStream<Result<ListContentResponse, Status>>;
 
     /// List streams all content blobs
     async fn list(
@@ -160,8 +159,7 @@ impl ContentTrait for ContentService {
         Err(Status::unimplemented("Delete not implemented"))
     }
 
-    type ReadStream =
-        tokio_stream::wrappers::ReceiverStream<Result<ReadContentResponse, Status>>;
+    type ReadStream = tokio_stream::wrappers::ReceiverStream<Result<ReadContentResponse, Status>>;
 
     /// Read streams content blob data (used for cache import)
     async fn read(
@@ -183,9 +181,7 @@ impl ContentTrait for ContentService {
                 Ok(mut file) => {
                     // Seek to requested offset
                     if req.offset > 0 {
-                        if let Err(e) = file
-                            .seek(std::io::SeekFrom::Start(req.offset as u64))
-                            .await
+                        if let Err(e) = file.seek(std::io::SeekFrom::Start(req.offset as u64)).await
                         {
                             let _ = tx
                                 .send(Err(Status::internal(format!("seek failed: {}", e))))
@@ -272,7 +268,7 @@ impl ContentTrait for ContentService {
                 updated_at: None,
                 r#ref: req.r#ref.clone(),
                 offset: session.offset as i64,
-                total: 0, // Unknown until commit
+                total: 0,                // Unknown until commit
                 expected: String::new(), // Unknown until commit
             };
 
@@ -280,7 +276,10 @@ impl ContentTrait for ContentService {
                 status: Some(status),
             }))
         } else {
-            Err(Status::not_found(format!("write ref {} not found", req.r#ref)))
+            Err(Status::not_found(format!(
+                "write ref {} not found",
+                req.r#ref
+            )))
         }
     }
 
@@ -293,14 +292,16 @@ impl ContentTrait for ContentService {
 
         let statuses = sessions
             .iter()
-            .map(|(ref_name, session)| super::proto::containerd::services::content::v1::Status {
-                started_at: None,
-                updated_at: None,
-                r#ref: ref_name.clone(),
-                offset: session.offset as i64,
-                total: 0,
-                expected: String::new(),
-            })
+            .map(
+                |(ref_name, session)| super::proto::containerd::services::content::v1::Status {
+                    started_at: None,
+                    updated_at: None,
+                    r#ref: ref_name.clone(),
+                    offset: session.offset as i64,
+                    total: 0,
+                    expected: String::new(),
+                },
+            )
             .collect();
 
         Ok(Response::new(ListStatusesResponse { statuses }))
@@ -361,7 +362,9 @@ impl ContentTrait for ContentService {
                         }
                         1 => {
                             // WRITE: Continue writing to current file
-                            debug!("Content::Write received WRITE continuation for current session");
+                            debug!(
+                                "Content::Write received WRITE continuation for current session"
+                            );
                             // Fall through to normal WRITE handling below
                             // Use current_ref as ref_name
                             if current_ref.is_none() {
@@ -394,7 +397,10 @@ impl ContentTrait for ContentService {
 
                     let ingest_path = cache_dir.join("ingest").join(sanitize_ref_name(&ref_name));
 
-                    debug!("Content::Write creating ingest file at: {}", ingest_path.display());
+                    debug!(
+                        "Content::Write creating ingest file at: {}",
+                        ingest_path.display()
+                    );
 
                     match tokio::fs::File::create(&ingest_path).await {
                         Ok(file) => {
@@ -464,7 +470,10 @@ impl ContentTrait for ContentService {
                                     Err(e) => {
                                         error!("Content::Write failed: {}", e);
                                         let _ = tx
-                                            .send(Err(Status::internal(format!("write failed: {}", e))))
+                                            .send(Err(Status::internal(format!(
+                                                "write failed: {}",
+                                                e
+                                            ))))
                                             .await;
                                         return;
                                     }
@@ -508,7 +517,9 @@ impl ContentTrait for ContentService {
                                 let _ = tokio::fs::create_dir_all(parent).await;
                             }
 
-                            let ingest_path = cache_dir.join("ingest").join(sanitize_ref_name(&effective_ref));
+                            let ingest_path = cache_dir
+                                .join("ingest")
+                                .join(sanitize_ref_name(&effective_ref));
 
                             debug!(
                                 "Content::Write committing: rename {} -> {}",
@@ -547,7 +558,10 @@ impl ContentTrait for ContentService {
                                 Err(e) => {
                                     error!("Content::Write commit failed: {}", e);
                                     let _ = tx
-                                        .send(Err(Status::internal(format!("commit failed: {}", e))))
+                                        .send(Err(Status::internal(format!(
+                                            "commit failed: {}",
+                                            e
+                                        ))))
                                         .await;
                                     return;
                                 }
@@ -570,14 +584,10 @@ impl ContentTrait for ContentService {
         )))
     }
 
-    type WriteStream =
-        tokio_stream::wrappers::ReceiverStream<Result<WriteContentResponse, Status>>;
+    type WriteStream = tokio_stream::wrappers::ReceiverStream<Result<WriteContentResponse, Status>>;
 
     /// Abort cancels an ongoing write operation
-    async fn abort(
-        &self,
-        request: Request<AbortRequest>,
-    ) -> Result<Response<()>, Status> {
+    async fn abort(&self, request: Request<AbortRequest>) -> Result<Response<()>, Status> {
         let req = request.into_inner();
         debug!("Content::Abort called for ref={}", req.r#ref);
 

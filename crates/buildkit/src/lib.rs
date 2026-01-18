@@ -28,8 +28,8 @@ pub use oci_index::OciIndex;
 pub use progress::{ProgressEvent, ProgressTracker};
 pub use proto::{
     AuthServer, AuthServerBuilder, ContentServer, ContentServerBuilder, ControlClient,
-    FileSendServer, FileSendServerBuilder, FileSyncClient, FileSyncServer,
-    FileSyncServerBuilder, Packet,
+    FileSendServer, FileSendServerBuilder, FileSyncClient, FileSyncServer, FileSyncServerBuilder,
+    Packet,
 };
 pub use session::{
     AttestationConfig, BuildResult, BuildSession, CacheExport, CacheImport, ProvenanceMode,

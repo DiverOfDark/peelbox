@@ -142,13 +142,15 @@ impl ContainerTestHarness {
         let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
             PathBuf::from(custom_cache).join("external-cache")
         } else {
-            std::env::temp_dir()
-                .join("peelbox-test-external-cache")
+            std::env::temp_dir().join("peelbox-test-external-cache")
         };
         std::fs::create_dir_all(&external_cache_dir)
             .context("Failed to create external cache directory")?;
 
-        eprintln!("Using external BuildKit cache at: {}", external_cache_dir.display());
+        eprintln!(
+            "Using external BuildKit cache at: {}",
+            external_cache_dir.display()
+        );
 
         let mut cmd = std::process::Command::new(&peelbox_binary);
         cmd.args([
@@ -233,13 +235,15 @@ impl ContainerTestHarness {
         let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
             PathBuf::from(custom_cache).join("external-cache")
         } else {
-            std::env::temp_dir()
-                .join("peelbox-test-external-cache")
+            std::env::temp_dir().join("peelbox-test-external-cache")
         };
         std::fs::create_dir_all(&external_cache_dir)
             .context("Failed to create external cache directory")?;
 
-        eprintln!("Using external BuildKit cache at: {}", external_cache_dir.display());
+        eprintln!(
+            "Using external BuildKit cache at: {}",
+            external_cache_dir.display()
+        );
 
         let cache_from_path = format!("type=local,src={}", external_cache_dir.display());
         let cache_to_path = format!("type=local,dest={}", external_cache_dir.display());

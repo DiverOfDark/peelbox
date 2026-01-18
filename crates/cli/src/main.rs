@@ -715,9 +715,8 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     // Check for automatic caching via PEELBOX_CACHE_DIR env var
     let cache_base = std::env::var("PEELBOX_CACHE_DIR").ok();
-    let using_auto_cache = cache_base.is_some()
-        && args.cache_from.is_empty()
-        && args.cache_to.is_empty();
+    let using_auto_cache =
+        cache_base.is_some() && args.cache_from.is_empty() && args.cache_to.is_empty();
 
     // Generate app-specific cache key if using auto-cache
     let (auto_cache_dir, auto_cache_key) = if using_auto_cache {
@@ -727,12 +726,18 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
         // Create base cache directory if it doesn't exist
         if let Err(e) = std::fs::create_dir_all(&cache_path) {
-            warn!("Failed to create cache directory {}: {}", cache_path.display(), e);
+            warn!(
+                "Failed to create cache directory {}: {}",
+                cache_path.display(),
+                e
+            );
             (None, None)
         } else {
-            info!("Auto-caching enabled: {} (key: {})",
+            info!(
+                "Auto-caching enabled: {} (key: {})",
                 cache_path.display(),
-                cache_key);
+                cache_key
+            );
             (Some(cache_path), Some(cache_key))
         }
     } else {
@@ -750,7 +755,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         // Auto-configure cache import from env var (shared blobs, per-app index)
         parse_cache_imports(
             &[format!("type=local,src={}", cache_dir.display())],
-            auto_cache_key.as_deref()
+            auto_cache_key.as_deref(),
         )
     } else {
         Vec::new()
@@ -895,8 +900,8 @@ fn get_index_filename(cache_key: Option<&str>) -> String {
 
 /// Resolve cache digest from index file in the cache directory
 fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Result<String> {
-    use std::path::PathBuf;
     use peelbox_buildkit::OciIndex;
+    use std::path::PathBuf;
 
     let cache_path = PathBuf::from(cache_dir);
     let index_filename = get_index_filename(cache_key);
@@ -904,7 +909,10 @@ fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Res
 
     // Check if index file exists first
     if !index_path.exists() {
-        return Err(anyhow::anyhow!("No {} found (first build?)", index_filename));
+        return Err(anyhow::anyhow!(
+            "No {} found (first build?)",
+            index_filename
+        ));
     }
 
     let index = OciIndex::read_from_file(&index_path)?;
@@ -917,7 +925,7 @@ fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Res
 /// Generate a cache key for the current build to isolate caches between different apps
 /// Uses context_path + app_name from spec for stable, semantic cache keys
 fn generate_cache_key(spec_path: &Path, context_path: &Path) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
 
     // Read and parse the spec to extract app name
     let app_name = match fs::read_to_string(spec_path) {
@@ -942,14 +950,16 @@ fn generate_cache_key(spec_path: &Path, context_path: &Path) -> String {
     };
 
     // Canonicalize context path for stable key across different path representations
-    let canonical_context = context_path.canonicalize().unwrap_or_else(|_| context_path.to_path_buf());
+    let canonical_context = context_path
+        .canonicalize()
+        .unwrap_or_else(|_| context_path.to_path_buf());
 
     // Build cache key from context + app name
     let mut hasher = Sha256::new();
     hasher.update(canonical_context.to_string_lossy().as_bytes());
 
     if let Some(name) = app_name {
-        hasher.update(b":");  // Separator
+        hasher.update(b":"); // Separator
         hasher.update(name.as_bytes());
         debug!("Cache key generated from context + app_name: {}", name);
     } else {
@@ -970,7 +980,9 @@ fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<Ca
         .iter()
         .filter_map(|cache_str| {
             if let Some(mut attrs) = parse_cache_option(cache_str, false) {
-                let cache_type = attrs.remove("type").unwrap_or_else(|| "registry".to_string());
+                let cache_type = attrs
+                    .remove("type")
+                    .unwrap_or_else(|| "registry".to_string());
 
                 // Auto-resolve digest from index file for local cache imports
                 if cache_type == "local" && !attrs.contains_key("digest") {
@@ -1006,7 +1018,9 @@ fn parse_cache_exports(cache_to: &[String]) -> Vec<CacheExport> {
         .iter()
         .filter_map(|cache_str| {
             if let Some(mut attrs) = parse_cache_option(cache_str, true) {
-                let cache_type = attrs.remove("type").unwrap_or_else(|| "registry".to_string());
+                let cache_type = attrs
+                    .remove("type")
+                    .unwrap_or_else(|| "registry".to_string());
                 info!("Cache export: type={}, attrs={:?}", cache_type, attrs);
                 Some(CacheExport {
                     r#type: cache_type,
