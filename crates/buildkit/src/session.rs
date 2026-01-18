@@ -175,7 +175,9 @@ impl BuildSession {
     async fn attach_session(&mut self) -> Result<()> {
         info!("Attaching session {} to BuildKit daemon", self.session_id);
 
-        let mut client = ControlClient::new(self.connection.channel());
+        let mut client = ControlClient::new(self.connection.channel())
+            .max_decoding_message_size(100 * 1024 * 1024)
+            .max_encoding_message_size(100 * 1024 * 1024);
 
         // Create channel for outgoing session messages
         let (tx, rx) = mpsc::channel::<BytesMessage>(32);
@@ -466,8 +468,10 @@ impl BuildSession {
             }
         }
 
-        // Create Control client
-        let mut client = ControlClient::new(self.connection.channel());
+        // Create Control client with extended timeout for long builds
+        let mut client = ControlClient::new(self.connection.channel())
+            .max_decoding_message_size(100 * 1024 * 1024) // 100MB for large build responses
+            .max_encoding_message_size(100 * 1024 * 1024);
 
         // Parse LLB bytes into Definition proto
         let definition = prost::Message::decode(&llb_bytes[..]).with_context(|| {
@@ -564,7 +568,8 @@ impl BuildSession {
         // Start status streaming task if progress tracking is enabled
         let mut status_rx = if progress.is_some() {
             let (tx, rx) = mpsc::channel(100);
-            let mut status_client = ControlClient::new(self.connection.channel());
+            let mut status_client = ControlClient::new(self.connection.channel())
+                .max_decoding_message_size(100 * 1024 * 1024);
             let status_request = super::proto::moby::buildkit::v1::StatusRequest {
                 r#ref: build_ref.clone(),
             };

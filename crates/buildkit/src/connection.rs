@@ -150,6 +150,8 @@ impl BuildKitConnection {
                         .initial_connection_window_size(Some(2 * 1024 * 1024))
                         .initial_stream_window_size(Some(2 * 1024 * 1024))
                         .http2_keep_alive_interval(std::time::Duration::from_secs(30))
+                        .keep_alive_timeout(std::time::Duration::from_secs(3600))
+                        .keep_alive_while_idle(true)
                         .connect_with_connector(service_fn(move |_: Uri| {
                             let path = path.clone();
                             async move {
@@ -224,6 +226,8 @@ impl BuildKitConnection {
                         .initial_connection_window_size(Some(2 * 1024 * 1024))
                         .initial_stream_window_size(Some(2 * 1024 * 1024))
                         .http2_keep_alive_interval(std::time::Duration::from_secs(30))
+                        .keep_alive_timeout(std::time::Duration::from_secs(600))
+                        .keep_alive_while_idle(true)
                         .connect_with_connector(service_fn(move |_: Uri| {
                             let path = path.clone();
                             async move { connect_docker_native(&path).await.map(TokioIo::new) }
