@@ -48,6 +48,13 @@ impl Digest {
     }
 }
 
+/// Parse digest and convert to blob path, or fallback to unknown directory
+pub fn blob_path_or_fallback(digest: &str, cache_dir: &Path) -> PathBuf {
+    Digest::parse(digest)
+        .map(|d| d.to_blob_path(cache_dir))
+        .unwrap_or_else(|_| cache_dir.join("blobs/unknown").join(digest))
+}
+
 impl std::fmt::Display for Digest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}", self.algorithm, self.hash)

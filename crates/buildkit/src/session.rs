@@ -85,7 +85,7 @@ pub struct BuildSession {
     session_server: Option<JoinHandle<Result<()>>>,
     session_tx: Option<mpsc::Sender<BytesMessage>>,
     conn_tx: Option<mpsc::Sender<Result<StreamConn, std::io::Error>>>,
-    export_complete_rx: Option<tokio::sync::oneshot::Receiver<()>>,
+    export_done: Option<tokio::sync::oneshot::Receiver<()>>,
     bytes_written: Arc<AtomicU64>,
 }
 
@@ -111,7 +111,7 @@ impl BuildSession {
             session_server: None,
             session_tx: None,
             conn_tx: None,
-            export_complete_rx: None,
+            export_done: None,
             bytes_written: Arc::new(AtomicU64::new(0)),
         }
     }
@@ -231,7 +231,7 @@ impl BuildSession {
     fn update_cache_index(&self, cache_dir: &str) -> Result<()> {
         use std::path::PathBuf;
 
-        let cache_path = PathBuf::from(cache_dir);
+        let cache_path: PathBuf = cache_dir.into();
 
         let (digest, size) = crate::oci_index::find_latest_manifest(&cache_path)?
             .ok_or_else(|| anyhow::anyhow!("No OCI manifest found in cache directory"))?;
@@ -395,9 +395,9 @@ impl BuildSession {
         let stream_conn = StreamConn::new(incoming, tx.clone());
 
         // Create oneshot channel for export completion signal
-        let (export_tx, export_rx) = tokio::sync::oneshot::channel();
+        let (export_signal, export_done) = tokio::sync::oneshot::channel();
 
-        let cache_dir = self.local_cache_dir().map(PathBuf::from);
+        let cache_dir: Option<PathBuf> = self.local_cache_dir().map(Into::into);
 
         debug!(
             "Cache directory extraction: exports={}, imports={}, cache_dir={:?}",
@@ -425,7 +425,7 @@ impl BuildSession {
         let filesync_service = FileSyncService::new(self.context_path.clone());
         let filesend_service = FileSendService::new(
             self.output_dest.clone(),
-            export_tx,
+            export_signal,
             self.bytes_written.clone(),
         );
         let auth_service = AuthService::new();
@@ -508,7 +508,7 @@ impl BuildSession {
         self.session_server = Some(session_handle);
         self.session_tx = Some(tx); // Keep sender alive to prevent BytesMessage stream from closing
         self.conn_tx = Some(conn_tx); // Keep connection stream alive - never ends until session dropped
-        self.export_complete_rx = Some(export_rx); // Receive export completion signal
+        self.export_done = Some(export_done); // Receive export completion signal
 
         info!(
             "Session {} attached successfully - gRPC server running over BytesMessage stream",
@@ -860,9 +860,9 @@ impl BuildSession {
         debug!("Solve response: {:?}", solve_response);
 
         // Wait for tar export to complete before closing session
-        if let Some(export_rx) = self.export_complete_rx.take() {
+        if let Some(export_done) = self.export_done.take() {
             debug!("Waiting for tar export to complete...");
-            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_rx)
+            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_done)
                 .await
             {
                 Ok(Ok(())) => {

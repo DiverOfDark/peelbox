@@ -81,11 +81,6 @@ impl OciIndex {
         Ok(index)
     }
 
-    /// Read index.json from a cache directory (for backward compatibility)
-    pub fn read_from_dir(cache_dir: &Path) -> Result<Self> {
-        Self::read_from_file(&cache_dir.join("index.json"))
-    }
-
     /// Write index to a specific file path
     pub fn write_to_file(&self, index_path: &Path) -> Result<()> {
         let content = serde_json::to_string_pretty(self).context("Failed to serialize index")?;
@@ -99,11 +94,6 @@ impl OciIndex {
             index_path.display()
         );
         Ok(())
-    }
-
-    /// Write index.json to a cache directory (for backward compatibility)
-    pub fn write_to_dir(&self, cache_dir: &Path) -> Result<()> {
-        self.write_to_file(&cache_dir.join("index.json"))
     }
 
     /// Add or update a manifest with a specific tag

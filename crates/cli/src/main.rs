@@ -650,17 +650,17 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
                 )
             } else if let Some(after_type) = output_spec.strip_prefix("type=oci,") {
                 let path = if let Some(dest) = after_type.strip_prefix("dest=") {
-                    PathBuf::from(dest)
+                    dest.into()
                 } else {
-                    PathBuf::from(after_type)
+                    after_type.into()
                 };
                 (path, "oci".to_string())
             } else if let Some(dest) = output_spec.strip_prefix("oci,dest=") {
-                (PathBuf::from(dest), "oci".to_string())
+                (dest.into(), "oci".to_string())
             } else if let Some(dest) = output_spec.strip_prefix("dest=") {
-                (PathBuf::from(dest), "docker".to_string())
+                (dest.into(), "docker".to_string())
             } else {
-                (PathBuf::from(output_spec), "docker".to_string())
+                (output_spec.into(), "docker".to_string())
             };
 
             OutputDestination::File {
@@ -722,7 +722,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     let (auto_cache_dir, auto_cache_key) = if using_auto_cache {
         let base_dir = cache_base.as_ref().unwrap();
         let cache_key = generate_cache_key(&args.spec, &context_path);
-        let cache_path = PathBuf::from(base_dir);
+        let cache_path: PathBuf = base_dir.into();
 
         // Create base cache directory if it doesn't exist
         if let Err(e) = std::fs::create_dir_all(&cache_path) {
@@ -835,18 +835,18 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     0
 }
 
-/// Builder for cache options - parses and validates cache configuration
-struct CacheOptionBuilder {
-    cache_type: String,
+/// Cache configuration parser and validator
+struct CacheConfig {
+    r#type: String,
     attrs: HashMap<String, String>,
 }
 
-impl CacheOptionBuilder {
+impl CacheConfig {
     fn parse(cache_str: &str) -> anyhow::Result<Self> {
         // Shorthand for registry: "user/app:cache"
         if !cache_str.contains(',') && cache_str.contains('/') {
             return Ok(Self {
-                cache_type: "registry".into(),
+                r#type: "registry".into(),
                 attrs: HashMap::from([("ref".into(), cache_str.into())]),
             });
         }
@@ -864,33 +864,42 @@ impl CacheOptionBuilder {
         }
 
         let cache_type = attrs.remove("type").unwrap_or_else(|| "registry".into());
-        Ok(Self { cache_type, attrs })
+        Ok(Self {
+            r#type: cache_type,
+            attrs,
+        })
     }
 
-    fn validate(&self, is_export: bool) -> anyhow::Result<()> {
-        match self.cache_type.as_str() {
-            "registry" => {
-                if !self.attrs.contains_key("ref") {
-                    anyhow::bail!("Registry cache requires 'ref' attribute");
-                }
-            }
-            "local" => {
-                let key = if is_export { "dest" } else { "src" };
-                if !self.attrs.contains_key(key) {
-                    anyhow::bail!("Local cache requires '{}' attribute", key);
-                }
-            }
-            "gha" | "s3" | "azblob" | "inline" => {}
+    fn validate_import(&self) -> anyhow::Result<()> {
+        match self.r#type.as_str() {
+            "registry" => Self::ensure_attr(&self.attrs, "ref"),
+            "local" => Self::ensure_attr(&self.attrs, "src"),
+            "gha" | "s3" | "azblob" | "inline" => Ok(()),
             unknown => anyhow::bail!("Unknown cache type: {}", unknown),
         }
-        Ok(())
+    }
+
+    fn validate_export(&self) -> anyhow::Result<()> {
+        match self.r#type.as_str() {
+            "registry" => Self::ensure_attr(&self.attrs, "ref"),
+            "local" => Self::ensure_attr(&self.attrs, "dest"),
+            "gha" | "s3" | "azblob" | "inline" => Ok(()),
+            unknown => anyhow::bail!("Unknown cache type: {}", unknown),
+        }
+    }
+
+    fn ensure_attr(attrs: &HashMap<String, String>, key: &str) -> anyhow::Result<()> {
+        attrs
+            .contains_key(key)
+            .then_some(())
+            .ok_or_else(|| anyhow::anyhow!("Missing required attribute: {}", key))
     }
 
     fn into_import(mut self, cache_key: Option<&str>) -> anyhow::Result<CacheImport> {
-        self.validate(false)?;
+        self.validate_import()?;
 
         // Auto-resolve digest for local caches
-        if self.cache_type == "local" && !self.attrs.contains_key("digest") {
+        if self.r#type == "local" && !self.attrs.contains_key("digest") {
             if let Some(src) = self.attrs.get("src") {
                 match resolve_cache_digest(src, cache_key) {
                     Ok(digest) => {
@@ -907,22 +916,22 @@ impl CacheOptionBuilder {
 
         info!(
             "Cache import: type={}, attrs={:?}",
-            self.cache_type, self.attrs
+            self.r#type, self.attrs
         );
         Ok(CacheImport {
-            r#type: self.cache_type,
+            r#type: self.r#type,
             attrs: self.attrs,
         })
     }
 
     fn into_export(self) -> anyhow::Result<CacheExport> {
-        self.validate(true)?;
+        self.validate_export()?;
         info!(
             "Cache export: type={}, attrs={:?}",
-            self.cache_type, self.attrs
+            self.r#type, self.attrs
         );
         Ok(CacheExport {
-            r#type: self.cache_type,
+            r#type: self.r#type,
             attrs: self.attrs,
         })
     }
@@ -931,21 +940,12 @@ impl CacheOptionBuilder {
 /// Resolve cache digest from index file in the cache directory
 fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Result<String> {
     use peelbox_buildkit::OciIndex;
-    use std::path::PathBuf;
+    use std::path::Path;
 
-    let cache_path = PathBuf::from(cache_dir);
-    let index_file = OciIndex::filename(cache_key);
-    let index_path = cache_path.join(&index_file);
-
-    if !index_path.exists() {
-        return Err(anyhow::anyhow!("No {} found (first build?)", index_file));
-    }
-
-    let index = OciIndex::read_with_key(&cache_path, cache_key)?;
-
+    let index = OciIndex::read_with_key(Path::new(cache_dir), cache_key)?;
     index
         .get_digest(None)
-        .ok_or_else(|| anyhow::anyhow!("No 'latest' tag found in {}", index_file))
+        .ok_or_else(|| anyhow::anyhow!("No 'latest' tag in cache index"))
 }
 
 fn extract_project_name(spec_path: &Path) -> Option<String> {
@@ -986,7 +986,7 @@ fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<Ca
     cache_from
         .iter()
         .filter_map(|s| {
-            CacheOptionBuilder::parse(s)
+            CacheConfig::parse(s)
                 .and_then(|b| b.into_import(cache_key))
                 .map_err(|e| warn!("Failed to parse cache import '{}': {}", s, e))
                 .ok()
@@ -998,7 +998,7 @@ fn parse_cache_exports(cache_to: &[String]) -> Vec<CacheExport> {
     cache_to
         .iter()
         .filter_map(|s| {
-            CacheOptionBuilder::parse(s)
+            CacheConfig::parse(s)
                 .and_then(|b| b.into_export())
                 .map_err(|e| warn!("Failed to parse cache export '{}': {}", s, e))
                 .ok()

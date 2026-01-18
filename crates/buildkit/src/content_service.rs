@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use tonic::{Request, Response, Status, Streaming};
 use tracing::{debug, error, info, warn};
 
-use super::digest::Digest;
+use super::digest::{blob_path_or_fallback, Digest};
 use super::proto::containerd::services::content::v1::{
     content_server::Content as ContentTrait, AbortRequest, DeleteContentRequest, InfoRequest,
     InfoResponse, ListContentRequest, ListContentResponse, ListStatusesRequest,
@@ -17,9 +17,11 @@ use super::proto::containerd::services::content::v1::{
 };
 
 const STREAM_BUFFER_SIZE: usize = 64 * 1024; // 64KB
-const STAT_ACTION: i32 = 0;
-const WRITE_ACTION: i32 = 1;
-const COMMIT_ACTION: i32 = 2;
+
+// WriteAction enum values as constants for pattern matching
+const ACTION_STAT: i32 = 0;
+const ACTION_WRITE: i32 = 1;
+const ACTION_COMMIT: i32 = 2;
 
 /// Content service implementation for BuildKit cache export/import
 ///
@@ -36,6 +38,19 @@ struct WriteSession {
     offset: u64,
 }
 
+impl WriteSession {
+    fn to_status(&self, ref_name: &str) -> super::proto::containerd::services::content::v1::Status {
+        super::proto::containerd::services::content::v1::Status {
+            started_at: None,
+            updated_at: None,
+            r#ref: ref_name.to_string(),
+            offset: self.offset as i64,
+            total: 0,
+            expected: String::new(),
+        }
+    }
+}
+
 impl ContentService {
     pub fn new(cache_dir: PathBuf) -> Self {
         Self {
@@ -45,11 +60,10 @@ impl ContentService {
     }
 
     fn blob_path(&self, digest: &str) -> PathBuf {
-        Digest::parse(digest)
-            .map(|d| d.to_blob_path(&self.cache_dir))
-            .unwrap_or_else(|_| self.cache_dir.join("blobs/unknown").join(digest))
+        blob_path_or_fallback(digest, &self.cache_dir)
     }
 
+    /// Sanitize reference name for use as a filesystem path component
     fn sanitize_ref(ref_name: &str) -> String {
         ref_name.replace(['/', ':', '\\'], "_")
     }
@@ -95,13 +109,13 @@ impl ContentTrait for ContentService {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 warn!("Content::Info not found: {}", digest);
                 Err(Status::not_found(format!(
-                    "content blob {} not found",
+                    "content blob not found: {}",
                     digest
                 )))
             }
             Err(e) => {
                 error!("Content::Info error {}: {}", digest, e);
-                Err(Status::internal(format!("failed to get info: {}", e)))
+                Err(Status::internal(format!("failed to get blob info: {}", e)))
             }
         }
     }
@@ -200,7 +214,7 @@ impl ContentTrait for ContentService {
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                     let _ = tx
                         .send(Err(Status::not_found(format!(
-                            "content blob {} not found",
+                            "content blob not found: {}",
                             req.digest
                         ))))
                         .await;
@@ -228,21 +242,14 @@ impl ContentTrait for ContentService {
         let sessions = self.write_sessions.lock().await;
 
         if let Some(session) = sessions.get(&req.r#ref) {
-            let status = super::proto::containerd::services::content::v1::Status {
-                started_at: None,
-                updated_at: None,
-                r#ref: req.r#ref.clone(),
-                offset: session.offset as i64,
-                total: 0,
-                expected: String::new(),
-            };
+            let status = session.to_status(&req.r#ref);
 
             Ok(Response::new(StatusResponse {
                 status: Some(status),
             }))
         } else {
             Err(Status::not_found(format!(
-                "write ref {} not found",
+                "write session not found: {}",
                 req.r#ref
             )))
         }
@@ -256,16 +263,7 @@ impl ContentTrait for ContentService {
 
         let statuses = sessions
             .iter()
-            .map(
-                |(ref_name, session)| super::proto::containerd::services::content::v1::Status {
-                    started_at: None,
-                    updated_at: None,
-                    r#ref: ref_name.clone(),
-                    offset: session.offset as i64,
-                    total: 0,
-                    expected: String::new(),
-                },
-            )
+            .map(|(ref_name, session)| session.to_status(ref_name))
             .collect();
 
         Ok(Response::new(ListStatusesResponse { statuses }))
@@ -374,15 +372,15 @@ impl WriteSessionManager {
         req: WriteContentRequest,
     ) -> Result<Option<WriteContentResponse>, Status> {
         match req.action {
-            STAT_ACTION => Ok(Some(self.stat_response(req.total))),
-            WRITE_ACTION => {
+            ACTION_STAT => Ok(Some(self.build_response(ACTION_STAT, req.total, String::new()))),
+            ACTION_WRITE => {
                 if self.current_ref.is_none() {
                     warn!("WRITE with empty ref but no session");
                     return Ok(None);
                 }
                 self.handle_action(req).await
             }
-            COMMIT_ACTION => self.handle_action(req).await,
+            ACTION_COMMIT => self.handle_action(req).await,
             _ => {
                 warn!("Empty ref with unknown action={}", req.action);
                 Ok(None)
@@ -427,9 +425,9 @@ impl WriteSessionManager {
         req: WriteContentRequest,
     ) -> Result<Option<WriteContentResponse>, Status> {
         match req.action {
-            WRITE_ACTION => self.write_data(req).await,
-            STAT_ACTION => Ok(Some(self.stat_response(req.total))),
-            COMMIT_ACTION => self.commit(req).await.map(Some),
+            ACTION_WRITE => self.write_data(req).await,
+            ACTION_STAT => Ok(Some(self.build_response(ACTION_STAT, req.total, String::new()))),
+            ACTION_COMMIT => self.commit(req).await.map(Some),
             _ => {
                 warn!("Unknown action: {}", req.action);
                 Ok(None)
@@ -448,7 +446,7 @@ impl WriteSessionManager {
         let file = self
             .current_file
             .as_mut()
-            .ok_or_else(|| Status::failed_precondition("No active write session"))?;
+            .ok_or_else(|| Status::failed_precondition("no active write session"))?;
 
         file.write_all(&req.data).await.map_err(|e| {
             error!("Write failed: {}", e);
@@ -464,22 +462,19 @@ impl WriteSessionManager {
             }
         }
 
-        Ok(Some(WriteContentResponse {
-            action: WRITE_ACTION,
-            offset: self.offset as i64,
-            total: req.total,
-            digest: String::new(),
-            started_at: None,
-            updated_at: None,
-        }))
+        Ok(Some(self.build_response(
+            ACTION_WRITE,
+            req.total,
+            String::new(),
+        )))
     }
 
-    fn stat_response(&self, total: i64) -> WriteContentResponse {
+    fn build_response(&self, action: i32, total: i64, digest: String) -> WriteContentResponse {
         WriteContentResponse {
-            action: STAT_ACTION,
+            action,
             offset: self.offset as i64,
             total,
-            digest: String::new(),
+            digest,
             started_at: None,
             updated_at: None,
         }
@@ -489,7 +484,7 @@ impl WriteSessionManager {
         let file = self
             .current_file
             .take()
-            .ok_or_else(|| Status::failed_precondition("No active write session to commit"))?;
+            .ok_or_else(|| Status::failed_precondition("no active write session to commit"))?;
 
         file.sync_all().await.map_err(|e| {
             error!("Sync failed: {}", e);
@@ -538,13 +533,6 @@ impl WriteSessionManager {
             sessions.remove(&ref_name);
         }
 
-        Ok(WriteContentResponse {
-            action: COMMIT_ACTION,
-            offset: self.offset as i64,
-            total: self.offset as i64,
-            digest,
-            started_at: None,
-            updated_at: None,
-        })
+        Ok(self.build_response(ACTION_COMMIT, self.offset as i64, digest))
     }
 }
