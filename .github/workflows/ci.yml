@@ -70,7 +70,7 @@ jobs:
               ~/.cargo/registry/cache
               ~/.cargo/git/db
               target
-              .test-cache
+              /tmp/.test-cache
             key: ${{ runner.os }}-cargo-ci-${{ hashFiles('Cargo.lock') }}
 
       - name: Restore BuildKit cache
@@ -83,13 +83,13 @@ jobs:
             buildkit-${{ runner.os }}
 
       - name: Setup test cache directory
-        run: mkdir -p .test-cache
+        run: mkdir -p /tmp/.test-cache
 
       - name: Extract BuildKit cache
         if: steps.cache-buildkit.outputs.cache-hit == 'true'
         run: |
-          mkdir -p .test-cache/buildkit
-          sudo tar -xf .buildkit-cache.tar.zst -C .test-cache/buildkit
+          mkdir -p /tmp/.test-cache/buildkit
+          sudo tar -xf .buildkit-cache.tar.zst -C /tmp/.test-cache/buildkit
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -102,7 +102,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          export PEELBOX_TEST_CACHE_DIR=$(pwd)/.test-cache
+          export PEELBOX_TEST_CACHE_DIR=/tmp/.test-cache
           cargo llvm-cov nextest --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
       - name: Generate coverage report
@@ -150,8 +150,8 @@ jobs:
       - name: Create BuildKit cache archive
         if: always()
         run: |
-          if [ -d .test-cache/buildkit ]; then
-            sudo tar -cf .buildkit-cache.tar.zst --zstd -C .test-cache/buildkit . || true
+          if [ -d /tmp/.test-cache/buildkit ]; then
+            sudo tar -cf .buildkit-cache.tar.zst --zstd -C /tmp/.test-cache/buildkit . || true
             sudo chown $USER:$USER .buildkit-cache.tar.zst || true
           fi
 
