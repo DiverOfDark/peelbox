@@ -176,8 +176,31 @@ jobs:
       - name: Make peelbox executable
         run: chmod +x target/release/peelbox
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Start BuildKit daemon container
+        run: |
+          docker run -d \
+            --name buildkitd \
+            --privileged \
+            -p 1234:1234 \
+            moby/buildkit:latest \
+            --addr tcp://0.0.0.0:1234
+
+          # Wait for BuildKit to be ready
+          timeout 30 sh -c 'until docker exec buildkitd buildctl --addr tcp://0.0.0.0:1234 debug workers >/dev/null 2>&1; do sleep 1; done'
+
+          echo "BuildKit daemon is ready"
+          docker exec buildkitd buildctl --addr tcp://0.0.0.0:1234 debug workers
+
+      - name: Show Docker and BuildKit info
+        run: |
+          echo "=== Docker Version ==="
+          docker version
+          echo ""
+          echo "=== Docker Info ==="
+          docker info
+          echo ""
+          echo "=== BuildKit Container Status ==="
+          docker ps -a --filter name=buildkitd
 
       - name: Build image with peelbox
         run: |
@@ -185,12 +208,23 @@ jobs:
             --spec universalbuild.json \
             --tag peelbox:latest \
             --context . \
+            --buildkit docker-container://buildkitd \
             --verbose
 
       - name: Test the built image
         run: |
           docker run --rm peelbox:latest --version
           docker run --rm peelbox:latest --help
+
+      - name: Show BuildKit logs on failure
+        if: failure()
+        run: |
+          echo "=== BuildKit daemon logs ==="
+          docker logs buildkitd || true
+
+      - name: Stop BuildKit daemon
+        if: always()
+        run: docker stop buildkitd && docker rm buildkitd
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
