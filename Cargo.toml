@@ -18,6 +18,3 @@ peelbox-wolfi = { path = "crates/wolfi" }
 peelbox-stack = { path = "crates/stack" }
 peelbox-pipeline = { path = "crates/pipeline" }
 peelbox-cli = { path = "crates/cli" }
-
-[profile.release]
-debug = true

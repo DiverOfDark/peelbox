@@ -31,7 +31,7 @@ jobs:
           android: true
           dotnet: true
           haskell: true
-          large-packages: true
+          large-packages: false
           docker-images: false
           swap-storage: false
 
@@ -53,14 +53,6 @@ jobs:
         with:
           tool: nextest,cargo-llvm-cov
 
-      - name: Install buildctl
-        run: |
-          BUILDKIT_VERSION=v0.16.0
-          wget -q https://github.com/moby/buildkit/releases/download/${BUILDKIT_VERSION}/buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
-          tar xzf buildkit-${BUILDKIT_VERSION}.linux-amd64.tar.gz
-          sudo install bin/buildctl /usr/local/bin/
-          buildctl --version
-
       - name: Cache Rust dependencies
         uses: actions/cache@v4
         with:
@@ -70,20 +62,8 @@ jobs:
               ~/.cargo/registry/cache
               ~/.cargo/git/db
               target
-              /tmp/.test-cache
+              .buildkit-cache.tar.zst
             key: ${{ runner.os }}-cargo-ci-${{ hashFiles('Cargo.lock') }}
-
-      - name: Restore BuildKit cache
-        id: cache-buildkit
-        uses: actions/cache@v4
-        with:
-          path: .buildkit-cache.tar.zst
-          key: buildkit-${{ runner.os }}
-          restore-keys: |
-            buildkit-${{ runner.os }}
-
-      - name: Setup test cache directory
-        run: mkdir -p /tmp/.test-cache
 
       - name: Extract BuildKit cache
         if: steps.cache-buildkit.outputs.cache-hit == 'true'
