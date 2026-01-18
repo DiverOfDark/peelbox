@@ -372,7 +372,11 @@ impl WriteSessionManager {
         req: WriteContentRequest,
     ) -> Result<Option<WriteContentResponse>, Status> {
         match req.action {
-            ACTION_STAT => Ok(Some(self.build_response(ACTION_STAT, req.total, String::new()))),
+            ACTION_STAT => Ok(Some(self.build_response(
+                ACTION_STAT,
+                req.total,
+                String::new(),
+            ))),
             ACTION_WRITE => {
                 if self.current_ref.is_none() {
                     warn!("WRITE with empty ref but no session");
@@ -426,7 +430,11 @@ impl WriteSessionManager {
     ) -> Result<Option<WriteContentResponse>, Status> {
         match req.action {
             ACTION_WRITE => self.write_data(req).await,
-            ACTION_STAT => Ok(Some(self.build_response(ACTION_STAT, req.total, String::new()))),
+            ACTION_STAT => Ok(Some(self.build_response(
+                ACTION_STAT,
+                req.total,
+                String::new(),
+            ))),
             ACTION_COMMIT => self.commit(req).await.map(Some),
             _ => {
                 warn!("Unknown action: {}", req.action);

@@ -914,10 +914,7 @@ impl CacheConfig {
             }
         }
 
-        info!(
-            "Cache import: type={}, attrs={:?}",
-            self.r#type, self.attrs
-        );
+        info!("Cache import: type={}, attrs={:?}", self.r#type, self.attrs);
         Ok(CacheImport {
             r#type: self.r#type,
             attrs: self.attrs,
@@ -926,10 +923,7 @@ impl CacheConfig {
 
     fn into_export(self) -> anyhow::Result<CacheExport> {
         self.validate_export()?;
-        info!(
-            "Cache export: type={}, attrs={:?}",
-            self.r#type, self.attrs
-        );
+        info!("Cache export: type={}, attrs={:?}", self.r#type, self.attrs);
         Ok(CacheExport {
             r#type: self.r#type,
             attrs: self.attrs,
