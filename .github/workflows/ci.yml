@@ -48,7 +48,11 @@ jobs:
             ~/.cargo/git/db
             target
             .buildkit-cache.tar.zst
-          key: ${{ runner.os }}-cargo-ci-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-ci-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-ci-${{ github.ref_name }}-${{ github.sha }}
+            ${{ runner.os }}-cargo-ci-${{ github.ref_name }}-
+            ${{ runner.os }}-cargo-ci-
 
       - name: Install protoc
         uses: arduino/setup-protoc@v3
