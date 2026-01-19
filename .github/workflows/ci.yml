@@ -125,7 +125,7 @@ jobs:
 
       - name: Upload release binary
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: peelbox-release-binary
           path: target/release/peelbox
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload recording artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-recordings
           path: tests/recordings/
