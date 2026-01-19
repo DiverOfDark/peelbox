@@ -241,7 +241,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     // Generate Rust code from proto files
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_server(true) // We need server for FileSync and Content
         .build_client(true)
         .out_dir(&out_dir)
@@ -275,7 +275,7 @@ fn download_proto_if_missing(
 
     println!("Downloading {} from {}", filename, url);
 
-    let content = ureq::get(url).call()?.into_string()?;
+    let content = ureq::get(url).call()?.into_body().read_to_string()?;
 
     fs::write(&file_path, content)?;
     println!("Downloaded {} successfully", filename);
