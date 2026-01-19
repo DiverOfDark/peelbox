@@ -8,21 +8,38 @@ use tracing::{debug, error, info, warn};
 
 use super::auth_service::AuthService;
 use super::connection::BuildKitConnection;
+use super::content_service::ContentService;
 use super::filesend_service::{FileSendService, OutputDestination};
 use super::filesync::FileSync;
 use super::filesync_service::FileSyncService;
 use super::llb::LLBBuilder;
 use super::proto::{
-    AuthServerBuilder, BytesMessage, ControlClient, FileSendServerBuilder, FileSyncServerBuilder,
+    AuthServerBuilder, BytesMessage, ContentServerBuilder, ControlClient, FileSendServerBuilder,
+    FileSyncServerBuilder,
 };
 use super::stream_conn::StreamConn;
 use crate::{BuildStrategy, PeelboxStrategy};
 use peelbox_core::output::schema::UniversalBuild;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 const TAR_EXPORT_TIMEOUT_SECS: u64 = 300;
+
+/// Cache import configuration
+#[derive(Debug, Clone)]
+pub struct CacheImport {
+    pub r#type: String,
+    pub attrs: HashMap<String, String>,
+}
+
+/// Cache export configuration
+#[derive(Debug, Clone)]
+pub struct CacheExport {
+    pub r#type: String,
+    pub attrs: HashMap<String, String>,
+}
 
 /// Attestation configuration for SBOM and provenance generation
 #[derive(Debug, Clone)]
@@ -62,10 +79,13 @@ pub struct BuildSession {
     output_dest: OutputDestination,
 
     attestation_config: AttestationConfig,
+    cache_imports: Vec<CacheImport>,
+    cache_exports: Vec<CacheExport>,
+    cache_key: Option<String>,
     session_server: Option<JoinHandle<Result<()>>>,
     session_tx: Option<mpsc::Sender<BytesMessage>>,
     conn_tx: Option<mpsc::Sender<Result<StreamConn, std::io::Error>>>,
-    export_complete_rx: Option<tokio::sync::oneshot::Receiver<()>>,
+    export_done: Option<tokio::sync::oneshot::Receiver<()>>,
     bytes_written: Arc<AtomicU64>,
 }
 
@@ -85,10 +105,13 @@ impl BuildSession {
             context_path,
             output_dest,
             attestation_config: AttestationConfig::default(),
+            cache_imports: Vec::new(),
+            cache_exports: Vec::new(),
+            cache_key: None,
             session_server: None,
             session_tx: None,
             conn_tx: None,
-            export_complete_rx: None,
+            export_done: None,
             bytes_written: Arc::new(AtomicU64::new(0)),
         }
     }
@@ -96,6 +119,24 @@ impl BuildSession {
     /// Configure attestation generation (SBOM and provenance)
     pub fn with_attestations(mut self, config: AttestationConfig) -> Self {
         self.attestation_config = config;
+        self
+    }
+
+    /// Set cache imports (e.g. registry, local)
+    pub fn with_cache_imports(mut self, imports: Vec<CacheImport>) -> Self {
+        self.cache_imports = imports;
+        self
+    }
+
+    /// Set cache exports (e.g. registry, local, inline)
+    pub fn with_cache_exports(mut self, exports: Vec<CacheExport>) -> Self {
+        self.cache_exports = exports;
+        self
+    }
+
+    /// Set cache key for index file naming (used with local cache)
+    pub fn with_cache_key(mut self, cache_key: String) -> Self {
+        self.cache_key = Some(cache_key);
         self
     }
 
@@ -151,6 +192,21 @@ impl BuildSession {
         &self.context_path
     }
 
+    /// Extract local cache directory from cache exports or imports
+    fn local_cache_dir(&self) -> Option<&str> {
+        self.cache_exports
+            .iter()
+            .find(|export| export.r#type == "local")
+            .and_then(|export| export.attrs.get("dest"))
+            .or_else(|| {
+                self.cache_imports
+                    .iter()
+                    .find(|import| import.r#type == "local")
+                    .and_then(|import| import.attrs.get("src"))
+            })
+            .map(|s| s.as_str())
+    }
+
     async fn shutdown_session(&mut self) -> Result<()> {
         if let Some(handle) = self.session_server.take() {
             debug!("Aborting session server task");
@@ -168,6 +224,24 @@ impl BuildSession {
                 Err(_) => debug!("Session server aborted (timeout)"),
             }
         }
+        Ok(())
+    }
+
+    /// Update index file in the cache directory after export
+    fn update_cache_index(&self, cache_dir: &str) -> Result<()> {
+        use std::path::PathBuf;
+
+        let cache_path: PathBuf = cache_dir.into();
+
+        let (digest, size) = crate::oci_index::find_latest_manifest(&cache_path)?
+            .ok_or_else(|| anyhow::anyhow!("No OCI manifest found in cache directory"))?;
+
+        let mut index = crate::OciIndex::read_with_key(&cache_path, self.cache_key.as_deref())?;
+        index.add_or_update_manifest(digest.clone(), size, "latest");
+        index.write_with_key(&cache_path, self.cache_key.as_deref())?;
+
+        let index_file = crate::OciIndex::filename(self.cache_key.as_deref());
+        info!("Updated {} with manifest {}", index_file, digest);
         Ok(())
     }
 
@@ -261,6 +335,44 @@ impl BuildSession {
                 .context("Failed to parse method")?,
         );
 
+        // Advertise Content service methods (for cache export/import)
+        request.metadata_mut().append(
+            "x-docker-expose-session-grpc-method",
+            "/containerd.services.content.v1.Content/Read"
+                .parse()
+                .context("Failed to parse method")?,
+        );
+        request.metadata_mut().append(
+            "x-docker-expose-session-grpc-method",
+            "/containerd.services.content.v1.Content/Write"
+                .parse()
+                .context("Failed to parse method")?,
+        );
+        request.metadata_mut().append(
+            "x-docker-expose-session-grpc-method",
+            "/containerd.services.content.v1.Content/Info"
+                .parse()
+                .context("Failed to parse method")?,
+        );
+        request.metadata_mut().append(
+            "x-docker-expose-session-grpc-method",
+            "/containerd.services.content.v1.Content/Status"
+                .parse()
+                .context("Failed to parse method")?,
+        );
+        request.metadata_mut().append(
+            "x-docker-expose-session-grpc-method",
+            "/containerd.services.content.v1.Content/ListStatuses"
+                .parse()
+                .context("Failed to parse method")?,
+        );
+        request.metadata_mut().append(
+            "x-docker-expose-session-grpc-method",
+            "/containerd.services.content.v1.Content/Abort"
+                .parse()
+                .context("Failed to parse method")?,
+        );
+
         // Call Control.Session with metadata
         info!("Calling Control.Session RPC...");
         let response = client.session(request).await.map_err(|e| {
@@ -283,19 +395,50 @@ impl BuildSession {
         let stream_conn = StreamConn::new(incoming, tx.clone());
 
         // Create oneshot channel for export completion signal
-        let (export_tx, export_rx) = tokio::sync::oneshot::channel();
+        let (export_signal, export_done) = tokio::sync::oneshot::channel();
 
-        // Create unified gRPC server with FileSync, FileSend, Auth, Exporter, and Health services
+        let cache_dir: Option<PathBuf> = self.local_cache_dir().map(Into::into);
+
+        debug!(
+            "Cache directory extraction: exports={}, imports={}, cache_dir={:?}",
+            self.cache_exports.len(),
+            self.cache_imports.len(),
+            cache_dir
+        );
+        if let Some(ref dir) = cache_dir {
+            debug!("  Using cache directory: {}", dir.display());
+            for export in &self.cache_exports {
+                debug!(
+                    "  Cache export: type={}, attrs={:?}",
+                    export.r#type, export.attrs
+                );
+            }
+            for import in &self.cache_imports {
+                debug!(
+                    "  Cache import: type={}, attrs={:?}",
+                    import.r#type, import.attrs
+                );
+            }
+        }
+
+        // Create unified gRPC server with FileSync, FileSend, Auth, Content, and Health services
         let filesync_service = FileSyncService::new(self.context_path.clone());
         let filesend_service = FileSendService::new(
             self.output_dest.clone(),
-            export_tx,
+            export_signal,
             self.bytes_written.clone(),
         );
         let auth_service = AuthService::new();
         let health_service = super::health_service::HealthService::new();
 
-        info!("Creating unified gRPC server with FileSync, FileSend, Auth, and Health services");
+        info!("Creating unified gRPC server with FileSync, FileSend, Auth, Content, and Health services");
+
+        if let Some(ref dir) = cache_dir {
+            info!(
+                "Content service enabled with cache directory: {}",
+                dir.display()
+            );
+        }
 
         // Create an infinite connection stream that yields the single StreamConn
         // and then blocks forever to keep the server alive
@@ -316,12 +459,23 @@ impl BuildSession {
         debug!("  - FileSend (moby.filesync.v1.FileSend)");
         debug!("  - Auth (moby.filesync.v1.Auth)");
         debug!("  - Health (grpc.health.v1.Health)");
+        if cache_dir.is_some() {
+            debug!("  - Content (containerd.services.content.v1.Content)");
+        }
 
-        let server = Server::builder()
+        let mut server_builder = Server::builder()
             .trace_fn(|_| tracing::info_span!("grpc-server"))
             .add_service(FileSyncServerBuilder::new(filesync_service))
             .add_service(FileSendServerBuilder::new(filesend_service))
-            .add_service(AuthServerBuilder::new(auth_service))
+            .add_service(AuthServerBuilder::new(auth_service));
+
+        // Add Content service if cache directory is configured
+        if let Some(cache_dir) = cache_dir {
+            let content_service = ContentService::new(cache_dir);
+            server_builder = server_builder.add_service(ContentServerBuilder::new(content_service));
+        }
+
+        let server = server_builder
             .add_service(tonic_health::pb::health_server::HealthServer::new(
                 health_service,
             ))
@@ -354,7 +508,7 @@ impl BuildSession {
         self.session_server = Some(session_handle);
         self.session_tx = Some(tx); // Keep sender alive to prevent BytesMessage stream from closing
         self.conn_tx = Some(conn_tx); // Keep connection stream alive - never ends until session dropped
-        self.export_complete_rx = Some(export_rx); // Receive export completion signal
+        self.export_done = Some(export_done); // Receive export completion signal
 
         info!(
             "Session {} attached successfully - gRPC server running over BytesMessage stream",
@@ -539,6 +693,32 @@ impl BuildSession {
             attrs: exporter_attrs,
         };
 
+        let imports = self
+            .cache_imports
+            .iter()
+            .map(|i| super::proto::moby::buildkit::v1::CacheOptionsEntry {
+                r#type: i.r#type.clone(),
+                attrs: i.attrs.clone(),
+            })
+            .collect();
+
+        let exports = self
+            .cache_exports
+            .iter()
+            .map(|e| super::proto::moby::buildkit::v1::CacheOptionsEntry {
+                r#type: e.r#type.clone(),
+                attrs: e.attrs.clone(),
+            })
+            .collect();
+
+        let cache = super::proto::moby::buildkit::v1::CacheOptions {
+            export_ref_deprecated: String::new(),
+            import_refs_deprecated: vec![],
+            export_attrs_deprecated: Default::default(),
+            exports,
+            imports,
+        };
+
         // Create solve request
         let request = super::proto::moby::buildkit::v1::SolveRequest {
             // Use unique ref per build to avoid "job ID exists" errors,
@@ -550,7 +730,7 @@ impl BuildSession {
             session: self.session_id.clone(),
             frontend: String::new(),
             frontend_attrs: Default::default(),
-            cache: None,
+            cache: Some(cache),
             entitlements: vec![],
             frontend_inputs,
             source_policy: None,
@@ -680,9 +860,9 @@ impl BuildSession {
         debug!("Solve response: {:?}", solve_response);
 
         // Wait for tar export to complete before closing session
-        if let Some(export_rx) = self.export_complete_rx.take() {
+        if let Some(export_done) = self.export_done.take() {
             debug!("Waiting for tar export to complete...");
-            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_rx)
+            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_done)
                 .await
             {
                 Ok(Ok(())) => {
@@ -698,6 +878,16 @@ impl BuildSession {
             }
         } else {
             debug!("No export completion signal configured");
+        }
+
+        if let Some(cache_dir) = self.local_cache_dir() {
+            debug!(
+                "Creating/updating index.json for local cache at {}",
+                cache_dir
+            );
+            if let Err(e) = self.update_cache_index(cache_dir) {
+                warn!("Failed to create/update index.json: {}", e);
+            }
         }
 
         self.shutdown_session().await?;

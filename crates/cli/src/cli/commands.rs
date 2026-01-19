@@ -236,6 +236,20 @@ pub struct BuildArgs {
         help = "Scan build context files for SBOM generation"
     )]
     pub scan_context: bool,
+
+    #[arg(
+        long,
+        value_name = "CACHE_FROM",
+        help = "External cache sources (e.g., user/app:cache, type=local,src=path/to/cache)"
+    )]
+    pub cache_from: Vec<String>,
+
+    #[arg(
+        long,
+        value_name = "CACHE_TO",
+        help = "External cache export destinations (e.g., user/app:cache, type=local,dest=path/to/cache)"
+    )]
+    pub cache_to: Vec<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
