@@ -13,7 +13,7 @@
   "response": {
     "content": "{\n  \"name\": \"C#\",\n  \"file_extensions\": [\".csproj\"],\n  \"package_managers\": [\"NuGet\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"dotnet\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}",
     "tool_call": null,
-    "response_time": 2322
+    "response_time": 2880
   },
-  "recorded_at": "2026-01-13T19:04:34.756603439+00:00"
+  "recorded_at": "2026-01-25T18:25:09.384987303+00:00"
 }

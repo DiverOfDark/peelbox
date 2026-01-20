@@ -1,0 +1,19 @@
+{
+  "request_hash": "87b9a0df5692c66f2775829882f5d850",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: elixir-mix\nFile tree summary:\nRoot files: mix.exs, universalbuild.json\nExtensions: {\"ex\": 1, \"exs\": 1, \"json\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY.\nCRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), logs, and output directories.\n\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"mix.exs\",\n    \"build_system\": \"mix\",\n    \"language\": \"Elixir\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1060
+  },
+  "recorded_at": "2026-01-25T18:25:14.779649707+00:00"
+}

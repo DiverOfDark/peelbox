@@ -55,15 +55,7 @@ fn init_logging_from_args(args: &CliArgs) {
             parse_level(&level_str)
         };
 
-        let mut filter = EnvFilter::from_default_env();
-
-        if env::var("RUST_LOG").is_err() {
-            filter = filter
-                .add_directive(format!("peelbox={}", level).parse().unwrap())
-                .add_directive("h2=warn".parse().unwrap())
-                .add_directive("hyper=warn".parse().unwrap())
-                .add_directive("reqwest=warn".parse().unwrap());
-        }
+        let filter = EnvFilter::from_default_env().add_directive(level.into());
 
         tracing_subscriber::registry()
             .with(filter)
@@ -629,10 +621,15 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
         .clone()
         .unwrap_or_else(|| env::current_dir().expect("Failed to get current directory"));
 
-    // Canonicalize context path to ensure deterministic session ID across different ways of specifying the same path
     let context_path = context_path
         .canonicalize()
         .unwrap_or_else(|_| context_path.clone());
+
+    let spec_path = args
+        .spec
+        .canonicalize()
+        .unwrap_or_else(|_| args.spec.clone());
+    let spec_path_str = spec_path.to_string_lossy().to_string();
 
     // Determine output destination
     let output_dest = if let Some(output_spec) = &args.output {
@@ -715,8 +712,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     // Check for automatic caching via PEELBOX_CACHE_DIR env var
     let cache_base = std::env::var("PEELBOX_CACHE_DIR").ok();
-    let using_auto_cache =
-        cache_base.is_some() && args.cache_from.is_empty() && args.cache_to.is_empty();
+    let using_auto_cache = cache_base.is_some() && args.cache.is_empty();
 
     // Generate app-specific cache key if using auto-cache
     let (auto_cache_dir, auto_cache_key) = if using_auto_cache {
@@ -745,33 +741,38 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     };
 
     // Parse cache options (explicit flags take precedence over env var)
-    let cache_imports = if !args.cache_from.is_empty() {
-        let imports = parse_cache_imports(&args.cache_from, None);
-        if imports.is_empty() {
-            warn!("No valid cache imports after parsing");
+    let project_name = match spec.metadata.project_name.as_deref() {
+        Some(name) => name,
+        None => {
+            error!("Project name is required for caching");
+            return 1;
         }
-        imports
-    } else if let Some(ref cache_dir) = auto_cache_dir {
-        // Auto-configure cache import from env var (shared blobs, per-app index)
-        parse_cache_imports(
-            &[format!("type=local,src={}", cache_dir.display())],
-            auto_cache_key.as_deref(),
-        )
-    } else {
-        Vec::new()
     };
-
-    let cache_exports = if !args.cache_to.is_empty() {
-        let exports = parse_cache_exports(&args.cache_to);
-        if exports.is_empty() {
-            warn!("No valid cache exports after parsing");
+    let (cache_imports, cache_exports) = if !args.cache.is_empty() {
+        let imports = parse_cache_imports(
+            &args.cache,
+            auto_cache_key.as_deref(),
+            project_name,
+            &spec_path_str,
+        );
+        let exports = parse_cache_exports(&args.cache);
+        if imports.is_empty() && exports.is_empty() {
+            warn!("No valid cache configurations after parsing");
         }
-        exports
+        (imports, exports)
     } else if let Some(ref cache_dir) = auto_cache_dir {
-        // Auto-configure cache export from env var (shared blobs, per-app index)
-        parse_cache_exports(&[format!("type=local,dest={}", cache_dir.display())])
+        // Auto-configure cache from env var (shared blobs, per-app index)
+        let cache_str = format!("type=local,path={}", cache_dir.display());
+        let imports = parse_cache_imports(
+            &[cache_str.clone()],
+            auto_cache_key.as_deref(),
+            project_name,
+            &spec_path_str,
+        );
+        let exports = parse_cache_exports(&[cache_str]);
+        (imports, exports)
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
 
     let mut session = BuildSession::new(connection, context_path, output_dest)
@@ -804,7 +805,7 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
 
     // Execute build
     let result = match session
-        .build(&spec, &args.tag, Some(&progress_tracker))
+        .build(&spec, &spec_path_str, &args.tag, Some(&progress_tracker))
         .await
     {
         Ok(r) => r,
@@ -873,7 +874,12 @@ impl CacheConfig {
     fn validate_import(&self) -> anyhow::Result<()> {
         match self.r#type.as_str() {
             "registry" => Self::ensure_attr(&self.attrs, "ref"),
-            "local" => Self::ensure_attr(&self.attrs, "src"),
+            "local" => {
+                if !self.attrs.contains_key("src") && !self.attrs.contains_key("path") {
+                    anyhow::bail!("Missing required attribute for local cache: src or path");
+                }
+                Ok(())
+            }
             "gha" | "s3" | "azblob" | "inline" => Ok(()),
             unknown => anyhow::bail!("Unknown cache type: {}", unknown),
         }
@@ -882,7 +888,12 @@ impl CacheConfig {
     fn validate_export(&self) -> anyhow::Result<()> {
         match self.r#type.as_str() {
             "registry" => Self::ensure_attr(&self.attrs, "ref"),
-            "local" => Self::ensure_attr(&self.attrs, "dest"),
+            "local" => {
+                if !self.attrs.contains_key("dest") && !self.attrs.contains_key("path") {
+                    anyhow::bail!("Missing required attribute for local cache: dest or path");
+                }
+                Ok(())
+            }
             "gha" | "s3" | "azblob" | "inline" => Ok(()),
             unknown => anyhow::bail!("Unknown cache type: {}", unknown),
         }
@@ -895,13 +906,18 @@ impl CacheConfig {
             .ok_or_else(|| anyhow::anyhow!("Missing required attribute: {}", key))
     }
 
-    fn into_import(mut self, cache_key: Option<&str>) -> anyhow::Result<CacheImport> {
+    fn into_import(
+        mut self,
+        cache_key: Option<&str>,
+        application_name: &str,
+        universal_build_path: &str,
+    ) -> anyhow::Result<CacheImport> {
         self.validate_import()?;
 
-        // Auto-resolve digest for local caches
         if self.r#type == "local" && !self.attrs.contains_key("digest") {
-            if let Some(src) = self.attrs.get("src") {
-                match resolve_cache_digest(src, cache_key) {
+            let src = self.attrs.get("src").or_else(|| self.attrs.get("path"));
+            if let Some(src) = src {
+                match resolve_cache_digest(src, application_name, universal_build_path) {
                     Ok(digest) => {
                         let index_file = peelbox_buildkit::OciIndex::filename(cache_key);
                         info!("Auto-resolved digest from {}: {}", index_file, digest);
@@ -914,6 +930,12 @@ impl CacheConfig {
             }
         }
 
+        if self.r#type == "local" && !self.attrs.contains_key("src") {
+            if let Some(path) = self.attrs.get("path").cloned() {
+                self.attrs.insert("src".into(), path);
+            }
+        }
+
         info!("Cache import: type={}, attrs={:?}", self.r#type, self.attrs);
         Ok(CacheImport {
             r#type: self.r#type,
@@ -921,8 +943,15 @@ impl CacheConfig {
         })
     }
 
-    fn into_export(self) -> anyhow::Result<CacheExport> {
+    fn into_export(mut self) -> anyhow::Result<CacheExport> {
         self.validate_export()?;
+
+        if self.r#type == "local" && !self.attrs.contains_key("dest") {
+            if let Some(path) = self.attrs.get("path").cloned() {
+                self.attrs.insert("dest".into(), path);
+            }
+        }
+
         info!("Cache export: type={}, attrs={:?}", self.r#type, self.attrs);
         Ok(CacheExport {
             r#type: self.r#type,
@@ -932,14 +961,23 @@ impl CacheConfig {
 }
 
 /// Resolve cache digest from index file in the cache directory
-fn resolve_cache_digest(cache_dir: &str, cache_key: Option<&str>) -> anyhow::Result<String> {
+fn resolve_cache_digest(
+    cache_dir: &str,
+    application_name: &str,
+    universal_build_path: &str,
+) -> anyhow::Result<String> {
     use peelbox_buildkit::OciIndex;
     use std::path::Path;
 
-    let index = OciIndex::read_with_key(Path::new(cache_dir), cache_key)?;
+    let index = OciIndex::read_with_lock(Path::new(cache_dir))?;
     index
-        .get_digest(None)
-        .ok_or_else(|| anyhow::anyhow!("No 'latest' tag in cache index"))
+        .get_digest(None, application_name, universal_build_path)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No 'latest' tag in cache index for application {}",
+                application_name
+            )
+        })
 }
 
 fn extract_project_name(spec_path: &Path) -> Option<String> {
@@ -976,12 +1014,17 @@ fn generate_cache_key(spec_path: &Path, context_path: &Path) -> String {
     format!("{:x}", hasher.finalize())[..16].to_string()
 }
 
-fn parse_cache_imports(cache_from: &[String], cache_key: Option<&str>) -> Vec<CacheImport> {
+fn parse_cache_imports(
+    cache_from: &[String],
+    cache_key: Option<&str>,
+    application_name: &str,
+    universal_build_path: &str,
+) -> Vec<CacheImport> {
     cache_from
         .iter()
         .filter_map(|s| {
             CacheConfig::parse(s)
-                .and_then(|b| b.into_import(cache_key))
+                .and_then(|b| b.into_import(cache_key, application_name, universal_build_path))
                 .map_err(|e| warn!("Failed to parse cache import '{}': {}", s, e))
                 .ok()
         })

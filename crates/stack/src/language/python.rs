@@ -198,6 +198,55 @@ impl LanguageDefinition for PythonLanguage {
     fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
         None
     }
+
+    fn find_entrypoints(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        let mut entrypoints = Vec::new();
+        for file_path in file_tree {
+            let full_path = if file_path.is_absolute() {
+                file_path.clone()
+            } else {
+                repo_root.join(file_path)
+            };
+
+            if let Ok(content) = fs.read_to_string(&full_path) {
+                if content.contains("if __name__ == \"__main__\":")
+                    || content.contains("if __name__ == '__main__':")
+                {
+                    entrypoints.push(file_path.to_string_lossy().to_string());
+                }
+            }
+        }
+
+        if entrypoints.is_empty() {
+            for name in ["main.py", "app.py", "server.py", "manage.py"] {
+                let p = std::path::PathBuf::from(name);
+                if fs.exists(&project_root.join(&p)) {
+                    entrypoints.push(name.to_string());
+                }
+            }
+        }
+
+        entrypoints
+    }
+
+    fn is_runnable(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+        _manifest_content: Option<&str>,
+    ) -> bool {
+        !self
+            .find_entrypoints(fs, repo_root, project_root, file_tree)
+            .is_empty()
+    }
 }
 
 impl PythonLanguage {

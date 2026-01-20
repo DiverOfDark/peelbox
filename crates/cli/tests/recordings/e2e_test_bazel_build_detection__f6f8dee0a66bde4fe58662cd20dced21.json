@@ -1,0 +1,19 @@
+{
+  "request_hash": "f6f8dee0a66bde4fe58662cd20dced21",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: BUILD\nContent:\ncc_binary(\n    name = \"hello\",\n    srcs = [\"main.cc\"],\n)\n\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"Bazel\",\n  \"file_extensions\": [\".cc\"],\n  \"package_managers\": [],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": null,\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}\n```",
+    "tool_call": null,
+    "response_time": 3122
+  },
+  "recorded_at": "2026-01-25T18:23:21.675840546+00:00"
+}

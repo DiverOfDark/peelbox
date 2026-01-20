@@ -11,9 +11,11 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
+mod support;
+
 /// Creates a mock file system with a Rust project structure
 fn create_rust_project_fs() -> (TempDir, PathBuf) {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new_in(support::get_test_temp_dir()).unwrap();
     let repo_path = temp_dir.path().to_path_buf();
 
     // Create Cargo.toml

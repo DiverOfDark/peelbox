@@ -60,6 +60,10 @@ peelbox is a Rust-based AI-powered buildkit frontend for intelligent build comma
 - **No manual buildctl**: Use native gRPC implementation in `src/buildkit/`.
 - **Zero Dead Code**: Always remove unused code immediately.
 - **Clean Slate**: Refactor properly rather than patching.
+- **No Naive Container Debugging**: When diagnosing `container_e2e` failures, NEVER run `docker` commands blindly or guess. ALWAYS:
+    1. Identify the failing fixture and its `universalbuild.json`.
+    2. Manually run `peelbox build --spec <path> --context <dir> --tag <tag>` for that specific context.
+    3. Analyze the actual build logs (stdout/stderr) from the command to find the root cause.
 
 ## DEVELOPMENT PRINCIPLES
 - **Single Responsibility**: 

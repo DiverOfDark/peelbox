@@ -1,0 +1,55 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".gradle",
+        "build"
+      ],
+      "commands": [
+        "gradle :app:installDist -x test --no-daemon --console=plain"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk"
+      },
+      "packages": [
+        "openjdk-25",
+        "gradle-9",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Gradle",
+      "confidence": 0.95,
+      "language": "Java",
+      "project_name": "app",
+      "reasoning": "Detected from build.gradle in app"
+    },
+    "runtime": {
+      "command": [
+        "java",
+        "-cp",
+        "/app/lib/*",
+        "com.example.App"
+      ],
+      "copy": [
+        {
+          "from": "app/build/install/app/lib",
+          "to": "/app/lib"
+        }
+      ],
+      "env": {
+        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "openjdk-25-jre"
+      ],
+      "ports": [
+        8080
+      ]
+    },
+    "version": "1.0"
+  }
+]

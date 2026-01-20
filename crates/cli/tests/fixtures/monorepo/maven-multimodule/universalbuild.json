@@ -3,80 +3,23 @@
     "build": {
       "cache": [
         ".m2/repository",
-        "target",
-        ".m2/repository",
         "target"
       ],
       "commands": [
-        "mvn clean package -DskipTests"
+        "mvn install dependency:copy-dependencies -pl api-service -am -DoutputDirectory=target/lib -DskipTests -B"
       ],
-      "context": [
-        {
-          "from": "lib",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk"
+      },
       "packages": [
         "openjdk-25",
-        "maven-3.9"
+        "maven-3.9",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "Maven",
-      "confidence": 0.949999988079071,
-      "language": "Java",
-      "project_name": "lib",
-      "reasoning": "Detected from pom.xml in lib"
-    },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "app.jar"
-      ],
-      "copy": [
-        {
-          "from": "target/*.jar",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-25-jre"
-      ],
-      "ports": [
-        8080
-      ]
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        ".m2/repository",
-        "target",
-        ".m2/repository",
-        "target"
-      ],
-      "commands": [
-        "mvn clean package -DskipTests"
-      ],
-      "context": [
-        {
-          "from": "api-service",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-25",
-        "maven-3.9"
-      ]
-    },
-    "metadata": {
-      "build_system": "Maven",
-      "confidence": 0.949999988079071,
+      "confidence": 0.95,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "api-service",
@@ -85,16 +28,23 @@
     "runtime": {
       "command": [
         "java",
-        "-jar",
-        "app.jar"
+        "-cp",
+        "/app/app.jar:/app/lib/*",
+        "com.example.ApiService"
       ],
       "copy": [
         {
-          "from": "target/*.jar",
-          "to": "/usr/local/bin/app"
+          "from": "api-service/target/api-service-*.jar",
+          "to": "/app/app.jar"
+        },
+        {
+          "from": "api-service/target/lib",
+          "to": "/app/lib"
         }
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "openjdk-25-jre"
       ],
@@ -108,28 +58,23 @@
     "build": {
       "cache": [
         ".m2/repository",
-        "target",
-        ".m2/repository",
         "target"
       ],
       "commands": [
-        "mvn clean package -DskipTests"
+        "mvn install dependency:copy-dependencies -pl web-service -am -DoutputDirectory=target/lib -DskipTests -B"
       ],
-      "context": [
-        {
-          "from": "web-service",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk"
+      },
       "packages": [
         "openjdk-25",
-        "maven-3.9"
+        "maven-3.9",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "Maven",
-      "confidence": 0.949999988079071,
+      "confidence": 0.95,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "web-service",
@@ -138,16 +83,23 @@
     "runtime": {
       "command": [
         "java",
-        "-jar",
-        "app.jar"
+        "-cp",
+        "/app/app.jar:/app/lib/*",
+        "com.example.WebService"
       ],
       "copy": [
         {
-          "from": "target/*.jar",
-          "to": "/usr/local/bin/app"
+          "from": "web-service/target/web-service-*.jar",
+          "to": "/app/app.jar"
+        },
+        {
+          "from": "web-service/target/lib",
+          "to": "/app/lib"
         }
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "openjdk-25-jre"
       ],
@@ -161,28 +113,23 @@
     "build": {
       "cache": [
         ".m2/repository",
-        "target",
-        ".m2/repository",
         "target"
       ],
       "commands": [
-        "mvn clean package -DskipTests"
+        "mvn install dependency:copy-dependencies -pl app -am -DoutputDirectory=target/lib -DskipTests -B"
       ],
-      "context": [
-        {
-          "from": "app",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk"
+      },
       "packages": [
         "openjdk-25",
-        "maven-3.9"
+        "maven-3.9",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "Maven",
-      "confidence": 0.949999988079071,
+      "confidence": 0.95,
       "language": "Java",
       "project_name": "app",
       "reasoning": "Detected from pom.xml in app"
@@ -190,22 +137,27 @@
     "runtime": {
       "command": [
         "java",
-        "-jar",
-        "app.jar"
+        "-cp",
+        "/app/app.jar:/app/lib/*",
+        "com.example.App"
       ],
       "copy": [
         {
-          "from": "target/*.jar",
-          "to": "/usr/local/bin/app"
+          "from": "app/target/app-*.jar",
+          "to": "/app/app.jar"
+        },
+        {
+          "from": "app/target/lib",
+          "to": "/app/lib"
         }
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "openjdk-25-jre"
       ],
-      "ports": [
-        8080
-      ]
+      "ports": []
     },
     "version": "1.0"
   }

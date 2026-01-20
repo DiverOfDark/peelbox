@@ -2,6 +2,7 @@
 
 use super::node_common::{parse_node_version, read_node_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -37,11 +38,35 @@ impl BuildSystem for NpmBuildSystem {
                     let abs_path = repo_root.join(rel_path);
                     let content = fs.read_to_string(&abs_path).ok();
                     if let Some(c) = content.as_deref() {
-                        !c.contains("\"packageManager\": \"pnpm")
+                        let is_npm = !c.contains("\"packageManager\": \"pnpm")
                             && !c.contains("\"packageManager\": \"yarn")
-                            && !c.contains("\"packageManager\": \"bun")
+                            && !c.contains("\"packageManager\": \"bun");
+
+                        if is_npm {
+                            let lang = crate::language::JavaScriptLanguage;
+                            let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+
+                            if lang.is_runnable(
+                                fs,
+                                repo_root,
+                                project_dir,
+                                file_tree,
+                                content.as_deref(),
+                            ) {
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
                     } else {
-                        true
+                        // Can't read file, but filename matches - optimistically assume yes but is_runnable would fail anyway without content
+                        // Actually, if we can't read content, is_runnable might still work with other files
+                        // But for now let's keep previous behavior of falling back to true, but guarded by is_runnable
+                        let lang = crate::language::JavaScriptLanguage;
+                        let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+                        lang.is_runnable(fs, repo_root, project_dir, file_tree, None)
                     }
                 }
                 _ => false,

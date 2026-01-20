@@ -9,16 +9,23 @@
         "composer config allow-plugins.symfony/runtime true",
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
       ],
-      "env": {},
+      "env": {
+        "COMPOSER_HOME": "/tmp/.composer",
+        "HOME": "/tmp"
+      },
       "packages": [
         "php-8.1",
         "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
         "php-8.1-ctype",
         "php-8.1-phar",
         "php-8.1-openssl",
         "php-8.1-mbstring",
         "php-8.1-xml",
-        "php-8.1-dom"
+        "php-8.1-dom",
+        "php-8.1-curl"
       ]
     },
     "metadata": {
@@ -34,28 +41,12 @@
         "-S",
         "0.0.0.0:8000",
         "-t",
-        "/app/public"
+        "public"
       ],
       "copy": [
         {
-          "from": "vendor/",
-          "to": "/app/vendor"
-        },
-        {
-          "from": "bin/",
-          "to": "/app/bin"
-        },
-        {
-          "from": "public/",
-          "to": "/app/public"
-        },
-        {
-          "from": "src/",
-          "to": "/app/src"
-        },
-        {
-          "from": "config/",
-          "to": "/app/config"
+          "from": ".",
+          "to": "/app"
         }
       ],
       "env": {},

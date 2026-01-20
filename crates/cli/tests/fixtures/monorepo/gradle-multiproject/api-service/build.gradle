@@ -5,7 +5,23 @@ plugins {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+dependencies {
+    implementation project(':lib')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+tasks.named('bootJar') {
+    archiveFileName = 'api-service.jar'
+}
+
+
+tasks.named('bootJar') {
+    archiveFileName = 'api-service.jar'
 }
 
 dependencies {

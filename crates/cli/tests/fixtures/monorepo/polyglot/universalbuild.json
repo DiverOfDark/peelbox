@@ -6,15 +6,16 @@
         "target"
       ],
       "commands": [
-        "mvn package -DskipTests"
+        "mvn install dependency:copy-dependencies -pl backend -am -DoutputDirectory=target/lib -DskipTests -B"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/tmp/maven-repo"
       },
       "packages": [
-        "openjdk-17",
-        "maven-3.9"
+        "openjdk-25",
+        "maven-3.9",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -27,23 +28,30 @@
     },
     "runtime": {
       "command": [
-        "/usr/lib/jvm/java-17-openjdk/bin/java",
-        "-jar",
-        "/usr/local/bin/app"
+        "/usr/lib/jvm/java-25-openjdk/bin/java",
+        "-cp",
+        "/app/*:/app/lib/*",
+        "com.example.Backend"
       ],
       "copy": [
         {
-          "from": "target/*.jar",
-          "to": "/usr/local/bin/backend"
+          "from": "backend/target/backend-1.0.0.jar.original",
+          "to": "/app/app.jar"
+        },
+        {
+          "from": "backend/target/lib",
+          "to": "/app/lib"
         }
       ],
-      "env": {},
       "packages": [
-        "openjdk-17-jre"
+        "openjdk-25-jre"
       ],
       "ports": [
         8080
-      ]
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
     },
     "version": "1.0"
   },
@@ -63,7 +71,8 @@
         "rust-1.92",
         "build-base",
         "openssl-dev",
-        "pkgconf"
+        "pkgconf",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -84,13 +93,16 @@
           "to": "/usr/local/bin/admin-service"
         }
       ],
-      "env": {},
+      "env": {
+        "PORT": "8080"
+      },
       "health": {
         "endpoint": "/health"
       },
       "packages": [
         "glibc",
-        "ca-certificates"
+        "ca-certificates",
+        "openssl"
       ],
       "ports": [
         8080
@@ -105,14 +117,15 @@
         ".npm"
       ],
       "commands": [
-        "mkdir -p /root/.npm && npm ci --cache=/tmp/.npm"
+        "npm install"
       ],
       "env": {
         "HOME": "/tmp"
       },
       "packages": [
         "nodejs-25",
-        "npm"
+        "npm",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -125,14 +138,16 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/frontend"
+        "node",
+        "src/index.ts"
       ],
       "copy": [
         {
-          "from": "dist/",
-          "to": "/usr/local/bin/frontend"
+          "from": ".",
+          "to": "/app"
         }
       ],
+      "workdir": "/app/frontend",
       "env": {},
       "health": {
         "endpoint": "/health"

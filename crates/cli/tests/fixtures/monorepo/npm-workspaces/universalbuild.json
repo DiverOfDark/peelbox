@@ -3,128 +3,29 @@
     "build": {
       "cache": [
         "node_modules",
-        ".npm",
-        ".npm",
-        "node_modules"
+        ".npm"
       ],
       "commands": [
-        "npm ci"
+        "npm install"
       ],
       "context": [
         {
-          "from": "packages/ui",
+          "from": ".",
           "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "HOME": "/tmp"
+      },
       "packages": [
         "nodejs-25",
-        "npm"
+        "npm",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "npm",
-      "confidence": 0.949999988079071,
-      "language": "JavaScript",
-      "project_name": "@monorepo/ui",
-      "reasoning": "Detected from package.json in packages/ui"
-    },
-    "runtime": {
-      "command": [
-        "bin/app"
-      ],
-      "copy": [
-        {
-          "from": "dist/",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "nodejs-25"
-      ],
-      "ports": [
-        3000
-      ]
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        "node_modules",
-        ".npm",
-        ".npm",
-        "node_modules"
-      ],
-      "commands": [
-        "npm ci"
-      ],
-      "context": [
-        {
-          "from": "packages/api",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "nodejs-25",
-        "npm"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "confidence": 0.949999988079071,
-      "language": "JavaScript",
-      "project_name": "@monorepo/api",
-      "reasoning": "Detected from package.json in packages/api"
-    },
-    "runtime": {
-      "command": [
-        "bin/app"
-      ],
-      "copy": [
-        {
-          "from": "dist/",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "nodejs-25"
-      ],
-      "ports": [
-        3000
-      ]
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        "node_modules",
-        ".npm",
-        ".npm",
-        "node_modules"
-      ],
-      "commands": [
-        "npm ci"
-      ],
-      "context": [
-        {
-          "from": "apps/web",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "nodejs-25",
-        "npm"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "confidence": 0.949999988079071,
+      "confidence": 0.95,
       "framework": "Express",
       "language": "JavaScript",
       "project_name": "@monorepo/web",
@@ -132,20 +33,23 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "node",
+        "/app/apps/web/src/index.ts"
       ],
       "copy": [
         {
-          "from": "dist/",
-          "to": "/usr/local/bin/app"
+          "from": ".",
+          "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "PORT": "3000"
+      },
       "health": {
         "endpoint": "/health"
       },
       "packages": [
-        "nodejs-25"
+        "nodejs-22"
       ],
       "ports": [
         3000

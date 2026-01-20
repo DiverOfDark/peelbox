@@ -10,7 +10,9 @@
       ],
       "env": {},
       "packages": [
-        "zig"
+        "zig",
+        "build-base",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -22,7 +24,7 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {

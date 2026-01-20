@@ -1,0 +1,19 @@
+{
+  "request_hash": "2d276ea3be40731ea760141d083e8a1b",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: universalbuild.json\nContent:\n[\n  {\n    \"build\": {\n      \"cache\": [\n        \"node_modules\",\n        \".npm\"\n      ],\n      \"commands\": [\n        \"npm install\"\n      ],\n      \"context\": [\n        {\n          \"from\": \".\",\n          \"to\": \"/app\"\n        }\n      ],\n      \"env\": {\n        \"HOME\": \"/tmp\"\n      },\n      \"packages\": [\n        \"nodejs-25\",\n        \"npm\",\n        \"ca-certificates\"\n      ]\n    },\n    \"metadata\": {\n      \"build_system\": \"npm\",\n      \"confidence\": 0.95,\n      \"framework\": \"Express\",\n      \"language\": \"Jav\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"JavaScript\",\n  \"file_extensions\": [\".js\", \".json\"],\n  \"package_managers\": [\"npm\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"HOME\", \"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n```",
+    "tool_call": null,
+    "response_time": 5543
+  },
+  "recorded_at": "2026-01-25T18:24:15.729202911+00:00"
+}

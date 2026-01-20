@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"dotnet\",\n  \"manifest_files\": [\"App.csproj\"],\n  \"build_commands\": [\"dotnet build -c Release\"],\n  \"cache_dirs\": [\"obj\", \"bin\"],\n  \"build_packages\": [\"dotnet-sdk-8.0\"],\n  \"runtime_packages\": [\"dotnet-runtime-8.0\"],\n  \"artifacts\": [\"bin/Release/net8.0/publish\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1473
+    "response_time": 2488
   },
-  "recorded_at": "2026-01-13T19:04:30.312417410+00:00"
+  "recorded_at": "2026-01-25T18:25:06.503749352+00:00"
 }

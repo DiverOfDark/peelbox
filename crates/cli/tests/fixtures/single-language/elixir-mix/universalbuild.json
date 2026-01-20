@@ -1,48 +1,43 @@
 [
   {
+    "metadata": {
+      "project_name": "elixir_api",
+      "language": "Elixir",
+      "build_system": "Mix",
+      "confidence": 1.0,
+      "reasoning": "Detected from mix.exs in "
+    },
     "build": {
-      "cache": [
-        "_build",
-        "deps"
-      ],
+      "packages": ["elixir-1.18", "erlang-27", "git", "build-base", "openssl", "ca-certificates"],
       "commands": [
-        "mix local.hex --force"
+        "mix compile"
       ],
-      "context": [
+      "env": {
+        "MIX_ENV": "prod",
+        "HOME": "/tmp"
+      },
+      "cache": []
+    },
+    "runtime": {
+      "packages": ["elixir-1.18", "erlang-27", "busybox", "openssl", "ca-certificates"],
+      "copy": [
         {
           "from": ".",
           "to": "/app"
         }
       ],
-      "env": {},
-      "packages": [
-        "elixir-1.18"
-      ]
-    },
-    "metadata": {
-      "build_system": "Mix",
-      "confidence": 0.949999988079071,
-      "language": "Elixir",
-      "project_name": "app",
-      "reasoning": "Detected from mix.exs in "
-    },
-    "runtime": {
-      "command": [
-        "bin/app"
-      ],
-      "copy": [
-        {
-          "from": "/app",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "elixir-1.18"
-      ],
-      "ports": [
-        4000
-      ]
+      "command": ["mix", "run", "--no-halt"],
+      "ports": [4000],
+      "env": {
+        "PORT": "4000",
+        "MIX_ENV": "prod",
+        "HOME": "/tmp",
+        "LC_ALL": "C.UTF-8",
+        "ELIXIR_ERL_OPTIONS": "+fnu"
+      },
+      "health": {
+        "endpoint": "/health"
+      }
     },
     "version": "1.0"
   }

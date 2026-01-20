@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tokio_stream::Stream;
 use tonic::transport::server::Connected;
 use tonic::Streaming;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use super::proto::BytesMessage;
 
@@ -106,7 +106,7 @@ impl AsyncRead for StreamConn {
                 } else {
                     format!("{:?}", &msg.data)
                 };
-                debug!(
+                trace!(
                     "StreamConn READ: received {} bytes preview={}",
                     msg.data.len(),
                     preview
@@ -121,7 +121,7 @@ impl AsyncRead for StreamConn {
                 buf.put_slice(&buffer[..len]);
                 buffer.advance(len);
 
-                debug!("StreamConn READ: provided {} bytes to reader", len);
+                trace!("StreamConn READ: provided {} bytes to reader", len);
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Some(Err(e))) => {
@@ -176,9 +176,10 @@ impl AsyncWrite for StreamConn {
                 } else {
                     format!("{:?}", &msg_clone_for_log.data)
                 };
-                debug!(
+                trace!(
                     "StreamConn WRITE: sent {} bytes preview={}",
-                    chunk_size, preview
+                    chunk_size,
+                    preview
                 );
                 Poll::Ready(Ok(chunk_size))
             }

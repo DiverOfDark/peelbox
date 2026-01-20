@@ -8,8 +8,21 @@
       "commands": [
         "bazel build //:hello"
       ],
-      "env": {},
-      "packages": []
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
+      },
+      "packages": [
+        "bazel",
+        "build-base",
+        "openjdk-21",
+        "ca-certificates",
+        "bash",
+        "coreutils",
+        "git",
+        "python-3",
+        "zip",
+        "unzip"
+      ]
     },
     "metadata": {
       "build_system": "bazel",
@@ -20,19 +33,23 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/hello"
       ],
       "copy": [
         {
           "from": "bazel-bin/hello",
-          "to": "/usr/local/bin/app"
+          "to": "/usr/local/bin/hello"
         }
       ],
       "env": {},
       "packages": [
         "glibc",
+        "libstdc++",
         "ca-certificates"
       ],
+      "health": {
+        "endpoint": "/health"
+      },
       "ports": [
         8080
       ]

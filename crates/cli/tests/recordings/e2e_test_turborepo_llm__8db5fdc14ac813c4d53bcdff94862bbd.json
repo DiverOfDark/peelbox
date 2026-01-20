@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"JavaScript\",\n  \"file_extensions\": [\".js\"],\n  \"package_managers\": [\"npm\", \"yarn\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n```",
     "tool_call": null,
-    "response_time": 2334
+    "response_time": 3129
   },
-  "recorded_at": "2026-01-13T19:03:19.338284497+00:00"
+  "recorded_at": "2026-01-25T18:24:37.127090508+00:00"
 }

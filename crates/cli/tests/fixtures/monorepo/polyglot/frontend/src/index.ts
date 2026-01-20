@@ -1,17 +1,10 @@
-import express from 'express';
-
+const express = require('express');
 const app = express();
 const port = 3000;
 
 app.use(express.json());
 
-interface Page {
-  id: number;
-  title: string;
-  content: string;
-}
-
-const pages: Page[] = [
+const pages = [
   { id: 1, title: 'Home', content: 'Welcome to the frontend' },
   { id: 2, title: 'About', content: 'About our polyglot application' },
 ];
@@ -19,7 +12,7 @@ const pages: Page[] = [
 app.get('/', (req, res) => {
   res.json({
     service: 'Frontend',
-    language: 'TypeScript',
+    language: 'JavaScript',
     endpoints: ['/', '/health', '/pages'],
   });
 });
@@ -42,7 +35,7 @@ app.get('/pages/:id', (req, res) => {
 });
 
 app.post('/pages', (req, res) => {
-  const newPage: Page = {
+  const newPage = {
     id: pages.length + 1,
     title: req.body.title,
     content: req.body.content,

@@ -1,6 +1,7 @@
 //! Go modules build system
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -54,11 +55,16 @@ impl BuildSystem for GoModBuildSystem {
                 };
 
                 if is_valid {
-                    detections.push(DetectionStack::new(
-                        BuildSystemId::GoMod,
-                        LanguageId::Go,
-                        rel_path.clone(),
-                    ));
+                    let lang = crate::language::GoLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        detections.push(DetectionStack::new(
+                            BuildSystemId::GoMod,
+                            LanguageId::Go,
+                            rel_path.clone(),
+                        ));
+                    }
                 }
             }
         }

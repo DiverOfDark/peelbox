@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"turbo\",\n  \"manifest_files\": [\"turbo.json\"],\n  \"build_commands\": [\"turbo run build\"],\n  \"cache_dirs\": [\"node_modules\", \"package-lock.json\"],\n  \"build_packages\": [\"nodejs-22\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"dist/**\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1267
+    "response_time": 3187
   },
-  "recorded_at": "2026-01-13T19:03:14.760215488+00:00"
+  "recorded_at": "2026-01-25T18:24:30.062209714+00:00"
 }

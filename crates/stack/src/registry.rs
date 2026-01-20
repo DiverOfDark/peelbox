@@ -73,6 +73,7 @@ impl StackRegistry {
             languages.insert(LanguageId::PHP, Arc::new(PhpLanguage));
             languages.insert(LanguageId::Cpp, Arc::new(CppLanguage));
             languages.insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
+            languages.insert(LanguageId::Zig, Arc::new(ZigLanguage));
         }
 
         {

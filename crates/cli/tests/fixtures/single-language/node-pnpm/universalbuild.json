@@ -6,7 +6,7 @@
         ".pnpm-store"
       ],
       "commands": [
-        "pnpm install --frozen-lockfile",
+        "pnpm install",
         "pnpm build"
       ],
       "context": [
@@ -15,10 +15,16 @@
           "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "HOME": "/tmp"
+      },
       "packages": [
-        "nodejs-22",
-        "pnpm"
+        "nodejs-25",
+        "pnpm",
+        "build-base",
+        "python-3.12",
+        "npm",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -30,7 +36,8 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "node",
+        "/usr/local/bin/app/index.js"
       ],
       "copy": [
         {

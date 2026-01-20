@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"maven\",\n  \"manifest_files\": [\"pom.xml\"],\n  \"build_commands\": [\"mvn clean package\"],\n  \"cache_dirs\": [\"~/.m2\"],\n  \"build_packages\": [\"maven\"],\n  \"runtime_packages\": [\"openjdk-17\"],\n  \"artifacts\": [\"target/example-app-1.0.0.jar\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1863
+    "response_time": 3516
   },
-  "recorded_at": "2026-01-13T19:03:26.753979234+00:00"
+  "recorded_at": "2026-01-25T18:25:39.724776403+00:00"
 }

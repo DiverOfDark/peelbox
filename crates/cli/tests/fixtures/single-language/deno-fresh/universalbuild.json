@@ -3,11 +3,12 @@
     "build": {
       "cache": [],
       "commands": [
-        "deno run -A dev.ts build"
+        "deno compile -A --output bin/app main.ts"
       ],
       "env": {},
       "packages": [
-        "deno"
+        "deno",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -19,11 +20,11 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {
-          "from": "/app",
+          "from": "bin/app",
           "to": "/usr/local/bin/app"
         }
       ],

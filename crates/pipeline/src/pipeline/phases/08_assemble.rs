@@ -171,10 +171,16 @@ fn assemble_single_service(
         .map(String::from)
         .collect();
 
-    let runtime_packages = {
-        let runtime = registry.get_runtime(stack.runtime.clone(), None);
-        runtime.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref())
-    };
+    let runtime_instance = registry.get_runtime(stack.runtime.clone(), None);
+
+    let runtime_packages =
+        runtime_instance.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref());
+
+    env_map.extend(runtime_instance.runtime_env(
+        wolfi_index,
+        &service_path,
+        manifest_content.as_deref(),
+    ));
 
     let runtime_copy = template
         .as_ref()
@@ -194,6 +200,7 @@ fn assemble_single_service(
         env: env_map,
         copy: runtime_copy,
         command: command_parts,
+        workdir: "/app".to_string(),
         ports: vec![port],
         health: runtime_config.and_then(|rc| rc.health.clone()),
     };

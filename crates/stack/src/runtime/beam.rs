@@ -135,7 +135,15 @@ impl Runtime for BeamRuntime {
             .or_else(|| available.first().map(|v| format!("elixir-{}", v)))
             .unwrap_or_else(|| "elixir-1.16".to_string());
 
-        vec![version]
+        vec![
+            version,
+            wolfi_index
+                .get_latest_version("erlang")
+                .unwrap_or_else(|| "erlang-28".to_string()),
+            "busybox".to_string(),
+            "openssl".to_string(),
+            "ca-certificates".to_string(),
+        ]
     }
 }
 

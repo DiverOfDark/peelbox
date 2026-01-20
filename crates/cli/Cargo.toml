@@ -41,3 +41,18 @@ bollard = "0.18"
 futures-util = "0.3"
 tar = "0.4"
 flate2 = "1.0"
+libtest-mimic = "0.8.1"
+walkdir = "2.5.0"
+fs2 = "0.4.3"
+
+[[test]]
+name = "llm_e2e"
+harness = false
+
+[[test]]
+name = "static_e2e"
+harness = false
+
+[[test]]
+name = "container_e2e"
+harness = false

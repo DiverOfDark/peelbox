@@ -90,7 +90,7 @@
         "path": "/path/to/directory/src/main.rs"
       }
     },
-    "response_time": 429
+    "response_time": 404
   },
-  "recorded_at": "2026-01-13T19:05:44.353787669+00:00"
+  "recorded_at": "2026-01-25T18:27:37.219845846+00:00"
 }

@@ -3,10 +3,11 @@
     "build": {
       "cache": [
         "node_modules",
-        ".yarn"
+        ".yarn-cache"
       ],
       "commands": [
-        "yarn install --frozen-lockfile"
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "./node_modules/.bin/tsc"
       ],
       "context": [
         {
@@ -14,14 +15,17 @@
           "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "HOME": "/tmp"
+      },
       "packages": [
         "nodejs-25",
-        "yarn"
+        "yarn",
+        "ca-certificates"
       ]
     },
     "metadata": {
-      "build_system": "Yarn",
+      "build_system": "yarn",
       "confidence": 0.949999988079071,
       "language": "JavaScript",
       "project_name": "app",
@@ -29,7 +33,8 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "node",
+        "/usr/local/bin/app/index.js"
       ],
       "copy": [
         {
@@ -39,7 +44,7 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25"
+        "nodejs-22"
       ],
       "ports": [
         3000

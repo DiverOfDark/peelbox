@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"Go\",\n  \"file_extensions\": [\".go\"],\n  \"package_managers\": [\"go\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [\"go.mod\"],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": 8080,\n  \"runtime_name\": \"go\",\n  \"version_pattern\": \"go (\\\\d+\\\\.\\\\d+\\\\.\\\\d+)\",\n  \"default_entrypoint\": \"main.go\",\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 1.00\n}\n```",
     "tool_call": null,
-    "response_time": 1906
+    "response_time": 2371
   },
-  "recorded_at": "2026-01-13T19:12:45.196031520+00:00"
+  "recorded_at": "2026-01-25T18:25:25.548957727+00:00"
 }

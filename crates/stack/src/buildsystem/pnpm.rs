@@ -78,7 +78,14 @@ impl BuildSystem for PnpmBuildSystem {
         let build_env = std::collections::HashMap::new();
 
         BuildTemplate {
-            build_packages: vec![node_version.clone(), "pnpm".to_string()],
+            build_packages: vec![
+                node_version.clone(),
+                "pnpm".to_string(),
+                "build-base".to_string(),
+                "python-3.12".to_string(),
+                "npm".to_string(),
+                "ca-certificates".to_string(),
+            ],
             build_commands: vec!["pnpm install --frozen-lockfile".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".pnpm-store/".to_string()],
             common_ports: vec![3000, 8080],

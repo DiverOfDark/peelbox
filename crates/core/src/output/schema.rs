@@ -78,6 +78,8 @@ pub struct RuntimeStage {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub command: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
+    pub workdir: String,
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     pub ports: Vec<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub health: Option<HealthCheck>,
@@ -134,6 +136,7 @@ mod tests {
                     to: "/usr/local/bin/app".to_string(),
                 }],
                 command: vec!["/usr/local/bin/app".to_string()],
+                workdir: "/app".to_string(),
                 ports: vec![],
                 health: None,
             },
@@ -351,6 +354,7 @@ mod tests {
                 env: HashMap::new(),
                 copy: vec![],
                 command: vec![],
+                workdir: String::new(),
                 ports: vec![],
                 health: None,
             },

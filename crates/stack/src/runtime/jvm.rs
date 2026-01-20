@@ -117,7 +117,7 @@ impl Runtime for JvmRuntime {
         });
 
         Some(RuntimeConfig {
-            entrypoint: Some(self.start_command(Path::new("/usr/local/bin/app"))),
+            entrypoint: Some(self.start_command(Path::new("/app/app.jar"))),
             port,
             env_vars,
             health,
@@ -136,6 +136,37 @@ impl Runtime for JvmRuntime {
 
     fn start_command(&self, entrypoint: &Path) -> String {
         format!("java -jar {}", entrypoint.display())
+    }
+
+    fn runtime_env(
+        &self,
+        wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
+        service_path: &Path,
+        manifest_content: Option<&str>,
+    ) -> std::collections::HashMap<String, String> {
+        let requested = self.detect_version(service_path, manifest_content);
+        let available = wolfi_index.get_versions("openjdk");
+
+        let base_version = requested
+            .as_deref()
+            .and_then(|r| wolfi_index.match_version("openjdk", r, &available))
+            .or_else(|| wolfi_index.get_latest_version("openjdk"))
+            .unwrap_or_else(|| "openjdk-21".to_string());
+
+        let version_num = base_version.trim_start_matches("openjdk-");
+        let java_home = format!("/usr/lib/jvm/java-{}-openjdk", version_num);
+
+        let mut env = std::collections::HashMap::new();
+        env.insert("JAVA_HOME".to_string(), java_home.clone());
+        // Append java bin to PATH
+        env.insert(
+            "PATH".to_string(),
+            format!(
+                "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                java_home
+            ),
+        );
+        env
     }
 
     fn runtime_packages(
@@ -196,8 +227,15 @@ impl JvmRuntime {
     fn parse_gradle_version(&self, content: &str) -> Option<String> {
         for line in content.lines() {
             let trimmed = line.trim();
-            if trimmed.contains("sourceCompatibility") || trimmed.contains("targetCompatibility") {
-                if let Some(version) = trimmed.split('=').nth(1) {
+            if trimmed.contains("sourceCompatibility")
+                || trimmed.contains("targetCompatibility")
+                || trimmed.contains("languageVersion")
+            {
+                if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
+                    let s = s.trim();
+                    !s.is_empty()
+                        && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
+                }) {
                     let version_num = version
                         .trim()
                         .trim_matches('"')

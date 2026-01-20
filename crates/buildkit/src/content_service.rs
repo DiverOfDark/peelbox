@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -7,6 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 use tonic::{Request, Response, Status, Streaming};
 use tracing::{debug, error, info, warn};
+use uuid::Uuid;
 
 use super::digest::{blob_path_or_fallback, Digest};
 use super::proto::containerd::services::content::v1::{
@@ -31,6 +32,7 @@ const ACTION_COMMIT: i32 = 2;
 pub struct ContentService {
     cache_dir: PathBuf,
     write_sessions: Arc<Mutex<HashMap<String, WriteSession>>>,
+    pub last_committed_digest: Arc<Mutex<Option<String>>>,
 }
 
 struct WriteSession {
@@ -56,6 +58,7 @@ impl ContentService {
         Self {
             cache_dir,
             write_sessions: Arc::new(Mutex::new(HashMap::new())),
+            last_committed_digest: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -79,6 +82,30 @@ impl ContentService {
         }
 
         debug!("Created cache directories: {:?}", dirs);
+        Ok(())
+    }
+
+    pub async fn gc(&self) -> Result<()> {
+        let last_digest = {
+            let guard = self.last_committed_digest.lock().await;
+            guard.clone()
+        };
+
+        let cache_dir = self.cache_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            let index = crate::OciIndex::read_with_lock(&cache_dir)?;
+            let mut reachable = index.get_reachable_digests(&cache_dir);
+
+            if let Some(digest) = last_digest {
+                reachable.insert(digest);
+            }
+
+            crate::OciIndex::gc(&cache_dir, &reachable)?;
+            Ok::<(), anyhow::Error>(())
+        })
+        .await
+        .context("GC task panicked")??;
+
         Ok(())
     }
 }
@@ -286,9 +313,11 @@ impl ContentTrait for ContentService {
         let (tx, rx) = tokio::sync::mpsc::channel(100);
         let cache_dir = self.cache_dir.clone();
         let write_sessions = self.write_sessions.clone();
+        let last_committed_digest = self.last_committed_digest.clone();
 
         tokio::spawn(async move {
-            let mut manager = WriteSessionManager::new(cache_dir, write_sessions);
+            let mut manager =
+                WriteSessionManager::new(cache_dir, write_sessions, last_committed_digest);
 
             while let Ok(Some(req)) = in_stream.message().await {
                 let result = manager.handle_request(req).await;
@@ -334,18 +363,26 @@ impl ContentTrait for ContentService {
 struct WriteSessionManager {
     cache_dir: PathBuf,
     sessions: Arc<Mutex<HashMap<String, WriteSession>>>,
+    last_committed_digest: Arc<Mutex<Option<String>>>,
     current_ref: Option<String>,
     current_file: Option<tokio::fs::File>,
+    current_ingest_path: Option<PathBuf>,
     offset: u64,
 }
 
 impl WriteSessionManager {
-    fn new(cache_dir: PathBuf, sessions: Arc<Mutex<HashMap<String, WriteSession>>>) -> Self {
+    fn new(
+        cache_dir: PathBuf,
+        sessions: Arc<Mutex<HashMap<String, WriteSession>>>,
+        last_committed_digest: Arc<Mutex<Option<String>>>,
+    ) -> Self {
         Self {
             cache_dir,
             sessions,
+            last_committed_digest,
             current_ref: None,
             current_file: None,
+            current_ingest_path: None,
             offset: 0,
         }
     }
@@ -397,10 +434,16 @@ impl WriteSessionManager {
             drop(file);
         }
 
+        // Generate a unique suffix to avoid collisions if multiple streams
+        // upload the same ref concurrently
+        let unique_suffix = Uuid::new_v4().to_string();
+        let sanitized_ref = ContentService::sanitize_ref(&ref_name);
+
         let ingest_path = self
             .cache_dir
             .join("ingest")
-            .join(ContentService::sanitize_ref(&ref_name));
+            .join(format!("{}_{}", sanitized_ref, unique_suffix));
+
         debug!("Starting write: {}", ingest_path.display());
 
         let file = tokio::fs::File::create(&ingest_path).await.map_err(|e| {
@@ -410,6 +453,7 @@ impl WriteSessionManager {
 
         self.current_file = Some(file);
         self.current_ref = Some(ref_name.clone());
+        self.current_ingest_path = Some(ingest_path.clone());
         self.offset = 0;
 
         let mut sessions = self.sessions.lock().await;
@@ -506,20 +550,33 @@ impl WriteSessionManager {
             .unwrap_or_else(|_| self.cache_dir.join("blobs/unknown").join(&digest));
 
         if let Some(parent) = blob_path.parent() {
-            let _ = tokio::fs::create_dir_all(parent).await;
+            tokio::fs::create_dir_all(parent).await.map_err(|e| {
+                error!("Failed to create blob parent directory: {}", e);
+                Status::internal(format!("failed to create blob parent directory: {}", e))
+            })?;
         }
 
         let ref_name = self.current_ref.take().unwrap_or_default();
+
+        // Use the path stored in the session manager, ensuring we reference the
+        // unique file created in start_write
         let ingest_path = self
-            .cache_dir
-            .join("ingest")
-            .join(ContentService::sanitize_ref(&ref_name));
+            .current_ingest_path
+            .take()
+            .ok_or_else(|| Status::internal("ingest path missing from session manager"))?;
 
         debug!(
             "Committing: {} -> {}",
             ingest_path.display(),
             blob_path.display()
         );
+
+        if !ingest_path.exists() {
+            error!(
+                "Ingest path missing before rename: {}",
+                ingest_path.display()
+            );
+        }
 
         tokio::fs::rename(&ingest_path, &blob_path)
             .await
@@ -539,6 +596,11 @@ impl WriteSessionManager {
         {
             let mut sessions = self.sessions.lock().await;
             sessions.remove(&ref_name);
+        }
+
+        {
+            let mut last_digest = self.last_committed_digest.lock().await;
+            *last_digest = Some(digest.clone());
         }
 
         Ok(self.build_response(ACTION_COMMIT, self.offset as i64, digest))

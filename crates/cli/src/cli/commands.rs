@@ -239,17 +239,10 @@ pub struct BuildArgs {
 
     #[arg(
         long,
-        value_name = "CACHE_FROM",
-        help = "External cache sources (e.g., user/app:cache, type=local,src=path/to/cache)"
+        value_name = "CACHE",
+        help = "External cache configuration (e.g., user/app:cache, type=local,path=tmp/mydir). Used for both import and export."
     )]
-    pub cache_from: Vec<String>,
-
-    #[arg(
-        long,
-        value_name = "CACHE_TO",
-        help = "External cache export destinations (e.g., user/app:cache, type=local,dest=path/to/cache)"
-    )]
-    pub cache_to: Vec<String>,
+    pub cache: Vec<String>,
 }
 
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"composer\",\n  \"manifest_files\": [\"composer.json\"],\n  \"build_commands\": [\"composer install\"],\n  \"cache_dirs\": [\"vendor\"],\n  \"build_packages\": [\"composer\"],\n  \"runtime_packages\": [\"php-8.1\", \"slim-4.12\", \"slim-psr7-1.6\", \"monolog-3.5\"],\n  \"artifacts\": [\"vendor/bin/slim\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1477
+    "response_time": 1564
   },
-  "recorded_at": "2026-01-13T19:02:14.578229525+00:00"
+  "recorded_at": "2026-01-25T18:26:35.194430506+00:00"
 }

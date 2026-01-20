@@ -4,7 +4,7 @@ use bollard::container::LogsOptions;
 use bollard::container::{RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
 use bollard::Docker;
 use futures_util::StreamExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 mod support;
 use support::container_harness::get_buildkit_container;
@@ -14,11 +14,8 @@ async fn get_or_build_peelbox_image() -> Result<String> {
     let (port, _container_id) = get_buildkit_container().await?;
     let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
-    // Use a shared temp dir name base to allow caching between tests if paths align,
-    // but here we use unique dirs per test execution to be safe with temp files.
+    // Use a shared temp dir name base to allow caching between tests if paths align.
     // However, for LLB caching, we use a fixed project name.
-    let temp_dir = std::env::temp_dir().join(format!("peelbox-itest-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&temp_dir)?;
     let context_path = std::env::current_dir()?
         .parent()
         .unwrap()
@@ -26,12 +23,7 @@ async fn get_or_build_peelbox_image() -> Result<String> {
         .unwrap()
         .to_path_buf();
 
-    let temp_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
-        PathBuf::from(custom_cache).join("wolfi-cache")
-    } else {
-        std::env::temp_dir().join(format!("peelbox-cache-itest-{}", uuid::Uuid::new_v4()))
-    };
-    std::fs::create_dir_all(&temp_cache_dir)?;
+    let temp_cache_dir = support::get_test_temp_dir();
 
     let image_name = "localhost/peelbox-test:integration";
     let mut cmd = std::process::Command::new(&peelbox_binary);
@@ -217,9 +209,8 @@ async fn verify_image_content(tar_path: &Path) -> Result<()> {
 async fn test_distroless_layer_structure() -> Result<()> {
     println!("=== Distroless Layer Structure Test ===\n");
 
-    let temp_dir = std::env::temp_dir().join(format!("peelbox-test-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&temp_dir)?;
-    let oci_dest = temp_dir.join("image.tar");
+    let temp_dir = support::get_test_temp_dir();
+    let oci_dest = temp_dir.join("distroless.tar");
 
     let context_path = std::env::current_dir()?
         .parent()
@@ -234,10 +225,6 @@ async fn test_distroless_layer_structure() -> Result<()> {
     let (port, _container_id) = get_buildkit_container().await?;
     let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
 
-    let temp_cache_dir =
-        std::env::temp_dir().join(format!("peelbox-cache-verify-{}", uuid::Uuid::new_v4()));
-    std::fs::create_dir_all(&temp_cache_dir)?;
-
     let mut cmd = std::process::Command::new(&peelbox_binary);
     cmd.args([
         "build",
@@ -251,7 +238,7 @@ async fn test_distroless_layer_structure() -> Result<()> {
         &format!("dest={}", oci_dest.display()),
     ]);
     cmd.current_dir(context_path);
-    cmd.env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
+    cmd.env("PEELBOX_CACHE_DIR", temp_dir.to_str().unwrap());
 
     let output = cmd.output()?;
     if !output.status.success() {
@@ -388,7 +375,7 @@ async fn test_image_runs_help_command() -> Result<()> {
 #[tokio::test]
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
-    let temp_dir = std::env::temp_dir().join(format!("peelbox-output-{}", uuid::Uuid::new_v4()));
+    let temp_dir = support::get_test_temp_dir();
     std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("spec.json");
     std::fs::write(

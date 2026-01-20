@@ -1,0 +1,19 @@
+{
+  "request_hash": "ce389779ce46715e23ee027600528a31",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest and extract build system information. Respond with JSON ONLY.\n\nManifest: universalbuild.json\nContent:\n[\n  {\n    \"metadata\": {\n      \"project_name\": \"elixir_api\",\n      \"language\": \"Elixir\",\n      \"build_system\": \"Mix\",\n      \"confidence\": 1.0,\n      \"reasoning\": \"Detected from mix.exs in \"\n    },\n    \"build\": {\n      \"packages\": [\"elixir-1.18\", \"erlang-27\", \"git\", \"build-base\", \"openssl\", \"ca-certificates\"],\n      \"commands\": [\n        \"mix compile\"\n      ],\n      \"env\": {\n        \"MIX_ENV\": \"prod\",\n        \"HOME\": \"/tmp\"\n      },\n      \"cache\": []\n    },\n    \"runtime\": {\n      \"packages\": [\"elixir-1.18\", \"erlang-27\", \"busybox\", \"openssl\", \"ca-certificates\"],\n      \"copy\": [\n        {\n          \"from\": \".\",\n          \"to\": \"/app\"\n        }\n      ],\n      \"command\": [\"mix\", \"run\", \"--no-halt\"],\n      \"ports\": [4000],\n      \"env\": {\n        \"PORT\": \"4000\",\n        \"MIX_ENV\": \"prod\",\n        \"HOME\": \"/tmp\",\n        \"LC_ALL\": \"C.UTF-8\",\n        \"ELIXIR_ERL_OPTIONS\": \"+fnu\"\n      },\n      \"health\": {\n        \"endpoint\": \"/health\"\n      }\n    },\n    \"version\": \"1.0\"\n  }\n]\n\nReturn JSON ONLY with build configuration using Wolfi package names:\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n\nWolfi package name guidance:\n- Always specify version-specific packages (e.g., nodejs-22, not nodejs)\n- For Node.js, use packages like: nodejs-22, nodejs-20, nodejs-18\n- For Python, use packages like: python-3.12, python-3.11, python-3.10\n- For Java, use packages like: openjdk-21, openjdk-17, openjdk-11\n- For common packages: glibc, ca-certificates, build-base, gcc, openssl-dev, pkgconf\n- Leave packages empty if you're unsure - the build system will validate\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"elixir\",\n  \"manifest_files\": [\"universalbuild.json\"],\n  \"build_commands\": [\"mix compile\"],\n  \"cache_dirs\": [],\n  \"build_packages\": [\"elixir-1.18\", \"erlang-27\", \"git\", \"build-base\", \"openssl\", \"ca-certificates\"],\n  \"runtime_packages\": [\"elixir-1.18\", \"erlang-27\", \"busybox\", \"openssl\", \"ca-certificates\"],\n  \"artifacts\": [],\n  \"common_ports\": [4000],\n  \"confidence\": 1.0\n}\n```",
+    "tool_call": null,
+    "response_time": 3728
+  },
+  "recorded_at": "2026-01-25T18:25:20.172349085+00:00"
+}

@@ -1,4 +1,3 @@
-import { start } from "$fresh/server.ts";
-import manifest from "./fresh.gen.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
-await start(manifest);
+serve((_req) => new Response("Hello World"), { port: 8080 });

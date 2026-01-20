@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"PHP\",\n  \"file_extensions\": [\".php\"],\n  \"package_managers\": [\"composer\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [\"composer.json\"],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"\\\"php\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}\n```",
     "tool_call": null,
-    "response_time": 1556
+    "response_time": 1591
   },
-  "recorded_at": "2026-01-13T19:01:47.537139495+00:00"
+  "recorded_at": "2026-01-25T19:58:15.711543497+00:00"
 }

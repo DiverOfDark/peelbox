@@ -202,6 +202,42 @@ impl LanguageDefinition for CppLanguage {
     fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
         None
     }
+
+    fn find_entrypoints(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        let mut entrypoints = Vec::new();
+        for file_path in file_tree {
+            let path_from_project = project_root.join(file_path);
+            let full_path = if path_from_project.is_absolute() {
+                path_from_project
+            } else {
+                repo_root.join(&path_from_project)
+            };
+
+            if self.is_main_file(fs, &full_path) {
+                entrypoints.push(file_path.to_string_lossy().to_string());
+            }
+        }
+        entrypoints
+    }
+
+    fn is_runnable(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+        _manifest_content: Option<&str>,
+    ) -> bool {
+        !self
+            .find_entrypoints(fs, repo_root, project_root, file_tree)
+            .is_empty()
+    }
 }
 
 #[cfg(test)]

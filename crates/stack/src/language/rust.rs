@@ -141,20 +141,13 @@ impl LanguageDefinition for RustLanguage {
         fs: &dyn peelbox_core::fs::FileSystem,
         file_path: &std::path::Path,
     ) -> bool {
-        // Check if filename matches known entry points
-        if let Some(filename) = file_path.file_name().and_then(|f| f.to_str()) {
-            if filename == "main.rs" || filename == "lib.rs" {
-                return true;
-            }
-        }
-
-        // For other .rs files in bin/, check for main function
-        let path_str = file_path.to_string_lossy();
-        if path_str.contains("/bin/") && path_str.ends_with(".rs") {
-            if let Ok(content) = fs.read_to_string(file_path) {
-                use regex::Regex;
-                let main_re = Regex::new(r"fn\s+main\s*\(").expect("valid regex");
-                return main_re.is_match(&content);
+        if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
+            if ext == "rs" {
+                if let Ok(content) = fs.read_to_string(file_path) {
+                    use regex::Regex;
+                    let main_re = Regex::new(r"fn\s+main\s*\(").expect("valid regex");
+                    return main_re.is_match(&content);
+                }
             }
         }
 
@@ -183,6 +176,51 @@ impl LanguageDefinition for RustLanguage {
             .and_then(|p| p.get("name"))
             .and_then(|n| n.as_str())?;
         Some(format!("./target/release/{}", package_name))
+    }
+
+    fn find_entrypoints(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        let mut entrypoints = Vec::new();
+        for file_path in file_tree {
+            let path_from_project = project_root.join(file_path);
+            let full_path = if path_from_project.is_absolute() {
+                path_from_project
+            } else {
+                repo_root.join(&path_from_project)
+            };
+
+            if self.is_main_file(fs, &full_path) {
+                entrypoints.push(file_path.to_string_lossy().to_string());
+            }
+        }
+        entrypoints
+    }
+
+    fn is_runnable(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if let Some(content) = manifest_content {
+            if content.contains("[[bin]]") {
+                return true;
+            }
+            if content.contains("[workspace]") {
+                return true;
+            }
+        }
+
+        !self
+            .find_entrypoints(fs, repo_root, project_root, file_tree)
+            .is_empty()
     }
 }
 
@@ -285,7 +323,6 @@ version = "0.1.0"
         let content = r#"
 [package]
 name = "myapp"
-
 [dependencies]
 tokio = "1.0"
 serde = { version = "1.0", features = ["derive"] }

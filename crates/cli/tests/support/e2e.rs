@@ -5,8 +5,6 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
 
-/// Setup test APKINDEX cache from committed snapshot
-/// This ensures tests use a consistent set of package versions
 #[allow(dead_code)]
 pub fn setup_test_apkindex_cache() {
     use std::sync::Once;
@@ -32,12 +30,10 @@ pub fn setup_test_apkindex_cache() {
         std::fs::copy(&test_apkindex, &cache_apkindex)
             .expect("Failed to copy test APKINDEX to cache");
 
-        // Update modification time to prevent cache expiry (24h TTL)
         let now = std::time::SystemTime::now();
         filetime::set_file_mtime(&cache_apkindex, filetime::FileTime::from_system_time(now))
             .expect("Failed to update cache file modification time");
 
-        // Remove parsed cache to force re-parsing with test APKINDEX
         let parsed_cache = cache_dir.join("packages.bin");
         if parsed_cache.exists() {
             std::fs::remove_file(&parsed_cache).ok();
@@ -47,10 +43,8 @@ pub fn setup_test_apkindex_cache() {
     });
 }
 
-/// Helper to get the path to the peelbox binary
 #[allow(dead_code)]
 pub fn peelbox_bin() -> PathBuf {
-    // In tests, the binary should be at target/debug/peelbox
     let mut path = env::current_exe()
         .expect("Failed to get current executable path")
         .parent()
@@ -59,7 +53,6 @@ pub fn peelbox_bin() -> PathBuf {
         .expect("No parent")
         .to_path_buf();
 
-    // If we're in deps/, go up one more level
     if path.ends_with("deps") {
         path = path.parent().expect("No parent").to_path_buf();
     }
@@ -67,14 +60,11 @@ pub fn peelbox_bin() -> PathBuf {
     path.join("peelbox")
 }
 
-/// Helper to get fixture path
 #[allow(dead_code)]
 pub fn fixture_path(category: &str, name: &str) -> PathBuf {
     PathBuf::from("tests/fixtures").join(category).join(name)
 }
 
-/// Helper to load expected UniversalBuild(s) from JSON
-/// Loads universalbuild.json from the fixture directory itself (same for all modes)
 #[allow(dead_code)]
 pub fn load_expected(
     category: &str,
@@ -93,56 +83,29 @@ pub fn load_expected(
     let content = std::fs::read_to_string(&expected_path)
         .unwrap_or_else(|_| panic!("Failed to read expected JSON: {}", expected_path.display()));
 
-    // Try parsing as array of UniversalBuild first (for monorepos)
     match serde_json::from_str::<Vec<UniversalBuild>>(&content) {
         Ok(multi) => Some(multi),
-        Err(e1) => {
-            // Try parsing as single UniversalBuild
-            match serde_json::from_str::<UniversalBuild>(&content) {
-                Ok(single) => Some(vec![single]),
-                Err(e2) => {
-                    panic!(
+        Err(e1) => match serde_json::from_str::<UniversalBuild>(&content) {
+            Ok(single) => Some(vec![single]),
+            Err(e2) => {
+                panic!(
                         "Failed to parse expected JSON: {}\nAs Vec<UniversalBuild>: {}\nAs UniversalBuild: {}",
                         expected_path.display(),
                         e1,
                         e2
                     );
-                }
             }
-        }
+        },
     }
 }
 
-/// RAII guard for temporary directory cleanup
-struct AutoCleanupDir {
-    path: PathBuf,
-}
-
-impl AutoCleanupDir {
-    fn new(path: PathBuf) -> Self {
-        Self { path }
-    }
-}
-
-impl Drop for AutoCleanupDir {
-    fn drop(&mut self) {
-        if self.path.exists() {
-            let _ = std::fs::remove_dir_all(&self.path);
-        }
-    }
-}
-
-/// Helper to run detection with specified mode
 #[allow(dead_code)]
 pub fn run_detection_with_mode(
     fixture: PathBuf,
     test_name: &str,
     mode: Option<&str>,
 ) -> Result<Vec<UniversalBuild>, String> {
-    let temp_cache_dir =
-        std::env::temp_dir().join(format!("peelbox-cache-{}", uuid::Uuid::new_v4()));
-    // Ensure cleanup happens when this guard is dropped (end of function)
-    let _cleanup_guard = AutoCleanupDir::new(temp_cache_dir.clone());
+    let temp_cache_dir = super::get_test_temp_dir();
 
     let apkindex_cache_dir = temp_cache_dir.join("apkindex");
     std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
@@ -172,10 +135,6 @@ pub fn run_detection_with_mode(
         .env("PEELBOX_TEST_NAME", test_name)
         .env("PEELBOX_CACHE_DIR", temp_cache_dir.to_str().unwrap());
 
-    if let Ok(rust_log) = std::env::var("RUST_LOG") {
-        cmd.env("RUST_LOG", rust_log);
-    }
-
     if let Some(detection_mode) = mode {
         cmd.env("PEELBOX_DETECTION_MODE", detection_mode);
     }
@@ -188,19 +147,21 @@ pub fn run_detection_with_mode(
         .output()
         .expect("Failed to execute peelbox");
 
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.is_empty() {
+        eprintln!("Peelbox stderr: {}", stderr);
+    }
+
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(stderr.to_string());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Try parsing as array first (for monorepos)
     if let Ok(results) = serde_json::from_str::<Vec<UniversalBuild>>(&stdout) {
         return Ok(results);
     }
 
-    // Try parsing as single object
     if let Ok(result) = serde_json::from_str::<UniversalBuild>(&stdout) {
         return Ok(vec![result]);
     }
@@ -208,7 +169,6 @@ pub fn run_detection_with_mode(
     Err(format!("Failed to parse output as JSON: {}", stdout))
 }
 
-/// Helper to assert detection results against expected output
 #[allow(dead_code)]
 pub fn assert_detection_with_mode(
     results: &[UniversalBuild],
@@ -223,13 +183,11 @@ pub fn assert_detection_with_mode(
         "Build commands should not be empty"
     );
 
-    // Skip detailed validation for LLM-only tests (produces inferior results vs deterministic)
     if mode == Some("llm") {
         eprintln!("Skipping universalbuild.json validation for LLM-only test (known to differ from deterministic detection)");
         return;
     }
 
-    // Load and validate against expected JSON (required, same for all modes)
     let mut expected = load_expected(category, fixture_name, mode).unwrap_or_else(|| {
         panic!(
             "Expected JSON file not found for fixture '{}'. Expected file: tests/fixtures/{}/{}/universalbuild.json",
@@ -244,7 +202,6 @@ pub fn assert_detection_with_mode(
         fixture_name
     );
 
-    // Sort both results and expected by project_name for deterministic comparison
     let mut sorted_results = results.to_vec();
     sorted_results.sort_by(|a, b| a.metadata.project_name.cmp(&b.metadata.project_name));
     expected.sort_by(|a, b| a.metadata.project_name.cmp(&b.metadata.project_name));
@@ -271,8 +228,7 @@ pub fn assert_detection_with_mode(
             "Build system mismatch for project '{}': expected '{}', got '{}'",
             project_name, expected_build.metadata.build_system, detected.metadata.build_system
         );
-        // Wolfi-first architecture - base images removed from schema
-        // Packages are now validated instead
+
         assert_eq!(
             detected.build.packages, expected_build.build.packages,
             "Build packages mismatch for project '{}': expected {:?}, got {:?}",
@@ -286,13 +242,12 @@ pub fn assert_detection_with_mode(
     }
 }
 
-/// Helper to load port, health endpoint (optional), and command from committed universalbuild.json
 #[allow(dead_code)]
 #[allow(clippy::type_complexity)]
-pub fn get_fixture_container_info(
+pub fn get_fixture_container_infos(
     category: &str,
     fixture_name: &str,
-) -> Option<(u16, Option<String>, Vec<String>, Vec<String>)> {
+) -> Option<Vec<(String, u16, Option<String>, Vec<String>, Vec<String>)>> {
     let spec_path = PathBuf::from("tests/fixtures")
         .join(category)
         .join(fixture_name)
@@ -307,30 +262,44 @@ pub fn get_fixture_container_info(
         .or_else(|_| serde_json::from_str::<UniversalBuild>(&content).map(|single| vec![single]))
         .ok()?;
 
-    let first = ub.first()?;
-    let port = first.runtime.ports.first().copied()?;
-    let health = first.runtime.health.as_ref().map(|h| h.endpoint.clone());
-    let command = first.runtime.command.clone();
-    let env: Vec<String> = first
-        .runtime
-        .env
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, v))
+    let infos: Vec<_> = ub
+        .into_iter()
+        .filter_map(|build| {
+            if build.runtime.ports.is_empty() {
+                return None;
+            }
+
+            let project_name = build
+                .metadata
+                .project_name
+                .unwrap_or_else(|| "unknown".to_string());
+            let port = build.runtime.ports.first().copied()?;
+            let health = build.runtime.health.as_ref().map(|h| h.endpoint.clone());
+            let command = build.runtime.command.clone();
+            let env: Vec<String> = build
+                .runtime
+                .env
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .collect();
+
+            Some((project_name, port, health, command, env))
+        })
         .collect();
 
-    Some((port, health, command, env))
+    if infos.is_empty() {
+        return None;
+    }
+
+    Some(infos)
 }
 
-/// Helper to run container integration test for a single fixture
 #[allow(dead_code)]
 pub async fn run_container_integration_test(
     category: &str,
     fixture_name: &str,
 ) -> Result<(), String> {
-    let temp_cache_dir =
-        std::env::temp_dir().join(format!("peelbox-cache-container-{}", uuid::Uuid::new_v4()));
-    // Ensure cleanup happens when this guard is dropped
-    let _cleanup_guard = AutoCleanupDir::new(temp_cache_dir.clone());
+    let temp_cache_dir = super::get_test_temp_dir();
 
     let apkindex_cache_dir = temp_cache_dir.join("apkindex");
     std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
@@ -343,12 +312,6 @@ pub async fn run_container_integration_test(
     }
 
     let fixture_path = fixture_path(category, fixture_name);
-
-    // Get port, health endpoint, command, and env from committed universalbuild.json
-    let (port, health_path, _cmd, env) = get_fixture_container_info(category, fixture_name)
-        .ok_or_else(|| format!("No container info found for fixture {}", fixture_name))?;
-
-    // Use committed universalbuild.json directly
     let spec_path = fixture_path.join("universalbuild.json");
 
     if !spec_path.exists() {
@@ -358,68 +321,56 @@ pub async fn run_container_integration_test(
         ));
     }
 
-    // Build and test container
+    let infos = get_fixture_container_infos(category, fixture_name).ok_or_else(|| {
+        format!(
+            "No runnable container info found for fixture {}",
+            fixture_name
+        )
+    })?;
+
     let harness =
         ContainerTestHarness::new().map_err(|e| format!("Failed to create harness: {}", e))?;
 
-    let image_name = format!(
-        "localhost/peelbox-test-{}-{}:latest",
-        category.replace("/", "-"),
-        fixture_name
-    );
+    for (project_name, port, health_path, _cmd, env) in infos {
+        let image_name = format!(
+            "localhost/peelbox-test-{}-{}-{}:latest",
+            category.replace("/", "-"),
+            fixture_name,
+            project_name.replace('@', "").replace('/', "-")
+        );
 
-    let image = harness
-        .build_image(
-            &spec_path,
-            &fixture_path,
-            &image_name,
-            Some(&temp_cache_dir),
-        )
-        .await
-        .map_err(|e| format!("Failed to build image: {}", e))?;
-
-    let container_id = harness
-        .start_container(
-            &image,
-            port,
-            None,
-            if env.is_empty() { None } else { Some(env) },
-        )
-        .await
-        .map_err(|e| format!("Failed to start container: {}", e))?;
-
-    // Get the dynamically assigned host port
-    let host_port = harness
-        .get_host_port(&container_id, port)
-        .await
-        .map_err(|e| format!("Failed to get host port: {}", e))?;
-
-    // Wait for port to be accessible (30s timeout)
-    let wait_result = harness
-        .wait_for_port(&container_id, host_port, Duration::from_secs(30))
-        .await;
-
-    if wait_result.is_err() {
-        let logs = harness
-            .get_container_logs(&container_id)
+        let image = harness
+            .build_image(
+                &spec_path,
+                &fixture_path,
+                &image_name,
+                &temp_cache_dir,
+                Some(&project_name),
+                None,
+            )
             .await
-            .unwrap_or_default();
-        let _ = harness.cleanup_container(&container_id).await;
-        let _ = harness.cleanup_image(&image_name).await;
-        return Err(format!(
-            "Container failed to start on port {} (container port {} -> host port {}): {:?}\nLogs:\n{}",
-            port, port, host_port, wait_result, logs
-        ));
-    }
+            .map_err(|e| format!("Failed to build image for {}: {}", project_name, e))?;
 
-    // Perform health check if endpoint is defined (10s timeout)
-    if let Some(health_endpoint) = health_path {
-        let health_ok = harness
-            .http_health_check(host_port, &health_endpoint, Duration::from_secs(10))
+        let container_id = harness
+            .start_container(
+                &image,
+                port,
+                None,
+                if env.is_empty() { None } else { Some(env) },
+            )
             .await
-            .map_err(|e| format!("Health check failed: {}", e))?;
+            .map_err(|e| format!("Failed to start container for {}: {}", project_name, e))?;
 
-        if !health_ok {
+        let host_port = harness
+            .get_host_port(&container_id, port)
+            .await
+            .map_err(|e| format!("Failed to get host port for {}: {}", project_name, e))?;
+
+        let wait_result = harness
+            .wait_for_port(&container_id, host_port, Duration::from_secs(30))
+            .await;
+
+        if wait_result.is_err() {
             let logs = harness
                 .get_container_logs(&container_id)
                 .await
@@ -427,15 +378,34 @@ pub async fn run_container_integration_test(
             let _ = harness.cleanup_container(&container_id).await;
             let _ = harness.cleanup_image(&image_name).await;
             return Err(format!(
-                "Health check returned non-2xx status for {}.\nContainer Logs:\n{}",
-                health_endpoint, logs
+                "Container for {} failed to start on port {}: {:?}\nLogs:\n{}",
+                project_name, port, wait_result, logs
             ));
         }
-    }
 
-    // Cleanup
-    let _ = harness.cleanup_container(&container_id).await;
-    let _ = harness.cleanup_image(&image_name).await;
+        if let Some(health_endpoint) = health_path {
+            let health_ok = harness
+                .http_health_check(host_port, &health_endpoint, Duration::from_secs(10))
+                .await
+                .map_err(|e| format!("Health check failed for {}: {}", project_name, e))?;
+
+            if !health_ok {
+                let logs = harness
+                    .get_container_logs(&container_id)
+                    .await
+                    .unwrap_or_default();
+                let _ = harness.cleanup_container(&container_id).await;
+                let _ = harness.cleanup_image(&image_name).await;
+                return Err(format!(
+                    "Health check for {} returned non-2xx status.\nContainer Logs:\n{}",
+                    project_name, logs
+                ));
+            }
+        }
+
+        let _ = harness.cleanup_container(&container_id).await;
+        let _ = harness.cleanup_image(&image_name).await;
+    }
 
     Ok(())
 }

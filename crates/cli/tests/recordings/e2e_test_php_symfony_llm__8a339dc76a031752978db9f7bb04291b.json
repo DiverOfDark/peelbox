@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"composer\",\n  \"manifest_files\": [\"composer.json\"],\n  \"build_commands\": [\"composer install --no-dev --optimize-autoloader\"],\n  \"cache_dirs\": [\"vendor\"],\n  \"build_packages\": [\"composer\"],\n  \"runtime_packages\": [\"php-8.1\", \"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"vendor/bin/symfony\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1510
+    "response_time": 3036
   },
-  "recorded_at": "2026-01-13T19:01:41.669023852+00:00"
+  "recorded_at": "2026-01-25T18:26:40.126612235+00:00"
 }

@@ -6,23 +6,20 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test --no-daemon --console=plain"
+        "gradle :api-service:assemble -x test --no-daemon --console=plain"
       ],
-      "context": [
-        {
-          "from": "api-service",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
+      },
       "packages": [
         "openjdk-17",
-        "gradle-9"
+        "gradle-9",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "Gradle",
-      "confidence": 0.949999988079071,
+      "confidence": 0.95,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "api-service",
@@ -32,21 +29,26 @@
       "command": [
         "java",
         "-jar",
-        "app.jar"
+        "/app/app.jar"
       ],
       "copy": [
         {
-          "from": "build/libs/*.jar",
-          "to": "/usr/local/bin/app"
+          "from": "api-service/build/libs/api-service.jar",
+          "to": "/app/app.jar"
         }
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "openjdk-17-jre"
       ],
       "ports": [
         8080
-      ]
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
     },
     "version": "1.0"
   },
@@ -57,123 +59,20 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test --no-daemon --console=plain"
+        "gradle :web-service:assemble -x test --no-daemon --console=plain"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-25",
-        "gradle-9"
-      ]
-    },
-    "metadata": {
-      "build_system": "Gradle",
-      "confidence": 0.949999988079071,
-      "language": "Java",
-      "project_name": "app",
-      "reasoning": "Detected from build.gradle in "
-    },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "app.jar"
-      ],
-      "copy": [
-        {
-          "from": "build/libs/*.jar",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-25-jre"
-      ],
-      "ports": [
-        8080
-      ]
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        ".gradle",
-        "build"
-      ],
-      "commands": [
-        "gradle build -x test --no-daemon --console=plain"
-      ],
-      "context": [
-        {
-          "from": "lib",
-          "to": "/app"
-        }
-      ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
+      },
       "packages": [
         "openjdk-17",
-        "gradle-9"
+        "gradle-9",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "Gradle",
-      "confidence": 0.949999988079071,
-      "language": "Java",
-      "project_name": "lib",
-      "reasoning": "Detected from build.gradle in lib"
-    },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "app.jar"
-      ],
-      "copy": [
-        {
-          "from": "build/libs/*.jar",
-          "to": "/usr/local/bin/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-17-jre"
-      ],
-      "ports": [
-        8080
-      ]
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        ".gradle",
-        "build"
-      ],
-      "commands": [
-        "gradle build -x test --no-daemon --console=plain"
-      ],
-      "context": [
-        {
-          "from": "web-service",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-17",
-        "gradle-9"
-      ]
-    },
-    "metadata": {
-      "build_system": "Gradle",
-      "confidence": 0.949999988079071,
+      "confidence": 0.95,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "web-service",
@@ -183,21 +82,26 @@
       "command": [
         "java",
         "-jar",
-        "app.jar"
+        "/app/app.jar"
       ],
       "copy": [
         {
-          "from": "build/libs/*.jar",
-          "to": "/usr/local/bin/app"
+          "from": "web-service/build/libs/web-service.jar",
+          "to": "/app/app.jar"
         }
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "openjdk-17-jre"
       ],
       "ports": [
         8080
-      ]
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
     },
     "version": "1.0"
   }

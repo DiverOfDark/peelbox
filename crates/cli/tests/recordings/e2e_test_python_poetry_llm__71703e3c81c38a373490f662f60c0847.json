@@ -1,0 +1,19 @@
+{
+  "request_hash": "71703e3c81c38a373490f662f60c0847",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: python-poetry\nFile tree summary:\nRoot files: app.py, pyproject.toml, test_app.py, universalbuild.json\nExtensions: {\"json\": 1, \"py\": 2, \"toml\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY.\nCRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), logs, and output directories.\n\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"pyproject.toml\",\n    \"build_system\": \"poetry\",\n    \"language\": \"Python\",\n    \"confidence\": 0.95\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1025
+  },
+  "recorded_at": "2026-01-25T18:26:57.239004830+00:00"
+}

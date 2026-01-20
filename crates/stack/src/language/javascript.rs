@@ -264,6 +264,45 @@ impl LanguageDefinition for JavaScriptLanguage {
 
         None
     }
+
+    fn find_entrypoints(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        _repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        let mut entrypoints = Vec::new();
+        for file_path in file_tree {
+            if self.is_main_file(fs, &project_root.join(file_path)) {
+                entrypoints.push(file_path.to_string_lossy().to_string());
+            }
+        }
+        entrypoints
+    }
+
+    fn is_runnable(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if let Some(content) = manifest_content {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(content) {
+                if let Some(scripts) = parsed.get("scripts").and_then(|s| s.as_object()) {
+                    if scripts.contains_key("start") || scripts.contains_key("dev") {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        !self
+            .find_entrypoints(fs, repo_root, project_root, file_tree)
+            .is_empty()
+    }
 }
 #[cfg(test)]
 mod tests {

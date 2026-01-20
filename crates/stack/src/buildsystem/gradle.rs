@@ -1,6 +1,7 @@
 //! Gradle build system (Java/Kotlin)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -56,14 +57,19 @@ impl BuildSystem for GradleBuildSystem {
                 };
 
                 if has_build_content {
-                    if let Some(parent) = rel_path.parent() {
-                        dir_has_build_file.insert(parent.to_path_buf());
+                    let lang = crate::language::JavaLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        if let Some(parent) = rel_path.parent() {
+                            dir_has_build_file.insert(parent.to_path_buf());
+                        }
+                        detections.push(DetectionStack::new(
+                            BuildSystemId::Gradle,
+                            LanguageId::Java,
+                            rel_path.clone(),
+                        ));
                     }
-                    detections.push(DetectionStack::new(
-                        BuildSystemId::Gradle,
-                        LanguageId::Java,
-                        rel_path.clone(),
-                    ));
                 }
             }
         }
@@ -96,10 +102,27 @@ impl BuildSystem for GradleBuildSystem {
         _service_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let java_version = manifest_content
-            .and_then(parse_java_version)
-            .or_else(|| wolfi_index.get_latest_version("openjdk"))
-            .expect("Failed to get openjdk version from Wolfi index");
+        let parsed_version = manifest_content.and_then(parse_java_version);
+
+        let java_version = if let Some(ver) = parsed_version {
+            if wolfi_index.has_package(&ver) {
+                ver
+            } else {
+                eprintln!(
+                    "Warning: Requested Java version '{}' not found in Wolfi packages. Falling back to latest.",
+                    ver
+                );
+                let latest = wolfi_index
+                    .get_latest_version("openjdk")
+                    .expect("Failed to get openjdk version from Wolfi index");
+                latest
+            }
+        } else {
+            let latest = wolfi_index
+                .get_latest_version("openjdk")
+                .expect("Failed to get openjdk version from Wolfi index");
+            latest
+        };
 
         let _runtime_version = format!("{}-jre", java_version);
 
@@ -107,10 +130,14 @@ impl BuildSystem for GradleBuildSystem {
             .get_latest_version("gradle")
             .expect("Failed to get gradle version from Wolfi index");
 
-        let java_home = format!(
-            "/usr/lib/jvm/java-{}-openjdk",
-            java_version.trim_start_matches("openjdk-")
-        );
+        let java_home = if java_version == "openjdk-8" {
+            "/usr/lib/jvm/java-1.8-openjdk".to_string()
+        } else {
+            format!(
+                "/usr/lib/jvm/java-{}-openjdk",
+                java_version.trim_start_matches("openjdk-")
+            )
+        };
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
@@ -120,9 +147,12 @@ impl BuildSystem for GradleBuildSystem {
             "-Dorg.gradle.native=false".to_string(),
         );
 
+        let mut build_packages = vec![java_version, gradle_version];
+        build_packages.push("ca-certificates".to_string());
+
         BuildTemplate {
-            build_packages: vec![java_version, gradle_version],
-            build_commands: vec!["gradle build -x test --no-daemon --console=plain".to_string()],
+            build_packages,
+            build_commands: vec!["gradle assemble --no-daemon --console=plain".to_string()],
             cache_paths: vec![
                 "/root/.gradle/caches/".to_string(),
                 "/root/.gradle/wrapper/".to_string(),
@@ -130,7 +160,7 @@ impl BuildSystem for GradleBuildSystem {
             ],
             common_ports: vec![8080],
             build_env,
-            runtime_copy: vec![("build/libs/*.jar".to_string(), "/app/".to_string())],
+            runtime_copy: vec![("build/libs/*.jar".to_string(), "/app/app.jar".to_string())],
             runtime_env: std::collections::HashMap::new(),
         }
     }
@@ -197,15 +227,28 @@ fn parse_java_version(manifest_content: &str) -> Option<String> {
     for line in manifest_content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.contains("sourceCompatibility") || trimmed.contains("targetCompatibility") {
-            if let Some(version) = trimmed.split('=').nth(1) {
+        if trimmed.contains("sourceCompatibility")
+            || trimmed.contains("targetCompatibility")
+            || trimmed.contains("languageVersion")
+        {
+            if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
+                let s = s.trim();
+                !s.is_empty() && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
+            }) {
                 let version_num = version
                     .trim()
                     .trim_matches('"')
                     .trim_matches('\'')
                     .replace("JavaVersion.VERSION_", "")
                     .replace('_', ".");
-                return Some(format!("openjdk-{}", version_num));
+
+                let version_final = if version_num.starts_with("1.") && version_num.len() > 2 {
+                    version_num.get(2..).unwrap_or(&version_num).to_string()
+                } else {
+                    version_num
+                };
+
+                return Some(format!("openjdk-{}", version_final));
             }
         }
     }

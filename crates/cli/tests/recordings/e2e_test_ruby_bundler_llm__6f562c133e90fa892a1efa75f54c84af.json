@@ -1,0 +1,19 @@
+{
+  "request_hash": "6f562c133e90fa892a1efa75f54c84af",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: Gemfile\nContent:\nsource 'https://rubygems.org'\n\ngem 'sinatra', '~> 3.1'\ngem 'puma', '~> 6.4'\ngem 'json', '~> 2.7'\n\ngroup :development, :test do\n  gem 'rspec', '~> 3.12'\n  gem 'rack-test', '~> 2.1'\nend\n\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "{\n  \"name\": \"Ruby\",\n  \"file_extensions\": [\".rb\"],\n  \"package_managers\": [\"bundler\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [\"Gemfile\"],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": 4567,\n  \"runtime_name\": \"ruby\",\n  \"version_pattern\": \"ruby\\\\s*\\\\((.+?)\\\\)\",\n  \"default_entrypoint\": \"app.rb\",\n  \"env_var_patterns\": [],\n  \"port_patterns\": [[\"run\", \"\\\\brun\\\\s*\\\\-p\\\\s*(\\\\d+)\"]],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}",
+    "tool_call": null,
+    "response_time": 3680
+  },
+  "recorded_at": "2026-01-25T18:27:13.434548573+00:00"
+}

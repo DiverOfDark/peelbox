@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"cargo\",\n  \"manifest_files\": [\"Cargo.toml\"],\n  \"build_commands\": [\"cargo build --release\"],\n  \"cache_dirs\": [\"target\"],\n  \"build_packages\": [\"cargo\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"target/release/app\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1236
+    "response_time": 1980
   },
-  "recorded_at": "2026-01-13T19:04:18.306176438+00:00"
+  "recorded_at": "2026-01-25T18:23:32.834643325+00:00"
 }

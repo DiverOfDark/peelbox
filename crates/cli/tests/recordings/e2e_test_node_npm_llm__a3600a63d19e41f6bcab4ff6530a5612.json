@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"npm\",\n  \"manifest_files\": [\"universalbuild.json\"],\n  \"build_commands\": [\n    \"mkdir -p /root/.npm && npm ci --cache=/tmp/.npm\",\n    \"npm run build\"\n  ],\n  \"cache_dirs\": [\"node_modules\", \".npm\"],\n  \"build_packages\": [\"nodejs-25\", \"npm\"],\n  \"runtime_packages\": [\"nodejs-25\"],\n  \"artifacts\": [],\n  \"common_ports\": [3000],\n  \"confidence\": 0.949999988079071\n}\n```",
     "tool_call": null,
-    "response_time": 2047
+    "response_time": 2649
   },
-  "recorded_at": "2026-01-13T19:05:03.585417217+00:00"
+  "recorded_at": "2026-01-25T18:26:04.656434608+00:00"
 }

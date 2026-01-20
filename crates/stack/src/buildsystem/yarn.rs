@@ -78,7 +78,11 @@ impl BuildSystem for YarnBuildSystem {
         let build_env = std::collections::HashMap::new();
 
         BuildTemplate {
-            build_packages: vec![node_version.clone(), "yarn".to_string()],
+            build_packages: vec![
+                node_version.clone(),
+                "yarn".to_string(),
+                "ca-certificates".to_string(),
+            ],
             build_commands: vec!["yarn install --frozen-lockfile".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".yarn/cache/".to_string()],
             common_ports: vec![3000, 8080],

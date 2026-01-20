@@ -16,8 +16,6 @@ static BUILDKIT_CONTAINER: OnceCell<BuildKitContainerCell> = OnceCell::const_new
 
 const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 
-use std::path::PathBuf;
-
 pub async fn get_buildkit_container() -> Result<(u16, String)> {
     let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
 
@@ -112,7 +110,9 @@ impl ContainerTestHarness {
         spec_path: &Path,
         context_path: &Path,
         image_name: &str,
-        cache_dir: Option<&Path>,
+        cache_dir: &Path,
+        service_name: Option<&str>,
+        output_tar: Option<&Path>,
     ) -> Result<String> {
         let (port, _container_id) = get_buildkit_container().await?;
 
@@ -139,18 +139,8 @@ impl ContainerTestHarness {
 
         // Set up external cache directory for test builds
         // Cache will be transferred over gRPC when BuildKit exports
-        let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
-            PathBuf::from(custom_cache).join("external-cache")
-        } else {
-            std::env::temp_dir().join("peelbox-test-external-cache")
-        };
-        std::fs::create_dir_all(&external_cache_dir)
-            .context("Failed to create external cache directory")?;
-
-        eprintln!(
-            "Using external BuildKit cache at: {}",
-            external_cache_dir.display()
-        );
+        let base_cache_dir = super::get_test_temp_dir();
+        let cache_path = format!("type=local,path={}", base_cache_dir.display());
 
         let mut cmd = std::process::Command::new(&peelbox_binary);
         cmd.args([
@@ -163,160 +153,74 @@ impl ContainerTestHarness {
             &buildkit_addr,
             "--context",
             context_path.to_str().unwrap(),
-            "--output",
-            "type=docker",
-            "--quiet",
+            "--cache",
+            &cache_path,
         ]);
+
+        if let Some(service) = service_name {
+            cmd.args(["--service", service]);
+        }
+
+        if let Some(tar_path) = output_tar {
+            cmd.args(["--output", tar_path.to_str().unwrap()]);
+        } else {
+            cmd.args(["--output", "type=docker"]);
+        }
 
         // Use PEELBOX_CACHE_DIR env var for automatic caching
         // Prefer cache_dir parameter if provided, otherwise use external_cache_dir
-        let cache_path = cache_dir
-            .map(|p| p.to_str().unwrap().to_string())
-            .unwrap_or_else(|| external_cache_dir.to_str().unwrap().to_string());
-        cmd.env("PEELBOX_CACHE_DIR", cache_path);
-
-        if let Ok(rust_log) = std::env::var("RUST_LOG") {
-            cmd.env("RUST_LOG", rust_log);
-        }
+        cmd.env("PEELBOX_CACHE_DIR", cache_dir);
 
         let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
 
         if !peelbox_output.status.success() {
-            eprintln!(
-                "peelbox build stdout:\n{}",
-                String::from_utf8_lossy(&peelbox_output.stdout)
+            let stdout = String::from_utf8_lossy(&peelbox_output.stdout);
+            let stderr = String::from_utf8_lossy(&peelbox_output.stderr);
+            println!("peelbox build failed for image: {}", image_name);
+            println!("peelbox build stdout:\n{}", stdout);
+            println!("peelbox build stderr:\n{}", stderr);
+            anyhow::bail!(
+                "peelbox build failed for {}.\nSTDOUT:\n{}\nSTDERR:\n{}",
+                image_name,
+                stdout,
+                stderr
             );
-            eprintln!(
-                "peelbox build stderr:\n{}",
-                String::from_utf8_lossy(&peelbox_output.stderr)
-            );
-            anyhow::bail!("peelbox build failed");
+        }
+
+        if let Some(tar_path) = output_tar {
+            let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
+                .trim()
+                .to_string();
+
+            let image_exists = if !image_id.is_empty() {
+                self.docker.inspect_image(&image_id).await.is_ok()
+            } else {
+                false
+            };
+
+            if !image_exists {
+                let load_output = std::process::Command::new("docker")
+                    .args(["load", "-i", tar_path.to_str().unwrap()])
+                    .output()
+                    .context("Failed to load image into Docker")?;
+
+                if !load_output.status.success() {
+                    anyhow::bail!(
+                        "Failed to load image into Docker: {}",
+                        String::from_utf8_lossy(&load_output.stderr)
+                    );
+                }
+            } else {
+                let _ = std::process::Command::new("docker")
+                    .args(["tag", &image_id, image_name])
+                    .status();
+            }
         }
 
         self.docker
             .inspect_image(image_name)
             .await
             .context("Failed to inspect image after build - image may not have been loaded")?;
-
-        Ok(image_name.to_string())
-    }
-
-    pub async fn build_image_with_output(
-        &self,
-        spec_path: &Path,
-        context_path: &Path,
-        image_name: &str,
-        output_tar: &Path,
-    ) -> Result<String> {
-        let (port, _container_id) = get_buildkit_container().await?;
-
-        let mut peelbox_binary = std::env::current_exe()
-            .context("Failed to get current executable path")?
-            .parent()
-            .context("No parent directory")?
-            .to_path_buf();
-
-        if peelbox_binary.ends_with("deps") {
-            peelbox_binary = peelbox_binary
-                .parent()
-                .context("No parent directory")?
-                .to_path_buf();
-        }
-
-        let peelbox_binary = peelbox_binary.join("peelbox");
-
-        if !peelbox_binary.exists() {
-            anyhow::bail!("peelbox binary not found at {}", peelbox_binary.display());
-        }
-
-        let buildkit_addr = format!("tcp://127.0.0.1:{}", port);
-
-        // Set up external cache directory (same as build_image)
-        let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
-            PathBuf::from(custom_cache).join("external-cache")
-        } else {
-            std::env::temp_dir().join("peelbox-test-external-cache")
-        };
-        std::fs::create_dir_all(&external_cache_dir)
-            .context("Failed to create external cache directory")?;
-
-        eprintln!(
-            "Using external BuildKit cache at: {}",
-            external_cache_dir.display()
-        );
-
-        let cache_from_path = format!("type=local,src={}", external_cache_dir.display());
-        let cache_to_path = format!("type=local,dest={}", external_cache_dir.display());
-
-        let mut cmd = std::process::Command::new(&peelbox_binary);
-        cmd.args([
-            "build",
-            "--spec",
-            spec_path.to_str().unwrap(),
-            "--tag",
-            image_name,
-            "--buildkit",
-            &buildkit_addr,
-            "--context",
-            context_path.to_str().unwrap(),
-            "--output",
-            output_tar.to_str().unwrap(),
-            "--quiet",
-            "--cache-from",
-            &cache_from_path,
-            "--cache-to",
-            &cache_to_path,
-        ]);
-
-        if let Ok(rust_log) = std::env::var("RUST_LOG") {
-            cmd.env("RUST_LOG", rust_log);
-        }
-
-        let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
-
-        if !peelbox_output.status.success() {
-            eprintln!(
-                "peelbox build stdout:\n{}",
-                String::from_utf8_lossy(&peelbox_output.stdout)
-            );
-            eprintln!(
-                "peelbox build stderr:\n{}",
-                String::from_utf8_lossy(&peelbox_output.stderr)
-            );
-        }
-
-        let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
-            .trim()
-            .to_string();
-
-        let image_exists = if !image_id.is_empty() {
-            self.docker.inspect_image(&image_id).await.is_ok()
-        } else {
-            false
-        };
-
-        if !image_exists {
-            let load_output = std::process::Command::new("docker")
-                .args(["load", "-i", output_tar.to_str().unwrap()])
-                .output()
-                .context("Failed to load image into Docker")?;
-
-            if !load_output.status.success() {
-                anyhow::bail!(
-                    "Failed to load image into Docker: {}",
-                    String::from_utf8_lossy(&load_output.stderr)
-                );
-            }
-        } else {
-            let _ = std::process::Command::new("docker")
-                .args(["tag", &image_id, image_name])
-                .status();
-        }
-
-        self.docker
-            .inspect_image(image_name)
-            .await
-            .context("Failed to inspect image after build")?;
 
         Ok(image_name.to_string())
     }

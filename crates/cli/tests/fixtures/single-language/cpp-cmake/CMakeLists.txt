@@ -4,21 +4,6 @@ project(cpp-api VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Boost 1.75 REQUIRED COMPONENTS system thread)
-find_package(OpenSSL REQUIRED)
-
-include_directories(${Boost_INCLUDE_DIRS})
-
-add_executable(server
+add_executable(app
     src/main.cpp
 )
-
-target_link_libraries(server
-    ${Boost_LIBRARIES}
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    pthread
-)
-
-enable_testing()
-add_subdirectory(tests EXCLUDE_FROM_ALL)

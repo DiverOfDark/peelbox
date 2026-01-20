@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"python-3.14\",\n  \"manifest_files\": [\"universalbuild.json\"],\n  \"build_commands\": [\"pip install --user --no-cache-dir -r requirements.txt\"],\n  \"cache_dirs\": [\".cache/pip\"],\n  \"build_packages\": [\"python-3.14\", \"py3.14-pip\", \"build-base\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [],\n  \"common_ports\": [5000],\n  \"confidence\": 0.949999988079071\n}\n```",
     "tool_call": null,
-    "response_time": 2146
+    "response_time": 1938
   },
-  "recorded_at": "2026-01-18T01:26:37.575367116+00:00"
+  "recorded_at": "2026-01-25T18:26:55.083583588+00:00"
 }

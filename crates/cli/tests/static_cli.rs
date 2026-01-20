@@ -13,6 +13,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
+mod support;
+
 /// Helper to get the path to the peelbox binary
 fn peelbox_bin() -> PathBuf {
     // In tests, the binary should be at target/debug/peelbox
@@ -135,7 +137,8 @@ fn test_detect_nonexistent_path() {
 
 #[test]
 fn test_detect_file_instead_of_directory() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let file_path = temp_dir.path().join("file.txt");
     fs::write(&file_path, "content").expect("Failed to write file");
 
@@ -155,7 +158,8 @@ fn test_detect_file_instead_of_directory() {
 #[serial]
 fn test_detect_json_format() {
     // Use embedded provider with smallest model for fast testing
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(peelbox_bin())
@@ -189,7 +193,8 @@ fn test_detect_json_format() {
 #[serial]
 fn test_detect_yaml_format() {
     // Use embedded provider with smallest model for fast testing
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(peelbox_bin())
@@ -222,7 +227,8 @@ fn test_detect_yaml_format() {
 #[serial]
 fn test_detect_with_output_file() {
     // Use embedded provider for testing (auto-selects model based on available RAM)
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
     let output_file = temp_dir.path().join("output.json");
 
@@ -292,7 +298,8 @@ fn test_log_level_flag() {
 
 #[test]
 fn test_invalid_backend() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(peelbox_bin())
@@ -314,7 +321,8 @@ fn test_invalid_backend() {
 #[serial]
 fn test_detect_with_timeout() {
     // Use embedded provider with smallest model for fast testing
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(peelbox_bin())
@@ -364,7 +372,8 @@ fn test_health_with_specific_backend() {
 #[serial]
 fn test_detect_no_cache_flag() {
     // Use embedded provider with smallest model for fast testing
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(peelbox_bin())
@@ -389,7 +398,8 @@ fn test_detect_no_cache_flag() {
 
 #[test]
 fn test_detect_verbose_output_flag() {
-    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let temp_dir =
+        TempDir::new_in(support::get_test_temp_dir()).expect("Failed to create temp dir");
     let repo_path = create_rust_repo(&temp_dir);
 
     let output = Command::new(peelbox_bin())

@@ -1,6 +1,7 @@
 //! Cargo build system (Rust)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -41,11 +42,15 @@ impl BuildSystem for CargoBuildSystem {
                 };
 
                 if is_valid {
-                    detections.push(DetectionStack::new(
-                        BuildSystemId::Cargo,
-                        LanguageId::Rust,
-                        rel_path.clone(),
-                    ));
+                    let lang = crate::language::RustLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        detections.push(DetectionStack::new(
+                            BuildSystemId::Cargo,
+                            LanguageId::Rust,
+                            rel_path.clone(),
+                        ));
+                    }
                 }
             }
         }

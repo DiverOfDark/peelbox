@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"Bazel\",\n  \"file_extensions\": [\".cc\"],\n  \"package_managers\": [],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": null,\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}\n```",
     "tool_call": null,
-    "response_time": 1324
+    "response_time": 2687
   },
-  "recorded_at": "2026-01-13T19:01:10.981292680+00:00"
+  "recorded_at": "2026-01-25T18:23:22.243593905+00:00"
 }

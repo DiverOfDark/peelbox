@@ -1,6 +1,8 @@
 const std = @import("std");
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-    try stdout.print("Hello from Zig!\n", .{});
+    std.debug.print("Hello from Zig E2E test server!\n", .{});
+    while (true) {
+        std.posix.nanosleep(1, 0);
+    }
 }

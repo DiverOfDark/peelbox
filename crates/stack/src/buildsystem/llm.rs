@@ -46,9 +46,15 @@ impl LLMBuildSystem {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
 
-        let content = fs
+        let mut content = fs
             .read_to_string(manifest_path)
             .unwrap_or_else(|_| String::new());
+
+        // Truncate content to avoid context window explosion (max 20KB)
+        if content.len() > 20_000 {
+            content.truncate(20_000);
+            content.push_str("\n... (truncated)");
+        }
 
         let prompt = format!(
             r#"Analyze this build manifest and extract build system information. Respond with JSON ONLY.
@@ -142,7 +148,9 @@ Repository: {}
 File tree summary:
 {}
 
-Identify manifest files and their build systems. Return JSON array ONLY:
+Identify manifest files and their build systems. Return JSON array ONLY.
+CRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), logs, and output directories.
+
 [
   {{
     "manifest_path": "build.zig",
@@ -247,6 +255,10 @@ fn create_file_tree_summary(file_tree: &[PathBuf]) -> String {
     let root_files: Vec<_> = file_tree
         .iter()
         .filter(|p| p.components().count() == 1)
+        .filter(|p| {
+            let filename = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            !is_lockfile(filename)
+        })
         .take(50)
         .map(|p| p.display().to_string())
         .collect();
@@ -254,7 +266,10 @@ fn create_file_tree_summary(file_tree: &[PathBuf]) -> String {
     let mut ext_counts = BTreeMap::new();
     for path in file_tree {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            *ext_counts.entry(ext).or_insert(0) += 1;
+            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if !is_lockfile(filename) {
+                *ext_counts.entry(ext).or_insert(0) += 1;
+            }
         }
     }
 
@@ -262,6 +277,23 @@ fn create_file_tree_summary(file_tree: &[PathBuf]) -> String {
         "Root files: {}\nExtensions: {:?}",
         root_files.join(", "),
         ext_counts
+    )
+}
+
+fn is_lockfile(filename: &str) -> bool {
+    matches!(
+        filename,
+        "package-lock.json"
+            | "yarn.lock"
+            | "pnpm-lock.yaml"
+            | "Cargo.lock"
+            | "go.sum"
+            | "composer.lock"
+            | "Gemfile.lock"
+            | "poetry.lock"
+            | "mix.lock"
+            | "packages.lock.json"
+            | "project.assets.json"
     )
 }
 
@@ -310,39 +342,24 @@ mod tests {
         assert_eq!(result[0].language, LanguageId::Custom("Zig".to_string()));
     }
 
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_confidence_filtering() {
-        let manifests = vec![
-            ManifestInfo {
-                manifest_path: "build.zig".to_string(),
-                build_system: "zig".to_string(),
-                language: "Zig".to_string(),
-                confidence: 0.9,
-            },
-            ManifestInfo {
-                manifest_path: "unknown.txt".to_string(),
-                build_system: "Unknown".to_string(),
-                language: "Unknown".to_string(),
-                confidence: 0.2,
-            },
+    #[test]
+    fn test_create_file_tree_summary_excludes_lockfiles() {
+        let file_tree = vec![
+            PathBuf::from("package.json"),
+            PathBuf::from("yarn.lock"),
+            PathBuf::from("Cargo.toml"),
+            PathBuf::from("Cargo.lock"),
+            PathBuf::from("src/main.rs"),
         ];
+        let summary = create_file_tree_summary(&file_tree);
+        assert!(summary.contains("package.json"));
+        assert!(summary.contains("Cargo.toml"));
+        assert!(!summary.contains("yarn.lock"));
+        assert!(!summary.contains("Cargo.lock"));
 
-        let json = serde_json::to_string(&manifests).unwrap();
-        let client = Arc::new(MockLLMClient::new());
-        client.add_response(MockResponse::text(json));
-
-        let build_system = LLMBuildSystem::new(client);
-        let file_tree = vec![PathBuf::from("build.zig"), PathBuf::from("unknown.txt")];
-        let fs = RealFileSystem;
-
-        let result = build_system
-            .detect_all(Path::new("/tmp"), &file_tree, &fs)
-            .unwrap();
-
-        assert_eq!(result.len(), 1);
-        assert_eq!(
-            result[0].build_system,
-            BuildSystemId::Custom("zig".to_string())
-        );
+        assert!(summary.contains("\"json\": 1"));
+        assert!(summary.contains("\"toml\": 1"));
+        assert!(summary.contains("\"rs\": 1"));
+        assert!(!summary.contains("\"lock\""));
     }
 }

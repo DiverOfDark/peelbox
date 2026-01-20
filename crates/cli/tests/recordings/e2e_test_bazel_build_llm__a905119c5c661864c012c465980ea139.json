@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"gcc\",\n  \"manifest_files\": [\"BUILD\"],\n  \"build_commands\": [\"bazel build //:hello\"],\n  \"cache_dirs\": [\"bazel-cache\", \".bazel_cache\"],\n  \"build_packages\": [\"bazel\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"bazel-bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1219
+    "response_time": 2739
   },
-  "recorded_at": "2026-01-13T19:01:08.040945895+00:00"
+  "recorded_at": "2026-01-25T18:23:15.849155735+00:00"
 }

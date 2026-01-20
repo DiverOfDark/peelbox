@@ -116,10 +116,11 @@ impl LanguageDefinition for JavaLanguage {
             return Some(caps.get(1)?.as_str().to_string());
         }
 
-        // java { toolchain { languageVersion.set(JavaLanguageVersion.of(17)) } }
-        if let Some(caps) = Regex::new(r"languageVersion\.set\(JavaLanguageVersion\.of\((\d+)\)\)")
-            .ok()
-            .and_then(|re| re.captures(content))
+        if let Some(caps) = Regex::new(
+            r"languageVersion(?:\.set)?(?:\s*=\s*|\s+|\()JavaLanguageVersion\.of\((\d+)\)",
+        )
+        .ok()
+        .and_then(|re| re.captures(content))
         {
             return Some(caps.get(1)?.as_str().to_string());
         }
@@ -207,19 +208,8 @@ impl LanguageDefinition for JavaLanguage {
         fs: &dyn peelbox_core::fs::FileSystem,
         file_path: &std::path::Path,
     ) -> bool {
-        if let Some(file_name) = file_path.file_name().and_then(|n| n.to_str()) {
-            if file_name.ends_with("Application.java") || file_name.ends_with("Application.kt") {
-                if let Some(path_str) = file_path.to_str() {
-                    if path_str.contains("src/main/java/") || path_str.contains("src/main/kotlin/")
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
         if let Ok(content) = fs.read_to_string(file_path) {
-            if content.contains("public static void main") {
+            if content.contains("public static void main") || content.contains("fun main") {
                 return true;
             }
         }
@@ -241,6 +231,79 @@ impl LanguageDefinition for JavaLanguage {
 
     fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
         None
+    }
+
+    fn find_entrypoints(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        let mut entrypoints = Vec::new();
+        let package_re = Regex::new(r"package\s+([\w\.]+)").unwrap();
+
+        for file_path in file_tree {
+            if file_path.starts_with(project_root) {
+                let full_path = if file_path.is_absolute() {
+                    file_path.clone()
+                } else {
+                    repo_root.join(file_path)
+                };
+
+                if let Ok(content) = fs.read_to_string(&full_path) {
+                    if content.contains("static void main") || content.contains("fun main") {
+                        let package = package_re
+                            .captures(&content)
+                            .and_then(|c| c.get(1))
+                            .map(|m| m.as_str().to_string());
+                        let file_stem = file_path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("App");
+                        let full_name = if let Some(p) = package {
+                            format!("{}.{}", p, file_stem)
+                        } else {
+                            file_stem.to_string()
+                        };
+                        entrypoints.push(full_name);
+                    }
+                }
+            }
+        }
+        entrypoints
+    }
+
+    fn is_runnable(
+        &self,
+        fs: &dyn peelbox_core::fs::FileSystem,
+        repo_root: &std::path::Path,
+        project_root: &std::path::Path,
+        file_tree: &[std::path::PathBuf],
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if let Some(content) = manifest_content {
+            if content.contains("<packaging>pom</packaging>") {
+                return false;
+            }
+            if content.contains("spring-boot-maven-plugin")
+                || content.contains("org.springframework.boot")
+            {
+                if !content.contains("apply false") {
+                    return true;
+                }
+            }
+            if content.contains("<mainClass>") {
+                return true;
+            }
+            if content.contains("id 'java-library'") || content.contains("id \"java-library\"") {
+                return false;
+            }
+        }
+
+        !self
+            .find_entrypoints(fs, repo_root, project_root, file_tree)
+            .is_empty()
     }
 }
 

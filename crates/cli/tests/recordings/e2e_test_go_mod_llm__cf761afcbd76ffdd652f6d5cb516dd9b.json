@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"go\",\n  \"manifest_files\": [\"go.mod\"],\n  \"build_commands\": [\"go build\"],\n  \"cache_dirs\": [\".go-build\"],\n  \"build_packages\": [\"go\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"app\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1389
+    "response_time": 3949
   },
-  "recorded_at": "2026-01-13T19:03:06.207149621+00:00"
+  "recorded_at": "2026-01-25T18:25:23.176452627+00:00"
 }

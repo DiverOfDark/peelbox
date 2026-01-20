@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"deno\",\n  \"manifest_files\": [\"deno.json\"],\n  \"build_commands\": [\"deno run -A dev.ts build\"],\n  \"cache_dirs\": [],\n  \"build_packages\": [\"deno\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1407
+    "response_time": 1447
   },
-  "recorded_at": "2026-01-13T19:03:36.999515600+00:00"
+  "recorded_at": "2026-01-25T18:25:00.218938654+00:00"
 }

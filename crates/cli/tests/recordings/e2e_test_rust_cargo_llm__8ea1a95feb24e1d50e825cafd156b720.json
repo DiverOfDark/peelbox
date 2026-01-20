@@ -13,7 +13,7 @@
   "response": {
     "content": "{\n  \"name\": \"Rust\",\n  \"file_extensions\": [\".rs\"],\n  \"package_managers\": [\"Cargo\"],\n  \"excluded_dirs\": [\"target\"],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 1.0\n}",
     "tool_call": null,
-    "response_time": 1603
+    "response_time": 2237
   },
-  "recorded_at": "2026-01-13T19:05:34.900702726+00:00"
+  "recorded_at": "2026-01-25T18:27:14.161688519+00:00"
 }

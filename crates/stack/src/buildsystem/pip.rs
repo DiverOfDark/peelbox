@@ -2,6 +2,7 @@
 
 use super::python_common::{parse_pyproject_toml_version, read_python_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -47,13 +48,46 @@ impl BuildSystem for PipBuildSystem {
                     let abs_path = repo_root.join(rel_path);
                     let content = fs.read_to_string(&abs_path).ok();
                     if let Some(c) = content.as_deref() {
-                        c.lines()
-                            .any(|l| !l.trim().is_empty() && !l.starts_with('#'))
+                        let has_deps = c
+                            .lines()
+                            .any(|l| !l.trim().is_empty() && !l.starts_with('#'));
+
+                        if has_deps {
+                            let lang = crate::language::PythonLanguage;
+                            let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+
+                            if lang.is_runnable(
+                                fs,
+                                repo_root,
+                                project_dir,
+                                file_tree,
+                                content.as_deref(),
+                            ) {
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
                     } else {
-                        true
+                        let lang = crate::language::PythonLanguage;
+                        let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+                        lang.is_runnable(fs, repo_root, project_dir, file_tree, None)
                     }
                 }
-                Some("setup.py") | Some("setup.cfg") => true,
+                Some("setup.py") | Some("setup.cfg") => {
+                    let lang = crate::language::PythonLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+                    let abs_path = repo_root.join(rel_path);
+                    let content = fs.read_to_string(&abs_path).ok();
+
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        true
+                    } else {
+                        false
+                    }
+                }
                 _ => false,
             };
 

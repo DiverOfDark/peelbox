@@ -1,0 +1,19 @@
+{
+  "request_hash": "71d55e0271ae039b163795a757ff5200",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: gradle-java-app\nFile tree summary:\nRoot files: build.gradle, settings.gradle, universalbuild.json\nExtensions: {\"gradle\": 4, \"java\": 2, \"json\": 1}\n\nIdentify manifest files and their build systems. Return JSON array ONLY.\nCRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), logs, and output directories.\n\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"build.gradle\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Java\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"settings.gradle\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Java\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"Unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 3116
+  },
+  "recorded_at": "2026-01-25T18:23:34.549083244+00:00"
+}

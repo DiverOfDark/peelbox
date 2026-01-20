@@ -1,0 +1,19 @@
+{
+  "request_hash": "e74f52e3e5eb3e42526e3029af03e02b",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this build manifest to identify the programming language. Respond with JSON ONLY.\n\nFile: build.gradle\nContent:\nplugins {\n    id 'org.springframework.boot' version '3.4.1' apply false\n    id 'io.spring.dependency-management' version '1.1.7' apply false\n}\n\nallprojects {\n    group = 'com.example'\n    version = '1.0.0'\n\n    repositories {\n        mavenCentral()\n    }\n\n    tasks.withType(JavaCompile) {\n        options.release = 17\n    }\n}\n\n\nResponse format ONLY:\n{\n  \"name\": \"LanguageName\",\n  \"file_extensions\": [\".ext\"],\n  \"package_managers\": [\"manager1\"],\n  \"excluded_dirs\": [\"node_modules\", \"target\"],\n  \"workspace_configs\": [\"package.json\"],\n  \"env_vars\": [\"PORT\", \"NODE_ENV\"],\n  \"health_endpoints\": [\"/health\", \"/ready\"],\n  \"default_port\": 3000,\n  \"runtime_name\": \"node\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"index.js\",\n  \"env_var_patterns\": [[\"PORT\", \"\\\\bport\\\\s*=\\\\s*(\\\\d+)\"]],\n  \"port_patterns\": [[\"listen\", \"\\\\blisten\\\\((\\\\d+)\"]],\n  \"health_check_patterns\": [[\"health\", \"\\\\/health\"]],\n  \"confidence\": 0.95\n}\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n{\n  \"name\": \"Groovy\",\n  \"file_extensions\": [\".gradle\"],\n  \"package_managers\": [\"Maven\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": 0,\n  \"runtime_name\": \"Java\",\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": \"\",\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}\n```",
+    "tool_call": null,
+    "response_time": 1500
+  },
+  "recorded_at": "2026-01-25T19:19:13.065747700+00:00"
+}

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"ruby\",\n  \"manifest_files\": [\"universalbuild.json\"],\n  \"build_commands\": [\"bundle install\"],\n  \"cache_dirs\": [\"vendor\", \".bundle\"],\n  \"build_packages\": [\"ruby-3.4\", \"ruby-3.4-dev\", \"ruby3.4-bundler\", \"build-base\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [],\n  \"common_ports\": [4567],\n  \"confidence\": 0.949999988079071\n}\n```",
     "tool_call": null,
-    "response_time": 1763
+    "response_time": 2576
   },
-  "recorded_at": "2026-01-17T23:38:37.461577684+00:00"
+  "recorded_at": "2026-01-25T18:27:09.753430747+00:00"
 }
