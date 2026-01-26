@@ -32,7 +32,7 @@ genai = "0.4"
 cuda = ["peelbox-llm/cuda"]
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = "3.24"
 serial_test = "3.0"
 yare = "3.0.0"
 filetime = "0.2"
