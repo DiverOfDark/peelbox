@@ -73,6 +73,7 @@ impl StackRegistry {
             languages.insert(LanguageId::PHP, Arc::new(PhpLanguage));
             languages.insert(LanguageId::Cpp, Arc::new(CppLanguage));
             languages.insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
+            languages.insert(LanguageId::Zig, Arc::new(ZigLanguage));
         }
 
         {
@@ -97,6 +98,7 @@ impl StackRegistry {
                     BuildSystemId::Make => Arc::new(MakeBuildSystem),
                     BuildSystemId::Meson => Arc::new(MesonBuildSystem),
                     BuildSystemId::Mix => Arc::new(MixBuildSystem),
+                    BuildSystemId::Zig => Arc::new(ZigBuildSystem),
                     BuildSystemId::Custom(_) => continue,
                 };
                 build_systems.insert(id.clone(), bs);
