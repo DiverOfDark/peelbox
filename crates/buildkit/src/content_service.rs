@@ -93,14 +93,36 @@ impl ContentService {
 
         let cache_dir = self.cache_dir.clone();
         tokio::task::spawn_blocking(move || {
+            // Acquire cache-dir-level lock to prevent concurrent GC operations
+            let gc_lock_path = cache_dir.join(".gc.lock");
+            let gc_lock_file = std::fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(false)
+                .open(&gc_lock_path)
+                .with_context(|| {
+                    format!("Failed to open GC lock file at {}", gc_lock_path.display())
+                })?;
+
+            use fs2::FileExt;
+            gc_lock_file
+                .lock_exclusive()
+                .with_context(|| "Failed to acquire exclusive lock for GC")?;
+
+            debug!("Acquired exclusive lock for GC operation");
+
             let index = crate::OciIndex::read_with_lock(&cache_dir)?;
-            let mut reachable = index.get_reachable_digests(&cache_dir);
+            let mut reachable = index.get_reachable_digests(&cache_dir).context(
+                "Failed to compute reachable digests - aborting GC to prevent data loss",
+            )?;
 
             if let Some(digest) = last_digest {
                 reachable.insert(digest);
             }
 
             crate::OciIndex::gc(&cache_dir, &reachable)?;
+
+            // Lock is automatically released when gc_lock_file is dropped
             Ok::<(), anyhow::Error>(())
         })
         .await

@@ -72,8 +72,19 @@ impl LLBBuilder {
             // Generate a stable random UUID for this instance if no project name provided
             // This prevents cache sharing between unnamed projects
             static DEFAULT_PROJECT_ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-            let id = DEFAULT_PROJECT_ID.get_or_init(|| uuid::Uuid::new_v4().to_string());
-            tracing::warn!("No project name provided, using transient cache ID: {}", id);
+            static WARN_LOGGED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
+            let id = DEFAULT_PROJECT_ID.get_or_init(|| {
+                let new_id = uuid::Uuid::new_v4().to_string();
+                // Log warning only once when ID is first initialized
+                WARN_LOGGED.get_or_init(|| {
+                    tracing::warn!(
+                        "No project name provided, using transient cache ID: {}",
+                        new_id
+                    );
+                });
+                new_id
+            });
             id
         });
         let normalized = cache_path.trim_start_matches("/build/").replace('/', "-");

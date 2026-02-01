@@ -242,19 +242,21 @@ impl BuildStrategy for PeelboxStrategy {
             };
 
             // Inputs mapping
-            // 0: Build Context (Source)
-            // 1: Runtime Base (Target)
+            // 0: Wolfi Base (provides shell for running copy commands)
+            // 1: Runtime Base rootfs at / (target for copying to /out)
+            // 2: Build source at /build (source for copying from)
+            // 3: Runtime Base (cloned as output layer at /out)
             let inputs = vec![
                 (wolfi_base_idx, 0),
                 if !spec.build.commands.is_empty() {
-                    (build_result_idx, 0)
+                    (build_result_idx, 0) // Rootfs from build result
                 } else {
-                    (context_idx, 0)
+                    (wolfi_base_idx, 0) // Wolfi base if no build commands
                 },
                 if !spec.build.commands.is_empty() {
-                    (build_result_idx, 1)
+                    (build_result_idx, 1) // Build artifacts from /build output
                 } else {
-                    (context_idx, 0)
+                    (context_idx, 0) // Raw context if no build commands
                 },
                 (runtime_base_idx, 0),
             ];

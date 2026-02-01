@@ -750,36 +750,43 @@ async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {
     };
 
     // Parse cache options (explicit flags take precedence over env var)
-    let project_name = match spec.metadata.project_name.as_deref() {
-        Some(name) => name,
-        None => {
-            error!("Project name is required for caching");
-            return 1;
+    let (cache_imports, cache_exports) = if !args.cache.is_empty() || auto_cache_dir.is_some() {
+        // Only require project_name when caching is enabled
+        let project_name = match spec.metadata.project_name.as_deref() {
+            Some(name) => name,
+            None => {
+                error!("Project name is required when caching is enabled");
+                return 1;
+            }
+        };
+
+        if !args.cache.is_empty() {
+            let imports = parse_cache_imports(
+                &args.cache,
+                auto_cache_key.as_deref(),
+                project_name,
+                &spec_path_str,
+            );
+            let exports = parse_cache_exports(&args.cache);
+            if imports.is_empty() && exports.is_empty() {
+                warn!("No valid cache configurations after parsing");
+            }
+            (imports, exports)
+        } else if let Some(ref cache_dir) = auto_cache_dir {
+            // Auto-configure cache from env var (shared blobs, per-app index)
+            let cache_import_str = format!("type=local,src={}", cache_dir.display());
+            let cache_export_str = format!("type=local,dest={}", cache_dir.display());
+            let imports = parse_cache_imports(
+                std::slice::from_ref(&cache_import_str),
+                auto_cache_key.as_deref(),
+                project_name,
+                &spec_path_str,
+            );
+            let exports = parse_cache_exports(&[cache_export_str]);
+            (imports, exports)
+        } else {
+            unreachable!("Cache logic should only execute when cache is configured")
         }
-    };
-    let (cache_imports, cache_exports) = if !args.cache.is_empty() {
-        let imports = parse_cache_imports(
-            &args.cache,
-            auto_cache_key.as_deref(),
-            project_name,
-            &spec_path_str,
-        );
-        let exports = parse_cache_exports(&args.cache);
-        if imports.is_empty() && exports.is_empty() {
-            warn!("No valid cache configurations after parsing");
-        }
-        (imports, exports)
-    } else if let Some(ref cache_dir) = auto_cache_dir {
-        // Auto-configure cache from env var (shared blobs, per-app index)
-        let cache_str = format!("type=local,path={}", cache_dir.display());
-        let imports = parse_cache_imports(
-            std::slice::from_ref(&cache_str),
-            auto_cache_key.as_deref(),
-            project_name,
-            &spec_path_str,
-        );
-        let exports = parse_cache_exports(&[cache_str]);
-        (imports, exports)
     } else {
         (Vec::new(), Vec::new())
     };
@@ -911,6 +918,16 @@ impl CacheConfig {
         application_name: &str,
         universal_build_path: &str,
     ) -> anyhow::Result<CacheImport> {
+        // Translate path= to src= for local caches before validation
+        if self.r#type == "local"
+            && self.attrs.contains_key("path")
+            && !self.attrs.contains_key("src")
+        {
+            if let Some(path) = self.attrs.remove("path") {
+                self.attrs.insert("src".into(), path);
+            }
+        }
+
         self.validate_import()?;
 
         // Auto-resolve digest for local caches
@@ -942,7 +959,17 @@ impl CacheConfig {
         })
     }
 
-    fn into_export(self) -> anyhow::Result<CacheExport> {
+    fn into_export(mut self) -> anyhow::Result<CacheExport> {
+        // Translate path= to dest= for local caches before validation
+        if self.r#type == "local"
+            && self.attrs.contains_key("path")
+            && !self.attrs.contains_key("dest")
+        {
+            if let Some(path) = self.attrs.remove("path") {
+                self.attrs.insert("dest".into(), path);
+            }
+        }
+
         self.validate_export()?;
         info!("Cache export: type={}, attrs={:?}", self.r#type, self.attrs);
         Ok(CacheExport {

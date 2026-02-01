@@ -285,34 +285,40 @@ impl OciIndex {
         });
     }
 
-    pub fn get_reachable_digests(&self, cache_dir: &Path) -> HashSet<String> {
+    pub fn get_reachable_digests(&self, cache_dir: &Path) -> Result<HashSet<String>> {
         let mut reachable = HashSet::new();
 
         for manifest_desc in &self.manifests {
             reachable.insert(manifest_desc.digest.clone());
 
             let blob_path = crate::digest::blob_path_or_fallback(&manifest_desc.digest, cache_dir);
-            if let Ok(content) = fs::read_to_string(&blob_path) {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                    if let Some(config_digest) = json.get("config").and_then(|c| c.get("digest")) {
-                        if let Some(digest_str) = config_digest.as_str() {
-                            reachable.insert(digest_str.to_string());
-                        }
-                    }
+            let content = fs::read_to_string(&blob_path).with_context(|| {
+                format!("Failed to read manifest blob at {}", blob_path.display())
+            })?;
 
-                    if let Some(layers) = json.get("layers").and_then(|l| l.as_array()) {
-                        for layer in layers {
-                            if let Some(layer_digest) = layer.get("digest").and_then(|d| d.as_str())
-                            {
-                                reachable.insert(layer_digest.to_string());
-                            }
-                        }
+            let json = serde_json::from_str::<serde_json::Value>(&content).with_context(|| {
+                format!(
+                    "Failed to parse manifest JSON for digest {}",
+                    manifest_desc.digest
+                )
+            })?;
+
+            if let Some(config_digest) = json.get("config").and_then(|c| c.get("digest")) {
+                if let Some(digest_str) = config_digest.as_str() {
+                    reachable.insert(digest_str.to_string());
+                }
+            }
+
+            if let Some(layers) = json.get("layers").and_then(|l| l.as_array()) {
+                for layer in layers {
+                    if let Some(layer_digest) = layer.get("digest").and_then(|d| d.as_str()) {
+                        reachable.insert(layer_digest.to_string());
                     }
                 }
             }
         }
 
-        reachable
+        Ok(reachable)
     }
 
     pub fn gc(cache_dir: &Path, keep_digests: &HashSet<String>) -> Result<()> {
@@ -490,7 +496,7 @@ mod tests {
             "spec.json",
         );
 
-        let reachable = index.get_reachable_digests(cache_dir);
+        let reachable = index.get_reachable_digests(cache_dir).unwrap();
         assert!(reachable.contains(manifest_digest));
         assert!(reachable.contains(config_digest));
         assert!(reachable.contains(layer1_digest));
