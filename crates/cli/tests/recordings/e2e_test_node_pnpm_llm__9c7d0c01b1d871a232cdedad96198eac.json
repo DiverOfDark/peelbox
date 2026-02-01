@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"nodejs-22\",\n  \"manifest_files\": [\"package.json\"],\n  \"build_commands\": [\"npm install\", \"npm run build\"],\n  \"cache_dirs\": [\"node_modules\"],\n  \"build_packages\": [\"nodejs-22\"],\n  \"runtime_packages\": [\"nodejs-22\", \"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"dist/index.js\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1668
+    "response_time": 1666
   },
-  "recorded_at": "2026-01-13T19:04:09.077839670+00:00"
+  "recorded_at": "2026-02-01T20:27:44.168535377+00:00"
 }

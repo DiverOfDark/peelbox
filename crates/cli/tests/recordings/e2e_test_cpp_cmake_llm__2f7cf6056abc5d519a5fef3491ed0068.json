@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"cmake\",\n  \"manifest_files\": [\"CMakeLists.txt\"],\n  \"build_commands\": [\"cmake -DCMAKE_BUILD_TYPE=Release . && make\"],\n  \"cache_dirs\": [\"cmake-build-release\"],\n  \"build_packages\": [\"cmake\"],\n  \"runtime_packages\": [\"glibc\", \"openssl\"],\n  \"artifacts\": [\"server\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1435
+    "response_time": 1440
   },
-  "recorded_at": "2026-01-13T19:05:11.191742638+00:00"
+  "recorded_at": "2026-02-01T20:26:30.568357907+00:00"
 }

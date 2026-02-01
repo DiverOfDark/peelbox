@@ -50,6 +50,15 @@ pub trait Runtime: Send + Sync {
         service_path: &Path,
         manifest_content: Option<&str>,
     ) -> Vec<String>;
+
+    fn runtime_env(
+        &self,
+        _wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
+        _service_path: &Path,
+        _manifest_content: Option<&str>,
+    ) -> std::collections::HashMap<String, String> {
+        std::collections::HashMap::new()
+    }
 }
 
 pub use beam::BeamRuntime;

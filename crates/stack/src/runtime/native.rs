@@ -8,14 +8,17 @@ pub struct NativeRuntime;
 
 impl NativeRuntime {
     fn extract_ports_from_source(&self, files: &[PathBuf]) -> Option<u16> {
-        let bind_pattern = Regex::new(r"bind\s*\([^,)]*,\s*[^,)]*,\s*(\d+)\s*\)").unwrap();
+        let c_bind_pattern = Regex::new(r"bind\s*\([^,)]*,\s*[^,)]*,\s*(\d+)\s*\)").unwrap();
         let listen_pattern = Regex::new(r"listen\s*\(\s*(\d+)\s*\)").unwrap();
+        // Rust/Go style .bind("...:port") or .bind(("...", port))
+        let rust_bind_pattern =
+            Regex::new(r#"\.bind\s*\(\s*(?:\([^,]+,\s*|"[^"]*:)(\d{4,5})\s*[\)"]"#).unwrap();
 
         for file in files {
             if let Some(ext) = file.extension() {
                 if ext == "c" || ext == "cpp" || ext == "cc" || ext == "rs" || ext == "go" {
                     if let Ok(content) = std::fs::read_to_string(file) {
-                        if let Some(cap) = bind_pattern.captures(&content) {
+                        if let Some(cap) = c_bind_pattern.captures(&content) {
                             if let Some(port_str) = cap.get(1) {
                                 if let Ok(port) = port_str.as_str().parse::<u16>() {
                                     return Some(port);
@@ -23,6 +26,13 @@ impl NativeRuntime {
                             }
                         }
                         if let Some(cap) = listen_pattern.captures(&content) {
+                            if let Some(port_str) = cap.get(1) {
+                                if let Ok(port) = port_str.as_str().parse::<u16>() {
+                                    return Some(port);
+                                }
+                            }
+                        }
+                        if let Some(cap) = rust_bind_pattern.captures(&content) {
                             if let Some(port_str) = cap.get(1) {
                                 if let Ok(port) = port_str.as_str().parse::<u16>() {
                                     return Some(port);
@@ -120,9 +130,17 @@ impl Runtime for NativeRuntime {
         &self,
         _wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
-        _manifest_content: Option<&str>,
+        manifest_content: Option<&str>,
     ) -> Vec<String> {
-        vec!["glibc".to_string(), "ca-certificates".to_string()]
+        let mut packages = vec!["glibc".to_string(), "ca-certificates".to_string()];
+
+        if let Some(content) = manifest_content {
+            if content.contains("openssl") {
+                packages.push("openssl".to_string());
+            }
+        }
+
+        packages
     }
 }
 
@@ -199,6 +217,27 @@ fn main() {
         let port = runtime.extract_ports_from_source(&files);
 
         assert_eq!(port, Some(3000));
+    }
+
+    #[test]
+    fn test_extract_ports_from_rust_tuple_bind() {
+        let temp_dir = TempDir::new().unwrap();
+        let rs_file = temp_dir.path().join("main.rs");
+        fs::write(
+            &rs_file,
+            r#"
+fn main() {
+    server.bind(("127.0.0.1", 8081))?;
+}
+"#,
+        )
+        .unwrap();
+
+        let runtime = NativeRuntime;
+        let files = vec![rs_file];
+        let port = runtime.extract_ports_from_source(&files);
+
+        assert_eq!(port, Some(8081));
     }
 
     #[test]

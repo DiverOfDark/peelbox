@@ -1,6 +1,7 @@
 //! Maven build system (Java/Kotlin)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -41,11 +42,18 @@ impl BuildSystem for MavenBuildSystem {
                 };
 
                 if is_valid {
-                    detections.push(DetectionStack::new(
-                        BuildSystemId::Maven,
-                        LanguageId::Java,
-                        rel_path.clone(),
-                    ));
+                    let lang = crate::language::JavaLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        detections.push(DetectionStack::new(
+                            BuildSystemId::Maven,
+                            LanguageId::Java,
+                            rel_path.clone(),
+                        ));
+                    } else if rel_path.to_string_lossy().contains("app") {
+                        eprintln!("Maven skipped 'app' at {:?} because is_runnable returned false. Project root: {:?}", rel_path, project_dir);
+                    }
                 }
             }
         }
@@ -57,6 +65,7 @@ impl BuildSystem for MavenBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let java_version = manifest_content
@@ -70,10 +79,14 @@ impl BuildSystem for MavenBuildSystem {
             .get_latest_version("maven")
             .expect("Failed to get maven version from Wolfi index");
 
-        let java_home = format!(
-            "/usr/lib/jvm/java-{}-openjdk",
-            java_version.trim_start_matches("openjdk-")
-        );
+        let java_home = if java_version == "openjdk-8" {
+            "/usr/lib/jvm/java-1.8-openjdk".to_string()
+        } else {
+            format!(
+                "/usr/lib/jvm/java-{}-openjdk",
+                java_version.trim_start_matches("openjdk-")
+            )
+        };
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
@@ -85,18 +98,39 @@ impl BuildSystem for MavenBuildSystem {
         let mut runtime_env = std::collections::HashMap::new();
         runtime_env.insert("CLASSPATH".to_string(), "/app/*:/app/lib/*".to_string());
 
+        let mut build_packages = vec![java_version, maven_version];
+        build_packages.push("ca-certificates".to_string());
+
+        let is_root = _relative_path.components().count() == 0 || _relative_path == Path::new(".");
+        let service_dir = _relative_path.to_string_lossy();
+
+        let pom_arg = if is_root {
+            "".to_string()
+        } else {
+            format!("-f {}/pom.xml ", service_dir)
+        };
+
+        let target_dir = if is_root {
+            "target".to_string()
+        } else {
+            format!("{}/target", service_dir)
+        };
+
         BuildTemplate {
-            build_packages: vec![java_version, maven_version],
+            build_packages,
             build_commands: vec![
-                "mvn package -DskipTests".to_string(),
-                "mvn dependency:copy-dependencies -DoutputDirectory=target/lib".to_string(),
+                format!("mvn {}package -DskipTests", pom_arg),
+                format!(
+                    "mvn {}dependency:copy-dependencies -DoutputDirectory={}/lib",
+                    pom_arg, target_dir
+                ),
             ],
             cache_paths: vec!["/root/.m2/repository/".to_string()],
             common_ports: vec![8080],
             build_env,
             runtime_copy: vec![
-                ("target/*.jar".to_string(), "/app/".to_string()),
-                ("target/lib/".to_string(), "/app/lib".to_string()),
+                (format!("{}/*.jar", target_dir), "/app/".to_string()),
+                (format!("{}/lib/", target_dir), "/app/lib".to_string()),
             ],
             runtime_env,
         }
@@ -165,7 +199,10 @@ fn parse_java_version(manifest_content: &str) -> Option<String> {
     let doc = Document::parse(manifest_content).ok()?;
 
     for node in doc.descendants() {
-        if node.has_tag_name("maven.compiler.source") || node.has_tag_name("java.version") {
+        if node.has_tag_name("maven.compiler.source")
+            || node.has_tag_name("java.version")
+            || node.has_tag_name("maven.compiler.release")
+        {
             if let Some(version) = node.text() {
                 let version_num = version.trim();
                 return Some(format!("openjdk-{}", version_num));
@@ -174,4 +211,130 @@ fn parse_java_version(manifest_content: &str) -> Option<String> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use peelbox_core::fs::{DirEntry, FileMetadata, FileType};
+    use peelbox_wolfi::WolfiPackageIndex;
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+
+    struct MockFileSystem {
+        files: HashMap<PathBuf, String>,
+    }
+
+    impl FileSystem for MockFileSystem {
+        fn read_to_string(&self, path: &Path) -> Result<String, anyhow::Error> {
+            self.files
+                .get(path)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("not found"))
+        }
+
+        fn exists(&self, path: &Path) -> bool {
+            self.files.contains_key(path)
+        }
+
+        fn is_file(&self, path: &Path) -> bool {
+            self.exists(path) // Simplification
+        }
+        fn is_dir(&self, _path: &Path) -> bool {
+            false
+        } // Simplification
+        fn read_dir(&self, _path: &Path) -> Result<Vec<DirEntry>, anyhow::Error> {
+            Ok(vec![])
+        } // Simplification
+
+        fn metadata(&self, path: &Path) -> Result<FileMetadata, anyhow::Error> {
+            if self.exists(path) {
+                Ok(FileMetadata {
+                    size: 100,
+                    file_type: FileType::File,
+                })
+            } else {
+                Err(anyhow::anyhow!("not found"))
+            }
+        }
+
+        fn read_bytes(&self, path: &Path, _max_bytes: usize) -> Result<Vec<u8>, anyhow::Error> {
+            self.read_to_string(path).map(|s| s.into_bytes())
+        }
+
+        fn canonicalize(&self, path: &Path) -> Result<PathBuf, anyhow::Error> {
+            Ok(path.to_path_buf())
+        }
+    }
+
+    #[test]
+    fn test_detect_simple_maven() {
+        let maven = MavenBuildSystem;
+        let mut fs = MockFileSystem {
+            files: HashMap::new(),
+        };
+
+        fs.files.insert(
+            PathBuf::from("/repo/pom.xml"),
+            r#"<project>
+                <groupId>com.example</groupId>
+                <artifactId>my-app</artifactId>
+                <version>1.0.0</version>
+            </project>"#
+                .to_string(),
+        );
+
+        let repo_root = PathBuf::from("/repo");
+        let file_tree = vec![PathBuf::from("pom.xml")];
+
+        // This test is limited by the lack of mocks for LanguageDefinition in this context,
+        // but we can verify it compiles and runs.
+        let _ = maven.detect_all(&repo_root, &file_tree, &fs);
+    }
+
+    #[test]
+    fn test_build_template_generation() {
+        let maven = MavenBuildSystem;
+        let wolfi_index = WolfiPackageIndex::for_tests();
+
+        let template = maven.build_template(
+            &wolfi_index,
+            Path::new("."),
+            Path::new("."),
+            Some("<project><properties><java.version>21</java.version></properties></project>"),
+        );
+
+        assert!(template
+            .build_packages
+            .iter()
+            .any(|p| p.contains("openjdk-21")));
+        assert!(template.build_packages.iter().any(|p| p.contains("maven")));
+        assert_eq!(
+            template.build_commands,
+            vec![
+                "mvn package -DskipTests",
+                "mvn dependency:copy-dependencies -DoutputDirectory=target/lib"
+            ]
+        );
+        // Verify path mapping format: (src, dest)
+        assert!(template
+            .runtime_copy
+            .contains(&("target/*.jar".to_string(), "/app/".to_string())));
+        assert!(template
+            .runtime_copy
+            .contains(&("target/lib/".to_string(), "/app/lib".to_string())));
+    }
+
+    #[test]
+    fn test_parse_java_version_test() {
+        assert_eq!(
+            parse_java_version(
+                "<project><properties><java.version>17</java.version></properties></project>"
+            ),
+            Some("openjdk-17".to_string())
+        );
+        assert_eq!(parse_java_version("<project><properties><maven.compiler.source>21</maven.compiler.source></properties></project>"), Some("openjdk-21".to_string()));
+        assert_eq!(parse_java_version("<project><properties><maven.compiler.release>11</maven.compiler.release></properties></project>"), Some("openjdk-11".to_string()));
+        assert_eq!(parse_java_version("<project></project>"), None);
+    }
 }

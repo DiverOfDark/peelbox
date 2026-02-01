@@ -56,6 +56,7 @@ impl BuildSystem for MesonBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
+        _relative_path: &Path,
         _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let mut build_packages = vec!["build-base".to_string()];

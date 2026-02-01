@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"kotlin\",\n  \"manifest_files\": [\"build.gradle.kts\"],\n  \"build_commands\": [\"./gradlew build\"],\n  \"cache_dirs\": [\"build\", \".gradle\"],\n  \"build_packages\": [\"kotlin-1.9.21\", \"kotlin-plugin-spring-1.9.21\", \"spring-boot-3.2.0\", \"io.spring.dependency-management-1.1.4\"],\n  \"runtime_packages\": [\"openjdk-17\", \"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"build/libs/example-1.0.0.jar\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 2176
+    "response_time": 3290
   },
-  "recorded_at": "2026-01-13T19:04:43.599530639+00:00"
+  "recorded_at": "2026-02-01T20:27:28.743285954+00:00"
 }

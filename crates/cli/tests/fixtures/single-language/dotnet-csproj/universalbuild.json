@@ -17,7 +17,8 @@
         "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
       },
       "packages": [
-        "dotnet-8-sdk"
+        "dotnet-8-sdk",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -46,7 +47,8 @@
         "endpoint": "/health"
       },
       "packages": [
-        "aspnet-8-runtime"
+        "aspnet-8-runtime",
+        "ca-certificates"
       ],
       "ports": [
         5000

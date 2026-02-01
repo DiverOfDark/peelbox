@@ -66,11 +66,27 @@ fn assemble_single_service(
 
     let build_system = registry.get_build_system(result.service.build_system.clone());
 
-    let template = build_system
+    // Read metadata manifest if different from detection manifest
+    let metadata_content = build_system
         .as_ref()
-        .map(|bs| bs.build_template(wolfi_index, &service_path, manifest_content.as_deref()));
+        .and_then(|bs| bs.metadata_manifest_file())
+        .filter(|meta_file| *meta_file != result.service.manifest.as_str())
+        .and_then(|meta_file| {
+            let meta_path = service_path.join(meta_file);
+            std::fs::read_to_string(&meta_path).ok()
+        })
+        .or_else(|| manifest_content.clone());
 
-    let project_name = manifest_content
+    let template = build_system.as_ref().map(|bs| {
+        bs.build_template(
+            wolfi_index,
+            &service_path,
+            std::path::Path::new(&result.service.path),
+            manifest_content.as_deref(),
+        )
+    });
+
+    let project_name = metadata_content
         .as_deref()
         .and_then(|content| {
             build_system
@@ -138,11 +154,18 @@ fn assemble_single_service(
             .map(|p| p.display().to_string()),
     );
 
+    let mut build_packages = template
+        .as_ref()
+        .map(|t| t.build_packages.clone())
+        .unwrap_or_default();
+
+    // Always ensure ca-certificates is in build packages for HTTPS downloads
+    if !build_packages.contains(&"ca-certificates".to_string()) {
+        build_packages.push("ca-certificates".to_string());
+    }
+
     let build = BuildStage {
-        packages: template
-            .as_ref()
-            .map(|t| t.build_packages.clone())
-            .unwrap_or_default(),
+        packages: build_packages,
         env: template
             .as_ref()
             .map(|t| t.build_env.clone())
@@ -171,10 +194,15 @@ fn assemble_single_service(
         .map(String::from)
         .collect();
 
-    let runtime_packages = {
-        let runtime = registry.get_runtime(stack.runtime.clone(), None);
-        runtime.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref())
-    };
+    let runtime_instance = registry.get_runtime(stack.runtime.clone(), None);
+    let mut runtime_packages =
+        runtime_instance.runtime_packages(wolfi_index, &service_path, manifest_content.as_deref());
+    runtime_packages.extend(runtime_instance.required_packages());
+
+    // Always ensure ca-certificates is in runtime packages for HTTPS
+    if !runtime_packages.contains(&"ca-certificates".to_string()) {
+        runtime_packages.push("ca-certificates".to_string());
+    }
 
     let runtime_copy = template
         .as_ref()
@@ -194,6 +222,7 @@ fn assemble_single_service(
         env: env_map,
         copy: runtime_copy,
         command: command_parts,
+        workdir: "/app".to_string(),
         ports: vec![port],
         health: runtime_config.and_then(|rc| rc.health.clone()),
     };

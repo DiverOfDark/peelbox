@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"elixir\",\n  \"manifest_files\": [\"mix.exs\"],\n  \"build_commands\": [\"mix compile\"],\n  \"cache_dirs\": [\"_build\"],\n  \"build_packages\": [\"elixir-1.15\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"_build/prod/rel/elixir_api/bin/elixir_api\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1496
+    "response_time": 1582
   },
-  "recorded_at": "2026-01-13T19:03:57.884932127+00:00"
+  "recorded_at": "2026-02-01T20:26:52.664919656+00:00"
 }

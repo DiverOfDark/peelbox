@@ -46,6 +46,7 @@ impl BuildSystem for PipenvBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let python_version = read_python_version_file(service_path)

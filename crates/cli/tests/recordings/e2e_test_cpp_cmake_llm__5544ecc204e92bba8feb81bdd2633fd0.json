@@ -13,7 +13,7 @@
   "response": {
     "content": "{\n  \"name\": \"C++\",\n  \"file_extensions\": [\".cpp\", \".h\"],\n  \"package_managers\": [\"CMake\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"VERSION\\\\s+(.+)\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}",
     "tool_call": null,
-    "response_time": 1693
+    "response_time": 1643
   },
-  "recorded_at": "2026-01-13T19:05:14.848575314+00:00"
+  "recorded_at": "2026-02-01T20:26:34.206080573+00:00"
 }

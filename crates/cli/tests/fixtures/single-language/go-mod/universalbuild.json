@@ -9,24 +9,19 @@
         "go mod download",
         "go build -o app ."
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
       "env": {
+        "CGO_ENABLED": "0",
         "GOCACHE": "/build/.cache/go-build",
         "GOMODCACHE": "/build/.cache/go-mod",
         "GOSUMDB": "off"
       },
       "packages": [
-        "go-1.21"
+        "go-1.21",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "go mod",
-      "confidence": 0.949999988079071,
       "framework": "Gin",
       "language": "Go",
       "project_name": "app",
@@ -52,7 +47,8 @@
       ],
       "ports": [
         8080
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }
