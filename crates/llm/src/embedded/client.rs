@@ -135,7 +135,17 @@ impl EmbeddedClient {
                     Ok(Device::Cpu)
                 }
             }
-            ComputeDevice::Cpu => Ok(Device::Cpu),
+            ComputeDevice::Cpu => {
+                #[cfg(feature = "cuda")]
+                {
+                    if capabilities.cuda_available {
+                        warn!("CUDA was detected as available but CPU was chosen as best device. Check logic.");
+                    } else {
+                        info!("CUDA feature enabled but no CUDA hardware detected or initialization failed. Using CPU.");
+                    }
+                }
+                Ok(Device::Cpu)
+            }
         }
     }
 
