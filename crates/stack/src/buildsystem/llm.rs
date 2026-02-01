@@ -46,9 +46,15 @@ impl LLMBuildSystem {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
 
-        let content = fs
+        let mut content = fs
             .read_to_string(manifest_path)
             .unwrap_or_else(|_| String::new());
+
+        // Truncate content to avoid context window explosion (max 20KB)
+        if content.len() > 20_000 {
+            content.truncate(20_000);
+            content.push_str("\n... (truncated)");
+        }
 
         let prompt = format!(
             r#"Analyze this build manifest and extract build system information. Respond with JSON ONLY.

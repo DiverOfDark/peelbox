@@ -26,6 +26,7 @@ sha2 = "0.10"
 ignore = "0.4"
 hex = "0.4"
 walkdir = "2.4"
+fs2 = "0.4.3"
 
 [build-dependencies]
 tonic-prost-build = "0.14.2"
