@@ -56,17 +56,13 @@ impl BuildSystem for PipBuildSystem {
                             let lang = crate::language::PythonLanguage;
                             let project_dir = rel_path.parent().unwrap_or(Path::new(""));
 
-                            if lang.is_runnable(
+                            lang.is_runnable(
                                 fs,
                                 repo_root,
                                 project_dir,
                                 file_tree,
                                 content.as_deref(),
-                            ) {
-                                true
-                            } else {
-                                false
-                            }
+                            )
                         } else {
                             false
                         }
@@ -82,11 +78,7 @@ impl BuildSystem for PipBuildSystem {
                     let abs_path = repo_root.join(rel_path);
                     let content = fs.read_to_string(&abs_path).ok();
 
-                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
-                        true
-                    } else {
-                        false
-                    }
+                    lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref())
                 }
                 _ => false,
             };

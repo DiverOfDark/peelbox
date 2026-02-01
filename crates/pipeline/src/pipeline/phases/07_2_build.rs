@@ -109,7 +109,12 @@ mod tests {
             .unwrap();
 
         let service_path = std::path::PathBuf::from("/tmp/test");
-        let template = build_system.build_template(&wolfi_index, &service_path, std::path::Path::new("."), None);
+        let template = build_system.build_template(
+            &wolfi_index,
+            &service_path,
+            std::path::Path::new("."),
+            None,
+        );
 
         assert_eq!(
             template.build_commands.first(),
@@ -128,7 +133,12 @@ mod tests {
             .unwrap();
 
         let service_path = std::path::PathBuf::from("/tmp/test");
-        let template = build_system.build_template(&wolfi_index, &service_path, std::path::Path::new("."), None);
+        let template = build_system.build_template(
+            &wolfi_index,
+            &service_path,
+            std::path::Path::new("."),
+            None,
+        );
 
         assert_eq!(
             template.build_commands.first(),

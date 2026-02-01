@@ -8,10 +8,7 @@
       "commands": [
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
       ],
-      "env": {
-        "COMPOSER_HOME": "/tmp/.composer",
-        "HOME": "/tmp"
-      },
+      "env": {},
       "packages": [
         "php-8.1",
         "composer",

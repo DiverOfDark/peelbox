@@ -10,7 +10,7 @@
         "mvn dependency:copy-dependencies -DoutputDirectory=target/lib"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
       "packages": [
@@ -44,8 +44,8 @@
       ],
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "health": {
         "endpoint": "/health"

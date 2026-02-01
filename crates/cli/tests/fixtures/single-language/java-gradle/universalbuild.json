@@ -34,8 +34,8 @@
       ],
       "copy": [
         {
-          "from": "build/libs/*.jar",
-          "to": "/app/"
+          "from": "build/libs/example-app-1.0.0.jar",
+          "to": "/app/app.jar"
         }
       ],
       "env": {

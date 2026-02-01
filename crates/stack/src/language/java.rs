@@ -304,12 +304,11 @@ impl LanguageDefinition for JavaLanguage {
             if content.contains("<packaging>pom</packaging>") {
                 return false;
             }
-            if content.contains("spring-boot-maven-plugin")
-                || content.contains("org.springframework.boot")
+            if (content.contains("spring-boot-maven-plugin")
+                || content.contains("org.springframework.boot"))
+                && !content.contains("apply false")
             {
-                if !content.contains("apply false") {
-                    return true;
-                }
+                return true;
             }
             if content.contains("<mainClass>") {
                 return true;

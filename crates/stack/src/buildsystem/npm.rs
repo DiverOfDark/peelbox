@@ -46,17 +46,13 @@ impl BuildSystem for NpmBuildSystem {
                             let lang = crate::language::JavaScriptLanguage;
                             let project_dir = rel_path.parent().unwrap_or(Path::new(""));
 
-                            if lang.is_runnable(
+                            lang.is_runnable(
                                 fs,
                                 repo_root,
                                 project_dir,
                                 file_tree,
                                 content.as_deref(),
-                            ) {
-                                true
-                            } else {
-                                false
-                            }
+                            )
                         } else {
                             false
                         }
