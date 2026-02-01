@@ -19,7 +19,7 @@
       "build_system": "Bazel",
       "language": "C++",
       "project_name": "hello",
-      "reasoning": "Detected from BUILD in "
+      "reasoning": "Detected from BUILD"
     },
     "runtime": {
       "command": [

@@ -94,14 +94,21 @@ impl Runtime for BeamRuntime {
 
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
-        let health = framework.and_then(|f| {
-            f.health_endpoints(&[]).first().map(|endpoint| HealthCheck {
-                endpoint: endpoint.to_string(),
+        let health = framework
+            .and_then(|f| {
+                f.health_endpoints(&[]).first().map(|endpoint| HealthCheck {
+                    endpoint: endpoint.to_string(),
+                })
             })
-        });
+            .or_else(|| {
+                // Default health endpoint for Elixir apps
+                Some(HealthCheck {
+                    endpoint: "/health".to_string(),
+                })
+            });
 
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint: Some("mix run --no-halt".to_string()),
             port,
             env_vars,
             health,

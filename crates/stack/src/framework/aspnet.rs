@@ -46,7 +46,10 @@ impl Framework for AspNetFramework {
 
     fn runtime_env_vars(&self) -> HashMap<String, String> {
         let mut env = HashMap::new();
-        env.insert("ASPNETCORE_URLS".to_string(), "http://+:8080".to_string());
+        env.insert(
+            "ASPNETCORE_URLS".to_string(),
+            "http://0.0.0.0:5000".to_string(),
+        );
         env
     }
 

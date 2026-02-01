@@ -2,8 +2,7 @@
   {
     "build": {
       "cache": [
-        ".composer/cache",
-        "vendor"
+        ".composer/cache"
       ],
       "commands": [
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
@@ -28,7 +27,7 @@
       "build_system": "Composer",
       "language": "PHP",
       "project_name": "app",
-      "reasoning": "Detected from composer.json in "
+      "reasoning": "Detected from composer.json"
     },
     "runtime": {
       "command": [
@@ -59,7 +58,8 @@
       ],
       "ports": [
         8000
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

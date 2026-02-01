@@ -6,11 +6,12 @@
         "build"
       ],
       "commands": [
-        "gradle build -x test --no-daemon --console=plain"
+        "gradle assemble -x test --no-daemon --console=plain"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "HOME": "/root"
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/root/.gradle",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
       },
       "packages": [
         "openjdk-17",
@@ -20,24 +21,30 @@
     },
     "metadata": {
       "build_system": "Gradle",
-      "confidence": 0.95,
+      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "app",
       "reasoning": "Detected from build.gradle.kts"
     },
     "runtime": {
       "command": [
-        "/usr/lib/jvm/java-17-openjdk/bin/java",
+        "java",
         "-jar",
-        "/usr/local/bin/app.jar"
+        "/app/app.jar"
       ],
       "copy": [
         {
-          "from": "build/libs/app.jar",
-          "to": "/usr/local/bin/app.jar"
+          "from": "build/libs/example-app-1.0.0.jar",
+          "to": "/app/app.jar"
         }
       ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
+      },
       "packages": [
         "openjdk-17-jre",
         "ca-certificates"
@@ -45,9 +52,7 @@
       "ports": [
         8080
       ],
-      "health": {
-        "endpoint": "/health"
-      }
+      "workdir": "/app"
     },
     "version": "1.0"
   }

@@ -81,7 +81,7 @@ impl BuildSystem for GradleBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
-        _relative_path: &Path,
+        relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let parsed_version = manifest_content.and_then(parse_java_version);
@@ -120,7 +120,7 @@ impl BuildSystem for GradleBuildSystem {
             )
         };
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
         build_env.insert("GRADLE_USER_HOME".to_string(), "/root/.gradle".to_string());
         build_env.insert(
@@ -131,13 +131,32 @@ impl BuildSystem for GradleBuildSystem {
         let mut build_packages = vec![java_version, gradle_version];
         build_packages.push("ca-certificates".to_string());
 
+        // Check if this is a multiproject subproject
+        let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
+
+        // Generate project-specific build command for multiproject builds
+        let build_command = if is_root {
+            "gradle assemble -x test --no-daemon --console=plain".to_string()
+        } else {
+            // Extract project name from path (e.g., "api-service" from "api-service")
+            let project_name = relative_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("app");
+            format!(
+                "gradle :{}:assemble -x test --no-daemon --console=plain",
+                project_name
+            )
+        };
+
         // Use real filesystem to determine JAR path
         let fs = peelbox_core::fs::RealFileSystem;
-        let (source_jar_path, dest_jar_path) = get_gradle_jar_path(service_path, &fs);
+        let (source_jar_path, dest_jar_path) =
+            get_gradle_jar_path(service_path, &fs, relative_path);
 
         BuildTemplate {
             build_packages,
-            build_commands: vec!["gradle assemble --no-daemon --console=plain".to_string()],
+            build_commands: vec![build_command],
             cache_paths: vec![
                 "/root/.gradle/caches/".to_string(),
                 "/root/.gradle/wrapper/".to_string(),
@@ -146,7 +165,8 @@ impl BuildSystem for GradleBuildSystem {
             common_ports: vec![8080],
             build_env,
             runtime_copy: vec![(source_jar_path, dest_jar_path)],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 
@@ -257,7 +277,11 @@ fn parse_project_name(settings_content: &str) -> Option<String> {
 /// Construct the JAR filename based on Gradle conventions
 /// Returns the JAR path that Gradle will produce: build/libs/{name}-{version}.jar
 /// Always copies to /app/app.jar for consistent runtime command
-pub fn get_gradle_jar_path(service_path: &Path, fs: &dyn FileSystem) -> (String, String) {
+pub fn get_gradle_jar_path(
+    service_path: &Path,
+    fs: &dyn FileSystem,
+    relative_path: &Path,
+) -> (String, String) {
     // Try to read settings.gradle for project name
     let settings_gradle = service_path.join("settings.gradle");
     let settings_gradle_kts = service_path.join("settings.gradle.kts");
@@ -289,7 +313,14 @@ pub fn get_gradle_jar_path(service_path: &Path, fs: &dyn FileSystem) -> (String,
         _ => "*.jar".to_string(), // Fallback to glob pattern
     };
 
-    let source_path = format!("build/libs/{}", jar_filename);
+    // Adjust path based on whether we're in a subproject
+    let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
+    let source_path = if is_root {
+        format!("build/libs/{}", jar_filename)
+    } else {
+        format!("{}/build/libs/{}", relative_path.display(), jar_filename)
+    };
+
     // Always copy to /app/app.jar so the runtime command can be generic
     let dest_path = "/app/app.jar".to_string();
 

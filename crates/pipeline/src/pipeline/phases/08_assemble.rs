@@ -8,7 +8,7 @@ use peelbox_core::output::schema::{
     BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild,
 };
 use peelbox_stack::registry::StackRegistry;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashSet};
 
 pub struct AssemblePhase;
 
@@ -134,25 +134,35 @@ fn assemble_single_service(
         language: stack.language.name().to_string(),
         build_system: stack.build_system.name().to_string(),
         framework: stack.framework.as_ref().map(|fw| fw.name().to_string()),
-        reasoning: format!(
-            "Detected from {} in {}",
-            result.service.manifest,
-            result.service.path.display()
-        ),
+        reasoning: if result.service.path == std::path::Path::new(".")
+            || result.service.path == std::path::Path::new("")
+        {
+            format!("Detected from {}", result.service.manifest)
+        } else {
+            format!(
+                "Detected from {} in {}",
+                result.service.manifest,
+                result.service.path.display()
+            )
+        },
     };
 
-    let mut cache_paths: Vec<String> = cache_info
+    // Combine cache paths from detection and root cache, de-duplicating
+    let mut cache_set: HashSet<String> = cache_info
         .cache_dirs
         .iter()
         .map(|p| p.display().to_string())
         .collect();
 
-    cache_paths.extend(
+    cache_set.extend(
         root_cache
             .root_cache_dirs
             .iter()
             .map(|p| p.display().to_string()),
     );
+
+    let mut cache_paths: Vec<String> = cache_set.into_iter().collect();
+    cache_paths.sort(); // Sort for deterministic output
 
     let mut build_packages = template
         .as_ref()
@@ -174,9 +184,13 @@ fn assemble_single_service(
         cache: cache_paths,
     };
 
-    let mut env_map = HashMap::new();
+    let mut env_map = BTreeMap::new();
 
-    // Add build system runtime environment variables
+    // Add runtime-specific environment variables (JAVA_HOME, PATH, etc.)
+    let runtime = registry.get_runtime(stack.runtime.clone(), None);
+    env_map.extend(runtime.runtime_env(wolfi_index, &service_path, manifest_content.as_deref()));
+
+    // Add build system runtime environment variables (highest priority)
     if let Some(ref tmpl) = template {
         env_map.extend(tmpl.runtime_env.clone());
     }
@@ -204,7 +218,7 @@ fn assemble_single_service(
         runtime_packages.push("ca-certificates".to_string());
     }
 
-    let runtime_copy = template
+    let runtime_copy: Vec<CopySpec> = template
         .as_ref()
         .map(|t| {
             t.runtime_copy
@@ -222,7 +236,10 @@ fn assemble_single_service(
         env: env_map,
         copy: runtime_copy,
         command: command_parts,
-        workdir: "/app".to_string(),
+        workdir: template
+            .as_ref()
+            .and_then(|t| t.runtime_workdir.clone())
+            .unwrap_or_else(|| "/app".to_string()),
         ports: vec![port],
         health: runtime_config.and_then(|rc| rc.health.clone()),
     };

@@ -437,7 +437,10 @@ impl ContainerTestHarness {
             loop {
                 match client.get(&url).send().await {
                     Ok(response) if response.status().is_success() => return Ok(true),
-                    Ok(_) => return Ok(false),
+                    Ok(_) => {
+                        // Retry on non-success status (e.g., 503 during startup)
+                        tokio::time::sleep(Duration::from_millis(200)).await;
+                    }
                     Err(_) => {
                         tokio::time::sleep(Duration::from_millis(200)).await;
                     }

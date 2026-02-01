@@ -8,12 +8,6 @@
         "npm ci",
         "cd apps/web && npm run build"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
       "env": {},
       "packages": [
         "nodejs-25",
@@ -30,13 +24,13 @@
     },
     "runtime": {
       "command": [
-        "node",
-        "apps/web/dist/index.js"
+        "npm",
+        "start"
       ],
       "copy": [
         {
           "from": ".",
-          "to": "/app"
+          "to": "/app/"
         }
       ],
       "env": {},

@@ -2,23 +2,13 @@
   {
     "build": {
       "cache": [
-        "node_modules",
         ".npm"
       ],
       "commands": [
-        "npm install --include=dev",
-        "cd apps/web && ../../node_modules/.bin/tsc",
-        "cp -rp node_modules apps/web/dist/"
+        "npm ci",
+        "cd apps/web && npm run build"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {
-        "HOME": "/tmp"
-      },
+      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
@@ -27,7 +17,6 @@
     },
     "metadata": {
       "build_system": "npm",
-      "confidence": 0.949999988079071,
       "framework": "Express",
       "language": "JavaScript",
       "project_name": "@monorepo/web",
@@ -35,13 +24,13 @@
     },
     "runtime": {
       "command": [
-        "node",
-        "apps/web/dist/index.js"
+        "npm",
+        "start"
       ],
       "copy": [
         {
           "from": ".",
-          "to": "/app"
+          "to": "/app/"
         }
       ],
       "env": {},

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"CMakeLists.txt\",\n    \"build_system\": \"CMake\",\n    \"language\": \"C++\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"JSON\",\n    \"language\": \"None\",\n    \"confidence\": 0.75\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1939
+    "response_time": 1077
   },
-  "recorded_at": "2026-02-01T20:26:29.126853345+00:00"
+  "recorded_at": "2026-02-03T00:09:00.335642843+00:00"
 }

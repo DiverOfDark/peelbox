@@ -2,8 +2,8 @@
   {
     "build": {
       "cache": [
-        "build",
-        "CMakeCache.txt"
+        "CMakeCache.txt",
+        "build"
       ],
       "commands": [
         "cmake -B build -DCMAKE_BUILD_TYPE=Release",
@@ -21,7 +21,7 @@
       "build_system": "CMake",
       "language": "C++",
       "project_name": "app",
-      "reasoning": "Detected from CMakeLists.txt in "
+      "reasoning": "Detected from CMakeLists.txt"
     },
     "runtime": {
       "command": [

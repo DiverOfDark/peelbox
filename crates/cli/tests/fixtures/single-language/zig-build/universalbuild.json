@@ -20,7 +20,7 @@
       "confidence": 0.949999988079071,
       "language": "Zig",
       "project_name": "app",
-      "reasoning": "Detected from build.zig in "
+      "reasoning": "Detected from build.zig"
     },
     "runtime": {
       "command": [

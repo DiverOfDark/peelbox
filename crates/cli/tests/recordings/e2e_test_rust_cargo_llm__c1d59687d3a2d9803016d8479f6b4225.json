@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"rust\",\n  \"manifest_files\": [\"Cargo.toml\"],\n  \"build_commands\": [\"cargo build --release\"],\n  \"cache_dirs\": [\"target\"],\n  \"build_packages\": [\"rust\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"target/release/hello-world\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1266
+    "response_time": 1326
   },
-  "recorded_at": "2026-02-01T20:28:41.679950728+00:00"
+  "recorded_at": "2026-02-03T00:11:07.356856044+00:00"
 }

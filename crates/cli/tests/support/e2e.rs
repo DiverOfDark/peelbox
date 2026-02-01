@@ -256,32 +256,13 @@ pub fn assert_detection_with_mode(
             .as_deref()
             .unwrap_or("<unknown>");
 
-        assert_eq!(
-            detected.metadata.project_name, expected_build.metadata.project_name,
-            "Project name mismatch at position {}: expected '{:?}', got '{:?}'",
-            i, expected_build.metadata.project_name, detected.metadata.project_name
-        );
-        assert_eq!(
-            detected.metadata.language, expected_build.metadata.language,
-            "Language mismatch for project '{}': expected '{}', got '{}'",
-            project_name, expected_build.metadata.language, detected.metadata.language
-        );
-        assert_eq!(
-            detected.metadata.build_system, expected_build.metadata.build_system,
-            "Build system mismatch for project '{}': expected '{}', got '{}'",
-            project_name, expected_build.metadata.build_system, detected.metadata.build_system
-        );
-        // Wolfi-first architecture - base images removed from schema
-        // Packages are now validated instead
-        assert_eq!(
-            detected.build.packages, expected_build.build.packages,
-            "Build packages mismatch for project '{}': expected {:?}, got {:?}",
-            project_name, expected_build.build.packages, detected.build.packages
-        );
-        assert_eq!(
-            detected.runtime.packages, expected_build.runtime.packages,
-            "Runtime packages mismatch for project '{}': expected {:?}, got {:?}",
-            project_name, expected_build.runtime.packages, detected.runtime.packages
+        // Validate complete UniversalBuild structure equality with pretty diff
+        pretty_assertions::assert_eq!(
+            detected,
+            expected_build,
+            "UniversalBuild mismatch for project '{}' at position {}",
+            project_name,
+            i
         );
     }
 }

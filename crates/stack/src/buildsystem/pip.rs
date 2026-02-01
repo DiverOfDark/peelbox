@@ -2,6 +2,7 @@
 
 use super::python_common::{parse_pyproject_toml_version, read_python_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::framework::flask;
 use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
@@ -125,13 +126,13 @@ impl BuildSystem for PipBuildSystem {
             ],
             cache_paths: vec!["/root/.cache/pip/".to_string()],
             common_ports: vec![8000, 5000],
-            build_env: std::collections::HashMap::new(),
+            build_env: std::collections::BTreeMap::new(),
             runtime_copy: vec![
-                (".".to_string(), "/app".to_string()),
+                (".".to_string(), "/build".to_string()),
                 ("/root/.local/".to_string(), "/root/.local".to_string()),
             ],
             runtime_env: {
-                let mut env = std::collections::HashMap::new();
+                let mut env = std::collections::BTreeMap::new();
                 env.insert(
                     "PYTHONPATH".to_string(),
                     format!(
@@ -146,8 +147,15 @@ impl BuildSystem for PipBuildSystem {
                     "PATH".to_string(),
                     "/root/.local/bin:/usr/local/bin:/usr/bin:/bin".to_string(),
                 );
+
+                // Dynamically detect Flask app file if present
+                if let Some(flask_app) = flask::detect_flask_app_file(service_path, "/build") {
+                    env.insert("FLASK_APP".to_string(), flask_app);
+                }
+
                 env
             },
+            runtime_workdir: Some("/build".to_string()),
         }
     }
 

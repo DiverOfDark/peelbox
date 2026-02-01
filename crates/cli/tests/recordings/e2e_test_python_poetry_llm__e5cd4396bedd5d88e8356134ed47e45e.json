@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"python-3.9\",\n  \"manifest_files\": [\"pyproject.toml\"],\n  \"build_commands\": [\"poetry build\"],\n  \"cache_dirs\": [\".poetry\"],\n  \"build_packages\": [\"poetry-core\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"dist/example-app-0.1.0-py3-none-any.whl\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1535
+    "response_time": 1409
   },
-  "recorded_at": "2026-02-01T20:28:29.676918950+00:00"
+  "recorded_at": "2026-02-03T00:10:53.698091557+00:00"
 }

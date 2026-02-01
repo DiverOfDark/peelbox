@@ -18,13 +18,16 @@ pub struct BuildTemplate {
     pub cache_paths: Vec<String>,
     pub common_ports: Vec<u16>,
     #[serde(default)]
-    pub build_env: std::collections::HashMap<String, String>,
+    pub build_env: std::collections::BTreeMap<String, String>,
     /// Runtime copy specifications: (artifact_pattern, destination_pattern)
     /// Patterns support {project_name} placeholder
     #[serde(default)]
     pub runtime_copy: Vec<(String, String)>,
     #[serde(default)]
-    pub runtime_env: std::collections::HashMap<String, String>,
+    pub runtime_env: std::collections::BTreeMap<String, String>,
+    /// Optional runtime working directory (defaults to /app if not specified)
+    #[serde(default)]
+    pub runtime_workdir: Option<String>,
 }
 
 /// Manifest pattern for build system detection

@@ -11,7 +11,7 @@
         "dotnet publish -c Release -o out"
       ],
       "env": {
-        "DOTNET_CLI_HOME": "/tmp",
+        "DOTNET_CLI_HOME": "/root",
         "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
         "DOTNET_NOLOGO": "1",
         "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
@@ -27,7 +27,7 @@
       "framework": "ASP.NET Core",
       "language": "C#",
       "project_name": "app",
-      "reasoning": "Detected from App.csproj in "
+      "reasoning": "Detected from App.csproj"
     },
     "runtime": {
       "command": [
@@ -43,6 +43,7 @@
       "env": {
         "ASPNETCORE_URLS": "http://0.0.0.0:5000"
       },
+      "workdir": "/app",
       "health": {
         "endpoint": "/health"
       },

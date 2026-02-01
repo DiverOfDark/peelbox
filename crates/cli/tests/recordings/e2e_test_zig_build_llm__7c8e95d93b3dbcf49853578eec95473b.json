@@ -13,7 +13,7 @@
   "response": {
     "content": "{\n  \"name\": \"Zig\",\n  \"file_extensions\": [\".zig\"],\n  \"package_managers\": [],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": null,\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 1.0\n}",
     "tool_call": null,
-    "response_time": 1461
+    "response_time": 1488
   },
-  "recorded_at": "2026-02-01T20:28:50.180861379+00:00"
+  "recorded_at": "2026-02-03T00:11:14.975617949+00:00"
 }

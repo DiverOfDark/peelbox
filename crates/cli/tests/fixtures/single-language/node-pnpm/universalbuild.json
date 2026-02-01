@@ -2,8 +2,8 @@
   {
     "build": {
       "cache": [
-        "node_modules",
-        ".pnpm-store"
+        ".pnpm-store",
+        "node_modules"
       ],
       "commands": [
         "pnpm install",
@@ -15,9 +15,7 @@
           "to": "/app"
         }
       ],
-      "env": {
-        "HOME": "/tmp"
-      },
+      "env": {},
       "packages": [
         "nodejs-22",
         "pnpm",
@@ -32,7 +30,7 @@
       "confidence": 0.949999988079071,
       "language": "JavaScript",
       "project_name": "example-node-app",
-      "reasoning": "Detected from pnpm-lock.yaml in "
+      "reasoning": "Detected from pnpm-lock.yaml"
     },
     "runtime": {
       "command": [

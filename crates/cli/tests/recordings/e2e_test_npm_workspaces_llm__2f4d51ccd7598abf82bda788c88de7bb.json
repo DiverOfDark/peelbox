@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"package.json\",\n    \"build_system\": \"npm\",\n    \"language\": \"JavaScript\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1024
+    "response_time": 1012
   },
-  "recorded_at": "2026-02-01T20:26:05.399061043+00:00"
+  "recorded_at": "2026-02-03T00:08:34.007659263+00:00"
 }

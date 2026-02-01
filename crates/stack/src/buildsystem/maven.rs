@@ -88,14 +88,14 @@ impl BuildSystem for MavenBuildSystem {
             )
         };
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
         build_env.insert(
             "MAVEN_OPTS".to_string(),
             "-Dmaven.repo.local=/root/.m2/repository".to_string(),
         );
 
-        let mut runtime_env = std::collections::HashMap::new();
+        let mut runtime_env = std::collections::BTreeMap::new();
         runtime_env.insert("CLASSPATH".to_string(), "/app/*:/app/lib/*".to_string());
 
         let mut build_packages = vec![java_version, maven_version];
@@ -133,11 +133,12 @@ impl BuildSystem for MavenBuildSystem {
                 (format!("{}/lib/", target_dir), "/app/lib".to_string()),
             ],
             runtime_env,
+            runtime_workdir: None,
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".m2/repository".to_string(), "target".to_string()]
+        vec!["/root/.m2/repository".to_string()]
     }
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {

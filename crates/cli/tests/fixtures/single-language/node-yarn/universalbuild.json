@@ -2,8 +2,8 @@
   {
     "build": {
       "cache": [
-        "node_modules",
-        ".yarn-cache"
+        ".yarn-cache",
+        "node_modules"
       ],
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
@@ -15,9 +15,7 @@
           "to": "/app"
         }
       ],
-      "env": {
-        "HOME": "/tmp"
-      },
+      "env": {},
       "packages": [
         "nodejs-25",
         "yarn",
@@ -29,7 +27,7 @@
       "confidence": 0.949999988079071,
       "language": "JavaScript",
       "project_name": "example-node-app",
-      "reasoning": "Detected from yarn.lock in "
+      "reasoning": "Detected from yarn.lock"
     },
     "runtime": {
       "command": [

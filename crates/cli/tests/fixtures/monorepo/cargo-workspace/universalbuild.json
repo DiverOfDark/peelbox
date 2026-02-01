@@ -2,13 +2,11 @@
   {
     "build": {
       "cache": [
-        "target",
-        ".cargo",
         ".cargo",
         "target"
       ],
       "commands": [
-        "cargo build --release"
+        "cargo build --release --manifest-path app/Cargo.toml"
       ],
       "env": {
         "CARGO_HOME": ".cargo"
@@ -23,7 +21,6 @@
     },
     "metadata": {
       "build_system": "Cargo",
-      "framework": "Actix Web",
       "language": "Rust",
       "project_name": "app",
       "reasoning": "Detected from Cargo.toml in app"
@@ -39,9 +36,6 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
         "glibc",
         "ca-certificates"

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"composer.json\",\n    \"build_system\": \"composer\",\n    \"language\": \"PHP\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"universalbuild\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 2187
+    "response_time": 1056
   },
-  "recorded_at": "2026-02-01T20:28:09.924823893+00:00"
+  "recorded_at": "2026-02-03T00:10:30.936320815+00:00"
 }

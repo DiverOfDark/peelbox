@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"build.gradle.kts\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Kotlin\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"settings.gradle.kts\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Kotlin\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"Unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1564
+    "response_time": 1486
   },
-  "recorded_at": "2026-02-01T20:27:25.452309757+00:00"
+  "recorded_at": "2026-02-03T00:09:48.016799956+00:00"
 }

@@ -5,7 +5,7 @@
       "language": "Elixir",
       "build_system": "Mix",
       "confidence": 1.0,
-      "reasoning": "Detected from mix.exs in "
+      "reasoning": "Detected from mix.exs"
     },
     "build": {
       "packages": ["elixir-1.18", "erlang-28", "git", "build-base", "openssl", "ca-certificates"],
@@ -13,8 +13,7 @@
         "mix compile"
       ],
       "env": {
-        "MIX_ENV": "prod",
-        "HOME": "/tmp"
+        "MIX_ENV": "prod"
       },
       "cache": []
     },
@@ -31,10 +30,10 @@
       "env": {
         "PORT": "4000",
         "MIX_ENV": "prod",
-        "HOME": "/tmp",
         "LC_ALL": "C.UTF-8",
         "ELIXIR_ERL_OPTIONS": "+fnu"
       },
+      "workdir": "/app",
       "health": {
         "endpoint": "/health"
       }

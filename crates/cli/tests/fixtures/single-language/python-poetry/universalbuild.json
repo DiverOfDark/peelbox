@@ -2,8 +2,8 @@
   {
     "build": {
       "cache": [
-        "/root/.cache/pypoetry/",
-        "/root/.cache/pip/"
+        "/root/.cache/pip/",
+        "/root/.cache/pypoetry/"
       ],
       "commands": [
         "pip install --user poetry",
@@ -26,7 +26,7 @@
       "framework": "Flask",
       "language": "Python",
       "project_name": "app",
-      "reasoning": "Detected from pyproject.toml in "
+      "reasoning": "Detected from pyproject.toml"
     },
     "runtime": {
       "command": [
@@ -46,6 +46,7 @@
         "VIRTUAL_ENV": "/build/.venv",
         "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"
       },
+      "workdir": "/build",
       "health": {
         "endpoint": "/health"
       },

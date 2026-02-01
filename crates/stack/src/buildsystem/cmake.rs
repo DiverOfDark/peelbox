@@ -66,12 +66,13 @@ impl BuildSystem for CMakeBuildSystem {
             cache_paths: vec!["build/".to_string()],
 
             common_ports: vec![8080],
-            build_env: std::collections::HashMap::new(),
+            build_env: std::collections::BTreeMap::new(),
             runtime_copy: vec![(
                 "build/{project_name}".to_string(),
                 "/usr/local/bin/{project_name}".to_string(),
             )],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 

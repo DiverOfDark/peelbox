@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HealthCheck {
     pub endpoint: String,
 }
@@ -27,7 +27,7 @@ fn default_version() -> String {
     "1.0".to_string()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UniversalBuild {
     #[serde(
         default = "default_version",
@@ -42,7 +42,7 @@ pub struct UniversalBuild {
     pub runtime: RuntimeStage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct BuildMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_name: Option<String>,
@@ -56,23 +56,23 @@ pub struct BuildMetadata {
     pub reasoning: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct BuildStage {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub env: HashMap<String, String>,
+    pub env: BTreeMap<String, String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub commands: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub packages: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
-    pub env: HashMap<String, String>,
+    pub env: BTreeMap<String, String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub copy: Vec<CopySpec>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -85,7 +85,7 @@ pub struct RuntimeStage {
     pub health: Option<HealthCheck>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct CopySpec {
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub from: String,
@@ -124,13 +124,13 @@ mod tests {
             },
             build: BuildStage {
                 packages: vec!["rust".to_string(), "build-base".to_string()],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),
                     to: "/usr/local/bin/app".to_string(),
@@ -345,13 +345,13 @@ mod tests {
             },
             build: BuildStage {
                 packages: vec![],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec![],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 copy: vec![],
                 command: vec![],
                 workdir: "/app".to_string(),

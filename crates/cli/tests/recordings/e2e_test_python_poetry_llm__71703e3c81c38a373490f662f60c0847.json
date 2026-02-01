@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"pyproject.toml\",\n    \"build_system\": \"poetry\",\n    \"language\": \"Python\",\n    \"confidence\": 0.95\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 697
+    "response_time": 599
   },
-  "recorded_at": "2026-02-01T20:28:28.141137576+00:00"
+  "recorded_at": "2026-02-03T00:10:52.287997849+00:00"
 }

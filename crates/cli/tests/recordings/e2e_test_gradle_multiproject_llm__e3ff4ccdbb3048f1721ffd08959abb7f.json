@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"build.gradle\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Java\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"settings.gradle\",\n    \"build_system\": \"Gradle\",\n    \"language\": \"Java\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"Unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1454
+    "response_time": 1433
   },
-  "recorded_at": "2026-02-01T20:25:45.772889621+00:00"
+  "recorded_at": "2026-02-03T00:08:17.814398005+00:00"
 }

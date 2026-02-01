@@ -2,8 +2,8 @@
   {
     "build": {
       "cache": [
-        "vendor",
-        ".bundle"
+        ".bundle",
+        "vendor"
       ],
       "commands": [
         "bundle install"
@@ -25,7 +25,7 @@
       "framework": "Sinatra",
       "language": "Ruby",
       "project_name": "app",
-      "reasoning": "Detected from Gemfile in "
+      "reasoning": "Detected from Gemfile"
     },
     "runtime": {
       "command": [

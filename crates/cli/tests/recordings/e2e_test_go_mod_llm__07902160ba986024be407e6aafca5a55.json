@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"go.mod\",\n    \"build_system\": \"go\",\n    \"language\": \"Go\",\n    \"confidence\": 1.0\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1223
+    "response_time": 597
   },
-  "recorded_at": "2026-02-01T20:26:55.118942057+00:00"
+  "recorded_at": "2026-02-03T00:09:26.985485204+00:00"
 }
