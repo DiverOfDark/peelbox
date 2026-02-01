@@ -257,10 +257,7 @@ fn parse_project_name(settings_content: &str) -> Option<String> {
 /// Construct the JAR filename based on Gradle conventions
 /// Returns the JAR path that Gradle will produce: build/libs/{name}-{version}.jar
 /// Always copies to /app/app.jar for consistent runtime command
-pub fn get_gradle_jar_path(
-    service_path: &Path,
-    fs: &dyn FileSystem,
-) -> (String, String) {
+pub fn get_gradle_jar_path(service_path: &Path, fs: &dyn FileSystem) -> (String, String) {
     // Try to read settings.gradle for project name
     let settings_gradle = service_path.join("settings.gradle");
     let settings_gradle_kts = service_path.join("settings.gradle.kts");
