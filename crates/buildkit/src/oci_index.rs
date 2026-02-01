@@ -55,6 +55,7 @@ impl OciIndex {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .open(&index_path)
             .with_context(|| format!("Failed to open index file {}", index_path.display()))?;
 

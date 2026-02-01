@@ -181,8 +181,6 @@ impl BuildStrategy for PeelboxStrategy {
             for copy in &spec.runtime.copy {
                 let src_path = if copy.from == "." {
                     "/build/.".to_string()
-                } else if copy.from.starts_with("/build/") {
-                    copy.from.clone()
                 } else if copy.from.starts_with('/') {
                     copy.from.clone()
                 } else {
