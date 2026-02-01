@@ -61,6 +61,36 @@ impl NodeRuntime {
         }
         None
     }
+    fn extract_entrypoint(&self, files: &[PathBuf]) -> Option<String> {
+        for file in files {
+            if file.file_name().is_some_and(|n| n == "package.json") {
+                if let Ok(content) = std::fs::read_to_string(file) {
+                    if let Ok(package) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(main) = package["main"].as_str() {
+                            if main.ends_with(".ts") {
+                                let js_path = main.replace("src/", "dist/").replace(".ts", ".js");
+                                return Some(format!("node {}", js_path));
+                            }
+                            return Some(format!("node {}", main));
+                        }
+                        if package["scripts"]["start"].is_string() {
+                            return Some("npm start".to_string());
+                        }
+                        if let Some(main) = package["main"].as_str() {
+                            if main.ends_with(".ts") {
+                                // Simple heuristic for TS projects: try dist/ or build/
+                                // Assuming standard src/ -> dist/ mapping
+                                let js_path = main.replace("src/", "dist/").replace(".ts", ".js");
+                                return Some(format!("node {}", js_path));
+                            }
+                            return Some(format!("node {}", main));
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
 }
 
 impl Runtime for NodeRuntime {
@@ -75,6 +105,7 @@ impl Runtime for NodeRuntime {
     ) -> Option<RuntimeConfig> {
         let env_vars = self.extract_env_vars(files);
         let detected_port = self.extract_ports(files);
+        let entrypoint = self.extract_entrypoint(files);
 
         let port =
             detected_port.or_else(|| framework.and_then(|f| f.default_ports().first().copied()));
@@ -85,7 +116,7 @@ impl Runtime for NodeRuntime {
         });
 
         Some(RuntimeConfig {
-            entrypoint: None,
+            entrypoint,
             port,
             env_vars,
             health,
@@ -121,7 +152,7 @@ impl Runtime for NodeRuntime {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .unwrap_or_else(|| "nodejs-22".to_string());
 
-        vec![version]
+        vec![version, "npm".to_string()]
     }
 }
 

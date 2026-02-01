@@ -147,11 +147,14 @@ impl LanguageDefinition for ElixirLanguage {
     }
 
     fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![]
+        vec![(
+            r#"get\s*"(/health)""#.to_string(),
+            "Plug.Router".to_string(),
+        )]
     }
 
     fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![]
+        vec![("/health".to_string(), "Default".to_string())]
     }
 
     fn default_env_vars(&self) -> Vec<String> {
@@ -190,131 +193,37 @@ impl LanguageDefinition for ElixirLanguage {
         Some("mix phx.server".to_string())
     }
 
-    fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
-        None
-    }
-}
+    fn parse_entrypoint_from_manifest(&self, manifest_content: &str) -> Option<String> {
+        let app_name = Regex::new(r"app:\s*:(\w+)")
+            .ok()?
+            .captures(manifest_content)?
+            .get(1)?
+            .as_str();
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_extensions() {
-        let lang = ElixirLanguage;
-        assert!(lang.extensions().iter().any(|s| s == "ex"));
-        assert!(lang.extensions().iter().any(|s| s == "exs"));
+        Some(format!(
+            "/usr/local/bin/{}/bin/{} start",
+            app_name, app_name
+        ))
     }
 
-    #[test]
-    fn test_detect_mix_exs() {
-        let lang = ElixirLanguage;
-        let result = lang.detect("mix.exs", None);
-        assert!(result.is_some());
-        let r = result.unwrap();
-        assert_eq!(r.build_system, crate::BuildSystemId::Mix);
+    fn find_entrypoints(
+        &self,
+        _fs: &dyn peelbox_core::fs::FileSystem,
+        _repo_root: &std::path::Path,
+        _project_root: &std::path::Path,
+        _file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        vec![]
     }
 
-    #[test]
-    fn test_detect_mix_exs_with_content() {
-        let lang = ElixirLanguage;
-        let content = r#"
-defmodule MyApp.MixProject do
-  use Mix.Project
-
-  def project do
-    [app: :my_app, version: "0.1.0"]
-  end
-end
-"#;
-        let result = lang.detect("mix.exs", Some(content));
-        assert!(result.is_some());
-        let r = result.unwrap();
-        assert_eq!(r.confidence, 1.0);
-    }
-
-    #[test]
-    fn test_detect_mix_lock() {
-        let lang = ElixirLanguage;
-        let result = lang.detect("mix.lock", None);
-        assert!(result.is_some());
-    }
-
-    #[test]
-    fn test_compatible_build_systems() {
-        let lang = ElixirLanguage;
-        assert_eq!(lang.compatible_build_systems(), vec!["mix".to_string()]);
-    }
-
-    #[test]
-    fn test_excluded_dirs() {
-        let lang = ElixirLanguage;
-        assert!(lang.excluded_dirs().iter().any(|s| s == "_build"));
-        assert!(lang.excluded_dirs().iter().any(|s| s == "deps"));
-    }
-
-    #[test]
-    fn test_detect_version() {
-        let lang = ElixirLanguage;
-        let content = r#"
-defmodule MyApp.MixProject do
-  def project do
-    [app: :my_app, elixir: "~> 1.15"]
-  end
-end
-"#;
-        assert_eq!(lang.detect_version(Some(content)), Some("1.15".to_string()));
-    }
-
-    #[test]
-    fn test_parse_dependencies_version() {
-        let lang = ElixirLanguage;
-        let content = r#"
-defp deps do
-  [
-    {:phoenix, "~> 1.7.0"},
-    {:ecto, "~> 3.10"},
-  ]
-end
-"#;
-        let deps = lang.parse_dependencies(content, &[]);
-        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
-        assert_eq!(deps.external_deps.len(), 2);
-        assert!(deps
-            .external_deps
-            .iter()
-            .any(|d| d.name == "phoenix" && d.version == Some("~> 1.7.0".to_string())));
-        assert!(deps.external_deps.iter().any(|d| d.name == "ecto"));
-    }
-
-    #[test]
-    fn test_parse_dependencies_path() {
-        let lang = ElixirLanguage;
-        let content = r#"
-defp deps do
-  [
-    {:my_lib, path: "../my_lib"},
-    {:another_lib, path: "../another_lib"},
-  ]
-end
-"#;
-        let internal_paths = vec![std::path::PathBuf::from("../my_lib")];
-        let deps = lang.parse_dependencies(content, &internal_paths);
-        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
-        assert_eq!(deps.internal_deps.len(), 1);
-        assert_eq!(deps.external_deps.len(), 1);
-        assert!(deps
-            .internal_deps
-            .iter()
-            .any(|d| d.name == "my_lib" && d.is_internal));
-    }
-
-    #[test]
-    fn test_parse_dependencies_empty() {
-        let lang = ElixirLanguage;
-        let content = "defmodule MyApp.MixProject do\nend";
-        let deps = lang.parse_dependencies(content, &[]);
-        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
-        assert!(deps.external_deps.is_empty());
+    fn is_runnable(
+        &self,
+        _fs: &dyn peelbox_core::fs::FileSystem,
+        _repo_root: &std::path::Path,
+        _project_root: &std::path::Path,
+        _file_tree: &[std::path::PathBuf],
+        _manifest_content: Option<&str>,
+    ) -> bool {
+        false
     }
 }

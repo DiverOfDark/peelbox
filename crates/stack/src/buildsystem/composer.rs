@@ -8,13 +8,13 @@ use std::path::{Path, PathBuf};
 
 fn parse_php_version(manifest_content: &str) -> Option<String> {
     let composer: serde_json::Value = serde_json::from_str(manifest_content).ok()?;
-    let php_constraint = composer["require"]["php"].as_str()?;
+    let php_constraint = composer.get("require")?.get("php")?.as_str()?;
 
     let version_str = php_constraint
+        .replace(">=", "")
+        .replace("^", "")
+        .replace("~", "")
         .trim()
-        .trim_start_matches(">=")
-        .trim_start_matches("^")
-        .trim_start_matches("~")
         .split('.')
         .take(2)
         .collect::<Vec<_>>()
@@ -88,6 +88,7 @@ impl BuildSystem for ComposerBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let php_version = manifest_content
@@ -95,13 +96,19 @@ impl BuildSystem for ComposerBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("php"))
             .expect("Failed to get php version from Wolfi index");
 
-        let required_extensions = ["ctype", "phar", "openssl", "mbstring", "xml", "dom"];
+        let required_extensions = ["ctype", "phar", "openssl", "mbstring", "xml", "dom", "curl"];
         let extension_packages: Vec<String> = required_extensions
             .iter()
             .map(|ext| format!("{}-{}", php_version, ext))
             .collect();
 
-        let mut build_packages = vec![php_version.clone(), "composer".to_string()];
+        let mut build_packages = vec![
+            php_version.clone(),
+            "composer".to_string(),
+            "unzip".to_string(),
+            "git".to_string(),
+            "ca-certificates".to_string(),
+        ];
         build_packages.extend(extension_packages);
 
         BuildTemplate {
@@ -126,6 +133,6 @@ impl BuildSystem for ComposerBuildSystem {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".composer/cache".to_string(), "vendor".to_string()]
+        vec![".composer/cache".to_string()]
     }
 }

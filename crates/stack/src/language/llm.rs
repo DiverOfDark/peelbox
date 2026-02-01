@@ -235,6 +235,27 @@ Response format ONLY:
             .map(|info| info.health_check_patterns.clone())
             .unwrap_or_default()
     }
+
+    fn find_entrypoints(
+        &self,
+        _fs: &dyn peelbox_core::fs::FileSystem,
+        _repo_root: &std::path::Path,
+        _project_root: &std::path::Path,
+        _file_tree: &[std::path::PathBuf],
+    ) -> Vec<String> {
+        vec![]
+    }
+
+    fn is_runnable(
+        &self,
+        _fs: &dyn peelbox_core::fs::FileSystem,
+        _repo_root: &std::path::Path,
+        _project_root: &std::path::Path,
+        _file_tree: &[std::path::PathBuf],
+        _manifest_content: Option<&str>,
+    ) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]

@@ -16,7 +16,8 @@
       "packages": [
         "python-3.14",
         "py3.14-pip",
-        "build-base"
+        "build-base",
+        "ca-certificates"
       ]
     },
     "metadata": {
@@ -51,7 +52,8 @@
       "packages": [
         "python-3.14",
         "libgcc",
-        "libstdc++"
+        "libstdc++",
+        "ca-certificates"
       ],
       "ports": [
         5000

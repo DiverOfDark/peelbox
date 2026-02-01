@@ -1,31 +1,34 @@
 [
   {
     "build": {
-      "cache": [
-        "bazel-cache",
-        ".bazel-cache"
-      ],
+      "cache": [],
       "commands": [
-        "bazel build //:hello"
+        "bazel build //..."
       ],
-      "env": {},
-      "packages": []
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
+      },
+      "packages": [
+        "build-base",
+        "bazel-7",
+        "openjdk-21",
+        "ca-certificates"
+      ]
     },
     "metadata": {
-      "build_system": "bazel",
-      "confidence": 0.949999988079071,
-      "language": "Bazel",
-      "project_name": "app",
+      "build_system": "Bazel",
+      "language": "C++",
+      "project_name": "hello",
       "reasoning": "Detected from BUILD in "
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/hello"
       ],
       "copy": [
         {
           "from": "bazel-bin/hello",
-          "to": "/usr/local/bin/app"
+          "to": "/usr/local/bin/hello"
         }
       ],
       "env": {},
@@ -35,7 +38,8 @@
       ],
       "ports": [
         8080
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

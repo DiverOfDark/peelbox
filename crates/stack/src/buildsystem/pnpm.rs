@@ -68,6 +68,7 @@ impl BuildSystem for PnpmBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let node_version = read_node_version_file(service_path)
@@ -78,7 +79,14 @@ impl BuildSystem for PnpmBuildSystem {
         let build_env = std::collections::HashMap::new();
 
         BuildTemplate {
-            build_packages: vec![node_version.clone(), "pnpm".to_string()],
+            build_packages: vec![
+                node_version.clone(),
+                "pnpm".to_string(),
+                "build-base".to_string(),
+                "python-3.12".to_string(),
+                "npm".to_string(),
+                "ca-certificates".to_string(),
+            ],
             build_commands: vec!["pnpm install --frozen-lockfile".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".pnpm-store/".to_string()],
             common_ports: vec![3000, 8080],
@@ -116,5 +124,22 @@ impl BuildSystem for PnpmBuildSystem {
         pattern: &str,
     ) -> Result<Vec<std::path::PathBuf>> {
         super::glob_package_json_workspace_pattern(repo_path, pattern)
+    }
+
+    fn metadata_manifest_file(&self) -> Option<&str> {
+        Some("package.json")
+    }
+
+    fn parse_package_metadata(
+        &self,
+        manifest_content: &str,
+    ) -> Result<(String, bool), anyhow::Error> {
+        let package: serde_json::Value = serde_json::from_str(manifest_content)?;
+
+        let name = package["name"].as_str().unwrap_or("unknown").to_string();
+
+        let is_application = package["scripts"]["start"].is_string();
+
+        Ok((name, is_application))
     }
 }

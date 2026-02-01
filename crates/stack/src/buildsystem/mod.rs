@@ -56,6 +56,7 @@ pub trait BuildSystem: Send + Sync {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
+        relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate;
 
@@ -71,6 +72,13 @@ pub trait BuildSystem: Send + Sync {
     /// Workspace configuration files (e.g., "pnpm-workspace.yaml")
     fn workspace_configs(&self) -> Vec<String> {
         vec![]
+    }
+
+    /// Get the manifest file that contains package metadata (name, version, etc.)
+    /// This may differ from the detection manifest (e.g., npm uses package-lock.json for detection
+    /// but package.json for metadata). Returns None to use the detection manifest.
+    fn metadata_manifest_file(&self) -> Option<&str> {
+        None
     }
 
     /// Parse package metadata from manifest (name, is_application)

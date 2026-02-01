@@ -1,6 +1,7 @@
 //! Gradle build system (Java/Kotlin)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -56,27 +57,13 @@ impl BuildSystem for GradleBuildSystem {
                 };
 
                 if has_build_content {
-                    if let Some(parent) = rel_path.parent() {
-                        dir_has_build_file.insert(parent.to_path_buf());
-                    }
-                    detections.push(DetectionStack::new(
-                        BuildSystemId::Gradle,
-                        LanguageId::Java,
-                        rel_path.clone(),
-                    ));
-                }
-            }
-        }
+                    let lang = crate::language::JavaLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
 
-        for rel_path in file_tree {
-            let filename = rel_path.file_name().and_then(|n| n.to_str());
-
-            if matches!(
-                filename,
-                Some("settings.gradle") | Some("settings.gradle.kts")
-            ) {
-                if let Some(parent) = rel_path.parent() {
-                    if !dir_has_build_file.contains(parent) {
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        if let Some(parent) = rel_path.parent() {
+                            dir_has_build_file.insert(parent.to_path_buf());
+                        }
                         detections.push(DetectionStack::new(
                             BuildSystemId::Gradle,
                             LanguageId::Java,
@@ -93,13 +80,30 @@ impl BuildSystem for GradleBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
-        _service_path: &Path,
+        service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
-        let java_version = manifest_content
-            .and_then(parse_java_version)
-            .or_else(|| wolfi_index.get_latest_version("openjdk"))
-            .expect("Failed to get openjdk version from Wolfi index");
+        let parsed_version = manifest_content.and_then(parse_java_version);
+
+        let java_version = if let Some(ver) = parsed_version {
+            if wolfi_index.has_package(&ver) {
+                ver
+            } else {
+                eprintln!(
+                    "Warning: Requested Java version '{}' not found in Wolfi packages. Falling back to latest.",
+                    ver
+                );
+
+                wolfi_index
+                    .get_latest_version("openjdk")
+                    .expect("Failed to get openjdk version from Wolfi index")
+            }
+        } else {
+            wolfi_index
+                .get_latest_version("openjdk")
+                .expect("Failed to get openjdk version from Wolfi index")
+        };
 
         let _runtime_version = format!("{}-jre", java_version);
 
@@ -107,10 +111,14 @@ impl BuildSystem for GradleBuildSystem {
             .get_latest_version("gradle")
             .expect("Failed to get gradle version from Wolfi index");
 
-        let java_home = format!(
-            "/usr/lib/jvm/java-{}-openjdk",
-            java_version.trim_start_matches("openjdk-")
-        );
+        let java_home = if java_version == "openjdk-8" {
+            "/usr/lib/jvm/java-1.8-openjdk".to_string()
+        } else {
+            format!(
+                "/usr/lib/jvm/java-{}-openjdk",
+                java_version.trim_start_matches("openjdk-")
+            )
+        };
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("JAVA_HOME".to_string(), java_home);
@@ -120,9 +128,16 @@ impl BuildSystem for GradleBuildSystem {
             "-Dorg.gradle.native=false".to_string(),
         );
 
+        let mut build_packages = vec![java_version, gradle_version];
+        build_packages.push("ca-certificates".to_string());
+
+        // Use real filesystem to determine JAR path
+        let fs = peelbox_core::fs::RealFileSystem;
+        let (source_jar_path, dest_jar_path) = get_gradle_jar_path(service_path, &fs);
+
         BuildTemplate {
-            build_packages: vec![java_version, gradle_version],
-            build_commands: vec!["gradle build -x test --no-daemon --console=plain".to_string()],
+            build_packages,
+            build_commands: vec!["gradle assemble --no-daemon --console=plain".to_string()],
             cache_paths: vec![
                 "/root/.gradle/caches/".to_string(),
                 "/root/.gradle/wrapper/".to_string(),
@@ -130,7 +145,7 @@ impl BuildSystem for GradleBuildSystem {
             ],
             common_ports: vec![8080],
             build_env,
-            runtime_copy: vec![("build/libs/*.jar".to_string(), "/app/".to_string())],
+            runtime_copy: vec![(source_jar_path, dest_jar_path)],
             runtime_env: std::collections::HashMap::new(),
         }
     }
@@ -193,19 +208,120 @@ impl BuildSystem for GradleBuildSystem {
     }
 }
 
+/// Parse project version from build.gradle
+/// Looks for patterns like: version = '1.0.0' or version = "1.0.0"
+fn parse_project_version(manifest_content: &str) -> Option<String> {
+    for line in manifest_content.lines() {
+        let trimmed = line.trim();
+
+        // Match: version = '1.0.0' or version = "1.0.0"
+        if trimmed.starts_with("version") && trimmed.contains('=') {
+            if let Some(value) = trimmed.split('=').nth(1) {
+                let version = value
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .to_string();
+                if !version.is_empty() {
+                    return Some(version);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Parse project name from settings.gradle
+/// Looks for patterns like: rootProject.name = 'example-app' or rootProject.name = "example-app"
+fn parse_project_name(settings_content: &str) -> Option<String> {
+    for line in settings_content.lines() {
+        let trimmed = line.trim();
+
+        // Match: rootProject.name = 'example-app' or rootProject.name = "example-app"
+        if trimmed.contains("rootProject.name") && trimmed.contains('=') {
+            if let Some(value) = trimmed.split('=').nth(1) {
+                let name = value
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .to_string();
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Construct the JAR filename based on Gradle conventions
+/// Returns the JAR path that Gradle will produce: build/libs/{name}-{version}.jar
+/// Always copies to /app/app.jar for consistent runtime command
+pub fn get_gradle_jar_path(service_path: &Path, fs: &dyn FileSystem) -> (String, String) {
+    // Try to read settings.gradle for project name
+    let settings_gradle = service_path.join("settings.gradle");
+    let settings_gradle_kts = service_path.join("settings.gradle.kts");
+
+    let project_name = if let Ok(content) = fs.read_to_string(&settings_gradle) {
+        parse_project_name(&content)
+    } else if let Ok(content) = fs.read_to_string(&settings_gradle_kts) {
+        parse_project_name(&content)
+    } else {
+        None
+    };
+
+    // Try to read build.gradle for version
+    let build_gradle = service_path.join("build.gradle");
+    let build_gradle_kts = service_path.join("build.gradle.kts");
+
+    let version = if let Ok(content) = fs.read_to_string(&build_gradle) {
+        parse_project_version(&content)
+    } else if let Ok(content) = fs.read_to_string(&build_gradle_kts) {
+        parse_project_version(&content)
+    } else {
+        None
+    };
+
+    // Construct the JAR filename that Gradle will produce
+    let jar_filename = match (project_name, version) {
+        (Some(name), Some(ver)) => format!("{}-{}.jar", name, ver),
+        (Some(name), None) => format!("{}.jar", name),
+        _ => "*.jar".to_string(), // Fallback to glob pattern
+    };
+
+    let source_path = format!("build/libs/{}", jar_filename);
+    // Always copy to /app/app.jar so the runtime command can be generic
+    let dest_path = "/app/app.jar".to_string();
+
+    (source_path, dest_path)
+}
+
 fn parse_java_version(manifest_content: &str) -> Option<String> {
     for line in manifest_content.lines() {
         let trimmed = line.trim();
 
-        if trimmed.contains("sourceCompatibility") || trimmed.contains("targetCompatibility") {
-            if let Some(version) = trimmed.split('=').nth(1) {
+        if trimmed.contains("sourceCompatibility")
+            || trimmed.contains("targetCompatibility")
+            || trimmed.contains("languageVersion")
+        {
+            if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
+                let s = s.trim();
+                !s.is_empty() && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
+            }) {
                 let version_num = version
                     .trim()
                     .trim_matches('"')
                     .trim_matches('\'')
                     .replace("JavaVersion.VERSION_", "")
                     .replace('_', ".");
-                return Some(format!("openjdk-{}", version_num));
+
+                let version_final = if version_num.starts_with("1.") && version_num.len() > 2 {
+                    version_num.get(2..).unwrap_or(&version_num).to_string()
+                } else {
+                    version_num
+                };
+
+                return Some(format!("openjdk-{}", version_final));
             }
         }
     }

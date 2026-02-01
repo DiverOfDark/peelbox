@@ -561,19 +561,14 @@ impl BuildSession {
         }
 
         let image_config = ImageConfig {
-            cmd: spec.runtime.command.clone(),
+            cmd: vec![], // Empty CMD to prevent Docker from concatenating CMD+ENTRYPOINT
             env: env_vars,
-            working_dir: "/app".to_string(),
+            working_dir: if spec.runtime.workdir.is_empty() {
+                "/".to_string() // Default to root if not specified
+            } else {
+                spec.runtime.workdir.clone()
+            },
             entrypoint: spec.runtime.command.clone(),
-        };
-
-        let image_config = if !image_config.entrypoint.is_empty() {
-            ImageConfig {
-                cmd: vec![],
-                ..image_config
-            }
-        } else {
-            image_config
         };
 
         let oci_config_json = serde_json::json!({

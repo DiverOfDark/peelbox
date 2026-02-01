@@ -46,6 +46,7 @@ impl BuildSystem for BundlerBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let ruby_version = read_ruby_version_file(service_path)

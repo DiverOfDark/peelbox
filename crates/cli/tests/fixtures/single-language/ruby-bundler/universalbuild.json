@@ -16,12 +16,12 @@
         "ruby-3.4",
         "ruby-3.4-dev",
         "ruby3.4-bundler",
-        "build-base"
+        "build-base",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "Bundler",
-      "confidence": 0.949999988079071,
       "framework": "Sinatra",
       "language": "Ruby",
       "project_name": "app",
@@ -51,11 +51,13 @@
         "ruby-3.4",
         "ruby3.4-bundler",
         "libgcc",
-        "libstdc++"
+        "libstdc++",
+        "ca-certificates"
       ],
       "ports": [
         4567
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

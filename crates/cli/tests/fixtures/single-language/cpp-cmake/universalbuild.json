@@ -6,18 +6,19 @@
         "CMakeCache.txt"
       ],
       "commands": [
-        "cmake -B build -DCMAKE_BUILD_TYPE=Release"
+        "cmake -B build -DCMAKE_BUILD_TYPE=Release",
+        "cmake --build build --config Release"
       ],
       "env": {},
       "packages": [
         "build-base",
         "cmake",
-        "gcc"
+        "gcc",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "CMake",
-      "confidence": 0.949999988079071,
       "language": "C++",
       "project_name": "app",
       "reasoning": "Detected from CMakeLists.txt in "
@@ -39,7 +40,8 @@
       ],
       "ports": [
         8080
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

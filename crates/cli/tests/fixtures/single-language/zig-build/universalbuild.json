@@ -10,11 +10,13 @@
       ],
       "env": {},
       "packages": [
-        "zig"
+        "zig",
+        "build-base",
+        "ca-certificates"
       ]
     },
     "metadata": {
-      "build_system": "zig",
+      "build_system": "Zig Build",
       "confidence": 0.949999988079071,
       "language": "Zig",
       "project_name": "app",
@@ -22,7 +24,7 @@
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "/usr/local/bin/app"
       ],
       "copy": [
         {

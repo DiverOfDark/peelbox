@@ -1,0 +1,19 @@
+{
+  "request_hash": "16dfca5dac503eeb862fb67f797c17b0",
+  "request": {
+    "messages": [
+      {
+        "role": "user",
+        "content": "Analyze this repository to identify build system manifests. Respond with JSON ONLY.\n\nRepository: turborepo\nFile tree summary:\nRoot files: package.json, turbo.json, universalbuild.json\nExtensions: {\"json\": 6, \"ts\": 3}\n\nIdentify manifest files and their build systems. Return JSON array ONLY.\nCRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), logs, and output directories.\n\n[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  }\n]\n"
+      }
+    ],
+    "tools": [],
+    "model": "qwen2.5-coder:7b"
+  },
+  "response": {
+    "content": "```json\n[\n  {\n    \"manifest_path\": \"turbo.json\",\n    \"build_system\": \"turbo\",\n    \"language\": \"JavaScript\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"universalbuild\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.90\n  }\n]\n```",
+    "tool_call": null,
+    "response_time": 1023
+  },
+  "recorded_at": "2026-02-01T20:26:21.978904036+00:00"
+}

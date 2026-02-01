@@ -11,12 +11,12 @@
       "packages": [
         "python-3.14",
         "py3.14-pip",
-        "build-base"
+        "build-base",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "pip",
-      "confidence": 0.949999988079071,
       "framework": "Flask",
       "language": "Python",
       "project_name": "app",
@@ -38,11 +38,11 @@
         }
       ],
       "env": {
-        "FLASK_APP": "/app/app.py",
+        "FLASK_APP": "app:app",
         "FLASK_RUN_HOST": "0.0.0.0",
         "FLASK_RUN_PORT": "5000",
-        "PYTHONPATH": "/root/.local/lib/python3.14/site-packages",
-        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONPATH": "/root/.local/lib/python3.14/site-packages"
       },
       "health": {
         "endpoint": "/health"
@@ -50,11 +50,13 @@
       "packages": [
         "python-3.14",
         "libgcc",
-        "libstdc++"
+        "libstdc++",
+        "ca-certificates"
       ],
       "ports": [
         5000
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

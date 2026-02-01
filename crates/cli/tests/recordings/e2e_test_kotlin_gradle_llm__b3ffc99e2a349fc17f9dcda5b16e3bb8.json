@@ -13,7 +13,7 @@
   "response": {
     "content": "{\n  \"name\": \"Kotlin\",\n  \"file_extensions\": [\".kts\"],\n  \"package_managers\": [\"Maven\"],\n  \"excluded_dirs\": [],\n  \"workspace_configs\": [],\n  \"env_vars\": [],\n  \"health_endpoints\": [],\n  \"default_port\": null,\n  \"runtime_name\": null,\n  \"version_pattern\": \"\\\"version\\\": \\\"(.+?)\\\"\",\n  \"default_entrypoint\": null,\n  \"env_var_patterns\": [],\n  \"port_patterns\": [],\n  \"health_check_patterns\": [],\n  \"confidence\": 0.95\n}",
     "tool_call": null,
-    "response_time": 1641
+    "response_time": 1417
   },
-  "recorded_at": "2026-01-13T19:13:13.570759204+00:00"
+  "recorded_at": "2026-02-01T21:54:38.710130554+00:00"
 }

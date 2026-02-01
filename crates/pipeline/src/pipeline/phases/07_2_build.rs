@@ -26,8 +26,12 @@ fn try_deterministic(
     let manifest_path = service_path.join(&service.manifest);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok();
 
-    let template =
-        build_system.build_template(&wolfi_index, &service_path, manifest_content.as_deref());
+    let template = build_system.build_template(
+        &wolfi_index,
+        &service_path,
+        std::path::Path::new(&service.path),
+        manifest_content.as_deref(),
+    );
 
     let build_cmd = template.build_commands.clone();
     let output_dir = template.runtime_copy.first().map(|(from, _)| {
@@ -105,7 +109,12 @@ mod tests {
             .unwrap();
 
         let service_path = std::path::PathBuf::from("/tmp/test");
-        let template = build_system.build_template(&wolfi_index, &service_path, None);
+        let template = build_system.build_template(
+            &wolfi_index,
+            &service_path,
+            std::path::Path::new("."),
+            None,
+        );
 
         assert_eq!(
             template.build_commands.first(),
@@ -124,7 +133,12 @@ mod tests {
             .unwrap();
 
         let service_path = std::path::PathBuf::from("/tmp/test");
-        let template = build_system.build_template(&wolfi_index, &service_path, None);
+        let template = build_system.build_template(
+            &wolfi_index,
+            &service_path,
+            std::path::Path::new("."),
+            None,
+        );
 
         assert_eq!(
             template.build_commands.first(),

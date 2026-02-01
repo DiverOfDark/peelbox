@@ -68,6 +68,7 @@ impl BuildSystem for BunBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let build_packages = if wolfi_index.has_package("bun") {

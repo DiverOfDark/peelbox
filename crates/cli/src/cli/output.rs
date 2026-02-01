@@ -182,6 +182,7 @@ mod tests {
                     to: "/usr/local/bin/app".to_string(),
                 }],
                 command: vec!["/usr/local/bin/app".to_string()],
+                workdir: "/app".to_string(),
                 ports: vec![],
                 health: None,
             },

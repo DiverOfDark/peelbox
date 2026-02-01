@@ -87,7 +87,7 @@ mod tests {
         };
 
         let result = execute_phase(&service).await;
-        assert!(result.cache_dirs.contains(&PathBuf::from("node_modules")));
+        assert!(result.cache_dirs.contains(&PathBuf::from(".npm")));
         assert_eq!(result.confidence, Confidence::High);
     }
 

@@ -2,6 +2,7 @@
 
 use super::node_common::{parse_node_version, read_node_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -37,11 +38,31 @@ impl BuildSystem for NpmBuildSystem {
                     let abs_path = repo_root.join(rel_path);
                     let content = fs.read_to_string(&abs_path).ok();
                     if let Some(c) = content.as_deref() {
-                        !c.contains("\"packageManager\": \"pnpm")
+                        let is_npm = !c.contains("\"packageManager\": \"pnpm")
                             && !c.contains("\"packageManager\": \"yarn")
-                            && !c.contains("\"packageManager\": \"bun")
+                            && !c.contains("\"packageManager\": \"bun");
+
+                        if is_npm {
+                            let lang = crate::language::JavaScriptLanguage;
+                            let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+
+                            lang.is_runnable(
+                                fs,
+                                repo_root,
+                                project_dir,
+                                file_tree,
+                                content.as_deref(),
+                            )
+                        } else {
+                            false
+                        }
                     } else {
-                        true
+                        // Can't read file, but filename matches - optimistically assume yes but is_runnable would fail anyway without content
+                        // Actually, if we can't read content, is_runnable might still work with other files
+                        // But for now let's keep previous behavior of falling back to true, but guarded by is_runnable
+                        let lang = crate::language::JavaScriptLanguage;
+                        let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+                        lang.is_runnable(fs, repo_root, project_dir, file_tree, None)
                     }
                 }
                 _ => false,
@@ -63,6 +84,7 @@ impl BuildSystem for NpmBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         service_path: &Path,
+        relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let node_version = read_node_version_file(service_path)
@@ -72,22 +94,33 @@ impl BuildSystem for NpmBuildSystem {
 
         let build_env = std::collections::HashMap::new();
 
+        let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
+        let service_dir = relative_path.to_string_lossy();
+
+        let mut build_commands = vec!["npm ci".to_string()];
+        if is_root {
+            build_commands.push("npm run build".to_string());
+        } else {
+            build_commands.push(format!("cd {} && npm run build", service_dir));
+        }
+
+        // For Node.js workspaces, always copy the entire root context
+        // because npm hoists dependencies to the root node_modules
+        let runtime_copy = vec![(".".to_string(), "/app/".to_string())];
+
         BuildTemplate {
             build_packages: vec![node_version, "npm".to_string()],
-            build_commands: vec!["npm ci".to_string()],
-            cache_paths: vec!["node_modules/".to_string(), "/root/.npm/".to_string()],
+            build_commands,
+            cache_paths: vec!["/root/.npm/".to_string()],
             common_ports: vec![3000, 8080],
             build_env,
-            runtime_copy: vec![
-                ("dist/".to_string(), "/app/dist/".to_string()),
-                ("build/".to_string(), "/app/build/".to_string()),
-            ],
+            runtime_copy,
             runtime_env: std::collections::HashMap::new(),
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec!["node_modules".to_string(), ".npm".to_string()]
+        vec![".npm".to_string()]
     }
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {
@@ -104,6 +137,10 @@ impl BuildSystem for NpmBuildSystem {
             "turbo.json".to_string(),
             "rush.json".to_string(),
         ]
+    }
+
+    fn metadata_manifest_file(&self) -> Option<&str> {
+        Some("package.json")
     }
 
     fn parse_package_metadata(

@@ -2,8 +2,7 @@
   {
     "build": {
       "cache": [
-        ".composer/cache",
-        "vendor"
+        ".composer/cache"
       ],
       "commands": [
         "composer config allow-plugins.symfony/runtime true",
@@ -13,12 +12,16 @@
       "packages": [
         "php-8.1",
         "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
         "php-8.1-ctype",
         "php-8.1-phar",
         "php-8.1-openssl",
         "php-8.1-mbstring",
         "php-8.1-xml",
-        "php-8.1-dom"
+        "php-8.1-dom",
+        "php-8.1-curl"
       ]
     },
     "metadata": {
@@ -74,11 +77,13 @@
         "php-8.1-fileinfo",
         "php-8.1-iconv",
         "php-8.1-intl",
-        "php-8.1-pdo"
+        "php-8.1-pdo",
+        "ca-certificates"
       ],
       "ports": [
         8000
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

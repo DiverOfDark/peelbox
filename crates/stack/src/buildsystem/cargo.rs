@@ -1,6 +1,7 @@
 //! Cargo build system (Rust)
 
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::language::LanguageDefinition;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -41,11 +42,15 @@ impl BuildSystem for CargoBuildSystem {
                 };
 
                 if is_valid {
-                    detections.push(DetectionStack::new(
-                        BuildSystemId::Cargo,
-                        LanguageId::Rust,
-                        rel_path.clone(),
-                    ));
+                    let lang = crate::language::RustLanguage;
+                    let project_dir = rel_path.parent().unwrap_or(Path::new(""));
+                    if lang.is_runnable(fs, repo_root, project_dir, file_tree, content.as_deref()) {
+                        detections.push(DetectionStack::new(
+                            BuildSystemId::Cargo,
+                            LanguageId::Rust,
+                            rel_path.clone(),
+                        ));
+                    }
                 }
             }
         }
@@ -57,6 +62,7 @@ impl BuildSystem for CargoBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
+        relative_path: &Path,
         _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let mut build_packages = Vec::new();
@@ -69,13 +75,27 @@ impl BuildSystem for CargoBuildSystem {
         build_packages.push("build-base".to_string());
         build_packages.push("openssl-dev".to_string());
         build_packages.push("pkgconf".to_string());
+        build_packages.push("ca-certificates".to_string());
 
         let mut build_env = std::collections::HashMap::new();
         build_env.insert("CARGO_HOME".to_string(), ".cargo".to_string());
+        build_env.insert("CARGO_TARGET_DIR".to_string(), "target".to_string());
+
+        let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
+        let service_dir = relative_path.to_string_lossy();
+
+        let build_command = if is_root {
+            "cargo build --release".to_string()
+        } else {
+            format!(
+                "cargo build --release --manifest-path {}/Cargo.toml",
+                service_dir
+            )
+        };
 
         BuildTemplate {
             build_packages,
-            build_commands: vec!["cargo build --release".to_string()],
+            build_commands: vec![build_command],
             cache_paths: vec!["target".to_string(), ".cargo".to_string()],
             common_ports: vec![8080],
             build_env,

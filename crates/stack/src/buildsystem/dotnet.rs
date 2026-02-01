@@ -79,6 +79,7 @@ impl BuildSystem for DotNetBuildSystem {
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
+        _relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let dotnet_version = manifest_content

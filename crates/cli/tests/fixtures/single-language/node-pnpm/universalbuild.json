@@ -6,7 +6,7 @@
         ".pnpm-store"
       ],
       "commands": [
-        "pnpm install --frozen-lockfile",
+        "pnpm install",
         "pnpm build"
       ],
       "context": [
@@ -15,36 +15,47 @@
           "to": "/app"
         }
       ],
-      "env": {},
+      "env": {
+        "HOME": "/tmp"
+      },
       "packages": [
         "nodejs-22",
-        "pnpm"
+        "pnpm",
+        "build-base",
+        "python-3.12",
+        "npm",
+        "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "pnpm",
       "confidence": 0.949999988079071,
       "language": "JavaScript",
-      "project_name": "app",
+      "project_name": "example-node-app",
       "reasoning": "Detected from pnpm-lock.yaml in "
     },
     "runtime": {
       "command": [
-        "bin/app"
+        "node",
+        "dist/index.js"
       ],
       "copy": [
         {
-          "from": "dist/",
-          "to": "/usr/local/bin/app"
+          "from": ".",
+          "to": "/app"
         }
       ],
       "env": {},
       "packages": [
-        "nodejs-22"
+        "nodejs-22",
+        "npm",
+        "dumb-init",
+        "ca-certificates"
       ],
       "ports": [
         3000
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }
