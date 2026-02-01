@@ -292,16 +292,30 @@ impl OciIndex {
             reachable.insert(manifest_desc.digest.clone());
 
             let blob_path = crate::digest::blob_path_or_fallback(&manifest_desc.digest, cache_dir);
-            let content = fs::read_to_string(&blob_path).with_context(|| {
-                format!("Failed to read manifest blob at {}", blob_path.display())
-            })?;
 
-            let json = serde_json::from_str::<serde_json::Value>(&content).with_context(|| {
-                format!(
-                    "Failed to parse manifest JSON for digest {}",
-                    manifest_desc.digest
-                )
-            })?;
+            // Be resilient to corrupted/missing blobs - log warning and skip instead of failing
+            let content = match fs::read_to_string(&blob_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    warn!(
+                        "Skipping corrupted/missing manifest blob at {}: {}",
+                        blob_path.display(),
+                        e
+                    );
+                    continue;
+                }
+            };
+
+            let json = match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(j) => j,
+                Err(e) => {
+                    warn!(
+                        "Skipping manifest with invalid JSON (digest {}): {}",
+                        manifest_desc.digest, e
+                    );
+                    continue;
+                }
+            };
 
             if let Some(config_digest) = json.get("config").and_then(|c| c.get("digest")) {
                 if let Some(digest_str) = config_digest.as_str() {
