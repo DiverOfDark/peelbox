@@ -184,6 +184,7 @@ pub mod pnpm;
 pub mod poetry;
 pub mod yarn;
 pub mod zig;
+pub mod turborepo;
 
 pub use bazel::BazelBuildSystem;
 pub use bun::BunBuildSystem;
@@ -207,3 +208,4 @@ pub use pnpm::PnpmBuildSystem;
 pub use poetry::PoetryBuildSystem;
 pub use yarn::YarnBuildSystem;
 pub use zig::ZigBuildSystem;
+pub use turborepo::TurborepoBuildSystem;
