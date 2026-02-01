@@ -98,6 +98,7 @@ impl StackRegistry {
                     BuildSystemId::CMake => Arc::new(CMakeBuildSystem),
                     BuildSystemId::Make => Arc::new(MakeBuildSystem),
                     BuildSystemId::Meson => Arc::new(MesonBuildSystem),
+                    BuildSystemId::Bazel => Arc::new(BazelBuildSystem),
                     BuildSystemId::Mix => Arc::new(MixBuildSystem),
                     BuildSystemId::Deno => Arc::new(DenoBuildSystem),
                     BuildSystemId::Zig => Arc::new(ZigBuildSystem),

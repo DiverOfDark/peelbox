@@ -21,6 +21,7 @@ crate::define_id_enum! {
         Mix => "mix" : "Mix" | "mix",
         Deno => "deno" : "Deno" | "deno",
         Zig => "zig" : "Zig Build" | "zig",
+        Bazel => "bazel" : "Bazel" | "bazel",
     }
 }
 

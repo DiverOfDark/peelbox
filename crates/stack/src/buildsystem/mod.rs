@@ -183,6 +183,7 @@ pub mod pnpm;
 pub mod poetry;
 pub mod yarn;
 pub mod zig;
+pub mod bazel;
 
 pub use bun::BunBuildSystem;
 pub use bundler::BundlerBuildSystem;
@@ -203,5 +204,6 @@ pub use pip::PipBuildSystem;
 pub use pipenv::PipenvBuildSystem;
 pub use pnpm::PnpmBuildSystem;
 pub use poetry::PoetryBuildSystem;
+pub use bazel::BazelBuildSystem;
 pub use yarn::YarnBuildSystem;
 pub use zig::ZigBuildSystem;
