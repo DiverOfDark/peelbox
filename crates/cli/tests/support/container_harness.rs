@@ -203,7 +203,9 @@ impl ContainerTestHarness {
         spec_path: &Path,
         context_path: &Path,
         image_name: &str,
-        cache_dir: Option<&Path>,
+        cache_dir: &Path,
+        service_name: Option<&str>,
+        output_tar: Option<&Path>,
     ) -> Result<String> {
         let (port, _container_id) = get_buildkit_container().await?;
 
@@ -254,21 +256,23 @@ impl ContainerTestHarness {
             &buildkit_addr,
             "--context",
             context_path.to_str().unwrap(),
-            "--output",
-            "type=docker",
-            "--quiet",
+            "--cache",
+            &cache_path,
         ]);
+
+        if let Some(service) = service_name {
+            cmd.args(["--service", service]);
+        }
+
+        if let Some(tar_path) = output_tar {
+            cmd.args(["--output", tar_path.to_str().unwrap()]);
+        } else {
+            cmd.args(["--output", "type=docker"]);
+        }
 
         // Use PEELBOX_CACHE_DIR env var for automatic caching
         // Prefer cache_dir parameter if provided, otherwise use external_cache_dir
-        let cache_path = cache_dir
-            .map(|p| p.to_str().unwrap().to_string())
-            .unwrap_or_else(|| external_cache_dir.to_str().unwrap().to_string());
-        cmd.env("PEELBOX_CACHE_DIR", cache_path);
-
-        if let Ok(rust_log) = std::env::var("RUST_LOG") {
-            cmd.env("RUST_LOG", rust_log);
-        }
+        cmd.env("PEELBOX_CACHE_DIR", cache_dir);
 
         let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
 
@@ -376,38 +380,40 @@ impl ContainerTestHarness {
             );
         }
 
-        let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
-            .trim()
-            .to_string();
+        if let Some(tar_path) = output_tar {
+            let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
+                .trim()
+                .to_string();
 
-        let image_exists = if !image_id.is_empty() {
-            self.docker.inspect_image(&image_id).await.is_ok()
-        } else {
-            false
-        };
+            let image_exists = if !image_id.is_empty() {
+                self.docker.inspect_image(&image_id).await.is_ok()
+            } else {
+                false
+            };
 
-        if !image_exists {
-            let load_output = std::process::Command::new("docker")
-                .args(["load", "-i", output_tar.to_str().unwrap()])
-                .output()
-                .context("Failed to load image into Docker")?;
+            if !image_exists {
+                let load_output = std::process::Command::new("docker")
+                    .args(["load", "-i", tar_path.to_str().unwrap()])
+                    .output()
+                    .context("Failed to load image into Docker")?;
 
-            if !load_output.status.success() {
-                anyhow::bail!(
-                    "Failed to load image into Docker: {}",
-                    String::from_utf8_lossy(&load_output.stderr)
-                );
+                if !load_output.status.success() {
+                    anyhow::bail!(
+                        "Failed to load image into Docker: {}",
+                        String::from_utf8_lossy(&load_output.stderr)
+                    );
+                }
+            } else {
+                let _ = std::process::Command::new("docker")
+                    .args(["tag", &image_id, image_name])
+                    .status();
             }
-        } else {
-            let _ = std::process::Command::new("docker")
-                .args(["tag", &image_id, image_name])
-                .status();
         }
 
         self.docker
             .inspect_image(image_name)
             .await
-            .context("Failed to inspect image after build")?;
+            .context("Failed to inspect image after build - image may not have been loaded")?;
 
         Ok(image_name.to_string())
     }
