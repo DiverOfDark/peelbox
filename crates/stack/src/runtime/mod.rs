@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 pub mod beam;
+pub mod deno;
 pub mod dotnet;
 pub mod jvm;
 pub mod llm;
@@ -62,6 +63,7 @@ pub trait Runtime: Send + Sync {
 }
 
 pub use beam::BeamRuntime;
+pub use deno::DenoRuntime;
 pub use dotnet::DotNetRuntime;
 pub use jvm::JvmRuntime;
 pub use llm::LLMRuntime;

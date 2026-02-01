@@ -14,6 +14,7 @@ crate::define_id_enum! {
         PHP => "php" : "PHP",
         Cpp => "c++" : "C++",
         Elixir => "elixir" : "Elixir",
+        Deno => "deno" : "Deno",
         Zig => "zig" : "Zig",
     }
 }
