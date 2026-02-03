@@ -10,6 +10,7 @@ mod php;
 mod python;
 mod ruby;
 mod rust;
+mod zig;
 
 pub use cpp::CppLanguage;
 pub use dotnet::DotNetLanguage;
@@ -22,6 +23,7 @@ pub use php::PhpLanguage;
 pub use python::PythonLanguage;
 pub use ruby::RubyLanguage;
 pub use rust::RustLanguage;
+pub use zig::ZigLanguage;
 
 pub trait LanguageDefinition: Send + Sync {
     fn id(&self) -> crate::LanguageId;

@@ -181,6 +181,7 @@ pub mod pipenv;
 pub mod pnpm;
 pub mod poetry;
 pub mod yarn;
+pub mod zig;
 
 pub use bun::BunBuildSystem;
 pub use bundler::BundlerBuildSystem;
@@ -201,3 +202,4 @@ pub use pipenv::PipenvBuildSystem;
 pub use pnpm::PnpmBuildSystem;
 pub use poetry::PoetryBuildSystem;
 pub use yarn::YarnBuildSystem;
+pub use zig::ZigBuildSystem;

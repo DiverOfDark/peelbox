@@ -19,6 +19,7 @@ crate::define_id_enum! {
         Make => "make" : "Make" | "make",
         Meson => "meson" : "Meson" | "meson",
         Mix => "mix" : "Mix" | "mix",
+        Zig => "zig" : "Zig Build" | "zig",
     }
 }
 
