@@ -20,7 +20,7 @@ impl LanguageDefinition for ZigLanguage {
     ) -> Option<DetectionResult> {
         match manifest_name {
             "build.zig" => Some(DetectionResult {
-                build_system: crate::BuildSystemId::Custom("Zig Build".to_string()),
+                build_system: crate::BuildSystemId::Zig,
                 confidence: 1.0,
             }),
             _ => None,
