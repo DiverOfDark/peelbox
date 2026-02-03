@@ -5,8 +5,8 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f api-service/pom.xml package -DskipTests",
-        "mvn -f api-service/pom.xml dependency:copy-dependencies -DoutputDirectory=api-service/target/lib"
+        "mvn -f api-service/pom.xml -am package -DskipTests",
+        "mvn -f api-service/pom.xml -am dependency:copy-dependencies -DoutputDirectory=api-service/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
@@ -66,8 +66,8 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f app/pom.xml package -DskipTests",
-        "mvn -f app/pom.xml dependency:copy-dependencies -DoutputDirectory=app/target/lib"
+        "mvn -f app/pom.xml -am package -DskipTests",
+        "mvn -f app/pom.xml -am dependency:copy-dependencies -DoutputDirectory=app/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
@@ -123,8 +123,8 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f web-service/pom.xml package -DskipTests",
-        "mvn -f web-service/pom.xml dependency:copy-dependencies -DoutputDirectory=web-service/target/lib"
+        "mvn -f web-service/pom.xml -am package -DskipTests",
+        "mvn -f web-service/pom.xml -am dependency:copy-dependencies -DoutputDirectory=web-service/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",

@@ -110,6 +110,8 @@ impl BuildSystem for MavenBuildSystem {
             format!("-f {}/pom.xml ", service_dir)
         };
 
+        let also_make_flag = if is_root { "" } else { "-am " };
+
         let target_dir = if is_root {
             "target".to_string()
         } else {
@@ -119,10 +121,10 @@ impl BuildSystem for MavenBuildSystem {
         BuildTemplate {
             build_packages,
             build_commands: vec![
-                format!("mvn {}package -DskipTests", pom_arg),
+                format!("mvn {}{}package -DskipTests", pom_arg, also_make_flag),
                 format!(
-                    "mvn {}dependency:copy-dependencies -DoutputDirectory={}/lib",
-                    pom_arg, target_dir
+                    "mvn {}{}dependency:copy-dependencies -DoutputDirectory={}/lib",
+                    pom_arg, also_make_flag, target_dir
                 ),
             ],
             cache_paths: vec!["/root/.m2/repository/".to_string()],
@@ -337,5 +339,35 @@ mod tests {
         assert_eq!(parse_java_version("<project><properties><maven.compiler.source>21</maven.compiler.source></properties></project>"), Some("openjdk-21".to_string()));
         assert_eq!(parse_java_version("<project><properties><maven.compiler.release>11</maven.compiler.release></properties></project>"), Some("openjdk-11".to_string()));
         assert_eq!(parse_java_version("<project></project>"), None);
+    }
+
+    #[test]
+    fn test_build_template_submodule_includes_also_make() {
+        let maven = MavenBuildSystem;
+        let wolfi_index = WolfiPackageIndex::for_tests();
+
+        // Test for a submodule (non-root path)
+        let template = maven.build_template(
+            &wolfi_index,
+            Path::new("api-service"),
+            Path::new("api-service"),
+            Some("<project><properties><java.version>21</java.version></properties></project>"),
+        );
+
+        assert_eq!(
+            template.build_commands,
+            vec![
+                "mvn -f api-service/pom.xml -am package -DskipTests",
+                "mvn -f api-service/pom.xml -am dependency:copy-dependencies -DoutputDirectory=api-service/target/lib"
+            ]
+        );
+
+        // Verify path mapping includes submodule path
+        assert!(template
+            .runtime_copy
+            .contains(&("api-service/target/*.jar".to_string(), "/app/".to_string())));
+        assert!(template
+            .runtime_copy
+            .contains(&("api-service/target/lib/".to_string(), "/app/lib".to_string())));
     }
 }

@@ -2,7 +2,8 @@
   {
     "build": {
       "cache": [
-        ".npm"
+        ".npm",
+        "node_modules"
       ],
       "commands": [
         "npm ci",

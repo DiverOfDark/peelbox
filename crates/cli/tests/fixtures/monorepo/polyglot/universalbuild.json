@@ -5,8 +5,8 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f backend/pom.xml package -DskipTests",
-        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=backend/target/lib"
+        "mvn -f backend/pom.xml -am package -DskipTests",
+        "mvn -f backend/pom.xml -am dependency:copy-dependencies -DoutputDirectory=backend/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
@@ -115,7 +115,8 @@
   {
     "build": {
       "cache": [
-        ".npm"
+        ".npm",
+        "node_modules"
       ],
       "commands": [
         "npm ci",
