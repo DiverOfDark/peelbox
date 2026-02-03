@@ -73,6 +73,7 @@ impl StackRegistry {
             languages.insert(LanguageId::PHP, Arc::new(PhpLanguage));
             languages.insert(LanguageId::Cpp, Arc::new(CppLanguage));
             languages.insert(LanguageId::Elixir, Arc::new(ElixirLanguage));
+            languages.insert(LanguageId::Deno, Arc::new(DenoLanguage));
             languages.insert(LanguageId::Zig, Arc::new(ZigLanguage));
         }
 
@@ -98,6 +99,7 @@ impl StackRegistry {
                     BuildSystemId::Make => Arc::new(MakeBuildSystem),
                     BuildSystemId::Meson => Arc::new(MesonBuildSystem),
                     BuildSystemId::Mix => Arc::new(MixBuildSystem),
+                    BuildSystemId::Deno => Arc::new(DenoBuildSystem),
                     BuildSystemId::Zig => Arc::new(ZigBuildSystem),
                     BuildSystemId::Custom(_) => continue,
                 };
@@ -352,6 +354,7 @@ impl StackRegistry {
             RuntimeId::DotNet => Box::new(crate::runtime::DotNetRuntime),
             RuntimeId::BEAM => Box::new(crate::runtime::BeamRuntime),
             RuntimeId::Native => Box::new(crate::runtime::NativeRuntime),
+            RuntimeId::Deno => Box::new(crate::runtime::DenoRuntime),
             RuntimeId::Custom(_) => match llm_client {
                 Some(llm) => Box::new(crate::runtime::LLMRuntime::new(llm)),
                 None => Box::new(crate::runtime::LLMRuntime::default()),

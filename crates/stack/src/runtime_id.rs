@@ -9,6 +9,7 @@ crate::define_id_enum_with_display! {
         DotNet => "dotnet" : ".NET" | "dotnet" | "csharp" | "fsharp",
         BEAM => "beam" : "BEAM" | "elixir",
         Native => "native" : "Native" | "rust" | "c++" | "go",
+        Deno => "deno" : "Deno" | "deno",
     }
 }
 

@@ -1,4 +1,5 @@
 mod cpp;
+mod deno;
 mod dotnet;
 mod elixir;
 mod go;
@@ -13,6 +14,7 @@ mod rust;
 mod zig;
 
 pub use cpp::CppLanguage;
+pub use deno::DenoLanguage;
 pub use dotnet::DotNetLanguage;
 pub use elixir::ElixirLanguage;
 pub use go::GoLanguage;
