@@ -96,3 +96,245 @@ impl LanguageDefinition for DenoLanguage {
         Some("Deno".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use peelbox_core::fs::{DirEntry, FileMetadata, FileType};
+    use std::collections::HashMap;
+    use std::path::{Path, PathBuf};
+
+    struct MockFileSystem {
+        files: HashMap<PathBuf, String>,
+    }
+
+    impl peelbox_core::fs::FileSystem for MockFileSystem {
+        fn read_to_string(&self, path: &Path) -> Result<String, anyhow::Error> {
+            self.files
+                .get(path)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("not found"))
+        }
+
+        fn exists(&self, path: &Path) -> bool {
+            self.files.contains_key(path)
+        }
+
+        fn is_file(&self, path: &Path) -> bool {
+            self.exists(path)
+        }
+
+        fn is_dir(&self, _path: &Path) -> bool {
+            false
+        }
+
+        fn read_dir(&self, _path: &Path) -> Result<Vec<DirEntry>, anyhow::Error> {
+            Ok(vec![])
+        }
+
+        fn metadata(&self, path: &Path) -> Result<FileMetadata, anyhow::Error> {
+            if self.exists(path) {
+                Ok(FileMetadata {
+                    size: 100,
+                    file_type: FileType::File,
+                })
+            } else {
+                Err(anyhow::anyhow!("not found"))
+            }
+        }
+
+        fn read_bytes(&self, path: &Path, _max_bytes: usize) -> Result<Vec<u8>, anyhow::Error> {
+            self.read_to_string(path).map(|s| s.into_bytes())
+        }
+
+        fn canonicalize(&self, path: &Path) -> Result<PathBuf, anyhow::Error> {
+            Ok(path.to_path_buf())
+        }
+    }
+
+    #[test]
+    fn test_language_id() {
+        let deno = DenoLanguage;
+        assert_eq!(deno.id(), LanguageId::Deno);
+    }
+
+    #[test]
+    fn test_extensions() {
+        let deno = DenoLanguage;
+        let extensions = deno.extensions();
+        assert_eq!(extensions, vec!["ts", "tsx", "js", "jsx"]);
+    }
+
+    #[test]
+    fn test_detect_deno_json() {
+        let deno = DenoLanguage;
+        let result = deno.detect("deno.json", None);
+
+        assert!(result.is_some());
+        let detection = result.unwrap();
+        assert_eq!(detection.build_system, BuildSystemId::Deno);
+        assert_eq!(detection.confidence, 1.0);
+    }
+
+    #[test]
+    fn test_detect_deno_jsonc() {
+        let deno = DenoLanguage;
+        let result = deno.detect("deno.jsonc", None);
+
+        assert!(result.is_some());
+        let detection = result.unwrap();
+        assert_eq!(detection.build_system, BuildSystemId::Deno);
+        assert_eq!(detection.confidence, 1.0);
+    }
+
+    #[test]
+    fn test_detect_unknown_file() {
+        let deno = DenoLanguage;
+        let result = deno.detect("package.json", None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_compatible_build_systems() {
+        let deno = DenoLanguage;
+        assert_eq!(deno.compatible_build_systems(), vec!["Deno"]);
+    }
+
+    #[test]
+    fn test_excluded_dirs() {
+        let deno = DenoLanguage;
+        let excluded = deno.excluded_dirs();
+        assert!(excluded.contains(&"vendor".to_string()));
+        assert!(excluded.contains(&".deno".to_string()));
+    }
+
+    #[test]
+    fn test_workspace_configs() {
+        let deno = DenoLanguage;
+        let configs = deno.workspace_configs();
+        assert_eq!(configs, vec!["deno.json", "deno.jsonc"]);
+    }
+
+    #[test]
+    fn test_is_workspace_root_with_workspace() {
+        let deno = DenoLanguage;
+        let manifest_content = r#"{
+            "workspace": ["packages/*"]
+        }"#;
+
+        assert!(deno.is_workspace_root("deno.json", Some(manifest_content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_with_members() {
+        let deno = DenoLanguage;
+        let manifest_content = r#"{
+            "members": ["app", "lib"]
+        }"#;
+
+        assert!(deno.is_workspace_root("deno.json", Some(manifest_content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_without_workspace() {
+        let deno = DenoLanguage;
+        let manifest_content = r#"{
+            "tasks": {
+                "start": "deno run main.ts"
+            }
+        }"#;
+
+        assert!(!deno.is_workspace_root("deno.json", Some(manifest_content)));
+    }
+
+    #[test]
+    fn test_is_workspace_root_wrong_manifest() {
+        let deno = DenoLanguage;
+        assert!(!deno.is_workspace_root("package.json", None));
+    }
+
+    #[test]
+    fn test_is_main_file() {
+        let deno = DenoLanguage;
+        let fs = MockFileSystem {
+            files: HashMap::new(),
+        };
+
+        assert!(deno.is_main_file(&fs, Path::new("main.ts")));
+        assert!(deno.is_main_file(&fs, Path::new("index.ts")));
+        assert!(deno.is_main_file(&fs, Path::new("mod.ts")));
+        assert!(deno.is_main_file(&fs, Path::new("server.ts")));
+        assert!(deno.is_main_file(&fs, Path::new("app.ts")));
+        assert!(!deno.is_main_file(&fs, Path::new("utils.ts")));
+    }
+
+    #[test]
+    fn test_default_entrypoint() {
+        let deno = DenoLanguage;
+        let entrypoint = deno.default_entrypoint("Deno");
+        assert_eq!(entrypoint, Some("main.ts".to_string()));
+    }
+
+    #[test]
+    fn test_is_runnable_with_main_ts() {
+        let mut fs = MockFileSystem {
+            files: HashMap::new(),
+        };
+
+        fs.files.insert(
+            PathBuf::from("main.ts"),
+            "export default function() {}".to_string(),
+        );
+
+        let deno = DenoLanguage;
+        let repo_root = PathBuf::from("/repo");
+        let project_root = PathBuf::from("");
+        let file_tree = vec![PathBuf::from("main.ts")];
+
+        assert!(deno.is_runnable(&fs, &repo_root, &project_root, &file_tree, None));
+    }
+
+    #[test]
+    fn test_is_runnable_with_index_ts() {
+        let mut fs = MockFileSystem {
+            files: HashMap::new(),
+        };
+
+        fs.files.insert(
+            PathBuf::from("index.ts"),
+            "console.log('hello')".to_string(),
+        );
+
+        let deno = DenoLanguage;
+        let repo_root = PathBuf::from("/repo");
+        let project_root = PathBuf::from("");
+        let file_tree = vec![PathBuf::from("index.ts")];
+
+        assert!(deno.is_runnable(&fs, &repo_root, &project_root, &file_tree, None));
+    }
+
+    #[test]
+    fn test_is_runnable_without_entrypoint() {
+        let mut fs = MockFileSystem {
+            files: HashMap::new(),
+        };
+
+        fs.files.insert(
+            PathBuf::from("utils.ts"),
+            "export function add(a: number, b: number) { return a + b; }".to_string(),
+        );
+
+        let deno = DenoLanguage;
+        let repo_root = PathBuf::from("/repo");
+        let project_root = PathBuf::from("");
+        let file_tree = vec![PathBuf::from("utils.ts")];
+
+        assert!(!deno.is_runnable(&fs, &repo_root, &project_root, &file_tree, None));
+    }
+
+    #[test]
+    fn test_runtime_name() {
+        let deno = DenoLanguage;
+        assert_eq!(deno.runtime_name(), Some("Deno".to_string()));
+    }
+}
