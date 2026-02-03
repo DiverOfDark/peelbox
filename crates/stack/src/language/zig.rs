@@ -6,7 +6,7 @@ pub struct ZigLanguage;
 
 impl LanguageDefinition for ZigLanguage {
     fn id(&self) -> crate::LanguageId {
-        crate::LanguageId::Custom("Zig".to_string())
+        crate::LanguageId::Zig
     }
 
     fn extensions(&self) -> Vec<String> {
