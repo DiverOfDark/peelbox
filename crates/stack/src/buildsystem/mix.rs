@@ -59,10 +59,7 @@ impl BuildSystem for MixBuildSystem {
 
         // Separate dependency installation from compilation for better caching
         // deps.get fetches dependencies (cached), compile builds from source (not cached)
-        let build_commands = vec![
-            "mix deps.get".to_string(),
-            "mix compile".to_string(),
-        ];
+        let build_commands = vec!["mix deps.get".to_string(), "mix compile".to_string()];
 
         let runtime_copy = vec![(".".to_string(), "/app".to_string())];
 

@@ -366,8 +366,9 @@ mod tests {
         assert!(template
             .runtime_copy
             .contains(&("api-service/target/*.jar".to_string(), "/app/".to_string())));
-        assert!(template
-            .runtime_copy
-            .contains(&("api-service/target/lib/".to_string(), "/app/lib".to_string())));
+        assert!(template.runtime_copy.contains(&(
+            "api-service/target/lib/".to_string(),
+            "/app/lib".to_string()
+        )));
     }
 }
