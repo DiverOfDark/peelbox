@@ -28,7 +28,7 @@ impl LanguageDefinition for ZigLanguage {
     }
 
     fn compatible_build_systems(&self) -> Vec<String> {
-        vec!["zig build".to_string()]
+        vec!["zig".to_string()]
     }
 
     fn excluded_dirs(&self) -> Vec<String> {
