@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"typescript\",\n  \"manifest_files\": [\"tsconfig.json\"],\n  \"build_commands\": [\"tsc\"],\n  \"cache_dirs\": [\"node_modules\"],\n  \"build_packages\": [\"typescript\"],\n  \"runtime_packages\": [\"nodejs-20\"],\n  \"artifacts\": [\"dist\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1220
+    "response_time": 1165
   },
-  "recorded_at": "2026-02-01T20:27:45.389379281+00:00"
+  "recorded_at": "2026-02-03T00:10:07.530224291+00:00"
 }

@@ -46,7 +46,8 @@ impl Framework for FlaskFramework {
 
     fn runtime_env_vars(&self) -> HashMap<String, String> {
         let mut env = HashMap::new();
-        env.insert("FLASK_APP".to_string(), "app:app".to_string());
+        // Note: FLASK_APP should be set by build system based on actual file detection
+        // See detect_flask_app_file() helper function
         env.insert("FLASK_RUN_HOST".to_string(), "0.0.0.0".to_string());
         env.insert("FLASK_RUN_PORT".to_string(), "5000".to_string());
         env
@@ -99,6 +100,72 @@ impl Framework for FlaskFramework {
             None
         }
     }
+}
+
+/// Detect Flask app file by scanning source files for Flask app instantiation
+/// Returns FLASK_APP value in format suitable for the environment variable
+///
+/// # Arguments
+/// * `service_path` - Path to the service directory
+/// * `copy_dest` - Destination where files are copied in runtime (e.g., "/app" or "/build")
+///
+/// # Returns
+/// FLASK_APP value like "/app/app.py" or "/build/main.py", or None if not detected
+pub fn detect_flask_app_file(service_path: &std::path::Path, copy_dest: &str) -> Option<String> {
+    use std::fs;
+
+    // Common Flask app file patterns in priority order
+    let candidates = [
+        "app.py",
+        "main.py",
+        "wsgi.py",
+        "application.py",
+        "run.py",
+        "__init__.py",
+    ];
+
+    for candidate in &candidates {
+        let file_path = service_path.join(candidate);
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            // Check if this file creates a Flask app instance
+            if is_flask_app_file(&content) {
+                // Return absolute path in the container
+                let filename = file_path.file_name()?.to_str()?;
+                return Some(format!("{}/{}", copy_dest, filename));
+            }
+        }
+    }
+
+    // Fallback: check for any .py file with Flask app
+    if let Ok(entries) = fs::read_dir(service_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("py") {
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if is_flask_app_file(&content) {
+                        let filename = path.file_name()?.to_str()?;
+                        return Some(format!("{}/{}", copy_dest, filename));
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if a Python file contains Flask app instantiation
+fn is_flask_app_file(content: &str) -> bool {
+    // Look for common Flask app patterns (literal string matching)
+    let patterns = [
+        "Flask(__name__)",
+        "app = Flask(",
+        "application = Flask(",
+        "def create_app(",
+        "app=Flask(", // without spaces
+    ];
+
+    patterns.iter().any(|pattern| content.contains(pattern))
 }
 
 fn extract_number(s: &str) -> Option<u16> {

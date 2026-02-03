@@ -116,8 +116,11 @@ impl Runtime for JvmRuntime {
                 })
         });
 
+        // Detect entrypoint based on Spring Boot plugin presence
+        let entrypoint = self.detect_entrypoint(files);
+
         Some(RuntimeConfig {
-            entrypoint: Some(self.start_command(Path::new("/app/app.jar"))),
+            entrypoint: Some(entrypoint),
             port,
             env_vars,
             health,
@@ -190,6 +193,71 @@ impl Runtime for JvmRuntime {
 }
 
 impl JvmRuntime {
+    fn detect_entrypoint(&self, files: &[PathBuf]) -> String {
+        // Check for pom.xml and detect Spring Boot plugin
+        for file in files {
+            if let Some(name) = file.file_name().and_then(|n| n.to_str()) {
+                if name == "pom.xml" {
+                    if let Ok(content) = std::fs::read_to_string(file) {
+                        // Check if Spring Boot Maven Plugin is present
+                        if content.contains("spring-boot-maven-plugin") {
+                            // Use -jar with specific artifact name
+                            if let Some(jar_path) = self.parse_pom_jar_name(&content) {
+                                return format!("java -jar {}", jar_path);
+                            }
+                        } else {
+                            // Default JVM: use classpath
+                            if let Some(main_class) = self.extract_main_class(&content) {
+                                return format!("java -cp /app/*.jar {}", main_class);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback to default
+        self.start_command(Path::new("/app/app.jar"))
+    }
+
+    fn parse_pom_jar_name(&self, content: &str) -> Option<String> {
+        let doc = roxmltree::Document::parse(content).ok()?;
+        let root = doc.root_element();
+
+        let mut artifact_id = None;
+        let mut version = None;
+
+        // Only look at direct children of <project>
+        for child in root.children() {
+            if child.has_tag_name("artifactId") && artifact_id.is_none() {
+                artifact_id = child.text().map(|s| s.trim().to_string());
+            }
+            if child.has_tag_name("version") {
+                version = child.text().map(|s| s.trim().to_string());
+            }
+        }
+
+        match (artifact_id, version) {
+            (Some(aid), Some(ver)) => Some(format!("/app/{}-{}.jar", aid, ver)),
+            (Some(aid), None) => Some(format!("/app/{}.jar", aid)),
+            _ => None,
+        }
+    }
+
+    fn extract_main_class(&self, content: &str) -> Option<String> {
+        // Parse pom.xml to find main class in plugin configuration
+        let doc = roxmltree::Document::parse(content).ok()?;
+
+        // Look for <mainClass> tag in plugin configuration
+        for node in doc.descendants() {
+            if node.has_tag_name("mainClass") {
+                return node.text().map(|s| s.trim().to_string());
+            }
+        }
+
+        None
+    }
+
     fn detect_version(
         &self,
         service_path: &Path,

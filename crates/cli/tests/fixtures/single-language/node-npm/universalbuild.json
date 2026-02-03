@@ -2,7 +2,8 @@
   {
     "build": {
       "cache": [
-        ".npm"
+        ".npm",
+        "node_modules"
       ],
       "commands": [
         "npm ci",
@@ -20,7 +21,7 @@
       "framework": "Express",
       "language": "JavaScript",
       "project_name": "example-node-app",
-      "reasoning": "Detected from package.json in "
+      "reasoning": "Detected from package.json"
     },
     "runtime": {
       "command": [

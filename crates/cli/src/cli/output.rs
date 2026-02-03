@@ -157,6 +157,7 @@ mod tests {
     use peelbox_core::output::schema::{
         BuildMetadata, BuildStage, CopySpec, RuntimeStage, UniversalBuild,
     };
+    use std::collections::BTreeMap;
 
     fn create_test_result() -> UniversalBuild {
         UniversalBuild {
@@ -170,13 +171,13 @@ mod tests {
             },
             build: BuildStage {
                 packages: vec!["rust".to_string(), "build-base".to_string()],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),
                     to: "/usr/local/bin/app".to_string(),

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"BUILD\",\n    \"build_system\": \"bazel\",\n    \"language\": \"Bazel\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"WORKSPACE\",\n    \"build_system\": \"bazel\",\n    \"language\": \"Bazel\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1503
+    "response_time": 1488
   },
-  "recorded_at": "2026-02-01T20:25:28.706212660+00:00"
+  "recorded_at": "2026-02-03T00:08:02.203292706+00:00"
 }

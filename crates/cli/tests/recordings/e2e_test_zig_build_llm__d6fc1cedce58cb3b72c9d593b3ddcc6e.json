@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"zig\",\n  \"manifest_files\": [\"build.zig\"],\n  \"build_commands\": [\"zig build -Doptimize=ReleaseSafe\"],\n  \"cache_dirs\": [\"zig-cache\", \".zig-cache\"],\n  \"build_packages\": [\"zig\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"zig-out/bin/hello\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1426
+    "response_time": 1387
   },
-  "recorded_at": "2026-02-01T20:28:47.068044628+00:00"
+  "recorded_at": "2026-02-03T00:11:11.898136515+00:00"
 }

@@ -70,11 +70,11 @@ impl BuildSystem for BundlerBuildSystem {
 
         build_packages.push("build-base".to_string());
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert("BUNDLE_PATH".to_string(), "vendor/bundle".to_string());
         build_env.insert("BUNDLE_DEPLOYMENT".to_string(), "false".to_string());
 
-        let mut runtime_env = std::collections::HashMap::new();
+        let mut runtime_env = std::collections::BTreeMap::new();
         runtime_env.insert("BUNDLE_PATH".to_string(), "/app/vendor/bundle".to_string());
         runtime_env.insert("BUNDLE_GEMFILE".to_string(), "/app/Gemfile".to_string());
 
@@ -87,6 +87,7 @@ impl BuildSystem for BundlerBuildSystem {
             build_env,
             runtime_copy: vec![(".".to_string(), "/app".to_string())],
             runtime_env,
+            runtime_workdir: None,
         }
     }
 

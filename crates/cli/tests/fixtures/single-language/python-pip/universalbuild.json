@@ -20,7 +20,7 @@
       "framework": "Flask",
       "language": "Python",
       "project_name": "app",
-      "reasoning": "Detected from requirements.txt in "
+      "reasoning": "Detected from requirements.txt"
     },
     "runtime": {
       "command": [
@@ -30,7 +30,7 @@
       "copy": [
         {
           "from": ".",
-          "to": "/app"
+          "to": "/build"
         },
         {
           "from": "/root/.local/",
@@ -38,7 +38,7 @@
         }
       ],
       "env": {
-        "FLASK_APP": "app:app",
+        "FLASK_APP": "/build/app.py",
         "FLASK_RUN_HOST": "0.0.0.0",
         "FLASK_RUN_PORT": "5000",
         "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
@@ -56,7 +56,7 @@
       "ports": [
         5000
       ],
-      "workdir": "/app"
+      "workdir": "/build"
     },
     "version": "1.0"
   }

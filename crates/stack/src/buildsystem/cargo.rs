@@ -77,9 +77,8 @@ impl BuildSystem for CargoBuildSystem {
         build_packages.push("pkgconf".to_string());
         build_packages.push("ca-certificates".to_string());
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert("CARGO_HOME".to_string(), ".cargo".to_string());
-        build_env.insert("CARGO_TARGET_DIR".to_string(), "target".to_string());
 
         let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
         let service_dir = relative_path.to_string_lossy();
@@ -103,7 +102,8 @@ impl BuildSystem for CargoBuildSystem {
                 "target/release/{project_name}".to_string(),
                 "/usr/local/bin/{project_name}".to_string(),
             )],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"Cargo.toml\",\n    \"build_system\": \"cargo\",\n    \"language\": \"Rust\",\n    \"confidence\": 0.95\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 658
+    "response_time": 647
   },
-  "recorded_at": "2026-02-01T20:28:40.412330408+00:00"
+  "recorded_at": "2026-02-03T00:11:06.030229710+00:00"
 }

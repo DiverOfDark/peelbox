@@ -91,7 +91,7 @@ impl BuildSystem for GoModBuildSystem {
             })
             .expect("Failed to get go version from Wolfi index");
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert("GOCACHE".to_string(), "/build/.cache/go-build".to_string());
         build_env.insert("GOMODCACHE".to_string(), "/build/.cache/go-mod".to_string());
         build_env.insert("GOSUMDB".to_string(), "off".to_string());
@@ -108,7 +108,8 @@ impl BuildSystem for GoModBuildSystem {
             common_ports: vec![8080],
             build_env,
             runtime_copy: vec![("app".to_string(), "/usr/local/bin/app".to_string())],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 

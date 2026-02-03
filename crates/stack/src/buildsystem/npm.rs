@@ -92,7 +92,7 @@ impl BuildSystem for NpmBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .expect("Failed to get nodejs version from Wolfi index");
 
-        let build_env = std::collections::HashMap::new();
+        let build_env = std::collections::BTreeMap::new();
 
         let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
         let service_dir = relative_path.to_string_lossy();
@@ -115,12 +115,13 @@ impl BuildSystem for NpmBuildSystem {
             common_ports: vec![3000, 8080],
             build_env,
             runtime_copy,
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".npm".to_string()]
+        vec!["node_modules".to_string(), ".npm".to_string()]
     }
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {

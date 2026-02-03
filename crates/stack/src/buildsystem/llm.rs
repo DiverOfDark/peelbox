@@ -205,9 +205,10 @@ CRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), log
                     build_commands: info.build_commands.clone(),
                     cache_paths: info.cache_dirs.clone(),
                     common_ports: info.common_ports.clone(),
-                    build_env: std::collections::HashMap::new(),
+                    build_env: BTreeMap::new(),
                     runtime_copy: vec![],
-                    runtime_env: std::collections::HashMap::new(),
+                    runtime_env: BTreeMap::new(),
+                    runtime_workdir: None,
                 }
             })
             .unwrap_or_else(|| BuildTemplate {
@@ -215,9 +216,10 @@ CRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), log
                 build_commands: vec![],
                 cache_paths: vec![],
                 common_ports: vec![],
-                build_env: std::collections::HashMap::new(),
+                build_env: BTreeMap::new(),
                 runtime_copy: vec![],
-                runtime_env: std::collections::HashMap::new(),
+                runtime_env: BTreeMap::new(),
+                runtime_workdir: None,
             })
     }
 

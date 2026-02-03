@@ -47,7 +47,7 @@ impl BuildSystem for MixBuildSystem {
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
         _service_path: &Path,
         _relative_path: &Path,
-        manifest_content: Option<&str>,
+        _manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let elixir_version = wolfi_index
             .get_latest_version("elixir")
@@ -57,30 +57,21 @@ impl BuildSystem for MixBuildSystem {
             .get_latest_version("erlang")
             .unwrap_or_else(|| "erlang-28".to_string());
 
-        let app_name = manifest_content
-            .and_then(|c| {
-                Regex::new(r"app:\s*:(\w+)")
-                    .ok()
-                    .and_then(|re| re.captures(c))
-                    .and_then(|caps| caps.get(1))
-                    .map(|m| m.as_str().to_string())
-            })
-            .unwrap_or_else(|| "app".to_string());
+        // Separate dependency installation from compilation for better caching
+        // deps.get fetches dependencies (cached), compile builds from source (not cached)
+        let build_commands = vec!["mix deps.get".to_string(), "mix compile".to_string()];
 
-        let build_commands = vec![
-            "mix local.hex --force".to_string(),
-            "mix local.rebar --force".to_string(),
-            "mix deps.get".to_string(),
-            "MIX_ENV=prod mix release".to_string(),
-        ];
+        let runtime_copy = vec![(".".to_string(), "/app".to_string())];
 
-        let runtime_copy = vec![(
-            format!("_build/prod/rel/{}", app_name),
-            format!("/usr/local/bin/{}", app_name),
-        )];
+        let runtime_env = std::collections::BTreeMap::from([
+            ("PORT".to_string(), "4000".to_string()),
+            ("MIX_ENV".to_string(), "prod".to_string()),
+            ("LC_ALL".to_string(), "C.UTF-8".to_string()),
+            ("ELIXIR_ERL_OPTIONS".to_string(), "+fnu".to_string()),
+        ]);
 
-        let runtime_env =
-            std::collections::HashMap::from([("PORT".to_string(), "8080".to_string())]);
+        let build_env =
+            std::collections::BTreeMap::from([("MIX_ENV".to_string(), "prod".to_string())]);
 
         BuildTemplate {
             build_packages: vec![
@@ -92,16 +83,23 @@ impl BuildSystem for MixBuildSystem {
                 "ca-certificates".to_string(),
             ],
             build_commands,
-            cache_paths: vec!["_build".to_string(), "deps".to_string()],
+            cache_paths: vec![],
             common_ports: vec![4000],
-            build_env: std::collections::HashMap::new(),
+            build_env,
             runtime_copy,
             runtime_env,
+            runtime_workdir: None,
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec!["_build".to_string(), "deps".to_string()]
+        // Only cache deps/, not _build/
+        // Reason: Mix uses filesystem mtimes for incremental compilation.
+        // With SOURCE_DATE_EPOCH=0, source files get timestamp 0, but cached
+        // _build/ artifacts keep their original timestamps, causing Mix to
+        // incorrectly skip recompilation. Caching only deps/ is safe since
+        // dependencies rarely change, while allowing clean recompilation.
+        vec!["deps".to_string()]
     }
 
     fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool)> {

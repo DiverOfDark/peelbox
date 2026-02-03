@@ -89,7 +89,7 @@ impl BuildSystem for DotNetBuildSystem {
 
         let sdk_package = format!("{}-sdk", dotnet_version);
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert(
             "DOTNET_SKIP_FIRST_TIME_EXPERIENCE".to_string(),
             "1".to_string(),
@@ -109,7 +109,8 @@ impl BuildSystem for DotNetBuildSystem {
             common_ports: vec![8080, 5000],
             build_env,
             runtime_copy: vec![("out/".to_string(), "/app".to_string())],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 

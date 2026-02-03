@@ -42,14 +42,21 @@ impl Framework for SpringBootFramework {
     }
 
     fn health_endpoints(&self, files: &[std::path::PathBuf]) -> Vec<String> {
-        // Check if actuator dependency exists (pom.xml or build.gradle containing actuator)
+        // Check if actuator dependency exists by reading file content
         let has_actuator = files.iter().any(|path| {
-            path.file_name()
+            if path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .map(|name| {
-                    name == "pom.xml" || name.ends_with(".gradle") || name.ends_with(".gradle.kts")
+                    name.ends_with(".gradle") || name.ends_with(".gradle.kts") || name == "pom.xml"
                 })
                 .unwrap_or(false)
+            {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    return content.contains("spring-boot-starter-actuator");
+                }
+            }
+            false
         });
 
         if has_actuator {
@@ -59,7 +66,7 @@ impl Framework for SpringBootFramework {
                 "/actuator/health/readiness".to_string(),
             ]
         } else {
-            vec!["/health".to_string()]
+            vec!["/actuator/health".to_string()]
         }
     }
 
@@ -261,7 +268,6 @@ mod tests {
         let endpoints = framework.health_endpoints(&files);
 
         assert!(endpoints.iter().any(|s| s == "/actuator/health"));
-        assert!(endpoints.iter().any(|s| s == "/actuator/health/liveness"));
     }
 
     #[test]

@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"deno.json\",\n    \"build_system\": \"deno\",\n    \"language\": \"TypeScript\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.75\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1048
+    "response_time": 2254
   },
-  "recorded_at": "2026-02-01T20:26:37.001238866+00:00"
+  "recorded_at": "2026-02-03T00:09:05.437899685+00:00"
 }

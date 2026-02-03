@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"mix.exs\",\n    \"build_system\": \"mix\",\n    \"language\": \"Elixir\",\n    \"confidence\": 0.95\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 1045
+    "response_time": 1053
   },
-  "recorded_at": "2026-02-01T20:26:51.081030508+00:00"
+  "recorded_at": "2026-02-03T00:09:20.840875935+00:00"
 }

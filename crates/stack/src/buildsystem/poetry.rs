@@ -2,6 +2,7 @@
 
 use super::python_common::{parse_pyproject_toml_version, read_python_version_file};
 use super::{BuildSystem, BuildTemplate, ManifestPattern};
+use crate::framework::flask;
 use crate::{BuildSystemId, DetectionStack, LanguageId};
 use anyhow::Result;
 use peelbox_core::fs::FileSystem;
@@ -72,7 +73,7 @@ impl BuildSystem for PoetryBuildSystem {
             .map(|v| format!("py{}-pip", v))
             .unwrap_or_else(|| "py3-pip".to_string());
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert(
             "POETRY_CACHE_DIR".to_string(),
             "/root/.cache/pypoetry".to_string(),
@@ -101,18 +102,28 @@ impl BuildSystem for PoetryBuildSystem {
             build_env,
             runtime_copy: vec![(".".to_string(), "/build".to_string())],
             runtime_env: {
-                let mut env = std::collections::HashMap::new();
+                let mut env = std::collections::BTreeMap::new();
                 env.insert("VIRTUAL_ENV".to_string(), "/build/.venv".to_string());
                 env.insert(
                     "PATH".to_string(),
                     "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin".to_string(),
                 );
+
+                // Dynamically detect Flask app file if present
+                if let Some(flask_app) = flask::detect_flask_app_file(service_path, "/build") {
+                    env.insert("FLASK_APP".to_string(), flask_app);
+                }
+
                 env
             },
+            runtime_workdir: Some("/build".to_string()),
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![".cache/pypoetry".to_string()]
+        vec![
+            "/root/.cache/pypoetry/".to_string(),
+            "/root/.cache/pip/".to_string(),
+        ]
     }
 }

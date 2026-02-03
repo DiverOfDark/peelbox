@@ -16,6 +16,18 @@ impl PhpRuntime {
                 return Some("/usr/bin/php -S 0.0.0.0:8000 -t /app/public".to_string());
             }
         }
+
+        // Check for root-level index.php (simple PHP apps)
+        for file in files {
+            let file_str = file.to_string_lossy();
+            if file_str.ends_with("/index.php") || file_str == "index.php" {
+                // Make sure it's at the root, not in a subdirectory like public/
+                if !file_str.contains("public/") && !file_str.contains("/public/") {
+                    return Some("php -S 0.0.0.0:8000 index.php".to_string());
+                }
+            }
+        }
+
         None
     }
 

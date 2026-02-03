@@ -2,8 +2,7 @@
   {
     "build": {
       "cache": [
-        "/root/.m2/repository",
-        "target"
+        "/root/.m2/repository"
       ],
       "commands": [
         "mvn package -DskipTests",
@@ -24,7 +23,7 @@
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "example-app",
-      "reasoning": "Detected from pom.xml in "
+      "reasoning": "Detected from pom.xml"
     },
     "runtime": {
       "command": [
@@ -35,7 +34,7 @@
       "copy": [
         {
           "from": "target/*.jar",
-          "to": "/app"
+          "to": "/app/"
         },
         {
           "from": "target/lib/",
@@ -48,7 +47,7 @@
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",

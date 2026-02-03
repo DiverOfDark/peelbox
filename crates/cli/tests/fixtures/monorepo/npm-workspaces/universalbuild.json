@@ -2,17 +2,12 @@
   {
     "build": {
       "cache": [
-        ".npm"
+        ".npm",
+        "node_modules"
       ],
       "commands": [
         "npm ci",
         "cd apps/web && npm run build"
-      ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {},
       "packages": [
@@ -30,13 +25,13 @@
     },
     "runtime": {
       "command": [
-        "node",
-        "apps/web/dist/index.js"
+        "npm",
+        "start"
       ],
       "copy": [
         {
           "from": ".",
-          "to": "/app"
+          "to": "/app/"
         }
       ],
       "env": {},

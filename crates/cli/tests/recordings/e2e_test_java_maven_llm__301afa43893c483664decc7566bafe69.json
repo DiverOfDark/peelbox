@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n[\n  {\n    \"manifest_path\": \"pom.xml\",\n    \"build_system\": \"Maven\",\n    \"language\": \"Java\",\n    \"confidence\": 1.0\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"Unknown\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.5\n  }\n]\n```",
     "tool_call": null,
-    "response_time": 2165
+    "response_time": 1477
   },
-  "recorded_at": "2026-02-01T20:27:07.920573313+00:00"
+  "recorded_at": "2026-02-03T00:09:38.725088155+00:00"
 }

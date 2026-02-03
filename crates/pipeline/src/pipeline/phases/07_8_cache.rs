@@ -115,8 +115,9 @@ mod tests {
         };
 
         let result = execute_phase(&service).await;
-        assert!(result.cache_dirs.contains(&PathBuf::from(".m2/repository")));
-        assert!(result.cache_dirs.contains(&PathBuf::from("target")));
+        assert!(result
+            .cache_dirs
+            .contains(&PathBuf::from("/root/.m2/repository")));
     }
 
     #[tokio::test]

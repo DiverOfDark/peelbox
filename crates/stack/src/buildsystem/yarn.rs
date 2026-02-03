@@ -76,7 +76,7 @@ impl BuildSystem for YarnBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .expect("Failed to get nodejs version from Wolfi index");
 
-        let build_env = std::collections::HashMap::new();
+        let build_env = std::collections::BTreeMap::new();
 
         BuildTemplate {
             build_packages: vec![
@@ -84,20 +84,21 @@ impl BuildSystem for YarnBuildSystem {
                 "yarn".to_string(),
                 "ca-certificates".to_string(),
             ],
-            build_commands: vec!["yarn install --frozen-lockfile".to_string()],
+            build_commands: vec![
+                "yarn install --network-timeout 100000 --network-concurrency 1".to_string(),
+                "./node_modules/.bin/tsc".to_string(),
+            ],
             cache_paths: vec!["node_modules/".to_string(), ".yarn/cache/".to_string()],
             common_ports: vec![3000, 8080],
             build_env,
-            runtime_copy: vec![
-                ("dist/".to_string(), "/app/dist/".to_string()),
-                ("build/".to_string(), "/app/build/".to_string()),
-            ],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_copy: vec![(".".to_string(), "/app".to_string())],
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec!["node_modules".to_string(), ".yarn".to_string()]
+        vec!["node_modules".to_string(), ".yarn-cache".to_string()]
     }
     fn is_workspace_root(&self, manifest_content: Option<&str>) -> bool {
         if let Some(content) = manifest_content {

@@ -13,7 +13,7 @@
   "response": {
     "content": "[\n  {\n    \"manifest_path\": \"build.zig\",\n    \"build_system\": \"zig\",\n    \"language\": \"Zig\",\n    \"confidence\": 0.85\n  },\n  {\n    \"manifest_path\": \"universalbuild.json\",\n    \"build_system\": \"json\",\n    \"language\": \"JSON\",\n    \"confidence\": 0.90\n  }\n]",
     "tool_call": null,
-    "response_time": 1035
+    "response_time": 1200
   },
-  "recorded_at": "2026-02-01T20:28:45.641363043+00:00"
+  "recorded_at": "2026-02-03T00:11:10.510224541+00:00"
 }

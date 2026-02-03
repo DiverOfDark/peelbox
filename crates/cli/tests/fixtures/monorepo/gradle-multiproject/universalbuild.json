@@ -9,6 +9,8 @@
         "gradle :api-service:assemble -x test --no-daemon --console=plain"
       ],
       "env": {
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/root/.gradle",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
       },
       "packages": [
@@ -19,7 +21,6 @@
     },
     "metadata": {
       "build_system": "Gradle",
-      "confidence": 0.95,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "api-service",
@@ -33,12 +34,16 @@
       ],
       "copy": [
         {
-          "from": "api-service/build/libs/api-service.jar",
+          "from": "api-service/build/libs/*.jar",
           "to": "/app/app.jar"
         }
       ],
       "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",
@@ -47,9 +52,7 @@
       "ports": [
         8080
       ],
-      "health": {
-        "endpoint": "/health"
-      }
+      "workdir": "/app"
     },
     "version": "1.0"
   },
@@ -63,6 +66,8 @@
         "gradle :web-service:assemble -x test --no-daemon --console=plain"
       ],
       "env": {
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/root/.gradle",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
       },
       "packages": [
@@ -73,7 +78,6 @@
     },
     "metadata": {
       "build_system": "Gradle",
-      "confidence": 0.95,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "web-service",
@@ -87,12 +91,16 @@
       ],
       "copy": [
         {
-          "from": "web-service/build/libs/web-service.jar",
+          "from": "web-service/build/libs/*.jar",
           "to": "/app/app.jar"
         }
       ],
       "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",
@@ -101,9 +109,7 @@
       "ports": [
         8080
       ],
-      "health": {
-        "endpoint": "/health"
-      }
+      "workdir": "/app"
     },
     "version": "1.0"
   }

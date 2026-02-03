@@ -76,7 +76,7 @@ impl BuildSystem for PnpmBuildSystem {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .expect("Failed to get nodejs version from Wolfi index");
 
-        let build_env = std::collections::HashMap::new();
+        let build_env = std::collections::BTreeMap::new();
 
         BuildTemplate {
             build_packages: vec![
@@ -87,15 +87,13 @@ impl BuildSystem for PnpmBuildSystem {
                 "npm".to_string(),
                 "ca-certificates".to_string(),
             ],
-            build_commands: vec!["pnpm install --frozen-lockfile".to_string()],
+            build_commands: vec!["pnpm install".to_string(), "pnpm build".to_string()],
             cache_paths: vec!["node_modules/".to_string(), ".pnpm-store/".to_string()],
             common_ports: vec![3000, 8080],
             build_env,
-            runtime_copy: vec![
-                ("dist/".to_string(), "/app/dist/".to_string()),
-                ("build/".to_string(), "/app/build/".to_string()),
-            ],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_copy: vec![(".".to_string(), "/app".to_string())],
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 

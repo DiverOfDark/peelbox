@@ -111,24 +111,52 @@ impl BuildSystem for ComposerBuildSystem {
         ];
         build_packages.extend(extension_packages);
 
-        BuildTemplate {
-            build_packages,
-            build_commands: vec![
+        // Detect if this is a Symfony app (needs symfony/runtime plugin config)
+        let is_symfony = manifest_content
+            .and_then(|c| serde_json::from_str::<serde_json::Value>(c).ok())
+            .and_then(|json| json.get("require").cloned())
+            .and_then(|require| require.as_object().cloned())
+            .map(|require| {
+                require.contains_key("symfony/framework-bundle")
+                    || require.contains_key("symfony/symfony")
+                    || require.contains_key("symfony/runtime")
+            })
+            .unwrap_or(false);
+
+        let build_commands = if is_symfony {
+            vec![
                 "composer config allow-plugins.symfony/runtime true".to_string(),
                 "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
                     .to_string(),
-            ],
-            cache_paths: vec!["/root/.composer/cache/".to_string()],
-            common_ports: vec![9000, 80],
-            build_env: std::collections::HashMap::new(),
-            runtime_copy: vec![
+            ]
+        } else {
+            vec![
+                "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
+                    .to_string(),
+            ]
+        };
+
+        let runtime_copy = if is_symfony {
+            vec![
                 ("vendor/".to_string(), "/app/vendor".to_string()),
                 ("bin/".to_string(), "/app/bin".to_string()),
                 ("public/".to_string(), "/app/public".to_string()),
                 ("src/".to_string(), "/app/src".to_string()),
                 ("config/".to_string(), "/app/config".to_string()),
-            ],
-            runtime_env: std::collections::HashMap::new(),
+            ]
+        } else {
+            vec![(".".to_string(), "/app".to_string())]
+        };
+
+        BuildTemplate {
+            build_packages,
+            build_commands,
+            cache_paths: vec!["/root/.composer/cache/".to_string()],
+            common_ports: vec![8000],
+            build_env: std::collections::BTreeMap::new(),
+            runtime_copy,
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: None,
         }
     }
 

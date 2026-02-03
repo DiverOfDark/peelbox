@@ -2,15 +2,15 @@
   {
     "build": {
       "cache": [
-        ".m2/repository",
-        "target"
+        "/root/.m2/repository"
       ],
       "commands": [
-        "mvn install dependency:copy-dependencies -pl backend -am -DoutputDirectory=target/lib -DskipTests -B"
+        "mvn -f backend/pom.xml -am package -DskipTests",
+        "mvn -f backend/pom.xml -am dependency:copy-dependencies -DoutputDirectory=backend/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "MAVEN_OPTS": "-Dmaven.repo.local=/tmp/maven-repo"
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
       "packages": [
         "openjdk-17",
@@ -20,7 +20,6 @@
     },
     "metadata": {
       "build_system": "Maven",
-      "confidence": 0.949999988079071,
       "framework": "Spring Boot",
       "language": "Java",
       "project_name": "backend",
@@ -28,21 +27,28 @@
     },
     "runtime": {
       "command": [
-        "/usr/lib/jvm/java-17-openjdk/bin/java",
-        "-cp",
-        "/app/*:/app/lib/*",
-        "com.example.Backend"
+        "java",
+        "-jar",
+        "/app/backend-1.0.0.jar"
       ],
       "copy": [
         {
-          "from": "backend/target/backend-1.0.0.jar.original",
-          "to": "/app/app.jar"
+          "from": "backend/target/*.jar",
+          "to": "/app/"
         },
         {
-          "from": "backend/target/lib",
+          "from": "backend/target/lib/",
           "to": "/app/lib"
         }
       ],
+      "env": {
+        "CLASSPATH": "/app/*:/app/lib/*",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
+      },
       "packages": [
         "openjdk-17-jre",
         "ca-certificates"
@@ -50,20 +56,18 @@
       "ports": [
         8080
       ],
-      "health": {
-        "endpoint": "/health"
-      }
+      "workdir": "/app"
     },
     "version": "1.0"
   },
   {
     "build": {
       "cache": [
-        "target",
-        ".cargo"
+        ".cargo",
+        "target"
       ],
       "commands": [
-        "cargo build --release"
+        "cargo build --release --manifest-path cli/Cargo.toml"
       ],
       "env": {
         "CARGO_HOME": ".cargo"
@@ -78,7 +82,6 @@
     },
     "metadata": {
       "build_system": "Cargo",
-      "confidence": 0.949999988079071,
       "framework": "Actix Web",
       "language": "Rust",
       "project_name": "admin-service",
@@ -94,9 +97,7 @@
           "to": "/usr/local/bin/admin-service"
         }
       ],
-      "env": {
-        "PORT": "8080"
-      },
+      "env": {},
       "health": {
         "endpoint": "/health"
       },
@@ -105,23 +106,23 @@
         "ca-certificates"
       ],
       "ports": [
-        8080
-      ]
+        8082
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   },
   {
     "build": {
       "cache": [
-        "node_modules",
-        ".npm"
+        ".npm",
+        "node_modules"
       ],
       "commands": [
-        "npm install"
+        "npm ci",
+        "cd frontend && npm run build"
       ],
-      "env": {
-        "HOME": "/tmp"
-      },
+      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
@@ -130,7 +131,6 @@
     },
     "metadata": {
       "build_system": "npm",
-      "confidence": 0.949999988079071,
       "framework": "Express",
       "language": "JavaScript",
       "project_name": "frontend",
@@ -138,16 +138,15 @@
     },
     "runtime": {
       "command": [
-        "node",
-        "src/index.ts"
+        "npm",
+        "start"
       ],
       "copy": [
         {
           "from": ".",
-          "to": "/app"
+          "to": "/app/"
         }
       ],
-      "workdir": "/app/frontend",
       "env": {},
       "health": {
         "endpoint": "/health"
@@ -160,7 +159,8 @@
       ],
       "ports": [
         3000
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

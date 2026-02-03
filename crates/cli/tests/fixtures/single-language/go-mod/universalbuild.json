@@ -25,7 +25,7 @@
       "framework": "Gin",
       "language": "Go",
       "project_name": "app",
-      "reasoning": "Detected from go.mod in "
+      "reasoning": "Detected from go.mod"
     },
     "runtime": {
       "command": [

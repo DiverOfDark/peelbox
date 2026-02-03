@@ -13,7 +13,7 @@
   "response": {
     "content": "```json\n{\n  \"name\": \"ruby\",\n  \"manifest_files\": [\"Gemfile\"],\n  \"build_commands\": [\"bundle install\"],\n  \"cache_dirs\": [\"vendor/bundle\"],\n  \"build_packages\": [\"ruby-3.1\", \"bundler\"],\n  \"runtime_packages\": [\"glibc\", \"ca-certificates\"],\n  \"artifacts\": [\"bin/sinatra\"],\n  \"common_ports\": [],\n  \"confidence\": 0.9\n}\n```",
     "tool_call": null,
-    "response_time": 1332
+    "response_time": 1680
   },
-  "recorded_at": "2026-02-01T20:28:35.380931234+00:00"
+  "recorded_at": "2026-02-03T00:10:57.981313103+00:00"
 }

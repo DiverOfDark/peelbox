@@ -2,8 +2,6 @@
   {
     "build": {
       "cache": [
-        "target",
-        ".cargo",
         ".cargo",
         "target"
       ],
@@ -26,7 +24,7 @@
       "framework": "Actix Web",
       "language": "Rust",
       "project_name": "hello-world",
-      "reasoning": "Detected from Cargo.toml in "
+      "reasoning": "Detected from Cargo.toml"
     },
     "runtime": {
       "command": [

@@ -2,15 +2,14 @@
   {
     "build": {
       "cache": [
-        "target",
-        ".cargo"
+        ".cargo",
+        "target"
       ],
       "commands": [
         "cargo build --release --manifest-path app/Cargo.toml"
       ],
       "env": {
-        "CARGO_HOME": ".cargo",
-        "CARGO_TARGET_DIR": "target"
+        "CARGO_HOME": ".cargo"
       },
       "packages": [
         "rust-1.92",

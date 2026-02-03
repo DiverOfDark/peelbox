@@ -152,7 +152,7 @@ fn find_similar_packages(
 mod tests {
     use super::*;
     use peelbox_core::output::schema::{BuildMetadata, BuildStage, CopySpec, RuntimeStage};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     fn create_minimal_valid_build() -> UniversalBuild {
         // Get actual Rust version from test APKINDEX for validation tests
@@ -177,13 +177,13 @@ mod tests {
                     "openssl-dev".to_string(),
                     "pkgconf".to_string(),
                 ],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
-                env: HashMap::new(),
+                env: BTreeMap::new(),
                 copy: vec![CopySpec {
                     from: "target/release/app".to_string(),
                     to: "/usr/local/bin/app".to_string(),
