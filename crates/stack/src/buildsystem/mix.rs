@@ -57,8 +57,12 @@ impl BuildSystem for MixBuildSystem {
             .get_latest_version("erlang")
             .unwrap_or_else(|| "erlang-28".to_string());
 
-        // Use dev mode (mix compile) instead of production release
-        let build_commands = vec!["mix compile".to_string()];
+        // Separate dependency installation from compilation for better caching
+        // deps.get fetches dependencies (cached), compile builds from source (not cached)
+        let build_commands = vec![
+            "mix deps.get".to_string(),
+            "mix compile".to_string(),
+        ];
 
         let runtime_copy = vec![(".".to_string(), "/app".to_string())];
 
@@ -92,7 +96,13 @@ impl BuildSystem for MixBuildSystem {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![]
+        // Only cache deps/, not _build/
+        // Reason: Mix uses filesystem mtimes for incremental compilation.
+        // With SOURCE_DATE_EPOCH=0, source files get timestamp 0, but cached
+        // _build/ artifacts keep their original timestamps, causing Mix to
+        // incorrectly skip recompilation. Caching only deps/ is safe since
+        // dependencies rarely change, while allowing clean recompilation.
+        vec!["deps".to_string()]
     }
 
     fn parse_package_metadata(&self, manifest_content: &str) -> Result<(String, bool)> {

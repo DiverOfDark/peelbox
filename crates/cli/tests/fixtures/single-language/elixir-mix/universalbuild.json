@@ -10,12 +10,13 @@
     "build": {
       "packages": ["elixir-1.18", "erlang-28", "git", "build-base", "openssl", "ca-certificates"],
       "commands": [
+        "mix deps.get",
         "mix compile"
       ],
       "env": {
         "MIX_ENV": "prod"
       },
-      "cache": []
+      "cache": ["deps"]
     },
     "runtime": {
       "packages": ["elixir-1.18", "erlang-28", "busybox", "openssl", "ca-certificates"],
