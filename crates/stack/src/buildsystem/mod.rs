@@ -162,6 +162,7 @@ mod node_common;
 mod python_common;
 mod ruby_common;
 
+pub mod bazel;
 pub mod bun;
 pub mod bundler;
 pub mod cargo;
@@ -183,8 +184,8 @@ pub mod pnpm;
 pub mod poetry;
 pub mod yarn;
 pub mod zig;
-pub mod bazel;
 
+pub use bazel::BazelBuildSystem;
 pub use bun::BunBuildSystem;
 pub use bundler::BundlerBuildSystem;
 pub use cargo::CargoBuildSystem;
@@ -204,6 +205,5 @@ pub use pip::PipBuildSystem;
 pub use pipenv::PipenvBuildSystem;
 pub use pnpm::PnpmBuildSystem;
 pub use poetry::PoetryBuildSystem;
-pub use bazel::BazelBuildSystem;
 pub use yarn::YarnBuildSystem;
 pub use zig::ZigBuildSystem;
