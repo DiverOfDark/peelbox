@@ -1,22 +1,47 @@
 use anyhow::{Context, Result};
 use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions};
+use bollard::service::{HostConfig, PortBinding};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use testcontainers::core::WaitFor;
-use testcontainers::runners::AsyncRunner;
-use testcontainers::{ContainerAsync, GenericImage, ImageExt};
 use tokio::sync::OnceCell;
 
-type BuildKitContainerCell = Arc<Option<(u16, String, ContainerAsync<GenericImage>)>>;
+type BuildKitContainerCell = Arc<Option<(u16, String)>>;
 
 static BUILDKIT_CONTAINER: OnceCell<BuildKitContainerCell> = OnceCell::const_new();
 
 const BUILDKIT_CONTAINER_NAME: &str = "peelbox-test-buildkit";
 
-use std::path::PathBuf;
+/// Returns the cargo target directory for test artifacts
+fn get_cargo_target_dir() -> PathBuf {
+    // Use CARGO_TARGET_DIR if set, otherwise find target dir from binary location
+    if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+        return PathBuf::from(target_dir);
+    }
+
+    // Get the test binary's directory and navigate up to find target/
+    let mut path = std::env::current_exe()
+        .expect("Failed to get current executable path");
+
+    // Navigate up: target/debug/deps/test_binary -> target/
+    while let Some(parent) = path.parent() {
+        if parent.file_name().and_then(|n| n.to_str()) == Some("target") {
+            return parent.to_path_buf();
+        }
+        path = parent.to_path_buf();
+    }
+
+    // Fallback to workspace root + target
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("target")
+}
 
 pub async fn get_buildkit_container() -> Result<(u16, String)> {
     let docker = Docker::connect_with_local_defaults().context("Failed to connect to Docker")?;
@@ -58,26 +83,96 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
             }
         }
 
-        let buildkit_container_res = GenericImage::new("moby/buildkit", "v0.12.5")
-            .with_wait_for(WaitFor::message_on_stderr("running server on"))
-            .with_privileged(true)
-            .with_container_name(BUILDKIT_CONTAINER_NAME)
-            .with_mapped_port(0, 1234.into())
-            .with_cmd(vec!["--addr", "tcp://0.0.0.0:1234"])
-            .start()
+        eprintln!("Starting BuildKit (ephemeral, cleaned on removal)");
+
+        // Ensure the BuildKit image exists, pull if necessary
+        let image_name = "moby/buildkit:v0.12.5";
+        if docker.inspect_image(image_name).await.is_err() {
+            eprintln!("Pulling BuildKit image {}...", image_name);
+            use bollard::image::CreateImageOptions;
+            let mut pull_stream = docker.create_image(
+                Some(CreateImageOptions {
+                    from_image: image_name,
+                    ..Default::default()
+                }),
+                None,
+                None,
+            );
+            while let Some(result) = pull_stream.next().await {
+                result.context("Failed to pull BuildKit image")?;
+            }
+            eprintln!("BuildKit image pulled successfully");
+        }
+
+        // Create container without mounts - data written to container layer
+        // Any anonymous volumes will be cleaned up when container is removed
+        let mut port_bindings = HashMap::new();
+        port_bindings.insert(
+            "1234/tcp".to_string(),
+            Some(vec![PortBinding {
+                host_ip: Some("127.0.0.1".to_string()),
+                host_port: Some("0".to_string()),
+            }]),
+        );
+
+        let mut exposed_ports = HashMap::new();
+        exposed_ports.insert("1234/tcp".to_string(), HashMap::new());
+
+        let config = Config {
+            image: Some(image_name.to_string()),
+            cmd: Some(vec![
+                "--addr".to_string(),
+                "tcp://0.0.0.0:1234".to_string(),
+            ]),
+            exposed_ports: Some(exposed_ports),
+            host_config: Some(HostConfig {
+                privileged: Some(true),
+                port_bindings: Some(port_bindings),
+                auto_remove: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let create_result = docker
+            .create_container(
+                Some(bollard::container::CreateContainerOptions {
+                    name: BUILDKIT_CONTAINER_NAME,
+                    ..Default::default()
+                }),
+                config,
+            )
             .await;
 
-        match buildkit_container_res {
-            Ok(container) => {
-                let container_id = container.id().to_string();
-                let port: u16 = container
-                    .get_host_port_ipv4(1234)
-                    .await
-                    .expect("Failed to get BuildKit host port");
-                tokio::time::sleep(Duration::from_secs(2)).await;
+        match create_result {
+            Ok(container_response) => {
+                let container_id = container_response.id;
 
-                let _ =
-                    BUILDKIT_CONTAINER.set(Arc::new(Some((port, container_id.clone(), container))));
+                docker
+                    .start_container(&container_id, None::<StartContainerOptions<String>>)
+                    .await
+                    .context("Failed to start BuildKit container")?;
+
+                // Wait for BuildKit to be ready
+                tokio::time::sleep(Duration::from_secs(3)).await;
+
+                // Get the mapped port
+                let inspect = docker
+                    .inspect_container(&container_id, None)
+                    .await
+                    .context("Failed to inspect BuildKit container")?;
+
+                let port = inspect
+                    .network_settings
+                    .and_then(|ns| ns.ports)
+                    .and_then(|ports| ports.get("1234/tcp").cloned())
+                    .and_then(|bindings| bindings)
+                    .and_then(|mut b| b.pop())
+                    .and_then(|binding| binding.host_port)
+                    .and_then(|port| port.parse::<u16>().ok())
+                    .context("Failed to get BuildKit port")?;
+
+                let _ = BUILDKIT_CONTAINER.set(Arc::new(Some((port, container_id.clone()))));
 
                 return Ok((port, container_id));
             }
@@ -87,7 +182,7 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
                     tokio::time::sleep(Duration::from_millis(500)).await;
                     continue;
                 }
-                anyhow::bail!("Failed to start BuildKit container: {}", e);
+                anyhow::bail!("Failed to create BuildKit container: {}", e);
             }
         }
     }
@@ -142,7 +237,7 @@ impl ContainerTestHarness {
         let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
             PathBuf::from(custom_cache).join("external-cache")
         } else {
-            std::env::temp_dir().join("peelbox-test-external-cache")
+            get_cargo_target_dir().join("peelbox-test-external-cache")
         };
         std::fs::create_dir_all(&external_cache_dir)
             .context("Failed to create external cache directory")?;
@@ -235,7 +330,7 @@ impl ContainerTestHarness {
         let external_cache_dir = if let Ok(custom_cache) = std::env::var("PEELBOX_TEST_CACHE_DIR") {
             PathBuf::from(custom_cache).join("external-cache")
         } else {
-            std::env::temp_dir().join("peelbox-test-external-cache")
+            get_cargo_target_dir().join("peelbox-test-external-cache")
         };
         std::fs::create_dir_all(&external_cache_dir)
             .context("Failed to create external cache directory")?;
