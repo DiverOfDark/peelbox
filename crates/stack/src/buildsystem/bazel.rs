@@ -90,7 +90,7 @@ impl BuildSystem for BazelBuildSystem {
             build_packages.push("openjdk-21".to_string());
         }
 
-        let mut build_env = std::collections::HashMap::new();
+        let mut build_env = std::collections::BTreeMap::new();
         build_env.insert(
             "JAVA_HOME".to_string(),
             "/usr/lib/jvm/java-21-openjdk".to_string(),
@@ -106,7 +106,8 @@ impl BuildSystem for BazelBuildSystem {
                 "bazel-bin/{project_name}".to_string(),
                 "/usr/local/bin/{project_name}".to_string(),
             )],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_env: std::collections::BTreeMap::new(),
+            runtime_workdir: Some("/app".to_string()),
         }
     }
 
