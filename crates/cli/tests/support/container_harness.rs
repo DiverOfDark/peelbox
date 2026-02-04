@@ -23,8 +23,7 @@ fn get_cargo_target_dir() -> PathBuf {
     }
 
     // Get the test binary's directory and navigate up to find target/
-    let mut path = std::env::current_exe()
-        .expect("Failed to get current executable path");
+    let mut path = std::env::current_exe().expect("Failed to get current executable path");
 
     // Navigate up: target/debug/deps/test_binary -> target/
     while let Some(parent) = path.parent() {
@@ -120,10 +119,7 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
 
         let config = Config {
             image: Some(image_name.to_string()),
-            cmd: Some(vec![
-                "--addr".to_string(),
-                "tcp://0.0.0.0:1234".to_string(),
-            ]),
+            cmd: Some(vec!["--addr".to_string(), "tcp://0.0.0.0:1234".to_string()]),
             exposed_ports: Some(exposed_ports),
             host_config: Some(HostConfig {
                 privileged: Some(true),
