@@ -106,16 +106,44 @@ impl HardwareDetector {
 
     #[cfg(feature = "cuda")]
     fn detect_cuda() -> (bool, Option<u64>) {
-        use candle_core::backend::BackendDevice;
         use candle_core::cuda::cudarc;
         use std::mem::MaybeUninit;
 
-        match CudaDevice::new(0) {
+        unsafe {
+            match cudarc::driver::sys::cuInit(0) {
+                cudarc::driver::sys::cudaError_enum::CUDA_SUCCESS => {}
+                e => {
+                    debug!("cuInit failed: {:?}", e);
+                    return (false, None);
+                }
+            }
+        }
+
+        let device_count = unsafe {
+            match cudarc::driver::sys::cuDeviceGetCount(&mut 0 as *mut _ as *mut _) {
+                cudarc::driver::sys::cudaError_enum::CUDA_SUCCESS => {
+                    let mut count = 0;
+                    cudarc::driver::sys::cuDeviceGetCount(&mut count);
+                    count
+                }
+                e => {
+                    debug!("cuDeviceGetCount failed: {:?}", e);
+                    0
+                }
+            }
+        };
+
+        if device_count == 0 {
+            debug!("No CUDA devices found via cuDeviceGetCount");
+            return (false, None);
+        }
+
+        match CudaDevice::new_with_stream(0) {
             Ok(_device) => {
                 let context = match cudarc::driver::CudaContext::new(0) {
                     Ok(ctx) => ctx,
                     Err(e) => {
-                        debug!("Failed to create CUDA context: {}", e);
+                        info!("CUDA device found but context creation failed: {}. Falling back to CPU memory info.", e);
                         return (true, None);
                     }
                 };
@@ -132,18 +160,16 @@ impl HardwareDetector {
                 };
 
                 if let Some(bytes) = memory_bytes {
-                    info!(
+                    debug!(
                         "CUDA device detected with {:.2} GB memory",
                         bytes as f64 / (1024.0 * 1024.0 * 1024.0)
                     );
-                } else {
-                    info!("CUDA device detected (memory info unavailable)");
                 }
 
                 (true, memory_bytes)
             }
             Err(e) => {
-                debug!("CUDA not available: {}", e);
+                info!("CUDA hardware detected but CudaDevice initialization failed: {}. Fallback to CPU expected.", e);
                 (false, None)
             }
         }
