@@ -102,6 +102,7 @@ impl StackRegistry {
                     BuildSystemId::Mix => Arc::new(MixBuildSystem),
                     BuildSystemId::Deno => Arc::new(DenoBuildSystem),
                     BuildSystemId::Zig => Arc::new(ZigBuildSystem),
+                    BuildSystemId::Turborepo => Arc::new(TurborepoBuildSystem),
                     BuildSystemId::Custom(_) => continue,
                 };
                 build_systems.insert(id.clone(), bs);

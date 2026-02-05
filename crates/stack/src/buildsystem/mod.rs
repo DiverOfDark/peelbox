@@ -182,6 +182,7 @@ pub mod pip;
 pub mod pipenv;
 pub mod pnpm;
 pub mod poetry;
+pub mod turborepo;
 pub mod yarn;
 pub mod zig;
 
@@ -205,5 +206,6 @@ pub use pip::PipBuildSystem;
 pub use pipenv::PipenvBuildSystem;
 pub use pnpm::PnpmBuildSystem;
 pub use poetry::PoetryBuildSystem;
+pub use turborepo::TurborepoBuildSystem;
 pub use yarn::YarnBuildSystem;
 pub use zig::ZigBuildSystem;

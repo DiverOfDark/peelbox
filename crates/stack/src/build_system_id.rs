@@ -22,6 +22,7 @@ crate::define_id_enum! {
         Deno => "deno" : "Deno" | "deno",
         Zig => "zig" : "Zig Build" | "zig",
         Bazel => "bazel" : "Bazel" | "bazel",
+        Turborepo => "turborepo" : "Turborepo" | "turborepo",
     }
 }
 
