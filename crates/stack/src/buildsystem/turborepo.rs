@@ -55,7 +55,7 @@ impl BuildSystem for TurborepoBuildSystem {
             build_commands: vec!["npm install".to_string(), "npx turbo build".to_string()],
             cache_paths: vec![".turbo".to_string()],
             common_ports: vec![3000],
-            build_env: std::collections::HashMap::new(),
+            build_env: std::collections::BTreeMap::new(),
             runtime_copy: vec![
                 ("package.json".to_string(), "/app/package.json".to_string()),
                 ("dist/".to_string(), "/app/dist/".to_string()),
@@ -64,7 +64,8 @@ impl BuildSystem for TurborepoBuildSystem {
                     "/app/node_modules/".to_string(),
                 ),
             ],
-            runtime_env: std::collections::HashMap::new(),
+            runtime_workdir: Some("/app/".to_string()),
+            runtime_env: std::collections::BTreeMap::new(),
         }
     }
 
