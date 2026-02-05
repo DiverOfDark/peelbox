@@ -446,7 +446,7 @@ mod tests {
 
         let result = bazel.parse_package_metadata(content).unwrap();
         assert_eq!(result.0, "my_project");
-        assert_eq!(result.1, true);
+        assert!(result.1);
     }
 
     #[test]
@@ -457,6 +457,6 @@ mod tests {
 
         let result = bazel.parse_package_metadata(content).unwrap();
         assert_eq!(result.0, "app");
-        assert_eq!(result.1, true);
+        assert!(result.1);
     }
 }
