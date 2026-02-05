@@ -48,13 +48,13 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_build_system_serialization() {
-        let custom = BuildSystemId::Bazel;
-        assert_eq!(serde_json::to_string(&custom).unwrap(), "\"Bazel\"");
+    fn test_bazel_build_system_serialization() {
+        let bazel = BuildSystemId::Bazel;
+        assert_eq!(serde_json::to_string(&bazel).unwrap(), "\"bazel\"");
     }
 
     #[test]
-    fn test_custom_build_system_deserialization() {
+    fn test_bazel_build_system_deserialization() {
         let deserialized: BuildSystemId = serde_json::from_str("\"bazel\"").unwrap();
         assert_eq!(deserialized, BuildSystemId::Bazel);
         assert_eq!(deserialized.name(), "Bazel");
