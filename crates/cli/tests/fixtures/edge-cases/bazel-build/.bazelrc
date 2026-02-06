@@ -1,0 +1,5 @@
+startup --batch
+startup --output_user_root=/build/.cache/bazel
+build --spawn_strategy=local
+build --jobs=2
+build --verbose_failures
