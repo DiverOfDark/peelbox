@@ -97,7 +97,23 @@ impl BuildSystem for NpmBuildSystem {
         let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
         let service_dir = relative_path.to_string_lossy();
 
-        let mut build_commands = vec!["npm ci".to_string()];
+        // Check if there's a root package.json (workspace project) for non-root services.
+        // Navigate from service_path to the repo root by going up relative_path's depth.
+        let has_root_package_json = !is_root && {
+            let mut root = service_path.to_path_buf();
+            for _ in relative_path.components() {
+                root = root.parent().unwrap_or(Path::new("")).to_path_buf();
+            }
+            root.join("package.json").exists()
+        };
+
+        let mut build_commands = if is_root || has_root_package_json {
+            // Root project or workspace: npm ci at root
+            vec!["npm ci".to_string()]
+        } else {
+            // Standalone project in a subdirectory: npm ci within the service dir
+            vec![format!("cd {} && npm ci", service_dir)]
+        };
         if is_root {
             build_commands.push("npm run build".to_string());
         } else {

@@ -3,7 +3,7 @@
     "build": {
       "cache": [
         "zig-cache",
-        ".zig-cache"
+        "zig-out"
       ],
       "commands": [
         "zig build -Doptimize=ReleaseSafe"
@@ -17,7 +17,6 @@
     },
     "metadata": {
       "build_system": "Zig Build",
-      "confidence": 0.949999988079071,
       "language": "Zig",
       "project_name": "app",
       "reasoning": "Detected from build.zig"
@@ -28,7 +27,7 @@
       ],
       "copy": [
         {
-          "from": "zig-out/bin/hello",
+          "from": "zig-out/bin/app",
           "to": "/usr/local/bin/app"
         }
       ],
@@ -39,7 +38,8 @@
       ],
       "ports": [
         8080
-      ]
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

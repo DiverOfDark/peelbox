@@ -41,6 +41,7 @@
       "packages": [
         "nodejs-25",
         "npm",
+        "busybox",
         "dumb-init",
         "ca-certificates"
       ],

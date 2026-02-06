@@ -1,37 +1,45 @@
 package com.example;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.*;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 
-import java.util.*;
-
-@SpringBootApplication
-@RestController
 public class ApiService {
-    public static void main(String[] args) {
-        SpringApplication.run(ApiService.class, args);
+    public static void main(String[] args) throws IOException {
+        int port = 8080;
+        HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+
+        server.createContext("/", exchange -> {
+            if (!exchange.getRequestURI().getPath().equals("/")) {
+                sendResponse(exchange, 404, "{\"error\":\"not found\"}");
+                return;
+            }
+            String body = "{\"service\":\"API Service\",\"library\":\"" + Library.getMessage() + "\"}";
+            sendResponse(exchange, 200, body);
+        });
+
+        server.createContext("/health", exchange -> {
+            sendResponse(exchange, 200, Library.toJson("status", "healthy"));
+        });
+
+        server.createContext("/api/data", exchange -> {
+            String body = "{\"data\":[\"item1\",\"item2\"],\"source\":\"" + Library.getMessage() + "\"}";
+            sendResponse(exchange, 200, body);
+        });
+
+        server.setExecutor(null);
+        server.start();
+        System.out.println("API Service started on port " + port);
     }
 
-    @GetMapping("/")
-    public Map<String, Object> index() {
-        return Map.of(
-                "service", "API Service",
-                "library", Library.getMessage(),
-                "endpoints", Arrays.asList("/", "/health", "/api/data")
-        );
-    }
-
-    @GetMapping("/health")
-    public Map<String, String> health() {
-        return Map.of("status", "healthy", "service", "api");
-    }
-
-    @GetMapping("/api/data")
-    public Map<String, Object> getData() {
-        return Map.of(
-                "data", Arrays.asList("item1", "item2", "item3"),
-                "source", Library.getMessage()
-        );
+    private static void sendResponse(HttpExchange exchange, int code, String body) throws IOException {
+        byte[] bytes = body.getBytes("UTF-8");
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(code, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 }

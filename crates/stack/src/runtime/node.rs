@@ -152,7 +152,7 @@ impl Runtime for NodeRuntime {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .unwrap_or_else(|| "nodejs-22".to_string());
 
-        vec![version, "npm".to_string()]
+        vec![version, "npm".to_string(), "busybox".to_string()]
     }
 }
 

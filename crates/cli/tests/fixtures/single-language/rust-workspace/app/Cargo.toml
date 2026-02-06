@@ -8,4 +8,5 @@ lib-a = { path = "../lib-a" }
 lib-b = { path = "../lib-b" }
 actix-web = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }

@@ -1,7 +1,9 @@
 [
   {
     "build": {
-      "cache": [],
+      "cache": [
+        ".cache/bazel"
+      ],
       "commands": [
         "bazel build //..."
       ],
@@ -11,7 +13,7 @@
       "packages": [
         "build-base",
         "bazel-7",
-        "openjdk-21",
+        "openjdk-21-default-jdk",
         "ca-certificates"
       ]
     },

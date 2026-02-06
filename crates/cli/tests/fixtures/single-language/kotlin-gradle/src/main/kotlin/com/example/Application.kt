@@ -1,50 +1,34 @@
 package com.example
 
-import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.runApplication
-import org.springframework.web.bind.annotation.*
+import com.sun.net.httpserver.HttpServer
+import java.net.InetSocketAddress
 
-data class User(var id: Int = 0, val name: String, val email: String)
+fun main() {
+    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+    val server = HttpServer.create(InetSocketAddress(port), 0)
 
-@SpringBootApplication
-@RestController
-class Application {
-    private val users = mutableListOf(
-        User(1, "Alice", "alice@example.com"),
-        User(2, "Bob", "bob@example.com")
-    )
-
-    @GetMapping("/")
-    fun index() = mapOf(
-        "message" to "User API Server",
-        "version" to "1.0.0",
-        "endpoints" to listOf("/users", "/users/{id}", "/health")
-    )
-
-    @GetMapping("/health")
-    fun health() = mapOf("status" to "healthy")
-
-    @GetMapping("/users")
-    fun getUsers() = mapOf("users" to users)
-
-    @GetMapping("/users/{id}")
-    fun getUser(@PathVariable id: Int): Map<String, Any> {
-        val user = users.find { it.id == id }
-        return if (user != null) {
-            mapOf("user" to user)
-        } else {
-            mapOf("error" to "User not found")
+    server.createContext("/") { exchange ->
+        if (exchange.requestURI.path != "/") {
+            val response = """{"error":"Not found"}"""
+            exchange.responseHeaders.add("Content-Type", "application/json")
+            exchange.sendResponseHeaders(404, response.toByteArray().size.toLong())
+            exchange.responseBody.use { it.write(response.toByteArray()) }
+            return@createContext
         }
+        val response = """{"message":"Kotlin App","version":"1.0.0","endpoints":["/","/health"]}"""
+        exchange.responseHeaders.add("Content-Type", "application/json")
+        exchange.sendResponseHeaders(200, response.toByteArray().size.toLong())
+        exchange.responseBody.use { it.write(response.toByteArray()) }
     }
 
-    @PostMapping("/users")
-    fun createUser(@RequestBody user: User): Map<String, User> {
-        user.id = users.size + 1
-        users.add(user)
-        return mapOf("user" to user)
+    server.createContext("/health") { exchange ->
+        val response = """{"status":"healthy"}"""
+        exchange.responseHeaders.add("Content-Type", "application/json")
+        exchange.sendResponseHeaders(200, response.toByteArray().size.toLong())
+        exchange.responseBody.use { it.write(response.toByteArray()) }
     }
-}
 
-fun main(args: Array<String>) {
-    runApplication<Application>(*args)
+    server.executor = null
+    server.start()
+    println("Server started on port $port")
 }

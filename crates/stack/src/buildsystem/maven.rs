@@ -70,6 +70,15 @@ impl BuildSystem for MavenBuildSystem {
     ) -> BuildTemplate {
         let java_version = manifest_content
             .and_then(parse_java_version)
+            .or_else(|| {
+                // Try parent pom.xml for inherited properties (multi-module projects)
+                _service_path
+                    .parent()
+                    .map(|parent| parent.join("pom.xml"))
+                    .filter(|p| p.exists())
+                    .and_then(|p| std::fs::read_to_string(p).ok())
+                    .and_then(|content| parse_java_version(&content))
+            })
             .or_else(|| wolfi_index.get_latest_version("openjdk"))
             .expect("Failed to get openjdk version from Wolfi index");
 
@@ -104,13 +113,15 @@ impl BuildSystem for MavenBuildSystem {
         let is_root = _relative_path.components().count() == 0 || _relative_path == Path::new(".");
         let service_dir = _relative_path.to_string_lossy();
 
-        let pom_arg = if is_root {
-            "".to_string()
-        } else {
-            format!("-f {}/pom.xml ", service_dir)
-        };
-
-        let also_make_flag = if is_root { "" } else { "-am " };
+        // Check if there's a parent reactor pom.xml (multi-module project)
+        let has_reactor_root = !is_root
+            && _service_path
+                .parent()
+                .map(|parent| parent.join("pom.xml"))
+                .filter(|p| p.exists())
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .map(|content| content.contains("<modules>"))
+                .unwrap_or(false);
 
         let target_dir = if is_root {
             "target".to_string()
@@ -118,15 +129,43 @@ impl BuildSystem for MavenBuildSystem {
             format!("{}/target", service_dir)
         };
 
+        let build_commands = if is_root {
+            vec![
+                "mvn package -DskipTests".to_string(),
+                format!(
+                    "mvn dependency:copy-dependencies -DoutputDirectory={}/lib",
+                    target_dir
+                ),
+            ]
+        } else if has_reactor_root {
+            // For submodules in a multi-module project, use -pl (project list) with -am (also-make)
+            // from the reactor root. Use install instead of package so that sibling module jars are
+            // available in the local Maven repo for the dependency:copy-dependencies goal.
+            // Note: dependency:copy-dependencies runs in the module's directory, so
+            // outputDirectory is relative to the module root (use target/lib, not service_dir/target/lib).
+            vec![
+                format!("mvn -pl {} -am install -DskipTests", service_dir),
+                format!(
+                    "mvn -pl {} dependency:copy-dependencies -DoutputDirectory=target/lib",
+                    service_dir
+                ),
+            ]
+        } else {
+            // Standalone Maven project in a subdirectory (no parent reactor),
+            // use -f to point directly to the pom.xml.
+            // mkdir -p ensures the lib dir exists even when there are zero dependencies.
+            vec![
+                format!("mvn -f {}/pom.xml package -DskipTests", service_dir),
+                format!(
+                    "mvn -f {}/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib; mkdir -p {}/lib",
+                    service_dir, target_dir
+                ),
+            ]
+        };
+
         BuildTemplate {
             build_packages,
-            build_commands: vec![
-                format!("mvn {}{}package -DskipTests", pom_arg, also_make_flag),
-                format!(
-                    "mvn {}{}dependency:copy-dependencies -DoutputDirectory={}/lib",
-                    pom_arg, also_make_flag, target_dir
-                ),
-            ],
+            build_commands,
             cache_paths: vec!["/root/.m2/repository/".to_string()],
             common_ports: vec![8080],
             build_env,
@@ -346,10 +385,21 @@ mod tests {
         let maven = MavenBuildSystem;
         let wolfi_index = WolfiPackageIndex::for_tests();
 
-        // Test for a submodule (non-root path)
+        // Set up a temp dir simulating a multi-module project with a reactor root
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+        let service_dir = root.join("api-service");
+        std::fs::create_dir_all(&service_dir).unwrap();
+        std::fs::write(
+            root.join("pom.xml"),
+            "<project><modules><module>api-service</module></modules></project>",
+        )
+        .unwrap();
+
+        // Test for a submodule (non-root path) with a reactor root
         let template = maven.build_template(
             &wolfi_index,
-            Path::new("api-service"),
+            &service_dir,
             Path::new("api-service"),
             Some("<project><properties><java.version>21</java.version></properties></project>"),
         );
@@ -357,8 +407,8 @@ mod tests {
         assert_eq!(
             template.build_commands,
             vec![
-                "mvn -f api-service/pom.xml -am package -DskipTests",
-                "mvn -f api-service/pom.xml -am dependency:copy-dependencies -DoutputDirectory=api-service/target/lib"
+                "mvn -pl api-service -am install -DskipTests",
+                "mvn -pl api-service dependency:copy-dependencies -DoutputDirectory=target/lib"
             ]
         );
 
@@ -370,5 +420,33 @@ mod tests {
             "api-service/target/lib/".to_string(),
             "/app/lib".to_string()
         )));
+    }
+
+    #[test]
+    fn test_build_template_standalone_subdir_uses_f_flag() {
+        let maven = MavenBuildSystem;
+        let wolfi_index = WolfiPackageIndex::for_tests();
+
+        // Standalone Maven project in a subdirectory (no reactor root)
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+        let service_dir = root.join("backend");
+        std::fs::create_dir_all(&service_dir).unwrap();
+        // No root pom.xml
+
+        let template = maven.build_template(
+            &wolfi_index,
+            &service_dir,
+            Path::new("backend"),
+            Some("<project><properties><java.version>17</java.version></properties></project>"),
+        );
+
+        assert_eq!(
+            template.build_commands,
+            vec![
+                "mvn -f backend/pom.xml package -DskipTests",
+                "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib; mkdir -p backend/target/lib"
+            ]
+        );
     }
 }

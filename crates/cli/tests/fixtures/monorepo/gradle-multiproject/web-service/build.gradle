@@ -1,6 +1,4 @@
 plugins {
-    id 'org.springframework.boot'
-    id 'io.spring.dependency-management'
     id 'java'
 }
 
@@ -10,5 +8,15 @@ java {
 
 dependencies {
     implementation project(':lib')
-    implementation 'org.springframework.boot:spring-boot-starter-web'
+}
+
+jar {
+    dependsOn configurations.runtimeClasspath
+    manifest {
+        attributes 'Main-Class': 'com.example.WebService'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

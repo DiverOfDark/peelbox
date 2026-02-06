@@ -6,7 +6,7 @@
         "target"
       ],
       "commands": [
-        "cargo build --release --manifest-path app/Cargo.toml"
+        "cargo build --release --manifest-path app/Cargo.toml --target-dir target"
       ],
       "env": {
         "CARGO_HOME": ".cargo"

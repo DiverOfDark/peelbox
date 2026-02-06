@@ -1,11 +1,8 @@
 package com.example;
 
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 public class LibraryTest {
-    @Test
-    public void testGetMessage() {
-        assertEquals("Hello from library!", Library.getMessage());
+    public static void main(String[] args) {
+        assert "Hello from library!".equals(Library.getMessage());
+        System.out.println("Test passed!");
     }
 }

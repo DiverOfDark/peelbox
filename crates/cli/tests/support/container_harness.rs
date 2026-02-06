@@ -245,6 +245,8 @@ impl ContainerTestHarness {
             external_cache_dir.display()
         );
 
+        let cache_path = format!("type=local,path={}", external_cache_dir.display());
+
         let mut cmd = std::process::Command::new(&peelbox_binary);
         cmd.args([
             "build",
@@ -380,34 +382,32 @@ impl ContainerTestHarness {
             );
         }
 
-        if let Some(tar_path) = output_tar {
-            let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
-                .trim()
-                .to_string();
+        let image_id = String::from_utf8_lossy(&peelbox_output.stdout)
+            .trim()
+            .to_string();
 
-            let image_exists = if !image_id.is_empty() {
-                self.docker.inspect_image(&image_id).await.is_ok()
-            } else {
-                false
-            };
+        let image_exists = if !image_id.is_empty() {
+            self.docker.inspect_image(&image_id).await.is_ok()
+        } else {
+            false
+        };
 
-            if !image_exists {
-                let load_output = std::process::Command::new("docker")
-                    .args(["load", "-i", tar_path.to_str().unwrap()])
-                    .output()
-                    .context("Failed to load image into Docker")?;
+        if !image_exists {
+            let load_output = std::process::Command::new("docker")
+                .args(["load", "-i", output_tar.to_str().unwrap()])
+                .output()
+                .context("Failed to load image into Docker")?;
 
-                if !load_output.status.success() {
-                    anyhow::bail!(
-                        "Failed to load image into Docker: {}",
-                        String::from_utf8_lossy(&load_output.stderr)
-                    );
-                }
-            } else {
-                let _ = std::process::Command::new("docker")
-                    .args(["tag", &image_id, image_name])
-                    .status();
+            if !load_output.status.success() {
+                anyhow::bail!(
+                    "Failed to load image into Docker: {}",
+                    String::from_utf8_lossy(&load_output.stderr)
+                );
             }
+        } else {
+            let _ = std::process::Command::new("docker")
+                .args(["tag", &image_id, image_name])
+                .status();
         }
 
         self.docker

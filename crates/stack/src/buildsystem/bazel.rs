@@ -126,31 +126,18 @@ impl BuildSystem for BazelBuildSystem {
             build_packages.push("bazel-7".to_string());
         }
 
-        // Detect if Java runtime is needed based on BUILD file rules
-        let needs_java = _manifest_content
-            .map(|content| {
-                // Check for Java/JVM-related Bazel rules
-                content.contains("java_binary")
-                    || content.contains("java_library")
-                    || content.contains("java_test")
-                    || content.contains("kt_jvm_")
-                    || content.contains("kt_android_")
-                    || content.contains("scala_binary")
-                    || content.contains("scala_library")
-            })
-            .unwrap_or(false); // Default to false if no manifest available
-
-        // Only add Java dependencies if JVM-based rules detected
+        // Bazel always requires a JDK to run, regardless of the project language.
+        // Add a JDK and set JAVA_HOME so Bazel can find it.
         let mut build_env = std::collections::BTreeMap::new();
-        if needs_java {
-            if wolfi_index.has_package("openjdk-21") {
-                build_packages.push("openjdk-21".to_string());
-            }
-            build_env.insert(
-                "JAVA_HOME".to_string(),
-                "/usr/lib/jvm/java-21-openjdk".to_string(),
-            );
+        if wolfi_index.has_package("openjdk-21-default-jdk") {
+            build_packages.push("openjdk-21-default-jdk".to_string());
+        } else if wolfi_index.has_package("openjdk-21") {
+            build_packages.push("openjdk-21".to_string());
         }
+        build_env.insert(
+            "JAVA_HOME".to_string(),
+            "/usr/lib/jvm/java-21-openjdk".to_string(),
+        );
 
         BuildTemplate {
             build_packages,
@@ -168,11 +155,12 @@ impl BuildSystem for BazelBuildSystem {
     }
 
     fn cache_dirs(&self) -> Vec<String> {
-        vec![
-            "bazel-out".to_string(),
-            "bazel-bin".to_string(),
-            ".cache/bazel".to_string(),
-        ]
+        // Only cache the Bazel output user root directory.
+        // bazel-bin and bazel-out are convenience symlinks created by Bazel
+        // pointing into the output base; mounting them as cache directories
+        // would prevent Bazel from creating these symlinks and cause build
+        // failures inside containers.
+        vec![".cache/bazel".to_string()]
     }
 
     fn parse_package_metadata(
@@ -414,9 +402,7 @@ mod tests {
         let bazel = BazelBuildSystem;
         let cache_dirs = bazel.cache_dirs();
 
-        assert_eq!(cache_dirs.len(), 3);
-        assert!(cache_dirs.contains(&"bazel-out".to_string()));
-        assert!(cache_dirs.contains(&"bazel-bin".to_string()));
+        assert_eq!(cache_dirs.len(), 1);
         assert!(cache_dirs.contains(&".cache/bazel".to_string()));
     }
 

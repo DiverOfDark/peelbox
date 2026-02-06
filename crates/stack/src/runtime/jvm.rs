@@ -266,7 +266,20 @@ impl JvmRuntime {
         if let Some(content) = manifest_content {
             let pom_path = service_path.join("pom.xml");
             if pom_path.exists() {
-                return self.parse_pom_version(content);
+                if let Some(ver) = self.parse_pom_version(content) {
+                    return Some(ver);
+                }
+                // Try parent pom.xml for inherited properties (multi-module projects)
+                if let Some(parent_ver) = service_path
+                    .parent()
+                    .map(|p| p.join("pom.xml"))
+                    .filter(|p| p.exists())
+                    .and_then(|p| std::fs::read_to_string(p).ok())
+                    .and_then(|c| self.parse_pom_version(&c))
+                {
+                    return Some(parent_ver);
+                }
+                return None;
             }
 
             let gradle_path = service_path.join("build.gradle");

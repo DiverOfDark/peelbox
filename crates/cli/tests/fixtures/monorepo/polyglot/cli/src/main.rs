@@ -1,53 +1,37 @@
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
+use std::io::{BufRead, BufReader, Write};
+use std::net::TcpListener;
 
-#[derive(Serialize, Deserialize, Clone)]
-struct Config {
-    id: i32,
-    key: String,
-    value: String,
-}
+fn main() {
+    let listener = TcpListener::bind("0.0.0.0:8082").expect("Failed to bind");
+    println!("Admin service running on port 8082");
 
-async fn index() -> impl Responder {
-    HttpResponse::Ok().json(serde_json::json!({
-        "service": "Admin Service",
-        "language": "Rust",
-        "endpoints": ["/", "/health", "/config"]
-    }))
-}
+    for stream in listener.incoming() {
+        match stream {
+            Ok(mut stream) => {
+                let reader = BufReader::new(&stream);
+                let mut path = String::from("/");
+                if let Some(Ok(request_line)) = reader.lines().next() {
+                    let parts: Vec<&str> = request_line.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        path = parts[1].to_string();
+                    }
+                }
 
-async fn health() -> impl Responder {
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "healthy"
-    }))
-}
+                let body = match path.as_str() {
+                    "/" => r#"{"service":"Admin Service","language":"Rust"}"#,
+                    "/health" => r#"{"status":"healthy"}"#,
+                    _ => r#"{"error":"not found"}"#,
+                };
 
-async fn get_config() -> impl Responder {
-    let configs = vec![
-        Config { id: 1, key: "max_connections".to_string(), value: "100".to_string() },
-        Config { id: 2, key: "timeout".to_string(), value: "30".to_string() },
-    ];
-    HttpResponse::Ok().json(serde_json::json!({ "configs": configs }))
-}
-
-async fn create_config(config: web::Json<Config>) -> impl Responder {
-    HttpResponse::Ok().json(serde_json::json!({
-        "config": config.into_inner()
-    }))
-}
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    println!("Starting admin service on http://127.0.0.1:8082");
-
-    HttpServer::new(|| {
-        App::new()
-            .route("/", web::get().to(index))
-            .route("/health", web::get().to(health))
-            .route("/config", web::get().to(get_config))
-            .route("/config", web::post().to(create_config))
-    })
-    .bind(("127.0.0.1", 8082))?
-    .run()
-    .await
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = stream.write_all(response.as_bytes());
+                let _ = stream.flush();
+            }
+            Err(e) => eprintln!("Connection error: {}", e),
+        }
+    }
 }

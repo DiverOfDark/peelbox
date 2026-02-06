@@ -57,26 +57,41 @@ impl BuildSystem for MixBuildSystem {
             .get_latest_version("erlang")
             .unwrap_or_else(|| "erlang-28".to_string());
 
-        // Separate dependency installation from compilation for better caching
-        // deps.get fetches dependencies (cached), compile builds from source (not cached)
-        let build_commands = vec!["mix deps.get".to_string(), "mix compile".to_string()];
+        // Install hex and rebar before fetching dependencies.
+        // MIX_HOME is set to .mix within the build context so that hex/rebar archives
+        // are copied to the runtime image alongside the application code.
+        // Separate dependency installation from compilation for better caching.
+        // deps.get fetches dependencies (cached), compile builds from source (not cached).
+        let build_commands = vec![
+            "mix local.hex --force && mix local.rebar --force".to_string(),
+            "mix deps.get".to_string(),
+            "mix compile".to_string(),
+        ];
 
         let runtime_copy = vec![(".".to_string(), "/app".to_string())];
 
         let runtime_env = std::collections::BTreeMap::from([
-            ("PORT".to_string(), "4000".to_string()),
-            ("MIX_ENV".to_string(), "prod".to_string()),
-            ("LC_ALL".to_string(), "C.UTF-8".to_string()),
             ("ELIXIR_ERL_OPTIONS".to_string(), "+fnu".to_string()),
+            ("LC_ALL".to_string(), "C.UTF-8".to_string()),
+            ("MIX_ENV".to_string(), "prod".to_string()),
+            ("MIX_HOME".to_string(), "/app/.mix".to_string()),
+            ("PORT".to_string(), "4000".to_string()),
         ]);
 
-        let build_env =
-            std::collections::BTreeMap::from([("MIX_ENV".to_string(), "prod".to_string())]);
+        let build_env = std::collections::BTreeMap::from([
+            ("ELIXIR_ERL_OPTIONS".to_string(), "+fnu".to_string()),
+            ("LC_ALL".to_string(), "C.UTF-8".to_string()),
+            ("MIX_ENV".to_string(), "prod".to_string()),
+            ("MIX_HOME".to_string(), "/build/.mix".to_string()),
+        ]);
+
+        let erlang_dev_version = format!("{}-dev", erlang_version);
 
         BuildTemplate {
             build_packages: vec![
                 elixir_version,
                 erlang_version,
+                erlang_dev_version,
                 "git".to_string(),
                 "build-base".to_string(),
                 "openssl".to_string(),
