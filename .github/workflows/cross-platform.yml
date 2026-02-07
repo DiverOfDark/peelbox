@@ -59,7 +59,12 @@ jobs:
         run: cargo clippy --all-targets --no-default-features -- -D warnings
 
       - name: Run tests
+        if: runner.os == 'Linux'
         run: cargo nextest run --no-default-features --profile ci --no-fail-fast
+
+      - name: Run tests (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: cargo nextest run --no-default-features --profile ci --no-fail-fast --test-threads 1 --exclude "peelbox-cli::container_*" --exclude "peelbox-cli::backend_*"
 
       - name: Build release binary
         run: cargo build --release --no-default-features
