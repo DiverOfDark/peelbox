@@ -21,6 +21,7 @@
     },
     "metadata": {
       "build_system": "Gradle",
+      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "api-service",
       "reasoning": "Detected from build.gradle in api-service"
@@ -40,6 +41,9 @@
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",
@@ -74,6 +78,7 @@
     },
     "metadata": {
       "build_system": "Gradle",
+      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "web-service",
       "reasoning": "Detected from build.gradle in web-service"
@@ -93,6 +98,9 @@
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",

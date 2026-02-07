@@ -8,12 +8,13 @@
         "bazel build //..."
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "packages": [
         "build-base",
         "bazel-7",
-        "openjdk-21-default-jdk",
+        "openjdk-21",
         "ca-certificates"
       ]
     },

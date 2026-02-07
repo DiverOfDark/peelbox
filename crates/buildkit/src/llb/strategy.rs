@@ -192,8 +192,7 @@ impl BuildStrategy for PeelboxStrategy {
                 // We use /out as the root for destination
                 let dest_path = format!("/out{}", copy.to);
 
-                let is_dir_dest =
-                    copy.to.ends_with('/') || src_path.contains('*') || src_path.contains('?');
+                let is_dir_dest = copy.to.ends_with('/');
 
                 if is_dir_dest {
                     copy_commands.push(format!("mkdir -p {}", dest_path));

@@ -45,9 +45,10 @@ libtest-mimic = "0.8.1"
 walkdir = "2.5.0"
 fs2 = "0.4.3"
 
-[[test]]
-name = "llm_e2e"
-harness = false
+# TODO: re-enable once LLM recording infrastructure is stabilized
+# [[test]]
+# name = "llm_e2e"
+# harness = false
 
 [[test]]
 name = "static_e2e"

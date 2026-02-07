@@ -176,14 +176,12 @@ pub fn assert_detection_with_mode(
     fixture_name: &str,
     mode: Option<&str>,
 ) {
-    assert!(!results.is_empty(), "Results should not be empty");
-
-    assert!(
-        !results[0].build.commands.is_empty(),
-        "Build commands should not be empty"
-    );
-
     if mode == Some("llm") {
+        assert!(!results.is_empty(), "Results should not be empty");
+        assert!(
+            !results[0].build.commands.is_empty(),
+            "Build commands should not be empty"
+        );
         eprintln!("Skipping universalbuild.json validation for LLM-only test (known to differ from deterministic detection)");
         return;
     }
@@ -200,6 +198,15 @@ pub fn assert_detection_with_mode(
         expected.len(),
         "Number of detected projects mismatch for {}",
         fixture_name
+    );
+
+    if expected.is_empty() {
+        return;
+    }
+
+    assert!(
+        !results[0].build.commands.is_empty(),
+        "Build commands should not be empty"
     );
 
     let mut sorted_results = results.to_vec();

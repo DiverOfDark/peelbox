@@ -1,0 +1,11 @@
+.{
+    .name = .app,
+    .version = "1.0.0",
+    .fingerprint = 0xc96e70cf94f3d177,
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

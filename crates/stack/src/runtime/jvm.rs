@@ -226,6 +226,7 @@ impl JvmRuntime {
 
         let mut artifact_id = None;
         let mut version = None;
+        let mut parent_version = None;
 
         // Only look at direct children of <project>
         for child in root.children() {
@@ -235,9 +236,18 @@ impl JvmRuntime {
             if child.has_tag_name("version") {
                 version = child.text().map(|s| s.trim().to_string());
             }
+            if child.has_tag_name("parent") {
+                for parent_child in child.children() {
+                    if parent_child.has_tag_name("version") {
+                        parent_version = parent_child.text().map(|s| s.trim().to_string());
+                    }
+                }
+            }
         }
 
-        match (artifact_id, version) {
+        let effective_version = version.or(parent_version);
+
+        match (artifact_id, effective_version) {
             (Some(aid), Some(ver)) => Some(format!("/app/{}-{}.jar", aid, ver)),
             (Some(aid), None) => Some(format!("/app/{}.jar", aid)),
             _ => None,
@@ -496,5 +506,69 @@ mod tests {
         let deps = runtime.extract_native_deps(&files);
 
         assert_eq!(deps, vec!["build-base".to_string()]);
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_with_direct_version() {
+        let runtime = JvmRuntime;
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+    <version>2.0.0</version>
+</project>"#;
+        assert_eq!(
+            runtime.parse_pom_jar_name(content),
+            Some("/app/my-app-2.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_with_parent_version() {
+        let runtime = JvmRuntime;
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>api-service</artifactId>
+</project>"#;
+        assert_eq!(
+            runtime.parse_pom_jar_name(content),
+            Some("/app/api-service-1.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_direct_version_overrides_parent() {
+        let runtime = JvmRuntime;
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>my-app</artifactId>
+    <version>3.0.0</version>
+</project>"#;
+        assert_eq!(
+            runtime.parse_pom_jar_name(content),
+            Some("/app/my-app-3.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_no_version() {
+        let runtime = JvmRuntime;
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+</project>"#;
+        assert_eq!(
+            runtime.parse_pom_jar_name(content),
+            Some("/app/my-app.jar".to_string())
+        );
     }
 }

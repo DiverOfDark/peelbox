@@ -20,6 +20,7 @@
     },
     "metadata": {
       "build_system": "Maven",
+      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "api-service",
       "reasoning": "Detected from pom.xml in api-service"
@@ -27,9 +28,8 @@
     "runtime": {
       "command": [
         "java",
-        "-cp",
-        "/app/*.jar",
-        "com.example.ApiService"
+        "-jar",
+        "/app/api-service-1.0.0.jar"
       ],
       "copy": [
         {
@@ -45,6 +45,9 @@
         "CLASSPATH": "/app/*:/app/lib/*",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",
@@ -78,6 +81,7 @@
     },
     "metadata": {
       "build_system": "Maven",
+      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "web-service",
       "reasoning": "Detected from pom.xml in web-service"
@@ -85,9 +89,8 @@
     "runtime": {
       "command": [
         "java",
-        "-cp",
-        "/app/*.jar",
-        "com.example.WebService"
+        "-jar",
+        "/app/web-service-1.0.0.jar"
       ],
       "copy": [
         {
@@ -103,6 +106,9 @@
         "CLASSPATH": "/app/*:/app/lib/*",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",

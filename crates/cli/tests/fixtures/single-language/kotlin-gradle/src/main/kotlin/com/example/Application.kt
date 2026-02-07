@@ -1,34 +1,24 @@
 package com.example
 
-import com.sun.net.httpserver.HttpServer
-import java.net.InetSocketAddress
+import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.runApplication
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RestController
 
-fun main() {
-    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    val server = HttpServer.create(InetSocketAddress(port), 0)
-
-    server.createContext("/") { exchange ->
-        if (exchange.requestURI.path != "/") {
-            val response = """{"error":"Not found"}"""
-            exchange.responseHeaders.add("Content-Type", "application/json")
-            exchange.sendResponseHeaders(404, response.toByteArray().size.toLong())
-            exchange.responseBody.use { it.write(response.toByteArray()) }
-            return@createContext
-        }
-        val response = """{"message":"Kotlin App","version":"1.0.0","endpoints":["/","/health"]}"""
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        exchange.sendResponseHeaders(200, response.toByteArray().size.toLong())
-        exchange.responseBody.use { it.write(response.toByteArray()) }
+@SpringBootApplication
+@RestController
+open class Application {
+    @GetMapping("/")
+    fun index(): String {
+        return """{"message":"Kotlin App","version":"1.0.0","endpoints":["/","/health"]}"""
     }
 
-    server.createContext("/health") { exchange ->
-        val response = """{"status":"healthy"}"""
-        exchange.responseHeaders.add("Content-Type", "application/json")
-        exchange.sendResponseHeaders(200, response.toByteArray().size.toLong())
-        exchange.responseBody.use { it.write(response.toByteArray()) }
+    @GetMapping("/health")
+    fun health(): String {
+        return """{"status":"healthy"}"""
     }
+}
 
-    server.executor = null
-    server.start()
-    println("Server started on port $port")
+fun main(args: Array<String>) {
+    runApplication<Application>(*args)
 }
