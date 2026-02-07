@@ -107,7 +107,7 @@ impl BuildSystem for GoModBuildSystem {
 
             common_ports: vec![8080],
             build_env,
-            runtime_copy: vec![("app".to_string(), "/usr/local/bin/app".to_string())],
+            runtime_copy: vec![("app".to_string(), "/app/app".to_string())],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
         }

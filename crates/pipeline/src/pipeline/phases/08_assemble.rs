@@ -111,7 +111,7 @@ fn assemble_single_service(
     let runtime_config = result.runtime_config.as_ref();
     let entrypoint_cmd = runtime_config
         .and_then(|rc| rc.entrypoint.clone())
-        .unwrap_or_else(|| "/usr/local/bin/{project_name}".to_string());
+        .unwrap_or_else(|| "/app/{project_name}".to_string());
     let port = runtime_config
         .and_then(|rc| rc.port)
         .or_else(|| {

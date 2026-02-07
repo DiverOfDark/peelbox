@@ -85,12 +85,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/admin-service"
+        "/app/admin-service"
       ],
       "copy": [
         {
           "from": "target/release/admin-service",
-          "to": "/usr/local/bin/admin-service"
+          "to": "/app/admin-service"
         }
       ],
       "env": {},

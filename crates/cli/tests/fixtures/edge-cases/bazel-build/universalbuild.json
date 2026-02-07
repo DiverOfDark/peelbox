@@ -25,12 +25,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/hello"
+        "/app/hello"
       ],
       "copy": [
         {
           "from": "bazel-bin/hello",
-          "to": "/usr/local/bin/hello"
+          "to": "/app/hello"
         }
       ],
       "env": {},

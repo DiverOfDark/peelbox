@@ -25,12 +25,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/app"
+        "/app/app"
       ],
       "copy": [
         {
           "from": "build/app",
-          "to": "/usr/local/bin/app"
+          "to": "/app/app"
         }
       ],
       "env": {},

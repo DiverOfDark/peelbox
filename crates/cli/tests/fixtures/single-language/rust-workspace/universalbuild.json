@@ -28,12 +28,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/app"
+        "/app/app"
       ],
       "copy": [
         {
           "from": "target/release/app",
-          "to": "/usr/local/bin/app"
+          "to": "/app/app"
         }
       ],
       "env": {},

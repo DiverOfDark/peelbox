@@ -23,12 +23,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/app"
+        "/app/app"
       ],
       "copy": [
         {
           "from": "zig-out/bin/app",
-          "to": "/usr/local/bin/app"
+          "to": "/app/app"
         }
       ],
       "env": {},

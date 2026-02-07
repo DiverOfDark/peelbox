@@ -201,7 +201,7 @@ impl LanguageDefinition for ElixirLanguage {
             .as_str();
 
         Some(format!(
-            "/usr/local/bin/{}/bin/{} start",
+            "/app/{}/bin/{} start",
             app_name, app_name
         ))
     }

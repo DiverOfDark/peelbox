@@ -147,7 +147,7 @@ impl BuildSystem for BazelBuildSystem {
             build_env,
             runtime_copy: vec![(
                 "bazel-bin/{project_name}".to_string(),
-                "/usr/local/bin/{project_name}".to_string(),
+                "/app/{project_name}".to_string(),
             )],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: Some("/app".to_string()),

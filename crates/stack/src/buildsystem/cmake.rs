@@ -69,7 +69,7 @@ impl BuildSystem for CMakeBuildSystem {
             build_env: std::collections::BTreeMap::new(),
             runtime_copy: vec![(
                 "build/{project_name}".to_string(),
-                "/usr/local/bin/{project_name}".to_string(),
+                "/app/{project_name}".to_string(),
             )],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,

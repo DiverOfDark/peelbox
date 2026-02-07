@@ -65,7 +65,7 @@ impl BuildSystem for MakeBuildSystem {
 
             common_ports: vec![],
             build_env: std::collections::BTreeMap::new(),
-            runtime_copy: vec![("app".to_string(), "/usr/local/bin/app".to_string())],
+            runtime_copy: vec![("app".to_string(), "/app/app".to_string())],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
         }

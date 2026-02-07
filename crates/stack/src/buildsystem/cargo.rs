@@ -102,7 +102,7 @@ impl BuildSystem for CargoBuildSystem {
             build_env,
             runtime_copy: vec![(
                 "target/release/{project_name}".to_string(),
-                "/usr/local/bin/{project_name}".to_string(),
+                "/app/{project_name}".to_string(),
             )],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,

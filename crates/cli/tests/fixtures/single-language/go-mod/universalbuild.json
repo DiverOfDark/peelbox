@@ -29,12 +29,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/app"
+        "/app/app"
       ],
       "copy": [
         {
           "from": "app",
-          "to": "/usr/local/bin/app"
+          "to": "/app/app"
         }
       ],
       "env": {},

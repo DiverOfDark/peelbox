@@ -78,9 +78,12 @@ impl BuildSystem for ZigBuildSystem {
             build_env: Default::default(),
             cache_paths: vec!["zig-cache".to_string(), "zig-out".to_string()],
             common_ports: vec![],
-            runtime_copy: vec![("zig-out/bin".to_string(), "/app".to_string())],
+            runtime_copy: vec![(
+                "zig-out/bin/{project_name}".to_string(),
+                "/app/{project_name}".to_string(),
+            )],
             runtime_env: Default::default(),
-            runtime_workdir: Some("/app/".to_string()),
+            runtime_workdir: Some("/app".to_string()),
         }
     }
 
@@ -234,9 +237,12 @@ mod tests {
         assert_eq!(template.cache_paths, vec!["zig-cache", "zig-out"]);
         assert_eq!(
             template.runtime_copy,
-            vec![("zig-out/bin".to_string(), "/app".to_string())]
+            vec![(
+                "zig-out/bin/{project_name}".to_string(),
+                "/app/{project_name}".to_string()
+            )]
         );
-        assert_eq!(template.runtime_workdir, Some("/app/".to_string()));
+        assert_eq!(template.runtime_workdir, Some("/app".to_string()));
     }
 
     #[test]

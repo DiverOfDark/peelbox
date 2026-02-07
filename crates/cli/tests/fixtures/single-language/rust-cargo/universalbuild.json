@@ -28,12 +28,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/hello-world"
+        "/app/hello-world"
       ],
       "copy": [
         {
           "from": "target/release/hello-world",
-          "to": "/usr/local/bin/hello-world"
+          "to": "/app/hello-world"
         }
       ],
       "env": {},
