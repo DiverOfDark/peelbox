@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use std::path::Path;
-use tonic::transport::{Channel, Endpoint, Uri};
+#[cfg(not(windows))]
+use tonic::transport::Uri;
+use tonic::transport::{Channel, Endpoint};
 use tracing::{debug, info};
 
 const DEFAULT_UNIX_SOCKET: &str = "/run/buildkit/buildkitd.sock";
