@@ -200,10 +200,7 @@ impl LanguageDefinition for ElixirLanguage {
             .get(1)?
             .as_str();
 
-        Some(format!(
-            "/app/{}/bin/{} start",
-            app_name, app_name
-        ))
+        Some(format!("/app/{}/bin/{} start", app_name, app_name))
     }
 
     fn find_entrypoints(

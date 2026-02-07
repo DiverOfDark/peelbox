@@ -30,7 +30,9 @@ impl ServicePhase for RuntimeConfigPhase {
             .iter()
             .filter(|p| {
                 let sp = service_path.as_path();
-                sp == std::path::Path::new(".") || sp == std::path::Path::new("") || p.starts_with(sp)
+                sp == std::path::Path::new(".")
+                    || sp == std::path::Path::new("")
+                    || p.starts_with(sp)
             })
             .map(|p| repo_path.join(p))
             .collect();

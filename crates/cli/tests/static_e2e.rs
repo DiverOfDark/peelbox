@@ -12,13 +12,9 @@ fn main() {
     let args = Arguments::from_args();
     let fixtures = find_fixtures();
 
-    let skip_fixtures: HashSet<&str> = [
-        "multiple-manifests",
-        "nested-projects",
-        "vendor-heavy",
-    ]
-    .into_iter()
-    .collect();
+    let skip_fixtures: HashSet<&str> = ["multiple-manifests", "nested-projects", "vendor-heavy"]
+        .into_iter()
+        .collect();
 
     let mut tests = Vec::new();
 
