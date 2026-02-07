@@ -129,14 +129,14 @@ impl BuildSystem for BazelBuildSystem {
         // Bazel always requires a JDK to run, regardless of the project language.
         // Add a JDK and set JAVA_HOME so Bazel can find it.
         let mut build_env = std::collections::BTreeMap::new();
-        if wolfi_index.has_package("openjdk-21-default-jdk") {
-            build_packages.push("openjdk-21-default-jdk".to_string());
-        } else if wolfi_index.has_package("openjdk-21") {
-            build_packages.push("openjdk-21".to_string());
-        }
+        build_packages.push("openjdk-21".to_string());
         build_env.insert(
             "JAVA_HOME".to_string(),
             "/usr/lib/jvm/java-21-openjdk".to_string(),
+        );
+        build_env.insert(
+            "PATH".to_string(),
+            "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
         );
 
         BuildTemplate {
