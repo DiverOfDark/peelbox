@@ -16,8 +16,12 @@ env:
 
 jobs:
   build-and-test:
-    name: Build, Test & Coverage
-    runs-on: ubuntu-latest
+    name: Build & Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
       checks: write
@@ -25,6 +29,7 @@ jobs:
       id-token: write
     steps:
       - name: Free Disk Space (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: false
@@ -70,7 +75,7 @@ jobs:
           tool: nextest,cargo-llvm-cov
 
       - name: Extract BuildKit cache
-        if: steps.cache-buildkit.outputs.cache-hit == 'true'
+        if: matrix.os == 'ubuntu-latest' && steps.cache-buildkit.outputs.cache-hit == 'true'
         run: |
           mkdir -p /tmp/.test-cache/buildkit
           sudo tar -xf .buildkit-cache.tar.zst -C /tmp/.test-cache/buildkit
@@ -82,20 +87,26 @@ jobs:
         run: cargo clippy --all-targets --no-default-features -- -D warnings
 
       - name: Clean coverage data
+        if: matrix.os == 'ubuntu-latest'
         run: cargo llvm-cov clean --workspace
 
-      - name: Run unit tests
+      - name: Run tests (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           export PEELBOX_TEST_CACHE_DIR=/tmp/.test-cache
           cargo llvm-cov nextest --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
+      - name: Run tests (Windows/macOS)
+        if: matrix.os != 'ubuntu-latest'
+        run: cargo nextest run --no-default-features --profile ci --no-fail-fast --test-threads 1 --exclude "peelbox-cli::container_*" --exclude "peelbox-cli::backend_*"
+
       - name: Generate coverage report
-        if: success() || failure()
+        if: matrix.os == 'ubuntu-latest' && (success() || failure())
         run: |
           cargo llvm-cov report --cobertura --output-path cobertura.xml
 
       - name: Upload to Codecov coverage
-        if: success() || failure()
+        if: matrix.os == 'ubuntu-latest' && (success() || failure())
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: false
@@ -103,7 +114,7 @@ jobs:
           use_oidc: true
 
       - name: Upload to Codecov tests
-        if: success() || failure()
+        if: matrix.os == 'ubuntu-latest' && (success() || failure())
         uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: false
@@ -112,27 +123,37 @@ jobs:
           use_oidc: true
 
       - name: Publish Test Report
-        if: success() || failure()
+        if: matrix.os == 'ubuntu-latest' && (success() || failure())
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: "target/nextest/ci/junit.xml"
 
       - name: Build release binary
-        if: success()
         run: |
           # Clean build for release binary (to avoid using instrumented artifacts)
           cargo build --release --no-default-features --verbose
 
-      - name: Upload release binary
-        if: success()
+      - name: Upload release binary (Linux)
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v6
         with:
           name: peelbox-release-binary
           path: target/release/peelbox
           retention-days: 1
 
+      - name: Upload release binary (Cross-Platform)
+        if: matrix.os != 'ubuntu-latest'
+        uses: actions/upload-artifact@v6
+        with:
+          name: peelbox-${{ matrix.os }}
+          path: |
+            target/release/peelbox
+            target/release/peelbox.exe
+          retention-days: 1
+          if-no-files-found: ignore
+
       - name: Create BuildKit cache archive
-        if: always()
+        if: matrix.os == 'ubuntu-latest' && always()
         run: |
           if [ -d /tmp/.test-cache/buildkit ]; then
             sudo tar -cf .buildkit-cache.tar.zst --zstd -C /tmp/.test-cache/buildkit . || true
@@ -140,7 +161,7 @@ jobs:
           fi
 
       - name: Upload new recording files
-        if: always()
+        if: matrix.os == 'ubuntu-latest' && always()
         run: |
           git status --porcelain tests/recordings/ > /tmp/new_recordings.txt
           if [ -s /tmp/new_recordings.txt ]; then
@@ -151,7 +172,7 @@ jobs:
           fi
 
       - name: Upload recording artifacts
-        if: always()
+        if: matrix.os == 'ubuntu-latest' && always()
         uses: actions/upload-artifact@v6
         with:
           name: test-recordings
