@@ -51,8 +51,6 @@ impl BuildSystem for MavenBuildSystem {
                             LanguageId::Java,
                             rel_path.clone(),
                         ));
-                    } else if rel_path.to_string_lossy().contains("app") {
-                        eprintln!("Maven skipped 'app' at {:?} because is_runnable returned false. Project root: {:?}", rel_path, project_dir);
                     }
                 }
             }
@@ -64,15 +62,15 @@ impl BuildSystem for MavenBuildSystem {
     fn build_template(
         &self,
         wolfi_index: &peelbox_wolfi::WolfiPackageIndex,
-        _service_path: &Path,
-        _relative_path: &Path,
+        service_path: &Path,
+        relative_path: &Path,
         manifest_content: Option<&str>,
     ) -> BuildTemplate {
         let java_version = manifest_content
             .and_then(parse_java_version)
             .or_else(|| {
                 // Try parent pom.xml for inherited properties (multi-module projects)
-                _service_path
+                service_path
                     .parent()
                     .map(|parent| parent.join("pom.xml"))
                     .filter(|p| p.exists())
@@ -110,12 +108,12 @@ impl BuildSystem for MavenBuildSystem {
         let mut build_packages = vec![java_version, maven_version];
         build_packages.push("ca-certificates".to_string());
 
-        let is_root = _relative_path.components().count() == 0 || _relative_path == Path::new(".");
-        let service_dir = _relative_path.to_string_lossy();
+        let is_root = relative_path.components().count() == 0 || relative_path == Path::new(".");
+        let service_dir = relative_path.to_string_lossy();
 
         // Check if there's a parent reactor pom.xml (multi-module project)
         let has_reactor_root = !is_root
-            && _service_path
+            && service_path
                 .parent()
                 .map(|parent| parent.join("pom.xml"))
                 .filter(|p| p.exists())

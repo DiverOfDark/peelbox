@@ -95,7 +95,7 @@ impl BuildSystem for DenoBuildSystem {
             runtime_env: vec![("DENO_DIR".to_string(), "/deno-dir".to_string())]
                 .into_iter()
                 .collect(),
-            runtime_workdir: Some("/app/".to_string()),
+            runtime_workdir: Some("/app".to_string()),
         }
     }
 
@@ -326,7 +326,7 @@ mod tests {
                 ("/deno-dir".to_string(), "/deno-dir".to_string())
             ]
         );
-        assert_eq!(template.runtime_workdir, Some("/app/".to_string()));
+        assert_eq!(template.runtime_workdir, Some("/app".to_string()));
     }
 
     #[test]

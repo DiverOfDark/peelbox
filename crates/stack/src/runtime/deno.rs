@@ -7,13 +7,76 @@ use super::{Runtime, RuntimeConfig};
 pub struct DenoRuntime;
 
 impl DenoRuntime {
+    /// Strips single-line (`//`) and multi-line (`/* */`) comments from JSONC content
+    /// so it can be parsed by serde_json which only supports standard JSON.
+    fn strip_jsonc_comments(input: &str) -> String {
+        let mut result = String::with_capacity(input.len());
+        let mut chars = input.chars().peekable();
+        let mut in_string = false;
+
+        while let Some(&ch) = chars.peek() {
+            if in_string {
+                result.push(ch);
+                chars.next();
+                if ch == '\\' {
+                    // Skip escaped character
+                    if let Some(&next) = chars.peek() {
+                        result.push(next);
+                        chars.next();
+                    }
+                } else if ch == '"' {
+                    in_string = false;
+                }
+            } else if ch == '"' {
+                in_string = true;
+                result.push(ch);
+                chars.next();
+            } else if ch == '/' {
+                chars.next();
+                match chars.peek() {
+                    Some(&'/') => {
+                        // Single-line comment: skip until newline
+                        for c in chars.by_ref() {
+                            if c == '\n' {
+                                result.push('\n');
+                                break;
+                            }
+                        }
+                    }
+                    Some(&'*') => {
+                        // Multi-line comment: skip until */
+                        chars.next();
+                        while let Some(c) = chars.next() {
+                            if c == '*' && chars.peek() == Some(&'/') {
+                                chars.next();
+                                break;
+                            }
+                        }
+                    }
+                    _ => {
+                        result.push('/');
+                    }
+                }
+            } else {
+                result.push(ch);
+                chars.next();
+            }
+        }
+        result
+    }
+
     /// Extracts the main entrypoint from deno.json or deno.jsonc manifest
     fn extract_main_from_manifest(&self, files: &[PathBuf]) -> Option<String> {
         for file in files {
             if let Some(file_name) = file.file_name().and_then(|n| n.to_str()) {
                 if file_name == "deno.json" || file_name == "deno.jsonc" {
                     if let Ok(content) = std::fs::read_to_string(file) {
-                        if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
+                        let clean = if file_name.ends_with(".jsonc") {
+                            Self::strip_jsonc_comments(&content)
+                        } else {
+                            content
+                        };
+                        if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&clean) {
                             if let Some(main) = manifest["main"].as_str() {
                                 return Some(main.to_string());
                             }
@@ -62,11 +125,7 @@ impl Runtime for DenoRuntime {
             }
             if let Some(endpoint) = fw.health_endpoints(&[]).first() {
                 config.health = Some(HealthCheck {
-                    endpoint: format!(
-                        "http://localhost:{}{}",
-                        config.port.unwrap_or(8000),
-                        endpoint
-                    ),
+                    endpoint: endpoint.to_string(),
                 });
             }
         }
@@ -215,10 +274,7 @@ mod tests {
         let files = vec![deno_jsonc];
         let main = runtime.extract_main_from_manifest(&files);
 
-        // Note: This will fail if serde_json doesn't support comments
-        // But deno.jsonc typically uses json5 which allows comments
-        // For now, we test that the function doesn't crash
-        let _ = main;
+        assert_eq!(main, Some("app.ts".to_string()));
     }
 
     #[test]

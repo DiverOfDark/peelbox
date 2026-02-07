@@ -376,7 +376,6 @@ async fn test_image_runs_help_command() -> Result<()> {
 async fn test_buildctl_output_types() -> Result<()> {
     println!("=== BuildKit Output Types Test ===\n");
     let temp_dir = support::get_test_temp_dir();
-    std::fs::create_dir_all(&temp_dir)?;
     let spec_path = temp_dir.join("spec.json");
     std::fs::write(
         &spec_path,

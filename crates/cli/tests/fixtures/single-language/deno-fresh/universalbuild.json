@@ -51,7 +51,7 @@
       "ports": [
         8000
       ],
-      "workdir": "/app/"
+      "workdir": "/app"
     },
     "version": "1.0"
   }

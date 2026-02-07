@@ -11,10 +11,10 @@ fn parse_php_version(manifest_content: &str) -> Option<String> {
     let php_constraint = composer.get("require")?.get("php")?.as_str()?;
 
     let version_str = php_constraint
-        .replace(">=", "")
-        .replace("^", "")
-        .replace("~", "")
         .trim()
+        .trim_start_matches(">=")
+        .trim_start_matches('^')
+        .trim_start_matches('~')
         .split('.')
         .take(2)
         .collect::<Vec<_>>()
