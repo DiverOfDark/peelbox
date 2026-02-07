@@ -1,0 +1,75 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  PEELBOX_RECORDING_MODE: replay
+  PEELBOX_DETECTION_MODE: static
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-cross-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-cross-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --no-default-features -- -D warnings
+
+      - name: Run tests
+        run: cargo nextest run --no-default-features --profile ci --no-fail-fast
+
+      - name: Build release binary
+        run: cargo build --release --no-default-features
+
+      - name: Upload release binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: peelbox-${{ matrix.os }}
+          path: |
+            target/release/peelbox
+            target/release/peelbox.exe
+          retention-days: 1
+          if-no-files-found: ignore
