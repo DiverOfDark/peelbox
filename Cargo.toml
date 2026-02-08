@@ -6,6 +6,7 @@ members = [
     "crates/buildkit",
     "crates/wolfi",
     "crates/stack",
+    "crates/detect",
     "crates/pipeline",
     "crates/cli",
 ]
@@ -22,5 +23,6 @@ peelbox-llm = { path = "crates/llm" }
 peelbox-buildkit = { path = "crates/buildkit" }
 peelbox-wolfi = { path = "crates/wolfi" }
 peelbox-stack = { path = "crates/stack" }
+peelbox-detect = { path = "crates/detect" }
 peelbox-pipeline = { path = "crates/pipeline" }
 peelbox-cli = { path = "crates/cli" }
