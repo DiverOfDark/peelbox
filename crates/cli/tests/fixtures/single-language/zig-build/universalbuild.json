@@ -17,9 +17,10 @@
     },
     "metadata": {
       "build_system": "Zig Build",
+      "framework": "Zap",
       "language": "Zig",
       "project_name": "app",
-      "reasoning": "Detected from build.zig"
+      "reasoning": "Detected from build.zig.zon"
     },
     "runtime": {
       "command": [
@@ -32,12 +33,15 @@
         }
       ],
       "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
       "packages": [
         "glibc",
         "ca-certificates"
       ],
       "ports": [
-        8080
+        3000
       ],
       "workdir": "/app"
     },

@@ -136,6 +136,7 @@ pub mod rails;
 pub mod sinatra;
 pub mod spring_boot;
 pub mod symfony;
+pub mod zap;
 
 pub use actix::ActixFramework;
 pub use aspnet::AspNetFramework;
@@ -159,3 +160,4 @@ pub use rails::RailsFramework;
 pub use sinatra::SinatraFramework;
 pub use spring_boot::SpringBootFramework;
 pub use symfony::SymfonyFramework;
+pub use zap::ZapFramework;

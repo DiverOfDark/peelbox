@@ -1,7 +1,6 @@
 use super::BuildSystem;
 use crate::{BuildSystemId, BuildTemplate, DetectionStack, ManifestPattern};
 use peelbox_core::fs::FileSystem;
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 pub struct ZigBuildSystem;
@@ -30,37 +29,56 @@ impl BuildSystem for ZigBuildSystem {
         file_tree: &[PathBuf],
         _fs: &dyn FileSystem,
     ) -> anyhow::Result<Vec<DetectionStack>> {
-        let mut results = Vec::new();
-        let mut processed_dirs = HashSet::new();
+        use std::collections::HashMap;
+
+        // Collect manifests per directory, preferring build.zig.zon (contains dependency info)
+        let mut dir_manifests: HashMap<PathBuf, (PathBuf, f64)> = HashMap::new();
 
         for path in file_tree {
             let filename = path.file_name().and_then(|n| n.to_str());
 
-            let (is_manifest, confidence) = match filename {
-                Some("build.zig") => (true, 1.0),
-                Some("build.zig.zon") => (true, 0.95),
-                _ => (false, 0.0),
+            let (is_manifest, confidence, priority) = match filename {
+                // build.zig.zon is preferred as manifest because it contains dependency metadata
+                Some("build.zig.zon") => (true, 0.95, 1),
+                Some("build.zig") => (true, 1.0, 0),
+                _ => (false, 0.0, 0),
             };
 
             if is_manifest {
-                let dir = path.parent().unwrap_or(Path::new(""));
+                let dir = path.parent().unwrap_or(Path::new("")).to_path_buf();
 
-                if processed_dirs.contains(dir) {
-                    continue;
-                }
-                processed_dirs.insert(dir.to_path_buf());
-
-                results.push(DetectionStack {
-                    language: crate::LanguageId::Zig,
-                    build_system: self.id(),
-                    framework: None,
-                    is_workspace_root: false,
-                    manifest_path: path.clone(),
-                    confidence,
-                    depth: 0,
-                });
+                let entry = dir_manifests.entry(dir);
+                entry
+                    .and_modify(|(existing_path, existing_confidence)| {
+                        let existing_priority =
+                            if existing_path.file_name().and_then(|n| n.to_str())
+                                == Some("build.zig.zon")
+                            {
+                                1
+                            } else {
+                                0
+                            };
+                        if priority > existing_priority {
+                            *existing_path = path.clone();
+                            *existing_confidence = confidence;
+                        }
+                    })
+                    .or_insert((path.clone(), confidence));
             }
         }
+
+        let results = dir_manifests
+            .into_values()
+            .map(|(manifest_path, confidence)| DetectionStack {
+                language: crate::LanguageId::Zig,
+                build_system: self.id(),
+                framework: None,
+                is_workspace_root: false,
+                manifest_path,
+                confidence,
+                depth: 0,
+            })
+            .collect();
 
         Ok(results)
     }
@@ -195,9 +213,10 @@ mod tests {
         let file_tree = vec![PathBuf::from("build.zig"), PathBuf::from("build.zig.zon")];
 
         let result = zig.detect_all(&repo_root, &file_tree, &fs).unwrap();
-        // Should only detect once per directory (deduplication)
+        // Should only detect once per directory (deduplication), preferring build.zig.zon
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].language, crate::LanguageId::Zig);
+        assert_eq!(result[0].manifest_path, PathBuf::from("build.zig.zon"));
     }
 
     #[test]
@@ -215,11 +234,9 @@ mod tests {
 
         let result = zig.detect_all(&repo_root, &file_tree, &fs).unwrap();
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0].manifest_path, PathBuf::from("build.zig"));
-        assert_eq!(
-            result[1].manifest_path,
-            PathBuf::from("subproject/build.zig")
-        );
+        let paths: Vec<_> = result.iter().map(|r| r.manifest_path.clone()).collect();
+        assert!(paths.contains(&PathBuf::from("build.zig")));
+        assert!(paths.contains(&PathBuf::from("subproject/build.zig")));
     }
 
     #[test]

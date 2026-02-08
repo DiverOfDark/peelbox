@@ -132,6 +132,7 @@ impl StackRegistry {
                 FrameworkId::Laravel => Box::new(LaravelFramework),
                 FrameworkId::Symfony => Box::new(SymfonyFramework),
                 FrameworkId::Phoenix => Box::new(PhoenixFramework),
+                FrameworkId::Zap => Box::new(ZapFramework),
                 FrameworkId::Custom(_) => continue,
             };
             registry.frameworks.insert(id.clone(), fw);
