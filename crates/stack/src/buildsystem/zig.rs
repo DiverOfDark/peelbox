@@ -101,10 +101,7 @@ impl BuildSystem for ZigBuildSystem {
                     "zig-out/bin/{project_name}".to_string(),
                     "/app/{project_name}".to_string(),
                 ),
-                (
-                    "zig-out/lib/".to_string(),
-                    "/app/lib/".to_string(),
-                ),
+                ("zig-out/lib/".to_string(), "/app/lib/".to_string()),
             ],
             runtime_env: Default::default(),
             runtime_workdir: Some("/app".to_string()),
@@ -265,10 +262,7 @@ mod tests {
                     "zig-out/bin/{project_name}".to_string(),
                     "/app/{project_name}".to_string()
                 ),
-                (
-                    "zig-out/lib/".to_string(),
-                    "/app/lib/".to_string()
-                ),
+                ("zig-out/lib/".to_string(), "/app/lib/".to_string()),
             ]
         );
         assert_eq!(template.runtime_workdir, Some("/app".to_string()));

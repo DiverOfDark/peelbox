@@ -202,8 +202,7 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    const MANIFEST_WITH_ENGINE: &str =
-        r#"{"name": "app", "version": "1.0.0", "engines": {"node": "22"}, "scripts": {"start": "node index.js"}}"#;
+    const MANIFEST_WITH_ENGINE: &str = r#"{"name": "app", "version": "1.0.0", "engines": {"node": "22"}, "scripts": {"start": "node index.js"}}"#;
 
     #[test]
     fn test_root_package_json_without_workspaces_not_treated_as_workspace() {
