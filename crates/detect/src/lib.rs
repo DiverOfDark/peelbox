@@ -10,6 +10,7 @@
 //! Either a file parses successfully or it doesn't. Binary, deterministic.
 
 pub mod framework_detectors;
+pub mod helpers;
 pub mod parsers;
 pub mod pipeline;
 pub mod registry;
