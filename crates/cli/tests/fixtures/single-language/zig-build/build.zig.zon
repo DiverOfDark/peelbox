@@ -1,0 +1,16 @@
+.{
+    .name = .app,
+    .version = "1.0.0",
+    .fingerprint = 0xc96e70cf94f3d177,
+    .dependencies = .{
+        .zap = .{
+            .url = "https://github.com/zigzap/zap/archive/refs/tags/v0.11.0.tar.gz",
+            .hash = "zap-0.10.6-GoeB8xCEJABLgoiZjWZMMT5TsoZ5OO2EZe6j24RTUYEH",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}

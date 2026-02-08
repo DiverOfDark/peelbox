@@ -1,6 +1,6 @@
 //! Zig language definition
 
-use super::{DetectionResult, LanguageDefinition};
+use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
 
 pub struct ZigLanguage;
 
@@ -37,6 +37,43 @@ impl LanguageDefinition for ZigLanguage {
 
     fn excluded_dirs(&self) -> Vec<String> {
         vec!["zig-cache".to_string(), "zig-out".to_string()]
+    }
+
+    fn parse_dependencies(
+        &self,
+        manifest_content: &str,
+        _all_internal_paths: &[std::path::PathBuf],
+    ) -> DependencyInfo {
+        use regex::Regex;
+
+        // Parse build.zig.zon format: .dependencies = .{ .name = .{ ... }, ... }
+        let deps_block_re =
+            Regex::new(r"\.dependencies\s*=\s*\.\{([\s\S]*?)\n\s*\}").expect("valid regex");
+        let dep_name_re = Regex::new(r"\.(\w+)\s*=\s*\.\{").expect("valid regex");
+
+        let mut external_deps = Vec::new();
+
+        if let Some(caps) = deps_block_re.captures(manifest_content) {
+            let block = &caps[1];
+            for dep_cap in dep_name_re.captures_iter(block) {
+                let name = dep_cap[1].to_string();
+                external_deps.push(Dependency {
+                    name,
+                    version: None,
+                    is_internal: false,
+                });
+            }
+        }
+
+        if external_deps.is_empty() {
+            DependencyInfo::empty()
+        } else {
+            DependencyInfo {
+                internal_deps: vec![],
+                external_deps,
+                detected_by: DetectionMethod::Deterministic,
+            }
+        }
     }
 
     fn find_entrypoints(
@@ -300,6 +337,78 @@ pub fn main() !void {
         let file_tree = vec![PathBuf::from("main.zig")];
 
         assert!(zig.is_runnable(&fs, &repo_root, &project_root, &file_tree, None));
+    }
+
+    #[test]
+    fn test_parse_dependencies_zon() {
+        let zig = ZigLanguage;
+        let content = r#".{
+    .name = .app,
+    .version = "1.0.0",
+    .fingerprint = 0xc96e70cf94f3d177,
+    .dependencies = .{
+        .zap = .{
+            .url = "https://github.com/zigzap/zap/archive/refs/tags/v0.2.0.tar.gz",
+            .hash = "122043bd4f7f735tried80d3e3ae7e7c00c5db1bb7e8e5ba1ce6d51f2a73c6bef3",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}"#;
+        let deps = zig.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.external_deps[0].name, "zap");
+        assert!(!deps.external_deps[0].is_internal);
+    }
+
+    #[test]
+    fn test_parse_dependencies_zon_multiple() {
+        let zig = ZigLanguage;
+        let content = r#".{
+    .name = .app,
+    .dependencies = .{
+        .zap = .{
+            .url = "https://example.com/zap.tar.gz",
+            .hash = "abc123",
+        },
+        .@"facil.io" = .{
+            .url = "https://example.com/facilio.tar.gz",
+            .hash = "def456",
+        },
+    },
+}"#;
+        let deps = zig.parse_dependencies(content, &[]);
+
+        assert_eq!(deps.detected_by, DetectionMethod::Deterministic);
+        // Only matches \w+ pattern, so "facil.io" with @"..." quoting won't match
+        assert_eq!(deps.external_deps.len(), 1);
+        assert_eq!(deps.external_deps[0].name, "zap");
+    }
+
+    #[test]
+    fn test_parse_dependencies_empty() {
+        let zig = ZigLanguage;
+        let content = r#".{
+    .name = .app,
+    .dependencies = .{},
+}"#;
+        let deps = zig.parse_dependencies(content, &[]);
+        assert_eq!(deps.external_deps.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_dependencies_no_deps_section() {
+        let zig = ZigLanguage;
+        let content = r#".{
+    .name = .app,
+}"#;
+        let deps = zig.parse_dependencies(content, &[]);
+        assert_eq!(deps.external_deps.len(), 0);
     }
 
     #[test]

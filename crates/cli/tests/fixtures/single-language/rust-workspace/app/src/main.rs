@@ -43,7 +43,7 @@ async fn health() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting workspace server on http://127.0.0.1:8081");
+    println!("Starting workspace server on http://0.0.0.0:8081");
 
     HttpServer::new(|| {
         App::new()
@@ -52,7 +52,7 @@ async fn main() -> std::io::Result<()> {
             .route("/greet/{name}", web::get().to(greet))
             .route("/add/{a}/{b}", web::get().to(add))
     })
-    .bind(("127.0.0.1", 8081))?
+    .bind(("0.0.0.0", 8081))?
     .run()
     .await
 }

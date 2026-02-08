@@ -8,6 +8,11 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
+    "start": "node apps/web/dist/index.js",
     "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
   }
 }

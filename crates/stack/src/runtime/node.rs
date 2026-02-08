@@ -76,15 +76,6 @@ impl NodeRuntime {
                         if package["scripts"]["start"].is_string() {
                             return Some("npm start".to_string());
                         }
-                        if let Some(main) = package["main"].as_str() {
-                            if main.ends_with(".ts") {
-                                // Simple heuristic for TS projects: try dist/ or build/
-                                // Assuming standard src/ -> dist/ mapping
-                                let js_path = main.replace("src/", "dist/").replace(".ts", ".js");
-                                return Some(format!("node {}", js_path));
-                            }
-                            return Some(format!("node {}", main));
-                        }
                     }
                 }
             }
@@ -152,7 +143,7 @@ impl Runtime for NodeRuntime {
             .or_else(|| wolfi_index.get_latest_version("nodejs"))
             .unwrap_or_else(|| "nodejs-22".to_string());
 
-        vec![version, "npm".to_string()]
+        vec![version, "npm".to_string(), "busybox".to_string()]
     }
 }
 

@@ -1,12 +1,15 @@
 [
   {
     "build": {
-      "cache": [],
+      "cache": [
+        ".cache/bazel"
+      ],
       "commands": [
         "bazel build //..."
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "packages": [
         "build-base",
@@ -23,12 +26,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/hello"
+        "/app/hello"
       ],
       "copy": [
         {
           "from": "bazel-bin/hello",
-          "to": "/usr/local/bin/hello"
+          "to": "/app/hello"
         }
       ],
       "env": {},

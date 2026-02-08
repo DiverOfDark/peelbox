@@ -4,17 +4,20 @@
       "project_name": "elixir_api",
       "language": "Elixir",
       "build_system": "Mix",
-      "confidence": 1.0,
       "reasoning": "Detected from mix.exs"
     },
     "build": {
-      "packages": ["elixir-1.18", "erlang-28", "git", "build-base", "openssl", "ca-certificates"],
+      "packages": ["elixir-1.18", "erlang-28", "erlang-28-dev", "git", "build-base", "openssl", "ca-certificates"],
       "commands": [
+        "mix local.hex --force && mix local.rebar --force",
         "mix deps.get",
         "mix compile"
       ],
       "env": {
-        "MIX_ENV": "prod"
+        "ELIXIR_ERL_OPTIONS": "+fnu",
+        "LC_ALL": "C.UTF-8",
+        "MIX_ENV": "prod",
+        "MIX_HOME": "/build/.mix"
       },
       "cache": ["deps"]
     },
@@ -29,10 +32,11 @@
       "command": ["mix", "run", "--no-halt"],
       "ports": [4000],
       "env": {
-        "PORT": "4000",
-        "MIX_ENV": "prod",
+        "ELIXIR_ERL_OPTIONS": "+fnu",
         "LC_ALL": "C.UTF-8",
-        "ELIXIR_ERL_OPTIONS": "+fnu"
+        "MIX_ENV": "prod",
+        "MIX_HOME": "/app/.mix",
+        "PORT": "4000"
       },
       "workdir": "/app",
       "health": {

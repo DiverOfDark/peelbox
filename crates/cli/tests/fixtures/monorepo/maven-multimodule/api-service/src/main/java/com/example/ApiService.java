@@ -2,9 +2,8 @@ package com.example;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
 @RestController
@@ -14,24 +13,17 @@ public class ApiService {
     }
 
     @GetMapping("/")
-    public Map<String, Object> index() {
-        return Map.of(
-                "service", "API Service",
-                "library", Library.getMessage(),
-                "endpoints", Arrays.asList("/", "/health", "/api/data")
-        );
+    public String index() {
+        return "{\"service\":\"API Service\",\"library\":\"" + Library.getMessage() + "\"}";
     }
 
     @GetMapping("/health")
-    public Map<String, String> health() {
-        return Map.of("status", "healthy", "service", "api");
+    public String health() {
+        return "{\"status\":\"healthy\",\"service\":\"api\"}";
     }
 
     @GetMapping("/api/data")
-    public Map<String, Object> getData() {
-        return Map.of(
-                "data", Arrays.asList("item1", "item2", "item3"),
-                "source", Library.getMessage()
-        );
+    public String data() {
+        return "{\"data\":[\"item1\",\"item2\"],\"source\":\"" + Library.getMessage() + "\"}";
     }
 }

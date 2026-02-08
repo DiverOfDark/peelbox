@@ -22,6 +22,7 @@ crate::define_id_enum! {
         Laravel => "laravel" : "Laravel",
         Symfony => "symfony" : "Symfony",
         Phoenix => "phoenix" : "Phoenix",
+        Zap => "zap" : "Zap",
     }
 }
 

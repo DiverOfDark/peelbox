@@ -5,15 +5,15 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f api-service/pom.xml -am package -DskipTests",
-        "mvn -f api-service/pom.xml -am dependency:copy-dependencies -DoutputDirectory=api-service/target/lib"
+        "mvn -pl api-service -am install -DskipTests",
+        "mvn -pl api-service dependency:copy-dependencies -DoutputDirectory=target/lib"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
       "packages": [
-        "openjdk-25",
+        "openjdk-17",
         "maven-3.9",
         "ca-certificates"
       ]
@@ -29,7 +29,7 @@
       "command": [
         "java",
         "-jar",
-        "/app/api-service.jar"
+        "/app/api-service-1.0.0.jar"
       ],
       "copy": [
         {
@@ -43,14 +43,14 @@
       ],
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
-        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "health": {
         "endpoint": "/actuator/health"
       },
       "packages": [
-        "openjdk-25-jre",
+        "openjdk-17-jre",
         "ca-certificates"
       ],
       "ports": [
@@ -66,72 +66,15 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f app/pom.xml -am package -DskipTests",
-        "mvn -f app/pom.xml -am dependency:copy-dependencies -DoutputDirectory=app/target/lib"
+        "mvn -pl web-service -am install -DskipTests",
+        "mvn -pl web-service dependency:copy-dependencies -DoutputDirectory=target/lib"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
       "packages": [
-        "openjdk-25",
-        "maven-3.9",
-        "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Maven",
-      "language": "Java",
-      "project_name": "app",
-      "reasoning": "Detected from pom.xml in app"
-    },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/api-service.jar"
-      ],
-      "copy": [
-        {
-          "from": "app/target/*.jar",
-          "to": "/app/"
-        },
-        {
-          "from": "app/target/lib/",
-          "to": "/app/lib"
-        }
-      ],
-      "env": {
-        "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
-        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "packages": [
-        "openjdk-25-jre",
-        "ca-certificates"
-      ],
-      "ports": [
-        8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        "/root/.m2/repository"
-      ],
-      "commands": [
-        "mvn -f web-service/pom.xml -am package -DskipTests",
-        "mvn -f web-service/pom.xml -am dependency:copy-dependencies -DoutputDirectory=web-service/target/lib"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
-      },
-      "packages": [
-        "openjdk-25",
+        "openjdk-17",
         "maven-3.9",
         "ca-certificates"
       ]
@@ -147,7 +90,7 @@
       "command": [
         "java",
         "-jar",
-        "/app/api-service.jar"
+        "/app/web-service-1.0.0.jar"
       ],
       "copy": [
         {
@@ -161,14 +104,14 @@
       ],
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-25-openjdk",
-        "PATH": "/usr/lib/jvm/java-25-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "health": {
         "endpoint": "/actuator/health"
       },
       "packages": [
-        "openjdk-25-jre",
+        "openjdk-17-jre",
         "ca-certificates"
       ],
       "ports": [

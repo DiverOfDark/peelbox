@@ -203,7 +203,9 @@ impl ContainerTestHarness {
         spec_path: &Path,
         context_path: &Path,
         image_name: &str,
-        cache_dir: Option<&Path>,
+        cache_dir: &Path,
+        service_name: Option<&str>,
+        output_tar: Option<&Path>,
     ) -> Result<String> {
         let (port, _container_id) = get_buildkit_container().await?;
 
@@ -243,6 +245,8 @@ impl ContainerTestHarness {
             external_cache_dir.display()
         );
 
+        let cache_path = format!("type=local,path={}", external_cache_dir.display());
+
         let mut cmd = std::process::Command::new(&peelbox_binary);
         cmd.args([
             "build",
@@ -254,21 +258,23 @@ impl ContainerTestHarness {
             &buildkit_addr,
             "--context",
             context_path.to_str().unwrap(),
-            "--output",
-            "type=docker",
-            "--quiet",
+            "--cache",
+            &cache_path,
         ]);
+
+        if let Some(service) = service_name {
+            cmd.args(["--service", service]);
+        }
+
+        if let Some(tar_path) = output_tar {
+            cmd.args(["--output", tar_path.to_str().unwrap()]);
+        } else {
+            cmd.args(["--output", "type=docker"]);
+        }
 
         // Use PEELBOX_CACHE_DIR env var for automatic caching
         // Prefer cache_dir parameter if provided, otherwise use external_cache_dir
-        let cache_path = cache_dir
-            .map(|p| p.to_str().unwrap().to_string())
-            .unwrap_or_else(|| external_cache_dir.to_str().unwrap().to_string());
-        cmd.env("PEELBOX_CACHE_DIR", cache_path);
-
-        if let Ok(rust_log) = std::env::var("RUST_LOG") {
-            cmd.env("RUST_LOG", rust_log);
-        }
+        cmd.env("PEELBOX_CACHE_DIR", cache_dir);
 
         let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
 
@@ -407,7 +413,7 @@ impl ContainerTestHarness {
         self.docker
             .inspect_image(image_name)
             .await
-            .context("Failed to inspect image after build")?;
+            .context("Failed to inspect image after build - image may not have been loaded")?;
 
         Ok(image_name.to_string())
     }

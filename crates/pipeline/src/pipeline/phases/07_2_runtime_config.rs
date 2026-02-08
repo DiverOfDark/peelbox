@@ -22,10 +22,20 @@ impl ServicePhase for RuntimeConfigPhase {
 
         let scan = context.scan()?;
         let repo_path = context.repo_path();
+        let service_path = &context.service.path;
 
-        // Convert relative paths to absolute paths
-        let absolute_files: Vec<std::path::PathBuf> =
-            scan.file_tree.iter().map(|p| repo_path.join(p)).collect();
+        // Convert relative paths to absolute paths, filtering to service scope
+        let absolute_files: Vec<std::path::PathBuf> = scan
+            .file_tree
+            .iter()
+            .filter(|p| {
+                let sp = service_path.as_path();
+                sp == std::path::Path::new(".")
+                    || sp == std::path::Path::new("")
+                    || p.starts_with(sp)
+            })
+            .map(|p| repo_path.join(p))
+            .collect();
 
         let framework = stack
             .framework

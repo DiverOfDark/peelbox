@@ -6,7 +6,7 @@
         "target"
       ],
       "commands": [
-        "cargo build --release --manifest-path app/Cargo.toml"
+        "cargo build --release --manifest-path app/Cargo.toml --target-dir target"
       ],
       "env": {
         "CARGO_HOME": ".cargo"
@@ -27,12 +27,12 @@
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/app"
+        "/app/app"
       ],
       "copy": [
         {
           "from": "target/release/app",
-          "to": "/usr/local/bin/app"
+          "to": "/app/app"
         }
       ],
       "env": {},

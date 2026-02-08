@@ -179,7 +179,7 @@ impl BuildStrategy for PeelboxStrategy {
             // 1. Construct the copy script
             let mut copy_commands = Vec::new();
             for copy in &spec.runtime.copy {
-                let src_path = if copy.from == "." {
+                let mut src_path = if copy.from == "." {
                     "/build/.".to_string()
                 } else if copy.from.starts_with('/') {
                     copy.from.clone()
@@ -192,11 +192,15 @@ impl BuildStrategy for PeelboxStrategy {
                 // We use /out as the root for destination
                 let dest_path = format!("/out{}", copy.to);
 
-                let is_dir_dest =
-                    copy.to.ends_with('/') || src_path.contains('*') || src_path.contains('?');
+                let is_dir_dest = copy.to.ends_with('/');
 
                 if is_dir_dest {
                     copy_commands.push(format!("mkdir -p {}", dest_path));
+                    // When source is a directory (ends with /), append "." to copy
+                    // contents rather than the directory itself into dest
+                    if src_path.ends_with('/') {
+                        src_path.push('.');
+                    }
                 } else if let Some(parent) = std::path::Path::new(&dest_path).parent() {
                     copy_commands.push(format!("mkdir -p {}", parent.to_string_lossy()));
                 }

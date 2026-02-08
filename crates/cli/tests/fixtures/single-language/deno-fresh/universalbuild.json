@@ -1,11 +1,16 @@
 [
   {
     "build": {
-      "cache": [],
-      "commands": [
-        "deno compile -A --output bin/app main.ts"
+      "cache": [
+        "/deno-dir"
       ],
-      "env": {},
+      "commands": [
+        "deno install",
+        "deno task build"
+      ],
+      "env": {
+        "DENO_DIR": "/deno-dir"
+      },
       "packages": [
         "deno",
         "ca-certificates"
@@ -13,29 +18,40 @@
     },
     "metadata": {
       "build_system": "Deno",
-      "confidence": 0.7666666507720947,
       "language": "Deno",
       "project_name": "app",
       "reasoning": "Detected from deno.json"
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/app"
+        "deno",
+        "run",
+        "--allow-net",
+        "--allow-read",
+        "--allow-env",
+        "main.ts"
       ],
       "copy": [
         {
-          "from": "bin/app",
-          "to": "/usr/local/bin/app"
+          "from": ".",
+          "to": "/app"
+        },
+        {
+          "from": "/deno-dir",
+          "to": "/deno-dir"
         }
       ],
-      "env": {},
+      "env": {
+        "DENO_DIR": "/deno-dir"
+      },
       "packages": [
         "deno",
         "ca-certificates"
       ],
       "ports": [
-        8080
-      ]
+        8000
+      ],
+      "workdir": "/app"
     },
     "version": "1.0"
   }

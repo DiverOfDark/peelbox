@@ -86,8 +86,10 @@ impl BuildSystem for CargoBuildSystem {
         let build_command = if is_root {
             "cargo build --release".to_string()
         } else {
+            // Use --target-dir to ensure build output goes to /build/target/ regardless of
+            // whether this is a workspace member or standalone project in a subdirectory.
             format!(
-                "cargo build --release --manifest-path {}/Cargo.toml",
+                "cargo build --release --manifest-path {}/Cargo.toml --target-dir target",
                 service_dir
             )
         };
@@ -100,7 +102,7 @@ impl BuildSystem for CargoBuildSystem {
             build_env,
             runtime_copy: vec![(
                 "target/release/{project_name}".to_string(),
-                "/usr/local/bin/{project_name}".to_string(),
+                "/app/{project_name}".to_string(),
             )],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,

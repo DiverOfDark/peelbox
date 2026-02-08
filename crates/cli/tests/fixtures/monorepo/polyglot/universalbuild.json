@@ -5,8 +5,8 @@
         "/root/.m2/repository"
       ],
       "commands": [
-        "mvn -f backend/pom.xml -am package -DskipTests",
-        "mvn -f backend/pom.xml -am dependency:copy-dependencies -DoutputDirectory=backend/target/lib"
+        "mvn -f backend/pom.xml package -DskipTests",
+        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib; mkdir -p backend/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
@@ -20,7 +20,6 @@
     },
     "metadata": {
       "build_system": "Maven",
-      "framework": "Spring Boot",
       "language": "Java",
       "project_name": "backend",
       "reasoning": "Detected from pom.xml in backend"
@@ -28,8 +27,9 @@
     "runtime": {
       "command": [
         "java",
-        "-jar",
-        "/app/backend-1.0.0.jar"
+        "-cp",
+        "/app/*.jar",
+        "com.example.Backend"
       ],
       "copy": [
         {
@@ -45,9 +45,6 @@
         "CLASSPATH": "/app/*:/app/lib/*",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "health": {
-        "endpoint": "/actuator/health"
       },
       "packages": [
         "openjdk-17-jre",
@@ -67,7 +64,7 @@
         "target"
       ],
       "commands": [
-        "cargo build --release --manifest-path cli/Cargo.toml"
+        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
       ],
       "env": {
         "CARGO_HOME": ".cargo"
@@ -82,31 +79,27 @@
     },
     "metadata": {
       "build_system": "Cargo",
-      "framework": "Actix Web",
       "language": "Rust",
       "project_name": "admin-service",
       "reasoning": "Detected from Cargo.toml in cli"
     },
     "runtime": {
       "command": [
-        "/usr/local/bin/admin-service"
+        "/app/admin-service"
       ],
       "copy": [
         {
           "from": "target/release/admin-service",
-          "to": "/usr/local/bin/admin-service"
+          "to": "/app/admin-service"
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
         "glibc",
         "ca-certificates"
       ],
       "ports": [
-        8082
+        8080
       ],
       "workdir": "/app"
     },
@@ -119,7 +112,7 @@
         "node_modules"
       ],
       "commands": [
-        "npm ci",
+        "cd frontend && npm ci",
         "cd frontend && npm run build"
       ],
       "env": {},
@@ -131,7 +124,6 @@
     },
     "metadata": {
       "build_system": "npm",
-      "framework": "Express",
       "language": "JavaScript",
       "project_name": "frontend",
       "reasoning": "Detected from package.json in frontend"
@@ -148,12 +140,10 @@
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
         "nodejs-25",
         "npm",
+        "busybox",
         "dumb-init",
         "ca-certificates"
       ],

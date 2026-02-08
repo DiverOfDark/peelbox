@@ -4,8 +4,6 @@ defmodule ElixirApi do
   plug :match
   plug :dispatch
 
-  def init(opts), do: opts
-
   get "/" do
     response = %{
       message: "Elixir API Server",
@@ -31,19 +29,6 @@ defmodule ElixirApi do
     send_json(conn, 200, %{users: users})
   end
 
-  post "/users" do
-    {:ok, body, conn} = Plug.Conn.read_body(conn)
-    {:ok, data} = Jason.decode(body)
-
-    new_user = %{
-      id: 3,
-      name: Map.get(data, "name"),
-      email: Map.get(data, "email")
-    }
-
-    send_json(conn, 201, %{user: new_user})
-  end
-
   match _ do
     send_json(conn, 404, %{error: "Not found"})
   end
@@ -60,7 +45,6 @@ defmodule ElixirApi.Application do
 
   def start(_type, _args) do
     port = System.get_env("PORT", "4000") |> String.to_integer()
-    db_url = System.get_env("DATABASE_URL", "postgres://localhost/myapp")
 
     IO.puts("Starting server on port #{port}")
 
