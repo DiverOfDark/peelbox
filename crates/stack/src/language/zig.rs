@@ -1,6 +1,20 @@
 //! Zig language definition
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["zig"],
+    excluded_dirs: &["zig-cache", "zig-out"],
+    runtime_id: crate::RuntimeId::Native,
+    default_port: None,
+    env_var_patterns: &[],
+    port_patterns: &[],
+    health_check_patterns: &[],
+    default_health_endpoints: &[],
+};
 
 pub struct ZigLanguage;
 
@@ -9,8 +23,8 @@ impl LanguageDefinition for ZigLanguage {
         crate::LanguageId::Zig
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["zig".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -33,10 +47,6 @@ impl LanguageDefinition for ZigLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["zig".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec!["zig-cache".to_string(), "zig-out".to_string()]
     }
 
     fn parse_dependencies(

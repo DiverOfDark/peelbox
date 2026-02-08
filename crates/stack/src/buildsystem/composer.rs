@@ -34,6 +34,14 @@ impl BuildSystem for ComposerBuildSystem {
         BuildSystemId::Composer
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::PHP)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::PHP)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -157,6 +165,7 @@ impl BuildSystem for ComposerBuildSystem {
             runtime_copy,
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

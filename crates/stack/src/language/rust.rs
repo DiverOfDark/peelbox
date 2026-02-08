@@ -1,10 +1,32 @@
 //! Rust language definition
 
-#[cfg(test)]
-use super::DetectionMethod;
 use super::{
+    profile::LanguageProfile,
     parsers::{DependencyParser, TomlDependencyParser},
     DependencyInfo, DetectionResult, LanguageDefinition,
+};
+#[cfg(test)]
+use super::DetectionMethod;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["rs"],
+    excluded_dirs: &["target", ".cargo", "vendor"],
+    runtime_id: crate::RuntimeId::Native,
+    default_port: Some(8080),
+    env_var_patterns: &[
+        (r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#, "std::env"),
+        (r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#, "env::var"),
+    ],
+    port_patterns: &[
+        (r"\.bind\([^,)]*:(\d{4,5})", "bind()"),
+        (r#"\.bind\(\("[^"]*",\s*(\d{4,5})\)\)"#, "bind(tuple)"),
+        (r#"addr\s*=\s*"[^:]*:(\d{4,5})""#, "addr config"),
+    ],
+    health_check_patterns: &[
+        (r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "axum/actix"),
+        (r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#, "rocket/warp"),
+    ],
+    default_health_endpoints: &[],
 };
 
 /// Rust language definition
@@ -15,8 +37,8 @@ impl LanguageDefinition for RustLanguage {
         crate::LanguageId::Rust
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["rs".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -44,14 +66,6 @@ impl LanguageDefinition for RustLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["cargo".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "target".to_string(),
-            ".cargo".to_string(),
-            "vendor".to_string(),
-        ]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -101,49 +115,6 @@ impl LanguageDefinition for RustLanguage {
         .parse(manifest_content, all_internal_paths)
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"std::env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
-                "std::env".to_string(),
-            ),
-            (
-                r#"env::var\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
-                "env::var".to_string(),
-            ),
-        ]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r"\.bind\([^,)]*:(\d{4,5})".to_string(),
-                "bind()".to_string(),
-            ),
-            (
-                r#"\.bind\(\("[^"]*",\s*(\d{4,5})\)\)"#.to_string(),
-                "bind(tuple)".to_string(),
-            ),
-            (
-                r#"addr\s*=\s*"[^:]*:(\d{4,5})""#.to_string(),
-                "addr config".to_string(),
-            ),
-        ]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"\.route\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-                "axum/actix".to_string(),
-            ),
-            (
-                r#"\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-                "rocket/warp".to_string(),
-            ),
-        ]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -160,14 +131,6 @@ impl LanguageDefinition for RustLanguage {
         }
 
         false
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("rust".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8080)
     }
 
     fn default_entrypoint(&self, build_system: &str) -> Option<String> {

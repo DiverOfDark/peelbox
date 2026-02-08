@@ -1,8 +1,31 @@
 //! Java/Kotlin language definition (Maven and Gradle)
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
 use std::collections::HashSet;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["java", "kt", "kts"],
+    excluded_dirs: &["target", "build", ".gradle", ".m2"],
+    runtime_id: crate::RuntimeId::JVM,
+    default_port: Some(8080),
+    env_var_patterns: &[(r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#, "System.getenv")],
+    port_patterns: &[
+        (
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+            "application.properties",
+        ),
+        (r#"port:\s*(\d{4,5})"#, "application.yml"),
+    ],
+    health_check_patterns: &[(
+        r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        "Spring",
+    )],
+    default_health_endpoints: &[("/actuator/health", "Spring Boot")],
+};
 
 pub struct JavaLanguage;
 
@@ -11,8 +34,8 @@ impl LanguageDefinition for JavaLanguage {
         crate::LanguageId::Java
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["java".to_string(), "kt".to_string(), "kts".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -61,15 +84,6 @@ impl LanguageDefinition for JavaLanguage {
         vec!["maven".to_string(), "gradle".to_string()]
     }
 
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "target".to_string(),
-            "build".to_string(),
-            ".gradle".to_string(),
-            ".m2".to_string(),
-        ]
-    }
-
     fn workspace_configs(&self) -> Vec<String> {
         vec![
             "settings.gradle".to_string(),
@@ -78,62 +92,7 @@ impl LanguageDefinition for JavaLanguage {
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
-        let content = manifest_content?;
-
-        // Check pom.xml patterns
-        if content.contains("<project") {
-            // <maven.compiler.source>17</maven.compiler.source>
-            if let Some(caps) =
-                Regex::new(r"<maven\.compiler\.source>(\d+)</maven\.compiler\.source>")
-                    .ok()
-                    .and_then(|re| re.captures(content))
-            {
-                return Some(caps.get(1)?.as_str().to_string());
-            }
-            // <java.version>17</java.version>
-            if let Some(caps) = Regex::new(r"<java\.version>(\d+)</java\.version>")
-                .ok()
-                .and_then(|re| re.captures(content))
-            {
-                return Some(caps.get(1)?.as_str().to_string());
-            }
-            // <release>17</release>
-            if let Some(caps) = Regex::new(r"<release>(\d+)</release>")
-                .ok()
-                .and_then(|re| re.captures(content))
-            {
-                return Some(caps.get(1)?.as_str().to_string());
-            }
-        }
-
-        // Check build.gradle(.kts) patterns
-        // sourceCompatibility = JavaVersion.VERSION_17 or "17"
-        if let Some(caps) =
-            Regex::new(r#"sourceCompatibility\s*=\s*(?:JavaVersion\.VERSION_)?["']?(\d+)"#)
-                .ok()
-                .and_then(|re| re.captures(content))
-        {
-            return Some(caps.get(1)?.as_str().to_string());
-        }
-
-        if let Some(caps) = Regex::new(
-            r"languageVersion(?:\.set)?(?:\s*=\s*|\s+|\()JavaLanguageVersion\.of\((\d+)\)",
-        )
-        .ok()
-        .and_then(|re| re.captures(content))
-        {
-            return Some(caps.get(1)?.as_str().to_string());
-        }
-
-        // .java-version file (just contains the version number)
-        if !content.contains('<') && !content.contains('{') {
-            let trimmed = content.trim();
-            if Regex::new(r"^\d+(\.\d+)?$").ok()?.is_match(trimmed) {
-                return Some(trimmed.to_string());
-            }
-        }
-
-        None
+        crate::version::java::detect_java_version(manifest_content?)
     }
 
     fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
@@ -172,37 +131,6 @@ impl LanguageDefinition for JavaLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"System\.getenv\("([A-Z_][A-Z0-9_]*)""#.to_string(),
-            "System.getenv".to_string(),
-        )]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"server\.port\s*=\s*(\d{4,5})"#.to_string(),
-                "application.properties".to_string(),
-            ),
-            (
-                r#"port:\s*(\d{4,5})"#.to_string(),
-                "application.yml".to_string(),
-            ),
-        ]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"@GetMapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-            "Spring".to_string(),
-        )]
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![("/actuator/health".to_string(), "Spring Boot".to_string())]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -215,14 +143,6 @@ impl LanguageDefinition for JavaLanguage {
         }
 
         false
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("java".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8080)
     }
 
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {

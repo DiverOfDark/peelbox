@@ -242,6 +242,7 @@ mod tests {
             .with_depth(0)
             .with_confidence(1.0)
             .with_workspace_root(false)],
+            detected_projects: vec![],
             workspace: WorkspaceInfo {
                 root_manifests: vec![],
                 nested_by_depth: BTreeMap::new(),

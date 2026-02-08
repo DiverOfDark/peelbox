@@ -8,6 +8,7 @@ mod javascript;
 pub mod llm;
 pub mod parsers;
 mod php;
+pub mod profile;
 mod python;
 mod ruby;
 mod rust;
@@ -29,21 +30,16 @@ pub use zig::ZigLanguage;
 
 pub trait LanguageDefinition: Send + Sync {
     fn id(&self) -> crate::LanguageId;
-    fn extensions(&self) -> Vec<String>;
+
+    /// Static language profile data (extensions, excluded dirs, runtime, patterns, etc.)
+    fn profile(&self) -> &profile::LanguageProfile;
+
     fn detect(
         &self,
         manifest_name: &str,
         manifest_content: Option<&str>,
     ) -> Option<DetectionResult>;
     fn compatible_build_systems(&self) -> Vec<String>;
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
-    }
 
     fn detect_version(&self, _manifest_content: Option<&str>) -> Option<String> {
         None
@@ -61,48 +57,12 @@ pub trait LanguageDefinition: Send + Sync {
         DependencyInfo::empty()
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
     fn is_main_file(
         &self,
         _fs: &dyn peelbox_core::fs::FileSystem,
         _file_path: &std::path::Path,
     ) -> bool {
         false
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
-    fn default_env_vars(&self) -> Vec<String> {
-        vec![]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        None
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        None
-    }
-
-    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
-        None
-    }
-
-    fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
-        None
     }
 
     fn find_entrypoints(
@@ -124,6 +84,84 @@ pub trait LanguageDefinition: Send + Sync {
         _manifest_content: Option<&str>,
     ) -> bool {
         false
+    }
+
+    // --- Methods with defaults derived from profile() ---
+    // These exist for backward compatibility. Consumers should prefer profile() directly.
+
+    fn extensions(&self) -> Vec<String> {
+        self.profile()
+            .extensions
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn excluded_dirs(&self) -> Vec<String> {
+        self.profile()
+            .excluded_dirs
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn workspace_configs(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn env_var_patterns(&self) -> Vec<(String, String)> {
+        self.profile()
+            .env_var_patterns
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    fn port_patterns(&self) -> Vec<(String, String)> {
+        self.profile()
+            .port_patterns
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    fn health_check_patterns(&self) -> Vec<(String, String)> {
+        self.profile()
+            .health_check_patterns
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    fn default_health_endpoints(&self) -> Vec<(String, String)> {
+        self.profile()
+            .default_health_endpoints
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    fn runtime_name(&self) -> Option<String> {
+        match &self.profile().runtime_id {
+            crate::RuntimeId::Custom(_) => None,
+            id => Some(id.name().to_string()),
+        }
+    }
+
+    fn default_port(&self) -> Option<u16> {
+        self.profile().default_port
+    }
+
+    fn default_env_vars(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
+        None
+    }
+
+    fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
+        None
     }
 }
 

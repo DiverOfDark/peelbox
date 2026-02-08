@@ -209,6 +209,7 @@ CRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), log
                     runtime_copy: vec![],
                     runtime_env: BTreeMap::new(),
                     runtime_workdir: None,
+                    entrypoint: None,
                 }
             })
             .unwrap_or_else(|| BuildTemplate {
@@ -220,6 +221,7 @@ CRITICAL: Exclude lockfiles (package-lock.json, Cargo.lock, yarn.lock, etc), log
                 runtime_copy: vec![],
                 runtime_env: BTreeMap::new(),
                 runtime_workdir: None,
+                entrypoint: None,
             })
     }
 

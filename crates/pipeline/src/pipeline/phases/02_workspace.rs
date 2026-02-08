@@ -236,6 +236,7 @@ mod tests {
                 LanguageId::JavaScript,
                 PathBuf::from("package.json"),
             )],
+            detected_projects: vec![],
             workspace: super::super::scan::WorkspaceInfo {
                 root_manifests: vec!["package.json".to_string()],
                 nested_by_depth: BTreeMap::new(),

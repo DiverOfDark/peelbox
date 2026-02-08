@@ -15,6 +15,14 @@ impl BuildSystem for CargoBuildSystem {
         BuildSystemId::Cargo
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Rust)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Native)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "Cargo.toml".to_string(),
@@ -106,6 +114,7 @@ impl BuildSystem for CargoBuildSystem {
             )],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

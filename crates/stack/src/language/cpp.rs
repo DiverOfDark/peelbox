@@ -1,7 +1,24 @@
 //! C/C++ language definition
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["cpp", "cc", "cxx", "c", "h", "hpp", "hxx"],
+    excluded_dirs: &["build", "builddir", "cmake-build-debug", "cmake-build-release"],
+    runtime_id: crate::RuntimeId::Native,
+    default_port: Some(8080),
+    env_var_patterns: &[(r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#, "getenv")],
+    port_patterns: &[(r#"bind\([^,)]*,\s*(\d{4,5})"#, "bind()")],
+    health_check_patterns: &[(
+        r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#,
+        "Crow/Beast",
+    )],
+    default_health_endpoints: &[],
+};
 
 pub struct CppLanguage;
 
@@ -10,16 +27,8 @@ impl LanguageDefinition for CppLanguage {
         crate::LanguageId::Cpp
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec![
-            "cpp".to_string(),
-            "cc".to_string(),
-            "cxx".to_string(),
-            "c".to_string(),
-            "h".to_string(),
-            "hpp".to_string(),
-            "hxx".to_string(),
-        ]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -62,19 +71,6 @@ impl LanguageDefinition for CppLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["cmake".to_string(), "make".to_string(), "meson".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "build".to_string(),
-            "builddir".to_string(),
-            "cmake-build-debug".to_string(),
-            "cmake-build-release".to_string(),
-        ]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
     }
 
     fn parse_dependencies(
@@ -138,35 +134,6 @@ impl LanguageDefinition for CppLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"getenv\("([A-Z_][A-Z0-9_]*)"\)"#.to_string(),
-            "getenv".to_string(),
-        )]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"bind\([^,)]*,\s*(\d{4,5})"#.to_string(),
-            "bind()".to_string(),
-        )]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"CROW_ROUTE.*\(([/\w\-]*health[/\w\-]*)\)"#.to_string(),
-            "Crow/Beast".to_string(),
-        )]
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
-    fn default_env_vars(&self) -> Vec<String> {
-        vec![]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -185,14 +152,6 @@ impl LanguageDefinition for CppLanguage {
         }
 
         false
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("c++".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8080)
     }
 
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {

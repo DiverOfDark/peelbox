@@ -1,12 +1,30 @@
 //! JavaScript/TypeScript language definition (npm, yarn, pnpm, bun)
 
-#[cfg(test)]
-use super::DetectionMethod;
 use super::{
+    profile::LanguageProfile,
     parsers::{DependencyParser, JsonDependencyParser},
     DependencyInfo, DetectionResult, LanguageDefinition,
 };
+#[cfg(test)]
+use super::DetectionMethod;
 use regex::Regex;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["js", "mjs", "cjs", "jsx", "ts", "tsx", "mts", "cts"],
+    excluded_dirs: &["node_modules", "dist", "build", "out", ".next", ".nuxt", "coverage"],
+    runtime_id: crate::RuntimeId::Node,
+    default_port: Some(3000),
+    env_var_patterns: &[(r"process\.env\.([A-Z_][A-Z0-9_]*)", "process.env")],
+    port_patterns: &[
+        (r"\.listen\s*\(\s*(\d{4,5})", "listen()"),
+        (r"port\s*:\s*(\d{4,5})", "port config"),
+    ],
+    health_check_patterns: &[(
+        r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        "Express",
+    )],
+    default_health_endpoints: &[("/health", "Express")],
+};
 
 pub struct JavaScriptLanguage;
 
@@ -15,17 +33,8 @@ impl LanguageDefinition for JavaScriptLanguage {
         crate::LanguageId::JavaScript
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec![
-            "js".to_string(),
-            "mjs".to_string(),
-            "cjs".to_string(),
-            "jsx".to_string(),
-            "ts".to_string(),
-            "tsx".to_string(),
-            "mts".to_string(),
-            "cts".to_string(),
-        ]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -93,18 +102,6 @@ impl LanguageDefinition for JavaScriptLanguage {
             "yarn".to_string(),
             "pnpm".to_string(),
             "bun".to_string(),
-        ]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "node_modules".to_string(),
-            "dist".to_string(),
-            "build".to_string(),
-            "out".to_string(),
-            ".next".to_string(),
-            ".nuxt".to_string(),
-            "coverage".to_string(),
         ]
     }
 
@@ -182,20 +179,6 @@ impl LanguageDefinition for JavaScriptLanguage {
         .parse(manifest_content, all_internal_paths)
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r"process\.env\.([A-Z_][A-Z0-9_]*)".to_string(),
-            "process.env".to_string(),
-        )]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-            "Express".to_string(),
-        )]
-    }
-
     fn is_main_file(
         &self,
         _fs: &dyn peelbox_core::fs::FileSystem,
@@ -218,35 +201,6 @@ impl LanguageDefinition for JavaScriptLanguage {
         } else {
             false
         }
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![("/health".to_string(), "Express".to_string())]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r"\.listen\s*\(\s*(\d{4,5})".to_string(),
-                "listen()".to_string(),
-            ),
-            (
-                r"port\s*:\s*(\d{4,5})".to_string(),
-                "port config".to_string(),
-            ),
-        ]
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("node".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(3000)
-    }
-
-    fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
-        None
     }
 
     fn parse_entrypoint_from_manifest(&self, manifest_content: &str) -> Option<String> {
@@ -304,12 +258,12 @@ impl LanguageDefinition for JavaScriptLanguage {
                     return true;
                 }
 
-                // Has package.json but no start script or bin field → library, not runnable
+                // Has package.json but no start script or bin field -> library, not runnable
                 return false;
             }
         }
 
-        // No package.json → standalone scripts, check for entry point files
+        // No package.json -> standalone scripts, check for entry point files
         !self
             .find_entrypoints(fs, repo_root, project_root, file_tree)
             .is_empty()

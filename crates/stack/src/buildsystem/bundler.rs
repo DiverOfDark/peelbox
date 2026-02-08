@@ -14,6 +14,14 @@ impl BuildSystem for BundlerBuildSystem {
         BuildSystemId::Bundler
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Ruby)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Ruby)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "Gemfile".to_string(),
@@ -88,6 +96,7 @@ impl BuildSystem for BundlerBuildSystem {
             runtime_copy: vec![(".".to_string(), "/app".to_string())],
             runtime_env,
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

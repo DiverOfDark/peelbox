@@ -14,6 +14,14 @@ impl BuildSystem for MixBuildSystem {
         BuildSystemId::Mix
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Elixir)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::BEAM)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "mix.exs".to_string(),
@@ -104,6 +112,7 @@ impl BuildSystem for MixBuildSystem {
             runtime_copy,
             runtime_env,
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

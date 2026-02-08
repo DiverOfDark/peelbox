@@ -3,9 +3,9 @@ use crate::pipeline::phase_trait::WorkflowPhase;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
-use peelbox_stack::{DetectionStack, StackRegistry};
+use peelbox_stack::{DetectionStack, ScanContext, Scanner};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -50,6 +50,8 @@ pub struct ScanResult {
     pub repo_path: PathBuf,
     pub summary: RepoSummary,
     pub detections: Vec<DetectionStack>,
+    /// Enriched project data from Scanner (runtime, framework, version included).
+    pub detected_projects: Vec<peelbox_stack::DetectedProject>,
     pub workspace: WorkspaceInfo,
     pub file_tree: Vec<PathBuf>,
     pub scan_time_ms: u64,
@@ -146,6 +148,7 @@ Use these manifest files to guide your analysis. Read them directly without sear
     fn from_scan(
         repo_path: PathBuf,
         detections: Vec<DetectionStack>,
+        detected_projects: Vec<peelbox_stack::DetectedProject>,
         file_tree: Vec<PathBuf>,
         has_workspace_config: bool,
         scan_time_ms: u64,
@@ -157,6 +160,7 @@ Use these manifest files to guide your analysis. Read them directly without sear
             repo_path,
             summary,
             detections,
+            detected_projects,
             workspace,
             file_tree,
             scan_time_ms,
@@ -219,82 +223,6 @@ Use these manifest files to guide your analysis. Read them directly without sear
             root_manifests: workspace.root_manifests.clone(),
         }
     }
-}
-
-fn deduplicate_detections(
-    detections: Vec<DetectionStack>,
-    stack_registry: &Arc<StackRegistry>,
-) -> Vec<DetectionStack> {
-    // Group by directory - keep highest priority in each directory
-    let mut by_directory: HashMap<PathBuf, Vec<DetectionStack>> = HashMap::new();
-
-    for detection in detections {
-        let dir = detection
-            .manifest_path
-            .parent()
-            .unwrap_or_else(|| Path::new(""))
-            .to_path_buf();
-        by_directory.entry(dir).or_default().push(detection);
-    }
-
-    let mut deduplicated = Vec::new();
-
-    for (_dir, mut detections_for_dir) in by_directory {
-        if detections_for_dir.len() == 1 {
-            deduplicated.extend(detections_for_dir);
-        } else {
-            // Multiple manifests in same directory - choose highest priority
-            detections_for_dir.sort_by_key(|d| {
-                let build_system = stack_registry.get_build_system(d.build_system.clone());
-                let priority = build_system
-                    .and_then(|bs| {
-                        bs.manifest_patterns()
-                            .iter()
-                            .find(|p| {
-                                d.manifest_path.file_name()
-                                    == Some(std::ffi::OsStr::new(&p.filename))
-                            })
-                            .map(|p| p.priority)
-                    })
-                    .unwrap_or(0);
-                std::cmp::Reverse(priority)
-            });
-
-            if let Some(highest_priority) = detections_for_dir.first() {
-                deduplicated.push(highest_priority.clone());
-            }
-        }
-    }
-
-    // Sort by manifest path for deterministic ordering
-    deduplicated.sort_by(|a, b| a.manifest_path.cmp(&b.manifest_path));
-
-    deduplicated
-}
-
-fn enrich_detections(
-    detections: &mut [DetectionStack],
-    repo_path: &Path,
-    stack_registry: &Arc<StackRegistry>,
-    read_content: bool,
-) -> Result<()> {
-    for detection in detections.iter_mut() {
-        let rel_path = detection
-            .manifest_path
-            .strip_prefix(repo_path)
-            .unwrap_or(&detection.manifest_path);
-
-        detection.depth = rel_path.to_string_lossy().matches('/').count();
-
-        if read_content {
-            if let Some(filename) = detection.manifest_path.file_name().and_then(|n| n.to_str()) {
-                let content = std::fs::read_to_string(&detection.manifest_path).ok();
-                detection.is_workspace_root =
-                    stack_registry.is_workspace_root(filename, content.as_deref());
-            }
-        }
-    }
-    Ok(())
 }
 
 pub struct ScanPhase;
@@ -413,45 +341,49 @@ impl ScanPhase {
         );
 
         let fs = peelbox_core::fs::RealFileSystem;
-        let mut detections = stack_registry.detect_all_stacks(
-            &repo_path,
-            &file_tree,
-            &fs,
-            context.detection_mode,
-        )?;
+
+        // Use Scanner for unified detection + enrichment + deduplication
+        let scan_ctx = ScanContext {
+            repo_root: &repo_path,
+            file_tree: &file_tree,
+            fs: &fs,
+            detection_mode: context.detection_mode,
+            registry: &stack_registry,
+        };
+
+        let detected_projects = Scanner::scan(&scan_ctx)?;
 
         // Register LLM languages and build systems for any Custom IDs detected (skip in StaticOnly mode)
         use peelbox_core::config::DetectionMode;
         if context.detection_mode != DetectionMode::StaticOnly {
-            for detection in &detections {
-                if matches!(detection.language, peelbox_stack::LanguageId::Custom(_)) {
-                    stack_registry.register_llm_language(detection.language.clone());
+            for project in &detected_projects {
+                if matches!(project.language, peelbox_stack::LanguageId::Custom(_)) {
+                    stack_registry.register_llm_language(project.language.clone());
                 }
                 if matches!(
-                    detection.build_system,
+                    project.build_system,
                     peelbox_stack::BuildSystemId::Custom(_)
                 ) {
-                    let manifest_path = repo_path.join(&detection.manifest_path);
+                    let manifest_path = repo_path.join(&project.manifest_path);
                     if let Err(e) = stack_registry.register_llm_build_system(
-                        detection.build_system.clone(),
+                        project.build_system.clone(),
                         &manifest_path,
                         &fs,
                     ) {
                         warn!(
                             "Failed to register LLM build system {:?}: {}",
-                            detection.build_system, e
+                            project.build_system, e
                         );
                     }
                 }
             }
         }
 
-        enrich_detections(
-            &mut detections,
-            &repo_path,
-            &stack_registry,
-            config.read_content,
-        )?;
+        // Convert DetectedProject → DetectionStack for backward compatibility with downstream phases
+        let detections: Vec<DetectionStack> = detected_projects
+            .iter()
+            .map(|p| p.to_detection_stack())
+            .collect();
 
         for detection in &detections {
             debug!(
@@ -470,8 +402,6 @@ impl ScanPhase {
         let elapsed = start.elapsed();
         let scan_time_ms = elapsed.as_millis() as u64;
 
-        let detections = deduplicate_detections(detections, &stack_registry);
-
         info!(
             detections_found = detections.len(),
             files_scanned, scan_time_ms, "Repository scan completed"
@@ -480,6 +410,7 @@ impl ScanPhase {
         let result = ScanResult::from_scan(
             repo_path,
             detections,
+            detected_projects,
             file_tree,
             has_workspace_config,
             scan_time_ms,
@@ -493,6 +424,7 @@ impl ScanPhase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use peelbox_stack::StackRegistry;
     use std::fs;
     use std::io::Write;
     use tempfile::TempDir;

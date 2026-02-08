@@ -15,6 +15,14 @@ impl BuildSystem for NpmBuildSystem {
         BuildSystemId::Npm
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::JavaScript)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Node)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "package.json".to_string(),
@@ -140,6 +148,7 @@ impl BuildSystem for NpmBuildSystem {
             runtime_copy,
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

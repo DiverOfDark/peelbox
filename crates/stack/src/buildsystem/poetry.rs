@@ -15,6 +15,14 @@ impl BuildSystem for PoetryBuildSystem {
         BuildSystemId::Poetry
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Python)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Python)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "pyproject.toml".to_string(),
@@ -117,6 +125,7 @@ impl BuildSystem for PoetryBuildSystem {
                 env
             },
             runtime_workdir: Some("/build".to_string()),
+            entrypoint: None,
         }
     }
 

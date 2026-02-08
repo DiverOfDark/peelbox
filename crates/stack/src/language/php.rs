@@ -1,7 +1,30 @@
 //! PHP language definition
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["php", "phtml"],
+    excluded_dirs: &["vendor", "storage", "bootstrap/cache"],
+    runtime_id: crate::RuntimeId::PHP,
+    default_port: Some(8000),
+    env_var_patterns: &[(r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#, "getenv")],
+    port_patterns: &[(r#"['"]SERVER_PORT['"].*?(\d{4,5})"#, "server port")],
+    health_check_patterns: &[
+        (
+            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            "Slim",
+        ),
+        (
+            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            "Laravel",
+        ),
+    ],
+    default_health_endpoints: &[],
+};
 
 pub struct PhpLanguage;
 
@@ -10,8 +33,8 @@ impl LanguageDefinition for PhpLanguage {
         crate::LanguageId::PHP
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["php".to_string(), "phtml".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -42,18 +65,6 @@ impl LanguageDefinition for PhpLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["composer".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "vendor".to_string(),
-            "storage".to_string(),
-            "bootstrap/cache".to_string(),
-        ]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -132,33 +143,6 @@ impl LanguageDefinition for PhpLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
-            "getenv".to_string(),
-        )]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"['"]SERVER_PORT['"].*?(\d{4,5})"#.to_string(),
-            "server port".to_string(),
-        )]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-                "Slim".to_string(),
-            ),
-            (
-                r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-                "Laravel".to_string(),
-            ),
-        ]
-    }
-
     fn is_main_file(
         &self,
         _fs: &dyn peelbox_core::fs::FileSystem,
@@ -179,41 +163,12 @@ impl LanguageDefinition for PhpLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<String> {
-        Some("php".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8000)
-    }
-
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
         Some("php -S 0.0.0.0:8000 public/index.php".to_string())
     }
 
     fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
         None
-    }
-
-    fn find_entrypoints(
-        &self,
-        _fs: &dyn peelbox_core::fs::FileSystem,
-        _repo_root: &std::path::Path,
-        _project_root: &std::path::Path,
-        _file_tree: &[std::path::PathBuf],
-    ) -> Vec<String> {
-        vec![]
-    }
-
-    fn is_runnable(
-        &self,
-        _fs: &dyn peelbox_core::fs::FileSystem,
-        _repo_root: &std::path::Path,
-        _project_root: &std::path::Path,
-        _file_tree: &[std::path::PathBuf],
-        _manifest_content: Option<&str>,
-    ) -> bool {
-        false
     }
 }
 

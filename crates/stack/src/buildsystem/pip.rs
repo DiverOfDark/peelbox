@@ -16,6 +16,14 @@ impl BuildSystem for PipBuildSystem {
         BuildSystemId::Pip
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Python)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Python)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -156,6 +164,7 @@ impl BuildSystem for PipBuildSystem {
                 env
             },
             runtime_workdir: Some("/build".to_string()),
+            entrypoint: None,
         }
     }
 

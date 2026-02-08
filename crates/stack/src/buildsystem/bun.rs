@@ -14,6 +14,14 @@ impl BuildSystem for BunBuildSystem {
         BuildSystemId::Bun
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::JavaScript)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Node)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -93,6 +101,7 @@ impl BuildSystem for BunBuildSystem {
             ],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

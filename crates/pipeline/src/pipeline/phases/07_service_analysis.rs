@@ -2,15 +2,14 @@ use super::build::BuildPhase;
 use super::cache::CachePhase;
 use super::runtime_config::RuntimeConfigPhase;
 use super::scan::ScanResult;
-use super::stack::StackIdentificationPhase;
 use crate::pipeline::context::AnalysisContext;
 use crate::pipeline::phase_trait::{ServicePhase, WorkflowPhase};
-use crate::pipeline::service_context::ServiceContext;
+use crate::pipeline::service_context::{ServiceContext, Stack};
 use anyhow::{Context as AnyhowContext, Result};
 use async_trait::async_trait;
 use peelbox_stack::detection::DetectionStack;
 use peelbox_stack::orchestrator::WorkspaceStructure;
-use peelbox_stack::{BuildSystemId, LanguageId};
+use peelbox_stack::{BuildSystemId, DetectedProject, LanguageId};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -21,6 +20,12 @@ pub struct Service {
     pub manifest: String,
     pub language: LanguageId,
     pub build_system: BuildSystemId,
+}
+
+/// A service paired with its pre-computed stack from the Scanner.
+struct ServiceWithStack {
+    service: Service,
+    stack: Option<Stack>,
 }
 
 pub struct ServiceAnalysisPhase;
@@ -45,8 +50,8 @@ impl WorkflowPhase for ServiceAnalysisPhase {
         // Convert workspace packages into Service structs by matching with scan detections
         let services = Self::build_services_from_workspace(workspace, scan);
 
-        for service in &services {
-            let analysis_result = self.analyze_service(service, context).await;
+        for sws in &services {
+            let analysis_result = self.analyze_service(&sws.service, sws.stack.clone(), context).await;
 
             match analysis_result {
                 Ok(result) => {
@@ -55,7 +60,7 @@ impl WorkflowPhase for ServiceAnalysisPhase {
                 Err(e) => {
                     tracing::warn!(
                         "Failed to analyze service {}: {}. Skipping service.",
-                        service.path.display(),
+                        sws.service.path.display(),
                         e
                     );
                 }
@@ -67,9 +72,13 @@ impl WorkflowPhase for ServiceAnalysisPhase {
 }
 
 impl ServiceAnalysisPhase {
-    /// Convert workspace packages into Service structs by matching with scan detections
-    fn service_from_detection(detection: &DetectionStack, service_path: PathBuf) -> Service {
-        Service {
+    /// Build a Service and optional Stack from a detection and its matching DetectedProject.
+    fn service_from_detection(
+        detection: &DetectionStack,
+        project: Option<&DetectedProject>,
+        service_path: PathBuf,
+    ) -> ServiceWithStack {
+        let service = Service {
             path: service_path,
             manifest: detection
                 .manifest_path
@@ -79,13 +88,34 @@ impl ServiceAnalysisPhase {
                 .to_string(),
             language: detection.language.clone(),
             build_system: detection.build_system.clone(),
-        }
+        };
+
+        // Build Stack from DetectedProject if available (Scanner already computed runtime/framework/version)
+        let stack = project.map(|p| Stack {
+            language: p.language.clone(),
+            build_system: p.build_system.clone(),
+            framework: p.framework.clone(),
+            runtime: p.runtime.clone(),
+            version: p.version.clone(),
+        });
+
+        ServiceWithStack { service, stack }
+    }
+
+    /// Find the DetectedProject matching a given manifest path.
+    fn find_project_for_detection<'a>(
+        detection: &DetectionStack,
+        detected_projects: &'a [DetectedProject],
+    ) -> Option<&'a DetectedProject> {
+        detected_projects
+            .iter()
+            .find(|p| p.manifest_path == detection.manifest_path)
     }
 
     fn build_services_from_workspace(
         workspace: &WorkspaceStructure,
         scan: &ScanResult,
-    ) -> Vec<Service> {
+    ) -> Vec<ServiceWithStack> {
         // If workspace has packages, use them (workspace orchestrator detected)
         if !workspace.packages.is_empty() {
             workspace
@@ -103,7 +133,11 @@ impl ServiceAnalysisPhase {
                                 == package.path
                         })
                         .map(|detection| {
-                            Self::service_from_detection(detection, package.path.clone())
+                            let project = Self::find_project_for_detection(
+                                detection,
+                                &scan.detected_projects,
+                            );
+                            Self::service_from_detection(detection, project, package.path.clone())
                         })
                 })
                 .collect()
@@ -117,7 +151,9 @@ impl ServiceAnalysisPhase {
                         .parent()
                         .unwrap_or_else(|| std::path::Path::new("."))
                         .to_path_buf();
-                    Self::service_from_detection(detection, service_path)
+                    let project =
+                        Self::find_project_for_detection(detection, &scan.detected_projects);
+                    Self::service_from_detection(detection, project, service_path)
                 })
                 .collect()
         }
@@ -126,15 +162,20 @@ impl ServiceAnalysisPhase {
     async fn analyze_service(
         &self,
         service: &Service,
+        stack: Option<Stack>,
         context: &AnalysisContext,
     ) -> Result<ServiceContext> {
         let service_arc = Arc::new(service.clone());
         let context_arc = Arc::new((*context).clone());
         let mut service_context = ServiceContext::new(service_arc, context_arc);
 
-        // Execute all service phases in order
+        // Set the pre-computed stack from Scanner (replaces StackIdentificationPhase)
+        service_context.stack = stack;
+
+        // Execute remaining service phases in order
+        // Note: StackIdentificationPhase is no longer needed — the Scanner already
+        // computes runtime, framework, and version during scan.
         let phases: Vec<&dyn ServicePhase> = vec![
-            &StackIdentificationPhase,
             &RuntimeConfigPhase,
             &BuildPhase,
             &CachePhase,

@@ -28,6 +28,10 @@ pub struct BuildTemplate {
     /// Optional runtime working directory (defaults to /app if not specified)
     #[serde(default)]
     pub runtime_workdir: Option<String>,
+    /// Optional entrypoint command (e.g., "java -jar /app/app.jar")
+    /// Build systems that know the final artifact path should set this.
+    #[serde(default)]
+    pub entrypoint: Option<String>,
 }
 
 /// Manifest pattern for build system detection
@@ -40,6 +44,18 @@ pub struct ManifestPattern {
 /// Build system trait
 pub trait BuildSystem: Send + Sync {
     fn id(&self) -> crate::BuildSystemId;
+
+    /// The primary language this build system is associated with.
+    /// Returns `None` for multi-language build systems (e.g., Bazel) or dynamic ones (LLM).
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        None
+    }
+
+    /// The runtime this build system targets.
+    /// Returns `None` for dynamic build systems (e.g., LLM).
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        None
+    }
 
     /// Manifest file patterns (e.g., "Cargo.toml", "package.json")
     fn manifest_patterns(&self) -> Vec<ManifestPattern>;

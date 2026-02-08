@@ -151,6 +151,7 @@ impl BuildSystem for BazelBuildSystem {
             )],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: Some("/app".to_string()),
+            entrypoint: None,
         }
     }
 

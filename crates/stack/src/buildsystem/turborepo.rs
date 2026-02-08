@@ -44,6 +44,14 @@ impl BuildSystem for TurborepoBuildSystem {
         BuildSystemId::Turborepo
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::JavaScript)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Node)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "turbo.json".to_string(),
@@ -138,6 +146,7 @@ impl BuildSystem for TurborepoBuildSystem {
             runtime_copy: vec![(".".to_string(), "/app/".to_string())],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

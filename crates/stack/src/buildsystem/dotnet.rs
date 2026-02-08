@@ -13,6 +13,14 @@ impl BuildSystem for DotNetBuildSystem {
         BuildSystemId::DotNet
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::CSharp)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::DotNet)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -111,6 +119,7 @@ impl BuildSystem for DotNetBuildSystem {
             runtime_copy: vec![("out/".to_string(), "/app".to_string())],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

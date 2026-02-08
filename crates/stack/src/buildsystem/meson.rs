@@ -13,6 +13,14 @@ impl BuildSystem for MesonBuildSystem {
         BuildSystemId::Meson
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Cpp)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Native)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "meson.build".to_string(),
@@ -81,6 +89,7 @@ impl BuildSystem for MesonBuildSystem {
             runtime_copy: vec![("builddir/app".to_string(), "/app/app".to_string())],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

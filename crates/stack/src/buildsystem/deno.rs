@@ -13,6 +13,14 @@ impl BuildSystem for DenoBuildSystem {
         BuildSystemId::Deno
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Deno)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Deno)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -96,6 +104,7 @@ impl BuildSystem for DenoBuildSystem {
                 .into_iter()
                 .collect(),
             runtime_workdir: Some("/app".to_string()),
+            entrypoint: None,
         }
     }
 

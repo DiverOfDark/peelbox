@@ -28,6 +28,14 @@ impl BuildSystem for GoModBuildSystem {
         BuildSystemId::GoMod
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Go)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Native)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "go.mod".to_string(),
@@ -110,6 +118,7 @@ impl BuildSystem for GoModBuildSystem {
             runtime_copy: vec![("app".to_string(), "/app/app".to_string())],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: None,
         }
     }
 

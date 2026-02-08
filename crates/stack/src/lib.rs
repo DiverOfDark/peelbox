@@ -18,6 +18,8 @@ pub mod orchestrator;
 pub mod registry;
 pub mod runtime;
 pub mod runtime_id;
+pub mod scan;
+pub mod version;
 
 pub use build_system_id::BuildSystemId;
 pub use buildsystem::{BuildSystem, BuildTemplate, ManifestPattern};
@@ -31,3 +33,4 @@ pub use language_id::LanguageId;
 pub use orchestrator::{MonorepoOrchestrator, OrchestratorId};
 pub use registry::StackRegistry;
 pub use runtime_id::RuntimeId;
+pub use scan::{DetectedProject, ScanContext, Scanner};

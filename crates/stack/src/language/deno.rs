@@ -4,7 +4,18 @@ use peelbox_core::fs::FileSystem;
 
 use crate::{BuildSystemId, LanguageId};
 
-use super::{DetectionResult, LanguageDefinition};
+use super::{profile::LanguageProfile, DetectionResult, LanguageDefinition};
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["ts", "tsx", "js", "jsx"],
+    excluded_dirs: &["vendor", ".deno"],
+    runtime_id: crate::RuntimeId::Deno,
+    default_port: None,
+    env_var_patterns: &[],
+    port_patterns: &[],
+    health_check_patterns: &[],
+    default_health_endpoints: &[],
+};
 
 pub struct DenoLanguage;
 
@@ -13,13 +24,8 @@ impl LanguageDefinition for DenoLanguage {
         LanguageId::Deno
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec![
-            "ts".to_string(),
-            "tsx".to_string(),
-            "js".to_string(),
-            "jsx".to_string(),
-        ]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -39,10 +45,6 @@ impl LanguageDefinition for DenoLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["Deno".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec!["vendor".to_string(), ".deno".to_string()]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
@@ -90,10 +92,6 @@ impl LanguageDefinition for DenoLanguage {
             }
         }
         false
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("Deno".to_string())
     }
 }
 

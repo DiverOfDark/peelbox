@@ -1,8 +1,34 @@
 //! Go language definition
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
 use std::collections::HashSet;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["go"],
+    excluded_dirs: &["vendor"],
+    runtime_id: crate::RuntimeId::Native,
+    default_port: Some(8080),
+    env_var_patterns: &[
+        (r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#, "os.Getenv"),
+        (
+            r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#,
+            "viper",
+        ),
+    ],
+    port_patterns: &[
+        (r"\.Run\([^:)]*:(\d{4,5})", "gin.Run()"),
+        (
+            r#"http\.ListenAndServe\([^:)]*:(\d{4,5})"#,
+            "http.ListenAndServe",
+        ),
+    ],
+    health_check_patterns: &[("/health", "Gin"), ("/healthz", "Kubernetes")],
+    default_health_endpoints: &[],
+};
 
 pub struct GoLanguage;
 
@@ -11,8 +37,8 @@ impl LanguageDefinition for GoLanguage {
         crate::LanguageId::Go
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["go".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -39,10 +65,6 @@ impl LanguageDefinition for GoLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["go".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec!["vendor".to_string()]
     }
 
     fn workspace_configs(&self) -> Vec<String> {
@@ -144,43 +166,6 @@ impl LanguageDefinition for GoLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
-                "os.Getenv".to_string(),
-            ),
-            (
-                r#"viper\.GetString\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
-                "viper".to_string(),
-            ),
-        ]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r"\.Run\([^:)]*:(\d{4,5})".to_string(),
-                "gin.Run()".to_string(),
-            ),
-            (
-                r#"http\.ListenAndServe\([^:)]*:(\d{4,5})"#.to_string(),
-                "http.ListenAndServe".to_string(),
-            ),
-        ]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            ("/health".to_string(), "Gin".to_string()),
-            ("/healthz".to_string(), "Kubernetes".to_string()),
-        ]
-    }
-
-    fn default_env_vars(&self) -> Vec<String> {
-        vec![]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -205,14 +190,6 @@ impl LanguageDefinition for GoLanguage {
         }
 
         false
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("go".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8080)
     }
 
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {

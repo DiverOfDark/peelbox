@@ -116,11 +116,8 @@ impl Runtime for JvmRuntime {
                 })
         });
 
-        // Detect entrypoint based on Spring Boot plugin presence
-        let entrypoint = self.detect_entrypoint(files);
-
         Some(RuntimeConfig {
-            entrypoint: Some(entrypoint),
+            entrypoint: None, // Entrypoint is now set by BuildSystem.build_template()
             port,
             env_vars,
             health,
@@ -193,151 +190,28 @@ impl Runtime for JvmRuntime {
 }
 
 impl JvmRuntime {
-    fn detect_entrypoint(&self, files: &[PathBuf]) -> String {
-        // Check for pom.xml and detect Spring Boot plugin
-        for file in files {
-            if let Some(name) = file.file_name().and_then(|n| n.to_str()) {
-                if name == "pom.xml" {
-                    if let Ok(content) = std::fs::read_to_string(file) {
-                        // Check if Spring Boot Maven Plugin is present
-                        if content.contains("spring-boot-maven-plugin") {
-                            // Use -jar with specific artifact name
-                            if let Some(jar_path) = self.parse_pom_jar_name(&content) {
-                                return format!("java -jar {}", jar_path);
-                            }
-                        } else {
-                            // Default JVM: use classpath
-                            if let Some(main_class) = self.extract_main_class(&content) {
-                                return format!("java -cp /app/*.jar {}", main_class);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Fallback to default
-        self.start_command(Path::new("/app/app.jar"))
-    }
-
-    fn parse_pom_jar_name(&self, content: &str) -> Option<String> {
-        let doc = roxmltree::Document::parse(content).ok()?;
-        let root = doc.root_element();
-
-        let mut artifact_id = None;
-        let mut version = None;
-        let mut parent_version = None;
-
-        // Only look at direct children of <project>
-        for child in root.children() {
-            if child.has_tag_name("artifactId") && artifact_id.is_none() {
-                artifact_id = child.text().map(|s| s.trim().to_string());
-            }
-            if child.has_tag_name("version") {
-                version = child.text().map(|s| s.trim().to_string());
-            }
-            if child.has_tag_name("parent") {
-                for parent_child in child.children() {
-                    if parent_child.has_tag_name("version") {
-                        parent_version = parent_child.text().map(|s| s.trim().to_string());
-                    }
-                }
-            }
-        }
-
-        let effective_version = version.or(parent_version);
-
-        match (artifact_id, effective_version) {
-            (Some(aid), Some(ver)) => Some(format!("/app/{}-{}.jar", aid, ver)),
-            (Some(aid), None) => Some(format!("/app/{}.jar", aid)),
-            _ => None,
-        }
-    }
-
-    fn extract_main_class(&self, content: &str) -> Option<String> {
-        // Parse pom.xml to find main class in plugin configuration
-        let doc = roxmltree::Document::parse(content).ok()?;
-
-        // Look for <mainClass> tag in plugin configuration
-        for node in doc.descendants() {
-            if node.has_tag_name("mainClass") {
-                return node.text().map(|s| s.trim().to_string());
-            }
-        }
-
-        None
-    }
-
+    /// Detect Java version from manifest content.
+    /// Tries both Maven and Gradle parsers — the runtime doesn't need to know
+    /// which build system is in use.
     fn detect_version(
         &self,
         service_path: &Path,
         manifest_content: Option<&str>,
     ) -> Option<String> {
-        if let Some(content) = manifest_content {
-            let pom_path = service_path.join("pom.xml");
-            if pom_path.exists() {
-                if let Some(ver) = self.parse_pom_version(content) {
-                    return Some(ver);
-                }
-                // Try parent pom.xml for inherited properties (multi-module projects)
-                if let Some(parent_ver) = service_path
+        let content = manifest_content?;
+        // Try Maven format first, then Gradle format
+        crate::version::java::parse_pom_version(content)
+            .or_else(|| crate::version::java::parse_gradle_version(content))
+            .or_else(|| {
+                // Fallback: try parent directory manifest for inherited properties
+                // (common in Maven multi-module projects)
+                service_path
                     .parent()
                     .map(|p| p.join("pom.xml"))
                     .filter(|p| p.exists())
                     .and_then(|p| std::fs::read_to_string(p).ok())
-                    .and_then(|c| self.parse_pom_version(&c))
-                {
-                    return Some(parent_ver);
-                }
-                return None;
-            }
-
-            let gradle_path = service_path.join("build.gradle");
-            let gradle_kts_path = service_path.join("build.gradle.kts");
-            if gradle_path.exists() || gradle_kts_path.exists() {
-                return self.parse_gradle_version(content);
-            }
-        }
-
-        None
-    }
-
-    fn parse_pom_version(&self, content: &str) -> Option<String> {
-        if let Ok(doc) = roxmltree::Document::parse(content) {
-            for node in doc.descendants() {
-                if node.has_tag_name("maven.compiler.source") || node.has_tag_name("java.version") {
-                    if let Some(version) = node.text() {
-                        return Some(version.trim().to_string());
-                    }
-                }
-            }
-        }
-        None
-    }
-
-    fn parse_gradle_version(&self, content: &str) -> Option<String> {
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if trimmed.contains("sourceCompatibility")
-                || trimmed.contains("targetCompatibility")
-                || trimmed.contains("languageVersion")
-            {
-                if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
-                    let s = s.trim();
-                    !s.is_empty()
-                        && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
-                }) {
-                    let version_num = version
-                        .trim()
-                        .trim_matches('"')
-                        .trim_matches('\'')
-                        .replace("JavaVersion.VERSION_", "")
-                        .replace('_', ".");
-                    return Some(version_num);
-                }
-            }
-        }
-        None
+                    .and_then(|c| crate::version::java::parse_pom_version(&c))
+            })
     }
 }
 
@@ -508,67 +382,4 @@ mod tests {
         assert_eq!(deps, vec!["build-base".to_string()]);
     }
 
-    #[test]
-    fn test_parse_pom_jar_name_with_direct_version() {
-        let runtime = JvmRuntime;
-        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
-<project>
-    <artifactId>my-app</artifactId>
-    <version>2.0.0</version>
-</project>"#;
-        assert_eq!(
-            runtime.parse_pom_jar_name(content),
-            Some("/app/my-app-2.0.0.jar".to_string())
-        );
-    }
-
-    #[test]
-    fn test_parse_pom_jar_name_with_parent_version() {
-        let runtime = JvmRuntime;
-        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
-<project>
-    <parent>
-        <groupId>com.example</groupId>
-        <artifactId>parent</artifactId>
-        <version>1.0.0</version>
-    </parent>
-    <artifactId>api-service</artifactId>
-</project>"#;
-        assert_eq!(
-            runtime.parse_pom_jar_name(content),
-            Some("/app/api-service-1.0.0.jar".to_string())
-        );
-    }
-
-    #[test]
-    fn test_parse_pom_jar_name_direct_version_overrides_parent() {
-        let runtime = JvmRuntime;
-        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
-<project>
-    <parent>
-        <groupId>com.example</groupId>
-        <artifactId>parent</artifactId>
-        <version>1.0.0</version>
-    </parent>
-    <artifactId>my-app</artifactId>
-    <version>3.0.0</version>
-</project>"#;
-        assert_eq!(
-            runtime.parse_pom_jar_name(content),
-            Some("/app/my-app-3.0.0.jar".to_string())
-        );
-    }
-
-    #[test]
-    fn test_parse_pom_jar_name_no_version() {
-        let runtime = JvmRuntime;
-        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
-<project>
-    <artifactId>my-app</artifactId>
-</project>"#;
-        assert_eq!(
-            runtime.parse_pom_jar_name(content),
-            Some("/app/my-app.jar".to_string())
-        );
-    }
 }

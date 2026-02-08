@@ -14,6 +14,14 @@ impl BuildSystem for GradleBuildSystem {
         BuildSystemId::Gradle
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Java)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::JVM)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -167,6 +175,7 @@ impl BuildSystem for GradleBuildSystem {
             runtime_copy: vec![(source_jar_path, dest_jar_path)],
             runtime_env: std::collections::BTreeMap::new(),
             runtime_workdir: None,
+            entrypoint: Some("java -jar /app/app.jar".to_string()),
         }
     }
 
@@ -328,34 +337,5 @@ pub fn get_gradle_jar_path(
 }
 
 fn parse_java_version(manifest_content: &str) -> Option<String> {
-    for line in manifest_content.lines() {
-        let trimmed = line.trim();
-
-        if trimmed.contains("sourceCompatibility")
-            || trimmed.contains("targetCompatibility")
-            || trimmed.contains("languageVersion")
-        {
-            if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
-                let s = s.trim();
-                !s.is_empty() && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
-            }) {
-                let version_num = version
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'')
-                    .replace("JavaVersion.VERSION_", "")
-                    .replace('_', ".");
-
-                let version_final = if version_num.starts_with("1.") && version_num.len() > 2 {
-                    version_num.get(2..).unwrap_or(&version_num).to_string()
-                } else {
-                    version_num
-                };
-
-                return Some(format!("openjdk-{}", version_final));
-            }
-        }
-    }
-
-    None
+    crate::version::java::detect_java_version_wolfi(manifest_content)
 }

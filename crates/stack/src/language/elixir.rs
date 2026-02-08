@@ -1,7 +1,30 @@
 //! Elixir language definition
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["ex", "exs"],
+    excluded_dirs: &["_build", "deps", "cover", ".elixir_ls"],
+    runtime_id: crate::RuntimeId::BEAM,
+    default_port: Some(4000),
+    env_var_patterns: &[(
+        r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)["']"#,
+        "System.get_env",
+    )],
+    port_patterns: &[
+        (r#"port:\s*(\d{4,5})"#, "config"),
+        (
+            r#"Plug\.Cowboy\.http\([^,)]*,\s*port:\s*(\d{4,5})"#,
+            "Plug.Cowboy",
+        ),
+    ],
+    health_check_patterns: &[(r#"get\s*"(/health)""#, "Plug.Router")],
+    default_health_endpoints: &[("/health", "Default")],
+};
 
 pub struct ElixirLanguage;
 
@@ -10,8 +33,8 @@ impl LanguageDefinition for ElixirLanguage {
         crate::LanguageId::Elixir
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["ex".to_string(), "exs".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -42,19 +65,6 @@ impl LanguageDefinition for ElixirLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["mix".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "_build".to_string(),
-            "deps".to_string(),
-            "cover".to_string(),
-            ".elixir_ls".to_string(),
-        ]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -129,38 +139,6 @@ impl LanguageDefinition for ElixirLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)["']"#.to_string(),
-            "System.get_env".to_string(),
-        )]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (r#"port:\s*(\d{4,5})"#.to_string(), "config".to_string()),
-            (
-                r#"Plug\.Cowboy\.http\([^,)]*,\s*port:\s*(\d{4,5})"#.to_string(),
-                "Plug.Cowboy".to_string(),
-            ),
-        ]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"get\s*"(/health)""#.to_string(),
-            "Plug.Router".to_string(),
-        )]
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![("/health".to_string(), "Default".to_string())]
-    }
-
-    fn default_env_vars(&self) -> Vec<String> {
-        vec![]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -181,14 +159,6 @@ impl LanguageDefinition for ElixirLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<String> {
-        Some("elixir".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(4000)
-    }
-
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
         Some("mix phx.server".to_string())
     }
@@ -201,26 +171,5 @@ impl LanguageDefinition for ElixirLanguage {
             .as_str();
 
         Some(format!("/app/{}/bin/{} start", app_name, app_name))
-    }
-
-    fn find_entrypoints(
-        &self,
-        _fs: &dyn peelbox_core::fs::FileSystem,
-        _repo_root: &std::path::Path,
-        _project_root: &std::path::Path,
-        _file_tree: &[std::path::PathBuf],
-    ) -> Vec<String> {
-        vec![]
-    }
-
-    fn is_runnable(
-        &self,
-        _fs: &dyn peelbox_core::fs::FileSystem,
-        _repo_root: &std::path::Path,
-        _project_root: &std::path::Path,
-        _file_tree: &[std::path::PathBuf],
-        _manifest_content: Option<&str>,
-    ) -> bool {
-        false
     }
 }

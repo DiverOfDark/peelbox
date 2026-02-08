@@ -37,17 +37,27 @@ fn try_detect_stack(
     repo_path: &std::path::Path,
     stack_registry: &Arc<StackRegistry>,
 ) -> Option<Stack> {
-    let language_def = stack_registry.get_language(language.clone())?;
+    // Determine runtime from build system first, fall back to language profile
+    let runtime = stack_registry
+        .get_build_system(build_system.clone())
+        .and_then(|bs| bs.runtime_id())
+        .or_else(|| {
+            stack_registry
+                .get_language(language.clone())
+                .and_then(|lang| {
+                    let rt_name = lang.runtime_name()?;
+                    RuntimeId::from_name(&rt_name)
+                })
+        })
+        .unwrap_or(RuntimeId::Native);
 
-    // For LLM-detected languages, runtime_name() may return None
-    // Use Native as default for custom/unknown languages
-    let runtime = if let Some(runtime_name) = language_def.runtime_name() {
-        RuntimeId::from_name(&runtime_name).unwrap_or(RuntimeId::Native)
-    } else {
-        RuntimeId::Native
-    };
-
-    let framework = detect_framework(service_path, manifest_name, repo_path, stack_registry);
+    let framework = detect_framework(
+        &language,
+        service_path,
+        manifest_name,
+        repo_path,
+        stack_registry,
+    );
 
     Some(Stack {
         language,
@@ -59,6 +69,7 @@ fn try_detect_stack(
 }
 
 fn detect_framework(
+    language: &LanguageId,
     service_path: &PathBuf,
     manifest_name: &str,
     repo_path: &std::path::Path,
@@ -67,9 +78,9 @@ fn detect_framework(
     let manifest_path = repo_path.join(service_path).join(manifest_name);
     let manifest_content = std::fs::read_to_string(&manifest_path).ok()?;
 
-    // Parse dependencies from manifest using stack registry
-    let dep_info = stack_registry.parse_dependencies_by_manifest(
-        manifest_name,
+    // Parse dependencies using the known language
+    let dep_info = stack_registry.parse_dependencies_for_language(
+        language,
         &manifest_content,
         std::slice::from_ref(service_path),
     )?;

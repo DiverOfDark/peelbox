@@ -1,8 +1,24 @@
-use super::{DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition,
+};
 use crate::LanguageId;
 use peelbox_llm::{ChatMessage, LLMClient, LLMRequest};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+
+/// Default empty profile for LLM-detected languages.
+/// LLM language overrides all profile-derived methods dynamically,
+/// so this is only used to satisfy the `profile()` trait requirement.
+static EMPTY_PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &[],
+    excluded_dirs: &[],
+    runtime_id: crate::RuntimeId::Native,
+    default_port: None,
+    env_var_patterns: &[],
+    port_patterns: &[],
+    health_check_patterns: &[],
+    default_health_endpoints: &[],
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct LanguageInfo {
@@ -46,6 +62,12 @@ impl LanguageDefinition for LLMLanguage {
             .map(|info| LanguageId::Custom(info.name.clone()))
             .unwrap_or_else(|| LanguageId::Custom("Unknown".to_string()))
     }
+
+    fn profile(&self) -> &LanguageProfile {
+        &EMPTY_PROFILE
+    }
+
+    // Override all profile-derived methods with dynamic LLM data
 
     fn extensions(&self) -> Vec<String> {
         self.detected_info

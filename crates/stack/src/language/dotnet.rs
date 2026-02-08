@@ -1,7 +1,33 @@
 //! .NET language definition (C#, F#, VB)
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["cs", "fs", "vb"],
+    excluded_dirs: &["bin/Debug", "bin/Release", "obj", ".nuget"],
+    runtime_id: crate::RuntimeId::DotNet,
+    default_port: Some(8080),
+    env_var_patterns: &[(
+        r#"Environment\.GetEnvironmentVariable\("([A-Z_][A-Z0-9_]*)""#,
+        "Environment.GetEnvironmentVariable",
+    )],
+    port_patterns: &[
+        (r#"UseUrls\([^:)]*:(\d{4,5})"#, "UseUrls()"),
+        (
+            r#"ApplicationUrl['"]\s*=\s*[^:]*:(\d{4,5})"#,
+            "ApplicationUrl",
+        ),
+    ],
+    health_check_patterns: &[(
+        r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        "ASP.NET",
+    )],
+    default_health_endpoints: &[("/health", "ASP.NET Core")],
+};
 
 pub struct DotNetLanguage;
 
@@ -10,8 +36,8 @@ impl LanguageDefinition for DotNetLanguage {
         crate::LanguageId::CSharp
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["cs".to_string(), "fs".to_string(), "vb".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -43,19 +69,6 @@ impl LanguageDefinition for DotNetLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["dotnet".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "bin/Debug".to_string(),
-            "bin/Release".to_string(),
-            "obj".to_string(),
-            ".nuget".to_string(),
-        ]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -146,41 +159,6 @@ impl LanguageDefinition for DotNetLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"Environment\.GetEnvironmentVariable\("([A-Z_][A-Z0-9_]*)""#.to_string(),
-            "Environment.GetEnvironmentVariable".to_string(),
-        )]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"UseUrls\([^:)]*:(\d{4,5})"#.to_string(),
-                "UseUrls()".to_string(),
-            ),
-            (
-                r#"ApplicationUrl['"]\s*=\s*[^:]*:(\d{4,5})"#.to_string(),
-                "ApplicationUrl".to_string(),
-            ),
-        ]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"MapGet\(['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-            "ASP.NET".to_string(),
-        )]
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![("/health".to_string(), "ASP.NET Core".to_string())]
-    }
-
-    fn default_env_vars(&self) -> Vec<String> {
-        vec![]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -199,14 +177,6 @@ impl LanguageDefinition for DotNetLanguage {
         }
 
         false
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("dotnet".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8080)
     }
 
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {

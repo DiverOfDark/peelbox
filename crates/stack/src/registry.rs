@@ -286,6 +286,24 @@ impl StackRegistry {
         result
     }
 
+    /// Check if a manifest indicates a workspace root, using the build system.
+    ///
+    /// Prefer calling `BuildSystem::is_workspace_root()` directly when the build
+    /// system is already known (e.g. from a `DetectionStack`).
+    pub fn is_workspace_root_by_build_system(
+        &self,
+        build_system_id: &BuildSystemId,
+        manifest_content: Option<&str>,
+    ) -> bool {
+        if let Some(bs) = self.get_build_system(build_system_id.clone()) {
+            bs.is_workspace_root(manifest_content)
+        } else {
+            false
+        }
+    }
+
+    /// Legacy: check if a manifest indicates a workspace root by iterating languages.
+    /// Deprecated — prefer `is_workspace_root_by_build_system` when the build system is known.
     pub fn is_workspace_root(&self, manifest_name: &str, manifest_content: Option<&str>) -> bool {
         let languages = self.languages.read().unwrap();
 
@@ -309,6 +327,30 @@ impl StackRegistry {
         false
     }
 
+    /// Parse dependencies from a manifest using the known language.
+    ///
+    /// Prefer this over `parse_dependencies_by_manifest` when the language is already known
+    /// (e.g. from `DetectionStack.language` or `BuildSystem.language_id()`).
+    pub fn parse_dependencies_for_language(
+        &self,
+        language_id: &LanguageId,
+        manifest_content: &str,
+        all_internal_paths: &[std::path::PathBuf],
+    ) -> Option<crate::language::DependencyInfo> {
+        let languages = self.languages.read().unwrap();
+        if let Some(language) = languages.get(language_id) {
+            Some(language.parse_dependencies(manifest_content, all_internal_paths))
+        } else if let Some(llm_lang) =
+            languages.get(&LanguageId::Custom("__llm_fallback__".to_string()))
+        {
+            Some(llm_lang.parse_dependencies(manifest_content, all_internal_paths))
+        } else {
+            None
+        }
+    }
+
+    /// Legacy: parse dependencies by scanning all languages for a manifest match.
+    /// Deprecated — prefer `parse_dependencies_for_language` when the language is known.
     pub fn parse_dependencies_by_manifest(
         &self,
         manifest_name: &str,

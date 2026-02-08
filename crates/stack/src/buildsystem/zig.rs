@@ -10,6 +10,14 @@ impl BuildSystem for ZigBuildSystem {
         BuildSystemId::Zig
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Zig)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::Native)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![
             ManifestPattern {
@@ -105,6 +113,7 @@ impl BuildSystem for ZigBuildSystem {
             ],
             runtime_env: Default::default(),
             runtime_workdir: Some("/app".to_string()),
+            entrypoint: None,
         }
     }
 

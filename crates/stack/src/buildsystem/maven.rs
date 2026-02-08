@@ -15,6 +15,14 @@ impl BuildSystem for MavenBuildSystem {
         BuildSystemId::Maven
     }
 
+    fn language_id(&self) -> Option<crate::LanguageId> {
+        Some(crate::LanguageId::Java)
+    }
+
+    fn runtime_id(&self) -> Option<crate::RuntimeId> {
+        Some(crate::RuntimeId::JVM)
+    }
+
     fn manifest_patterns(&self) -> Vec<ManifestPattern> {
         vec![ManifestPattern {
             filename: "pom.xml".to_string(),
@@ -161,6 +169,9 @@ impl BuildSystem for MavenBuildSystem {
             ]
         };
 
+        // Compute entrypoint from manifest content
+        let entrypoint = manifest_content.and_then(|content| detect_maven_entrypoint(content));
+
         BuildTemplate {
             build_packages,
             build_commands,
@@ -173,6 +184,7 @@ impl BuildSystem for MavenBuildSystem {
             ],
             runtime_env,
             runtime_workdir: None,
+            entrypoint,
         }
     }
 
@@ -236,20 +248,62 @@ impl BuildSystem for MavenBuildSystem {
 }
 
 fn parse_java_version(manifest_content: &str) -> Option<String> {
-    let doc = Document::parse(manifest_content).ok()?;
+    crate::version::java::detect_java_version_wolfi(manifest_content)
+}
 
-    for node in doc.descendants() {
-        if node.has_tag_name("maven.compiler.source")
-            || node.has_tag_name("java.version")
-            || node.has_tag_name("maven.compiler.release")
-        {
-            if let Some(version) = node.text() {
-                let version_num = version.trim();
-                return Some(format!("openjdk-{}", version_num));
+/// Detect the entrypoint command from a pom.xml manifest.
+///
+/// If the Spring Boot Maven Plugin is present, produces a `java -jar` command
+/// with the specific artifact name. Otherwise, looks for a `<mainClass>` element
+/// and produces a classpath-based command.
+fn detect_maven_entrypoint(content: &str) -> Option<String> {
+    if content.contains("spring-boot-maven-plugin") {
+        parse_pom_jar_name(content).map(|jar_path| format!("java -jar {}", jar_path))
+    } else {
+        extract_main_class(content).map(|main_class| format!("java -cp /app/*.jar {}", main_class))
+    }
+}
+
+fn parse_pom_jar_name(content: &str) -> Option<String> {
+    let doc = Document::parse(content).ok()?;
+    let root = doc.root_element();
+
+    let mut artifact_id = None;
+    let mut version = None;
+    let mut parent_version = None;
+
+    for child in root.children() {
+        if child.has_tag_name("artifactId") && artifact_id.is_none() {
+            artifact_id = child.text().map(|s| s.trim().to_string());
+        }
+        if child.has_tag_name("version") {
+            version = child.text().map(|s| s.trim().to_string());
+        }
+        if child.has_tag_name("parent") {
+            for parent_child in child.children() {
+                if parent_child.has_tag_name("version") {
+                    parent_version = parent_child.text().map(|s| s.trim().to_string());
+                }
             }
         }
     }
 
+    let effective_version = version.or(parent_version);
+
+    match (artifact_id, effective_version) {
+        (Some(aid), Some(ver)) => Some(format!("/app/{}-{}.jar", aid, ver)),
+        (Some(aid), None) => Some(format!("/app/{}.jar", aid)),
+        _ => None,
+    }
+}
+
+fn extract_main_class(content: &str) -> Option<String> {
+    let doc = Document::parse(content).ok()?;
+    for node in doc.descendants() {
+        if node.has_tag_name("mainClass") {
+            return node.text().map(|s| s.trim().to_string());
+        }
+    }
     None
 }
 
@@ -446,5 +500,118 @@ mod tests {
                 "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib; mkdir -p backend/target/lib"
             ]
         );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_with_direct_version() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+    <version>2.0.0</version>
+</project>"#;
+        assert_eq!(
+            parse_pom_jar_name(content),
+            Some("/app/my-app-2.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_with_parent_version() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>api-service</artifactId>
+</project>"#;
+        assert_eq!(
+            parse_pom_jar_name(content),
+            Some("/app/api-service-1.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_direct_version_overrides_parent() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <parent>
+        <groupId>com.example</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+    <artifactId>my-app</artifactId>
+    <version>3.0.0</version>
+</project>"#;
+        assert_eq!(
+            parse_pom_jar_name(content),
+            Some("/app/my-app-3.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_pom_jar_name_no_version() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+</project>"#;
+        assert_eq!(
+            parse_pom_jar_name(content),
+            Some("/app/my-app.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_maven_entrypoint_spring_boot() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+    <version>1.0.0</version>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>"#;
+        assert_eq!(
+            detect_maven_entrypoint(content),
+            Some("java -jar /app/my-app-1.0.0.jar".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_maven_entrypoint_main_class() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.example.Main</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>"#;
+        assert_eq!(
+            detect_maven_entrypoint(content),
+            Some("java -cp /app/*.jar com.example.Main".to_string())
+        );
+    }
+
+    #[test]
+    fn test_detect_maven_entrypoint_none() {
+        let content = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-lib</artifactId>
+</project>"#;
+        assert_eq!(detect_maven_entrypoint(content), None);
     }
 }

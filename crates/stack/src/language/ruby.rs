@@ -1,7 +1,30 @@
 //! Ruby language definition
 
-use super::{Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition};
+use super::{
+    profile::LanguageProfile, Dependency, DependencyInfo, DetectionMethod, DetectionResult,
+    LanguageDefinition,
+};
 use regex::Regex;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["rb", "rake", "gemspec"],
+    excluded_dirs: &["vendor", "tmp", "log", "coverage", ".bundle"],
+    runtime_id: crate::RuntimeId::Ruby,
+    default_port: Some(3000),
+    env_var_patterns: &[(r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#, "ENV")],
+    port_patterns: &[(r#"port:\s*(\d{4,5})"#, "config")],
+    health_check_patterns: &[
+        (
+            r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            "Rails/Sinatra",
+        ),
+        (
+            r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            "Rails",
+        ),
+    ],
+    default_health_endpoints: &[],
+};
 
 pub struct RubyLanguage;
 
@@ -10,8 +33,8 @@ impl LanguageDefinition for RubyLanguage {
         crate::LanguageId::Ruby
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["rb".to_string(), "rake".to_string(), "gemspec".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -42,20 +65,6 @@ impl LanguageDefinition for RubyLanguage {
 
     fn compatible_build_systems(&self) -> Vec<String> {
         vec!["bundler".to_string()]
-    }
-
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "vendor".to_string(),
-            "tmp".to_string(),
-            "log".to_string(),
-            "coverage".to_string(),
-            ".bundle".to_string(),
-        ]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
     }
 
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
@@ -138,38 +147,6 @@ impl LanguageDefinition for RubyLanguage {
         }
     }
 
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![(
-            r#"ENV\[['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
-            "ENV".to_string(),
-        )]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![(r#"port:\s*(\d{4,5})"#.to_string(), "config".to_string())]
-    }
-
-    fn health_check_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"get\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-                "Rails/Sinatra".to_string(),
-            ),
-            (
-                r#"match\s+['"]([/\w\-]*health[/\w\-]*)['"]"#.to_string(),
-                "Rails".to_string(),
-            ),
-        ]
-    }
-
-    fn default_health_endpoints(&self) -> Vec<(String, String)> {
-        vec![]
-    }
-
-    fn default_env_vars(&self) -> Vec<String> {
-        vec![]
-    }
-
     fn is_main_file(
         &self,
         fs: &dyn peelbox_core::fs::FileSystem,
@@ -198,41 +175,12 @@ impl LanguageDefinition for RubyLanguage {
         false
     }
 
-    fn runtime_name(&self) -> Option<String> {
-        Some("ruby".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(3000)
-    }
-
     fn default_entrypoint(&self, _build_system: &str) -> Option<String> {
         Some("ruby app.rb".to_string())
     }
 
     fn parse_entrypoint_from_manifest(&self, _manifest_content: &str) -> Option<String> {
         None
-    }
-
-    fn find_entrypoints(
-        &self,
-        _fs: &dyn peelbox_core::fs::FileSystem,
-        _repo_root: &std::path::Path,
-        _project_root: &std::path::Path,
-        _file_tree: &[std::path::PathBuf],
-    ) -> Vec<String> {
-        vec![]
-    }
-
-    fn is_runnable(
-        &self,
-        _fs: &dyn peelbox_core::fs::FileSystem,
-        _repo_root: &std::path::Path,
-        _project_root: &std::path::Path,
-        _file_tree: &[std::path::PathBuf],
-        _manifest_content: Option<&str>,
-    ) -> bool {
-        false
     }
 }
 

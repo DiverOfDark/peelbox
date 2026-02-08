@@ -1,11 +1,46 @@
 //! Python language definition (pip, poetry, pipenv)
 
 use super::{
+    profile::LanguageProfile,
     parsers::{DependencyParser, RegexDependencyParser},
     Dependency, DependencyInfo, DetectionMethod, DetectionResult, LanguageDefinition,
 };
 use regex::Regex;
 use std::collections::HashSet;
+
+static PROFILE: LanguageProfile = LanguageProfile {
+    extensions: &["py", "pyi", "pyw"],
+    excluded_dirs: &[
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        ".pytest_cache",
+        ".mypy_cache",
+        "dist",
+        "build",
+        "*.egg-info",
+    ],
+    runtime_id: crate::RuntimeId::Python,
+    default_port: Some(8000),
+    env_var_patterns: &[
+        (
+            r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+            "os.environ.get",
+        ),
+        (
+            r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+            "os.getenv",
+        ),
+    ],
+    port_patterns: &[
+        (r"@app\.route.*:(\d{4,5})", "Flask route decorator"),
+        (r"app\.run\(.*port\s*=\s*(\d{4,5})", "app.run()"),
+        (r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})", "uvicorn.run()"),
+    ],
+    health_check_patterns: &[],
+    default_health_endpoints: &[],
+};
 
 pub struct PythonLanguage;
 
@@ -14,8 +49,8 @@ impl LanguageDefinition for PythonLanguage {
         crate::LanguageId::Python
     }
 
-    fn extensions(&self) -> Vec<String> {
-        vec!["py".to_string(), "pyi".to_string(), "pyw".to_string()]
+    fn profile(&self) -> &LanguageProfile {
+        &PROFILE
     }
 
     fn detect(
@@ -77,24 +112,6 @@ impl LanguageDefinition for PythonLanguage {
         ]
     }
 
-    fn excluded_dirs(&self) -> Vec<String> {
-        vec![
-            "__pycache__".to_string(),
-            ".venv".to_string(),
-            "venv".to_string(),
-            ".tox".to_string(),
-            ".pytest_cache".to_string(),
-            ".mypy_cache".to_string(),
-            "dist".to_string(),
-            "build".to_string(),
-            "*.egg-info".to_string(),
-        ]
-    }
-
-    fn workspace_configs(&self) -> Vec<String> {
-        vec![]
-    }
-
     fn detect_version(&self, manifest_content: Option<&str>) -> Option<String> {
         let content = manifest_content?;
 
@@ -139,44 +156,6 @@ impl LanguageDefinition for PythonLanguage {
         } else {
             DependencyInfo::empty()
         }
-    }
-
-    fn env_var_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
-                "os.environ.get".to_string(),
-            ),
-            (
-                r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#.to_string(),
-                "os.getenv".to_string(),
-            ),
-        ]
-    }
-
-    fn port_patterns(&self) -> Vec<(String, String)> {
-        vec![
-            (
-                r"@app\.route.*:(\d{4,5})".to_string(),
-                "Flask route decorator".to_string(),
-            ),
-            (
-                r"app\.run\(.*port\s*=\s*(\d{4,5})".to_string(),
-                "app.run()".to_string(),
-            ),
-            (
-                r"uvicorn\.run\(.*port\s*=\s*(\d{4,5})".to_string(),
-                "uvicorn.run()".to_string(),
-            ),
-        ]
-    }
-
-    fn runtime_name(&self) -> Option<String> {
-        Some("python".to_string())
-    }
-
-    fn default_port(&self) -> Option<u16> {
-        Some(8000)
     }
 
     fn is_main_file(
