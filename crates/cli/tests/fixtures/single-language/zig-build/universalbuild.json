@@ -30,6 +30,10 @@
         {
           "from": "zig-out/bin/app",
           "to": "/app/app"
+        },
+        {
+          "from": "zig-out/lib/",
+          "to": "/app/lib/"
         }
       ],
       "env": {},
