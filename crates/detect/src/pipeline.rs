@@ -826,9 +826,9 @@ mod tests {
             path: PathBuf::new(),
             manifest: Manifest {
                 path: PathBuf::from("Cargo.toml"),
-                language: peelbox_stack::LanguageId::Rust,
-                build_system: peelbox_stack::BuildSystemId::Cargo,
-                runtime: peelbox_stack::RuntimeId::Native,
+                language: crate::id_enums::LanguageId::Rust,
+                build_system: crate::id_enums::BuildSystemId::Cargo,
+                runtime: crate::id_enums::RuntimeId::Native,
                 package: Some(Package {
                     name: "my-app".into(),
                     version: Some("0.1.0".into()),
@@ -873,9 +873,9 @@ mod tests {
             path: PathBuf::from("api-service"),
             manifest: Manifest {
                 path: PathBuf::from("api-service/pom.xml"),
-                language: peelbox_stack::LanguageId::Java,
-                build_system: peelbox_stack::BuildSystemId::Maven,
-                runtime: peelbox_stack::RuntimeId::JVM,
+                language: crate::id_enums::LanguageId::Java,
+                build_system: crate::id_enums::BuildSystemId::Maven,
+                runtime: crate::id_enums::RuntimeId::JVM,
                 package: Some(Package {
                     name: "api-service".into(),
                     version: Some("1.0.0".into()),
@@ -910,7 +910,7 @@ mod tests {
             },
             configs: vec![],
             framework: Some(FrameworkContribution {
-                framework: peelbox_stack::FrameworkId::SpringBoot,
+                framework: crate::id_enums::FrameworkId::SpringBoot,
                 default_ports: vec![8080],
                 health_endpoints: vec!["/actuator/health".into()],
                 env_vars: BTreeMap::new(),

@@ -1,8 +1,7 @@
 //! Shared Java/Kotlin version detection
 //!
 //! Consolidates Java version parsing from pom.xml, build.gradle(.kts),
-//! and .java-version files. Used by JavaLanguage, JvmRuntime, MavenBuildSystem,
-//! and GradleBuildSystem.
+//! and .java-version files.
 
 use regex::Regex;
 

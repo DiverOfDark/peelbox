@@ -1,7 +1,7 @@
 use crate::helpers::btree;
 use crate::traits::ManifestParser;
 use crate::types::*;
-use peelbox_stack::{BuildSystemId, LanguageId, RuntimeId};
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::path::Path;
 
 pub struct PomXmlParser;
@@ -199,7 +199,7 @@ fn parse_maven_deps(doc: &roxmltree::Document) -> Vec<Dependency> {
 }
 
 fn detect_java_version_from_pom(content: &str) -> Option<String> {
-    peelbox_stack::version::java::detect_java_version(content)
+    crate::version::java::detect_java_version(content)
 }
 
 fn extract_main_class(doc: &roxmltree::Document) -> Option<String> {

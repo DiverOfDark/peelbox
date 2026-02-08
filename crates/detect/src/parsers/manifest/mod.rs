@@ -90,8 +90,8 @@ serde = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 "#;
         let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("Cargo.toml"), content).unwrap();
-        assert_eq!(manifest.language, peelbox_stack::LanguageId::Rust);
-        assert_eq!(manifest.build_system, peelbox_stack::BuildSystemId::Cargo);
+        assert_eq!(manifest.language, crate::id_enums::LanguageId::Rust);
+        assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Cargo);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-app");
         assert_eq!(manifest.dependencies.len(), 2);
@@ -121,8 +121,8 @@ members = ["crates/*", "apps/cli"]
             "devDependencies": { "typescript": "^5.0.0" }
         }"#;
         let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content).unwrap();
-        assert_eq!(manifest.language, peelbox_stack::LanguageId::JavaScript);
-        assert_eq!(manifest.build_system, peelbox_stack::BuildSystemId::Npm);
+        assert_eq!(manifest.language, crate::id_enums::LanguageId::JavaScript);
+        assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Npm);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-app");
         assert!(pkg.is_application);
@@ -137,7 +137,7 @@ members = ["crates/*", "apps/cli"]
             "dependencies": { "express": "^4.0.0" }
         }"#;
         let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content).unwrap();
-        assert_eq!(manifest.build_system, peelbox_stack::BuildSystemId::Pnpm);
+        assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Pnpm);
     }
 
     #[test]
@@ -158,8 +158,8 @@ members = ["crates/*", "apps/cli"]
     </dependencies>
 </project>"#;
         let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("pom.xml"), content).unwrap();
-        assert_eq!(manifest.language, peelbox_stack::LanguageId::Java);
-        assert_eq!(manifest.build_system, peelbox_stack::BuildSystemId::Maven);
+        assert_eq!(manifest.language, crate::id_enums::LanguageId::Java);
+        assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Maven);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-app");
         assert!(manifest.dependencies.iter().any(|d| d
@@ -179,8 +179,8 @@ require (
     github.com/lib/pq v1.10.9
 )"#;
         let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("go.mod"), content).unwrap();
-        assert_eq!(manifest.language, peelbox_stack::LanguageId::Go);
-        assert_eq!(manifest.build_system, peelbox_stack::BuildSystemId::GoMod);
+        assert_eq!(manifest.language, crate::id_enums::LanguageId::Go);
+        assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::GoMod);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "myserver");
         assert_eq!(manifest.dependencies.len(), 2);

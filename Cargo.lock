@@ -2812,7 +2812,6 @@ dependencies = [
  "inventory",
  "peelbox-core",
  "peelbox-llm",
- "peelbox-stack",
  "peelbox-wolfi",
  "regex",
  "roxmltree",
@@ -2864,23 +2863,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "peelbox-stack"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "peelbox-core",
- "peelbox-llm",
- "peelbox-wolfi",
- "regex",
- "roxmltree",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "toml",
 ]
 
 [[package]]

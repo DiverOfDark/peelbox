@@ -1,7 +1,7 @@
 use crate::helpers::btree;
 use crate::traits::ManifestParser;
 use crate::types::*;
-use peelbox_stack::{BuildSystemId, LanguageId, RuntimeId};
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -17,7 +17,7 @@ impl ManifestParser for BuildGradleParser {
             return None;
         }
 
-        let java_version = peelbox_stack::version::java::detect_java_version(content);
+        let java_version = crate::version::java::detect_java_version(content);
         let java_pkg = java_version
             .as_ref()
             .map(|v| format!("openjdk-{}", v))

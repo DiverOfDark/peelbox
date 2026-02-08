@@ -1,6 +1,6 @@
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
-use peelbox_stack::{FrameworkId, LanguageId};
+use crate::id_enums::{FrameworkId, LanguageId};
 use std::collections::BTreeMap;
 
 pub struct ZapDetector;

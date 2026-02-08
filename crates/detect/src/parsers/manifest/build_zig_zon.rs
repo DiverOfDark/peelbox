@@ -1,6 +1,6 @@
 use crate::traits::ManifestParser;
 use crate::types::*;
-use peelbox_stack::{BuildSystemId, LanguageId, RuntimeId};
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 

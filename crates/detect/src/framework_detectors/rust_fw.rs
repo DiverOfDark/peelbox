@@ -1,5 +1,5 @@
 use crate::types::Dependency;
-use peelbox_stack::{FrameworkId, LanguageId};
+use crate::id_enums::{FrameworkId, LanguageId};
 use std::collections::BTreeMap;
 
 super::simple_detector!(

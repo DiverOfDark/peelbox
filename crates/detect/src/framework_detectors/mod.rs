@@ -28,10 +28,10 @@ macro_rules! simple_detector {
     ($name:ident, $id:expr, $langs:expr, $detect_fn:expr, $ports:expr, $health:expr, $env:expr, $pkgs:expr) => {
         pub struct $name;
         impl $crate::traits::FrameworkDetector for $name {
-            fn id(&self) -> ::peelbox_stack::FrameworkId {
+            fn id(&self) -> $crate::id_enums::FrameworkId {
                 $id
             }
-            fn compatible_languages(&self) -> &[::peelbox_stack::LanguageId] {
+            fn compatible_languages(&self) -> &[$crate::id_enums::LanguageId] {
                 $langs
             }
             fn detect(&self, deps: &[$crate::types::Dependency]) -> bool {
@@ -62,7 +62,7 @@ mod tests {
     use crate::types::DepScope;
     use crate::traits::FrameworkDetector;
     use crate::types::Dependency;
-    use peelbox_stack::FrameworkId;
+    use crate::id_enums::FrameworkId;
 
     fn make_dep(name: &str) -> Dependency {
         Dependency {
