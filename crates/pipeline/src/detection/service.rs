@@ -237,21 +237,23 @@ impl DetectionService {
 
         // Use new map-reduce detection pipeline with Wolfi resolution
         let registry = peelbox_detect::Registry::with_defaults();
-        let results =
-            peelbox_detect::detect_with_registry_and_wolfi(&repo_path, &registry, Some(&wolfi_index))
-                .map_err(|e| {
-                    use peelbox_core::BackendError;
-                    ServiceError::BackendError(BackendError::Other {
-                        message: e.to_string(),
-                    })
-                })?;
+        let results = peelbox_detect::detect_with_registry_and_wolfi(
+            &repo_path,
+            &registry,
+            Some(&wolfi_index),
+        )
+        .map_err(|e| {
+            use peelbox_core::BackendError;
+            ServiceError::BackendError(BackendError::Other {
+                message: e.to_string(),
+            })
+        })?;
 
         // Ensure unique service names
         Self::ensure_unique_service_names(&results)?;
 
         // Validate all builds with Wolfi package index
-        let validator =
-            crate::validation::Validator::with_wolfi_index(Arc::new(wolfi_index));
+        let validator = crate::validation::Validator::with_wolfi_index(Arc::new(wolfi_index));
         for build in &results {
             if let Err(e) = validator.validate(build) {
                 use peelbox_core::BackendError;

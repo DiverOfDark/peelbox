@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::path::Path;
 
 pub struct DenoJsonParser;
@@ -53,9 +53,7 @@ impl ManifestParser for DenoJsonParser {
             runtime_config: RuntimeSpec {
                 packages: vec!["deno".into(), "ca-certificates".into()],
                 env: btree(&[("DENO_DIR", "/deno-dir")]),
-                entrypoint: Some(
-                    "deno run --allow-net --allow-read --allow-env main.ts".into(),
-                ),
+                entrypoint: Some("deno run --allow-net --allow-read --allow-env main.ts".into()),
                 workdir: Some("/app".into()),
                 ports: vec![8000],
                 health_endpoint: None,

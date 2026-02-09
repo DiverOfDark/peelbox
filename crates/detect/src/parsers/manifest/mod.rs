@@ -89,7 +89,9 @@ version = "0.1.0"
 serde = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 "#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("Cargo.toml"), content).unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("Cargo.toml"), content)
+                .unwrap();
         assert_eq!(manifest.language, crate::id_enums::LanguageId::Rust);
         assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Cargo);
         let pkg = manifest.package.unwrap();
@@ -104,7 +106,9 @@ tokio = { version = "1.0", features = ["full"] }
 [workspace]
 members = ["crates/*", "apps/cli"]
 "#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("Cargo.toml"), content).unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("Cargo.toml"), content)
+                .unwrap();
         let ws = manifest.workspace.unwrap();
         assert_eq!(ws.members, vec!["crates/*", "apps/cli"]);
         assert!(manifest.package.is_none());
@@ -120,7 +124,9 @@ members = ["crates/*", "apps/cli"]
             "dependencies": { "express": "^4.0.0" },
             "devDependencies": { "typescript": "^5.0.0" }
         }"#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content).unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content)
+                .unwrap();
         assert_eq!(manifest.language, crate::id_enums::LanguageId::JavaScript);
         assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Npm);
         let pkg = manifest.package.unwrap();
@@ -136,7 +142,9 @@ members = ["crates/*", "apps/cli"]
             "packageManager": "pnpm@8.0.0",
             "dependencies": { "express": "^4.0.0" }
         }"#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content).unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content)
+                .unwrap();
         assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Pnpm);
     }
 
@@ -157,14 +165,16 @@ members = ["crates/*", "apps/cli"]
         </dependency>
     </dependencies>
 </project>"#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("pom.xml"), content).unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("pom.xml"), content).unwrap();
         assert_eq!(manifest.language, crate::id_enums::LanguageId::Java);
         assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::Maven);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-app");
-        assert!(manifest.dependencies.iter().any(|d| d
-            .name
-            .contains("spring-boot-starter-web")));
+        assert!(manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name.contains("spring-boot-starter-web")));
     }
 
     #[test]
@@ -178,7 +188,8 @@ require (
     github.com/gin-gonic/gin v1.9.1
     github.com/lib/pq v1.10.9
 )"#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("go.mod"), content).unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("go.mod"), content).unwrap();
         assert_eq!(manifest.language, crate::id_enums::LanguageId::Go);
         assert_eq!(manifest.build_system, crate::id_enums::BuildSystemId::GoMod);
         let pkg = manifest.package.unwrap();
@@ -193,8 +204,9 @@ require (
 rootProject.name = 'my-project'
 include('core', 'web', 'api-service')
 "#;
-        let manifest = crate::traits::ManifestParser::parse(&parser, Path::new("settings.gradle"), content)
-            .unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("settings.gradle"), content)
+                .unwrap();
         let ws = manifest.workspace.unwrap();
         assert_eq!(ws.members, vec!["core", "web", "api-service"]);
         let pkg = manifest.package.unwrap();

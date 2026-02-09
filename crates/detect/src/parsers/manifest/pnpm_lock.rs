@@ -1,6 +1,6 @@
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -28,10 +28,7 @@ impl ManifestParser for PnpmLockParser {
             .get("version")
             .and_then(|v| v.as_str())
             .map(String::from);
-        let has_start = json
-            .get("scripts")
-            .and_then(|s| s.get("start"))
-            .is_some();
+        let has_start = json.get("scripts").and_then(|s| s.get("start")).is_some();
 
         // Lock file parsers don't carry dependencies — framework detection
         // happens on the sibling package.json manifest instead.

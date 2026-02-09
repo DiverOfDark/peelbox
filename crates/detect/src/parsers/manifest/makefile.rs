@@ -1,6 +1,6 @@
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -16,11 +16,7 @@ impl ManifestParser for MakefileParser {
             return None;
         }
 
-        let (language, runtime) = if content.contains("gcc") || content.contains("g++") {
-            (LanguageId::Cpp, RuntimeId::Native)
-        } else {
-            (LanguageId::Cpp, RuntimeId::Native)
-        };
+        let (language, runtime) = (LanguageId::Cpp, RuntimeId::Native);
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -31,11 +27,7 @@ impl ManifestParser for MakefileParser {
             workspace: None,
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: vec![
-                    "make".into(),
-                    "build-base".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: vec!["make".into(), "build-base".into(), "ca-certificates".into()],
                 commands: vec!["make".into()],
                 member_transform: None,
                 env: BTreeMap::new(),

@@ -59,10 +59,10 @@ pub(crate) use simple_detector;
 
 #[cfg(test)]
 mod tests {
-    use crate::types::DepScope;
-    use crate::traits::FrameworkDetector;
-    use crate::types::Dependency;
     use crate::id_enums::FrameworkId;
+    use crate::traits::FrameworkDetector;
+    use crate::types::DepScope;
+    use crate::types::Dependency;
 
     fn make_dep(name: &str) -> Dependency {
         Dependency {
@@ -76,9 +76,7 @@ mod tests {
     #[test]
     fn test_spring_boot_detection() {
         let detector = super::SpringBootDetector;
-        let deps = vec![make_dep(
-            "org.springframework.boot:spring-boot-starter-web",
-        )];
+        let deps = vec![make_dep("org.springframework.boot:spring-boot-starter-web")];
         assert!(detector.detect(&deps));
         let contrib = detector.contribution();
         assert_eq!(contrib.framework, FrameworkId::SpringBoot);

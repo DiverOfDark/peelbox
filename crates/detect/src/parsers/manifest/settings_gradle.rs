@@ -1,6 +1,6 @@
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::path::Path;
 
 pub struct SettingsGradleParser;
@@ -32,10 +32,8 @@ impl ManifestParser for SettingsGradleParser {
 
             if trimmed.starts_with("include") {
                 // Handle both `include('a', 'b')` and `include 'a', 'b'` syntax
-                let projects_str = if let Some(inner) = trimmed
-                    .split('(')
-                    .nth(1)
-                    .and_then(|s| s.split(')').next())
+                let projects_str = if let Some(inner) =
+                    trimmed.split('(').nth(1).and_then(|s| s.split(')').next())
                 {
                     inner.to_string()
                 } else {
@@ -43,7 +41,9 @@ impl ManifestParser for SettingsGradleParser {
                     trimmed.strip_prefix("include").unwrap_or("").to_string()
                 };
                 for project in projects_str.split(',') {
-                    let project = project.trim().trim_matches(|c: char| c == '\'' || c == '"' || c.is_whitespace());
+                    let project = project
+                        .trim()
+                        .trim_matches(|c: char| c == '\'' || c == '"' || c.is_whitespace());
                     if !project.is_empty() {
                         members.push(project.trim_start_matches(':').to_string());
                     }

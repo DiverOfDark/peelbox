@@ -46,10 +46,9 @@ pub fn parse_pom_version(content: &str) -> Option<String> {
 
     // Fallback to regex for cases where XML parsing fails
     // <maven.compiler.source>17</maven.compiler.source>
-    if let Some(caps) =
-        Regex::new(r"<maven\.compiler\.source>(\d+)</maven\.compiler\.source>")
-            .ok()
-            .and_then(|re| re.captures(content))
+    if let Some(caps) = Regex::new(r"<maven\.compiler\.source>(\d+)</maven\.compiler\.source>")
+        .ok()
+        .and_then(|re| re.captures(content))
     {
         return caps.get(1).map(|m| m.as_str().to_string());
     }
@@ -85,11 +84,10 @@ pub fn parse_gradle_version(content: &str) -> Option<String> {
     }
 
     // languageVersion.set(JavaLanguageVersion.of(21)) or languageVersion = JavaLanguageVersion.of(21)
-    if let Some(caps) = Regex::new(
-        r"languageVersion(?:\.set)?(?:\s*=\s*|\s+|\()JavaLanguageVersion\.of\((\d+)\)",
-    )
-    .ok()
-    .and_then(|re| re.captures(content))
+    if let Some(caps) =
+        Regex::new(r"languageVersion(?:\.set)?(?:\s*=\s*|\s+|\()JavaLanguageVersion\.of\((\d+)\)")
+            .ok()
+            .and_then(|re| re.captures(content))
     {
         return caps.get(1).map(|m| m.as_str().to_string());
     }
@@ -100,8 +98,7 @@ pub fn parse_gradle_version(content: &str) -> Option<String> {
         if trimmed.contains("targetCompatibility") {
             if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
                 let s = s.trim();
-                !s.is_empty()
-                    && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
+                !s.is_empty() && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
             }) {
                 let version_num = version
                     .trim()
@@ -190,7 +187,8 @@ mod tests {
 
     #[test]
     fn test_wolfi_format() {
-        let content = r#"<project><properties><java.version>17</java.version></properties></project>"#;
+        let content =
+            r#"<project><properties><java.version>17</java.version></properties></project>"#;
         assert_eq!(
             detect_java_version_wolfi(content),
             Some("openjdk-17".to_string())

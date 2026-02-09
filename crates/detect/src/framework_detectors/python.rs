@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{FrameworkId, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
-use crate::id_enums::{FrameworkId, LanguageId};
 use std::collections::BTreeMap;
 
 // ── Django ──────────────────────────────────────────────────────────────────

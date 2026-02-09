@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -16,7 +16,11 @@ impl ManifestParser for CargoTomlParser {
         let toml_val: toml::Value = toml::from_str(content).ok()?;
 
         // Check if this is a binary crate (has src/main.rs, [[bin]] section, or autobins)
-        let has_bin_section = toml_val.get("bin").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false);
+        let has_bin_section = toml_val
+            .get("bin")
+            .and_then(|v| v.as_array())
+            .map(|a| !a.is_empty())
+            .unwrap_or(false);
         let dir = path.parent().unwrap_or(Path::new("."));
         let has_main_rs = dir.join("src/main.rs").exists();
         let is_application = has_bin_section || has_main_rs;
@@ -66,7 +70,8 @@ impl ManifestParser for CargoTomlParser {
         let member_transform = if is_application {
             Some(MemberBuildTransform {
                 member_commands: vec![
-                    "cargo build --release --manifest-path {module}/Cargo.toml --target-dir target".into(),
+                    "cargo build --release --manifest-path {module}/Cargo.toml --target-dir target"
+                        .into(),
                 ],
                 member_artifacts: Some(vec![(
                     format!("target/release/{}", bin_name),
@@ -133,10 +138,9 @@ fn parse_cargo_deps(toml_val: &toml::Value) -> Vec<Dependency> {
             for (name, val) in table {
                 let version = match val {
                     toml::Value::String(s) => Some(s.clone()),
-                    toml::Value::Table(t) => t
-                        .get("version")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
+                    toml::Value::Table(t) => {
+                        t.get("version").and_then(|v| v.as_str()).map(String::from)
+                    }
                     _ => None,
                 };
                 deps.push(Dependency {

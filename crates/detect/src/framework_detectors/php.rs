@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{FrameworkId, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
-use crate::id_enums::{FrameworkId, LanguageId};
 use std::collections::BTreeMap;
 
 // ── Laravel ─────────────────────────────────────────────────────────────────
@@ -10,9 +10,7 @@ super::simple_detector!(
     LaravelDetector,
     FrameworkId::Laravel,
     &[LanguageId::PHP],
-    |deps: &[Dependency]| deps
-        .iter()
-        .any(|d| d.name == "laravel/framework"),
+    |deps: &[Dependency]| deps.iter().any(|d| d.name == "laravel/framework"),
     vec![8000],
     vec![],
     btree(&[("APP_ENV", "production")]),

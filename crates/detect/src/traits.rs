@@ -1,7 +1,7 @@
 //! Parser and detector trait definitions.
 
-use crate::types::{ConfigContribution, Dependency, FrameworkContribution, Manifest};
 use crate::id_enums::{FrameworkId, LanguageId};
+use crate::types::{ConfigContribution, Dependency, FrameworkContribution, Manifest};
 use std::path::Path;
 
 /// Parses a manifest file into a normalized Manifest.

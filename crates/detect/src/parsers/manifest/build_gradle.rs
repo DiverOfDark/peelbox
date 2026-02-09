@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::path::Path;
 
 pub struct BuildGradleParser;
@@ -31,8 +31,8 @@ impl ManifestParser for BuildGradleParser {
             .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
 
         // Detect if this is an application project (has spring-boot or application plugin)
-        let has_spring_boot = content.contains("spring-boot")
-            || content.contains("org.springframework.boot");
+        let has_spring_boot =
+            content.contains("spring-boot") || content.contains("org.springframework.boot");
         let has_application_plugin = content.contains("'application'")
             || content.contains("\"application\"")
             || content.contains("id(\"application\")");
@@ -74,9 +74,7 @@ impl ManifestParser for BuildGradleParser {
             dependencies,
             build: BuildSpec {
                 packages: vec![java_pkg.clone(), "gradle".into(), "ca-certificates".into()],
-                commands: vec![
-                    "gradle assemble -x test --no-daemon --console=plain".into(),
-                ],
+                commands: vec!["gradle assemble -x test --no-daemon --console=plain".into()],
                 member_transform: Some(MemberBuildTransform {
                     member_commands: vec![
                         "gradle :{module}:assemble -x test --no-daemon --console=plain".into(),
@@ -114,9 +112,10 @@ impl ManifestParser for BuildGradleParser {
 
 fn parse_gradle_deps(content: &str) -> Vec<Dependency> {
     let mut deps = Vec::new();
-    let dep_re =
-        regex::Regex::new(r#"(?:implementation|api|compile|runtimeOnly|testImplementation)\s*\(?["']([^"')\s]+)"#)
-            .unwrap();
+    let dep_re = regex::Regex::new(
+        r#"(?:implementation|api|compile|runtimeOnly|testImplementation)\s*\(?["']([^"')\s]+)"#,
+    )
+    .unwrap();
     for cap in dep_re.captures_iter(content) {
         if let Some(m) = cap.get(1) {
             let dep_str = m.as_str();

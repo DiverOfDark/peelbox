@@ -39,7 +39,7 @@ pub struct TypedFile {
 #[derive(Debug)]
 pub enum FileKind {
     /// A build manifest, normalized to a generic representation.
-    Manifest(Manifest),
+    Manifest(Box<Manifest>),
     /// A configuration file that contributes runtime config.
     Config(ConfigContribution),
     /// A source code file.
@@ -100,22 +100,17 @@ pub struct Dependency {
 }
 
 /// Dependency scope.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DepScope {
+    #[default]
     Runtime,
     Dev,
     Build,
     Peer,
 }
 
-impl Default for DepScope {
-    fn default() -> Self {
-        Self::Runtime
-    }
-}
-
 /// Build specification — what's needed to build this project.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BuildSpec {
     /// Wolfi packages for build stage.
     pub packages: Vec<String>,
@@ -229,19 +224,6 @@ impl ServiceBucket {
 }
 
 // ── Default impls ───────────────────────────────────────────────────────────
-
-impl Default for BuildSpec {
-    fn default() -> Self {
-        Self {
-            packages: Vec::new(),
-            commands: Vec::new(),
-            member_transform: None,
-            env: BTreeMap::new(),
-            cache_dirs: Vec::new(),
-            artifacts: Vec::new(),
-        }
-    }
-}
 
 impl Default for RuntimeSpec {
     fn default() -> Self {

@@ -1,6 +1,6 @@
+use crate::id_enums::{FrameworkId, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
-use crate::id_enums::{FrameworkId, LanguageId};
 use std::collections::BTreeMap;
 
 // ── Spring Boot ─────────────────────────────────────────────────────────────
@@ -45,9 +45,7 @@ super::simple_detector!(
     QuarkusDetector,
     FrameworkId::Quarkus,
     &[LanguageId::Java, LanguageId::Kotlin],
-    |deps: &[Dependency]| deps
-        .iter()
-        .any(|d| d.name.contains("io.quarkus:quarkus-")),
+    |deps: &[Dependency]| deps.iter().any(|d| d.name.contains("io.quarkus:quarkus-")),
     vec![8080],
     vec!["/q/health".into()],
     BTreeMap::new(),
@@ -83,9 +81,7 @@ super::simple_detector!(
     KtorDetector,
     FrameworkId::Ktor,
     &[LanguageId::Kotlin],
-    |deps: &[Dependency]| deps
-        .iter()
-        .any(|d| d.name.contains("io.ktor:ktor-")),
+    |deps: &[Dependency]| deps.iter().any(|d| d.name.contains("io.ktor:ktor-")),
     vec![8080],
     vec![],
     BTreeMap::new(),

@@ -50,10 +50,7 @@ impl ConfigParser for DockerfileParser {
                 if let Some(idx) = trimmed.find("curl") {
                     let rest = &trimmed[idx..];
                     if let Some(url_start) = rest.find("http") {
-                        let url = rest[url_start..]
-                            .split_whitespace()
-                            .next()
-                            .unwrap_or("");
+                        let url = rest[url_start..].split_whitespace().next().unwrap_or("");
                         if let Some(path_start) = url.find("localhost") {
                             let after_host = &url[path_start..];
                             if let Some(slash_idx) = after_host[9..].find('/') {

@@ -1,6 +1,6 @@
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -19,10 +19,7 @@ impl ManifestParser for PackageJsonParser {
             .get("version")
             .and_then(|v| v.as_str())
             .map(String::from);
-        let has_start = json
-            .get("scripts")
-            .and_then(|s| s.get("start"))
-            .is_some();
+        let has_start = json.get("scripts").and_then(|s| s.get("start")).is_some();
 
         let build_system = match json.get("packageManager").and_then(|v| v.as_str()) {
             Some(pm) if pm.starts_with("yarn") => BuildSystemId::Yarn,
@@ -103,11 +100,12 @@ impl ManifestParser for PackageJsonParser {
             workspace,
             dependencies,
             build: BuildSpec {
-                packages: vec!["nodejs".into(), pkg_manager.into(), "ca-certificates".into()],
-                commands: vec![
-                    "npm ci".to_string(),
-                    format!("{} run build", pkg_manager),
+                packages: vec![
+                    "nodejs".into(),
+                    pkg_manager.into(),
+                    "ca-certificates".into(),
                 ],
+                commands: vec!["npm ci".to_string(), format!("{} run build", pkg_manager)],
                 member_transform: Some(MemberBuildTransform {
                     member_commands: vec![
                         "npm ci".to_string(),

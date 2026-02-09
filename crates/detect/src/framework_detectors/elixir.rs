@@ -1,5 +1,5 @@
-use crate::types::Dependency;
 use crate::id_enums::{FrameworkId, LanguageId};
+use crate::types::Dependency;
 use std::collections::BTreeMap;
 
 super::simple_detector!(

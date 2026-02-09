@@ -79,9 +79,7 @@ pub fn detect_with_registry_and_wolfi(
     }
 
     // Filter out non-application builds (e.g., library crates, utility packages)
-    builds.retain(|b| {
-        !b.runtime.command.is_empty()
-    });
+    builds.retain(|b| !b.runtime.command.is_empty());
 
     info!(builds = builds.len(), "Detection pipeline complete");
     Ok(builds)
@@ -115,10 +113,7 @@ fn build_tree(repo_path: &Path, registry: &Registry) -> Result<RepoTree> {
             .unwrap_or(abs_path)
             .to_path_buf();
 
-        let filename = rel_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let filename = rel_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         let dir = rel_path
             .parent()
@@ -126,17 +121,17 @@ fn build_tree(repo_path: &Path, registry: &Registry) -> Result<RepoTree> {
             .to_path_buf();
 
         let kind = classify_file(
-            &abs_path,
+            abs_path,
             &rel_path,
             filename,
             &manifest_lookup,
             &config_lookup,
         );
 
-        file_map
-            .entry(dir)
-            .or_default()
-            .push(TypedFile { path: rel_path, kind });
+        file_map.entry(dir).or_default().push(TypedFile {
+            path: rel_path,
+            kind,
+        });
     }
 
     // Build hierarchical tree from flat map
@@ -148,9 +143,7 @@ fn build_tree(repo_path: &Path, registry: &Registry) -> Result<RepoTree> {
     })
 }
 
-fn build_parser_lookup<'a>(
-    parsers: &'a [Box<dyn ManifestParser>],
-) -> HashMap<&'a str, &'a dyn ManifestParser> {
+fn build_parser_lookup(parsers: &[Box<dyn ManifestParser>]) -> HashMap<&str, &dyn ManifestParser> {
     let mut map = HashMap::new();
     for parser in parsers {
         for filename in parser.filenames() {
@@ -160,9 +153,7 @@ fn build_parser_lookup<'a>(
     map
 }
 
-fn build_config_lookup<'a>(
-    parsers: &'a [Box<dyn ConfigParser>],
-) -> HashMap<&'a str, &'a dyn ConfigParser> {
+fn build_config_lookup(parsers: &[Box<dyn ConfigParser>]) -> HashMap<&str, &dyn ConfigParser> {
     let mut map = HashMap::new();
     for parser in parsers {
         for filename in parser.filenames() {
@@ -186,7 +177,7 @@ fn classify_file(
                 // Normalize path back to relative
                 manifest.path = rel_path.to_path_buf();
                 debug!(file = %rel_path.display(), "Parsed manifest");
-                return FileKind::Manifest(manifest);
+                return FileKind::Manifest(Box::new(manifest));
             }
         }
     }
@@ -198,7 +189,7 @@ fn classify_file(
             if let Some(mut manifest) = ManifestParser::parse(&csproj_parser, abs_path, &content) {
                 manifest.path = rel_path.to_path_buf();
                 debug!(file = %rel_path.display(), "Parsed .NET project file");
-                return FileKind::Manifest(manifest);
+                return FileKind::Manifest(Box::new(manifest));
             }
         }
     }
@@ -275,10 +266,7 @@ fn collect_manifests_with_frameworks(
     for file in &node.files {
         if let FileKind::Manifest(manifest) = &file.kind {
             let mut framework = detectors.iter().find_map(|detector| {
-                if !detector
-                    .compatible_languages()
-                    .contains(&manifest.language)
-                {
+                if !detector.compatible_languages().contains(&manifest.language) {
                     return None;
                 }
                 if detector.detect(&manifest.dependencies) {
@@ -311,7 +299,7 @@ fn collect_manifests_with_frameworks(
 
             results.push(ManifestWithFramework {
                 path: file.path.clone(),
-                manifest: manifest.clone(),
+                manifest: *manifest.clone(),
                 framework,
             });
         }
@@ -337,10 +325,7 @@ fn collect_configs(node: &DirNode) -> Vec<ConfigContribution> {
     configs
 }
 
-fn partition(
-    tree: &RepoTree,
-    manifests: Vec<ManifestWithFramework>,
-) -> Vec<ServiceBucket> {
+fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<ServiceBucket> {
     // Group manifests by directory
     let mut dir_manifests: HashMap<PathBuf, Vec<ManifestWithFramework>> = HashMap::new();
     for mwf in manifests {
@@ -404,10 +389,23 @@ fn partition(
             // Merge package info: combine name and version from different manifests
             {
                 let mut merged_name = primary.manifest.package.as_ref().and_then(|p| {
-                    if p.name.is_empty() { None } else { Some(p.name.clone()) }
+                    if p.name.is_empty() {
+                        None
+                    } else {
+                        Some(p.name.clone())
+                    }
                 });
-                let mut merged_version = primary.manifest.package.as_ref().and_then(|p| p.version.clone());
-                let mut merged_is_app = primary.manifest.package.as_ref().map(|p| p.is_application).unwrap_or(false);
+                let mut merged_version = primary
+                    .manifest
+                    .package
+                    .as_ref()
+                    .and_then(|p| p.version.clone());
+                let mut merged_is_app = primary
+                    .manifest
+                    .package
+                    .as_ref()
+                    .map(|p| p.is_application)
+                    .unwrap_or(false);
 
                 for other in manifests_in_dir.iter() {
                     if let Some(other_pkg) = &other.manifest.package {
@@ -437,7 +435,12 @@ fn partition(
             if lock_file_idx.is_none() {
                 for other in manifests_in_dir.iter() {
                     for dep in &other.manifest.dependencies {
-                        if !primary.manifest.dependencies.iter().any(|d| d.name == dep.name) {
+                        if !primary
+                            .manifest
+                            .dependencies
+                            .iter()
+                            .any(|d| d.name == dep.name)
+                        {
                             primary.manifest.dependencies.push(dep.clone());
                         }
                     }
@@ -486,33 +489,43 @@ fn partition(
     let mut buckets = Vec::new();
 
     // Check for turbo.json at repo root or workspace roots
-    let has_turbo_json = tree.tree.files.iter().any(|f| {
-        f.path.file_name().and_then(|n| n.to_str()) == Some("turbo.json")
-    });
+    let has_turbo_json = tree
+        .tree
+        .files
+        .iter()
+        .any(|f| f.path.file_name().and_then(|n| n.to_str()) == Some("turbo.json"));
 
     if !workspace_roots.is_empty() {
         // Workspace mode: expand member patterns
         for (ws_root, workspace) in &workspace_roots {
-            let expanded_members = expand_workspace_members(
-                &tree.root,
-                ws_root,
-                &workspace.members,
-                &merged,
-            );
+            let expanded_members =
+                expand_workspace_members(&tree.root, ws_root, &workspace.members, &merged);
 
             // Get workspace root manifest info for propagation
             let ws_root_manifest = merged.get(ws_root);
             let ws_root_build_env = ws_root_manifest.map(|m| m.manifest.build.env.clone());
-            let ws_root_build_packages = ws_root_manifest.map(|m| m.manifest.build.packages.clone());
-            let ws_root_runtime_env = ws_root_manifest.map(|m| m.manifest.runtime_config.env.clone());
-            let ws_root_runtime_packages = ws_root_manifest.map(|m| m.manifest.runtime_config.packages.clone());
+            let ws_root_build_packages =
+                ws_root_manifest.map(|m| m.manifest.build.packages.clone());
+            let ws_root_runtime_env =
+                ws_root_manifest.map(|m| m.manifest.runtime_config.env.clone());
+            let ws_root_runtime_packages =
+                ws_root_manifest.map(|m| m.manifest.runtime_config.packages.clone());
 
             for member_dir in expanded_members {
                 if let Some(mut mwf) = merged.remove(&member_dir) {
                     let configs = collect_configs_for_service(&member_dir, ws_root, &dir_configs);
                     // Add .turbo to cache dirs when turbo.json is present
-                    if has_turbo_json && !mwf.manifest.build.cache_dirs.contains(&".turbo".to_string()) {
-                        mwf.manifest.build.cache_dirs.insert(1.min(mwf.manifest.build.cache_dirs.len()), ".turbo".to_string());
+                    if has_turbo_json
+                        && !mwf
+                            .manifest
+                            .build
+                            .cache_dirs
+                            .contains(&".turbo".to_string())
+                    {
+                        mwf.manifest.build.cache_dirs.insert(
+                            1.min(mwf.manifest.build.cache_dirs.len()),
+                            ".turbo".to_string(),
+                        );
                     }
 
                     // Propagate versioned packages from workspace root to members
@@ -521,7 +534,10 @@ fn partition(
                         propagate_versioned_packages(&mut mwf.manifest.build.packages, ws_packages);
                     }
                     if let Some(ref ws_packages) = ws_root_runtime_packages {
-                        propagate_versioned_packages(&mut mwf.manifest.runtime_config.packages, ws_packages);
+                        propagate_versioned_packages(
+                            &mut mwf.manifest.runtime_config.packages,
+                            ws_packages,
+                        );
                     }
                     // Propagate build env from workspace root (e.g., JAVA_HOME).
                     // Use insert (overwrite) because child modules may have default values
@@ -584,7 +600,7 @@ fn partition(
 /// Propagate versioned packages from workspace root to member.
 /// If the member has an unversioned package (e.g., "openjdk") and the root has a versioned
 /// one (e.g., "openjdk-17"), replace the member's with the root's version.
-fn propagate_versioned_packages(member_packages: &mut Vec<String>, root_packages: &[String]) {
+fn propagate_versioned_packages(member_packages: &mut [String], root_packages: &[String]) {
     for member_pkg in member_packages.iter_mut() {
         // Skip already-versioned packages
         if member_pkg.contains('-') {
@@ -712,7 +728,8 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
                     crate::id_enums::BuildSystemId::Maven => {
                         // Maven: use -f flag
                         if cmd.starts_with("mvn ") {
-                            let mut result = cmd.replacen("mvn ", &format!("mvn -f {}/pom.xml ", subdir), 1);
+                            let mut result =
+                                cmd.replacen("mvn ", &format!("mvn -f {}/pom.xml ", subdir), 1);
                             // For dependency:copy-dependencies, ensure the target dir exists
                             if cmd.contains("dependency:copy-dependencies") {
                                 result = format!("{}; mkdir -p {}/target/lib", result, subdir);
@@ -784,10 +801,7 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     } else if is_subdirectory {
         // For standalone subdirectory projects, prepend directory to artifact paths
         // Exception: Cargo projects use --target-dir target, so artifacts are at repo root
-        let uses_shared_target = matches!(
-            m.build_system,
-            crate::id_enums::BuildSystemId::Cargo
-        );
+        let uses_shared_target = matches!(m.build_system, crate::id_enums::BuildSystemId::Cargo);
         m.build
             .artifacts
             .iter()
@@ -897,24 +911,26 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
         // For root-level projects: use package name only from strong naming sources
         // (npm, cargo, zig), not from settings.gradle or pyproject.toml
         match m.build_system {
-            crate::id_enums::BuildSystemId::Gradle | crate::id_enums::BuildSystemId::Poetry
-            | crate::id_enums::BuildSystemId::Pip => {
-                Some("app".into())
-            }
-            _ => {
-                m.package.as_ref()
-                    .filter(|p| !p.name.is_empty())
-                    .map(|p| p.name.clone())
-                    .or(Some("app".into()))
-            }
+            crate::id_enums::BuildSystemId::Gradle
+            | crate::id_enums::BuildSystemId::Poetry
+            | crate::id_enums::BuildSystemId::Pip => Some("app".into()),
+            _ => m
+                .package
+                .as_ref()
+                .filter(|p| !p.name.is_empty())
+                .map(|p| p.name.clone())
+                .or(Some("app".into())),
         }
     } else {
         // Non-root: package name or directory name
-        m.package.as_ref()
+        m.package
+            .as_ref()
             .filter(|p| !p.name.is_empty())
             .map(|p| p.name.clone())
             .or_else(|| {
-                bucket.path.file_name()
+                bucket
+                    .path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .map(|s| s.to_string())
             })
@@ -925,13 +941,15 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root Node.js projects, use pkg_manager start instead of direct command
-        if !is_root_project && matches!(
-            m.build_system,
-            crate::id_enums::BuildSystemId::Npm
-            | crate::id_enums::BuildSystemId::Pnpm
-            | crate::id_enums::BuildSystemId::Yarn
-            | crate::id_enums::BuildSystemId::Bun
-        ) {
+        if !is_root_project
+            && matches!(
+                m.build_system,
+                crate::id_enums::BuildSystemId::Npm
+                    | crate::id_enums::BuildSystemId::Pnpm
+                    | crate::id_enums::BuildSystemId::Yarn
+                    | crate::id_enums::BuildSystemId::Bun
+            )
+        {
             let pkg_manager = match m.build_system {
                 crate::id_enums::BuildSystemId::Yarn => "yarn",
                 crate::id_enums::BuildSystemId::Pnpm => "pnpm",
@@ -959,7 +977,11 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
             build_system: m.build_system.name(),
             framework: framework_name,
             reasoning: {
-                let filename = m.path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                let filename = m
+                    .path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
                 let parent = m.path.parent().filter(|p| !p.as_os_str().is_empty());
                 match parent {
                     Some(dir) => format!("Detected from {} in {}", filename, dir.display()),
@@ -1008,7 +1030,7 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
 ];
 
 /// Resolve generic package names to versioned Wolfi package names.
-fn resolve_wolfi_packages(packages: &mut Vec<String>, wolfi: &WolfiPackageIndex) {
+fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
     for pkg in packages.iter_mut() {
         // Skip if already exists in Wolfi (versioned or generic like "build-base")
         if wolfi.has_package(pkg) {
@@ -1023,7 +1045,10 @@ fn resolve_wolfi_packages(packages: &mut Vec<String>, wolfi: &WolfiPackageIndex)
         }
 
         // Check if this is a versionable package
-        if let Some((_, prefix)) = VERSIONABLE_PACKAGES.iter().find(|(name, _)| *name == pkg.as_str()) {
+        if let Some((_, prefix)) = VERSIONABLE_PACKAGES
+            .iter()
+            .find(|(name, _)| *name == pkg.as_str())
+        {
             if let Some(resolved) = wolfi.get_latest_version(prefix) {
                 debug!(from = %pkg, to = %resolved, "Resolved Wolfi package version");
                 *pkg = resolved;
@@ -1059,12 +1084,11 @@ fn resolve_wolfi_packages(packages: &mut Vec<String>, wolfi: &WolfiPackageIndex)
                     *pkg = format!("dotnet-{}-sdk", ver);
                 }
             }
-        } else if pkg.starts_with("dotnet-") && pkg.ends_with("-runtime") {
-            if !wolfi.has_package(pkg) {
-                if let Some(latest) = wolfi.get_latest_version("dotnet") {
-                    let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
-                    *pkg = format!("dotnet-{}-runtime", ver);
-                }
+        } else if pkg.starts_with("dotnet-") && pkg.ends_with("-runtime") && !wolfi.has_package(pkg)
+        {
+            if let Some(latest) = wolfi.get_latest_version("dotnet") {
+                let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
+                *pkg = format!("dotnet-{}-runtime", ver);
             }
         }
     }
@@ -1098,7 +1122,9 @@ fn resolve_wolfi_packages(packages: &mut Vec<String>, wolfi: &WolfiPackageIndex)
     // ruby is already resolved to e.g. ruby-3.4 by VERSIONABLE_PACKAGES
     let ruby_version = packages
         .iter()
-        .find(|p| p.starts_with("ruby-") && p[5..].chars().next().is_some_and(|c| c.is_ascii_digit()))
+        .find(|p| {
+            p.starts_with("ruby-") && p[5..].chars().next().is_some_and(|c| c.is_ascii_digit())
+        })
         .and_then(|p| p.strip_prefix("ruby-"))
         .map(String::from);
 
@@ -1119,7 +1145,6 @@ fn resolve_wolfi_packages(packages: &mut Vec<String>, wolfi: &WolfiPackageIndex)
             }
         }
     }
-
 }
 
 // ── Source code port scanning ────────────────────────────────────────────────
@@ -1140,10 +1165,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
     (
         "JavaScript",
         &["js", "ts", "mjs", "cjs"],
-        &[
-            r"\.listen\(\s*(\d{4,5})",
-            r#"port["\s:=]+(\d{4,5})"#,
-        ],
+        &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
     ),
     (
         "Python",
@@ -1169,13 +1191,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
             r#"server\.port\s*=\s*(\d{4,5})"#,
         ],
     ),
-    (
-        "Elixir",
-        &["ex", "exs"],
-        &[
-            r#"port:\s*(\d{4,5})"#,
-        ],
-    ),
+    ("Elixir", &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
 ];
 
 /// Scan source files in a project directory for port patterns.
@@ -1183,9 +1199,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
 fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
 
-    let patterns_entry = PORT_PATTERNS
-        .iter()
-        .find(|(lang, _, _)| *lang == language);
+    let patterns_entry = PORT_PATTERNS.iter().find(|(lang, _, _)| *lang == language);
 
     let (_, extensions, patterns) = match patterns_entry {
         Some(entry) => entry,
@@ -1232,10 +1246,7 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         }
 
         let path = entry.path();
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         if !extensions.contains(&ext) {
             continue;
@@ -1340,9 +1351,7 @@ mod tests {
                     packages: vec!["openjdk-21".into(), "maven".into()],
                     commands: vec!["mvn package -DskipTests".into()],
                     member_transform: Some(MemberBuildTransform {
-                        member_commands: vec![
-                            "mvn -pl {module} -am install -DskipTests".into(),
-                        ],
+                        member_commands: vec!["mvn -pl {module} -am install -DskipTests".into()],
                         member_artifacts: Some(vec![(
                             "{module}/target/*.jar".into(),
                             "/app/".into(),

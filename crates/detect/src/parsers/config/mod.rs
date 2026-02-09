@@ -26,7 +26,8 @@ mod tests {
     #[test]
     fn test_dockerfile_parser() {
         let parser = DockerfileParser;
-        let content = "FROM node:18\nEXPOSE 3000\nENV NODE_ENV=production\nCMD [\"node\", \"index.js\"]";
+        let content =
+            "FROM node:18\nEXPOSE 3000\nENV NODE_ENV=production\nCMD [\"node\", \"index.js\"]";
         let contrib = parser.parse(Path::new("Dockerfile"), content).unwrap();
         assert_eq!(contrib.ports, vec![3000]);
         assert_eq!(

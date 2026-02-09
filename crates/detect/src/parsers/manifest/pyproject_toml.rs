@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -15,10 +15,7 @@ impl ManifestParser for PyProjectTomlParser {
     fn parse(&self, path: &Path, content: &str) -> Option<Manifest> {
         let toml_val: toml::Value = toml::from_str(content).ok()?;
 
-        let is_poetry = toml_val
-            .get("tool")
-            .and_then(|t| t.get("poetry"))
-            .is_some();
+        let is_poetry = toml_val.get("tool").and_then(|t| t.get("poetry")).is_some();
 
         let (name, version) = if is_poetry {
             let poetry = toml_val.get("tool").and_then(|t| t.get("poetry"));
@@ -82,10 +79,7 @@ impl ManifestParser for PyProjectTomlParser {
                         ("POETRY_CACHE_DIR", "/root/.cache/pypoetry"),
                         ("POETRY_VIRTUALENVS_IN_PROJECT", "true"),
                     ]),
-                    cache_dirs: vec![
-                        "/root/.cache/pip/".into(),
-                        "/root/.cache/pypoetry/".into(),
-                    ],
+                    cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pypoetry/".into()],
                     artifacts: vec![(".".into(), "/build".into())],
                 },
                 runtime_config: RuntimeSpec {
@@ -164,10 +158,9 @@ fn parse_pyproject_deps(toml_val: &toml::Value, is_poetry: bool) -> Vec<Dependen
                 }
                 let version = match val {
                     toml::Value::String(s) => Some(s.clone()),
-                    toml::Value::Table(t) => t
-                        .get("version")
-                        .and_then(|v| v.as_str())
-                        .map(String::from),
+                    toml::Value::Table(t) => {
+                        t.get("version").and_then(|v| v.as_str()).map(String::from)
+                    }
                     _ => None,
                 };
                 deps.push(Dependency {

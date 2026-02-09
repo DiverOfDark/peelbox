@@ -1,7 +1,7 @@
 use crate::helpers::btree;
+use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -30,20 +30,16 @@ impl ManifestParser for CsprojParser {
             LanguageId::CSharp
         };
 
-        let file_stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(String::from);
+        let file_stem = path.file_stem().and_then(|s| s.to_str()).map(String::from);
 
         // Extract .NET version from TargetFramework (e.g., "net8.0" -> "8")
-        let dotnet_version =
-            regex::Regex::new(r"<TargetFramework>net(\d+)\.\d+</TargetFramework>")
-                .ok()
-                .and_then(|re| {
-                    re.captures(content)
-                        .and_then(|c| c.get(1))
-                        .map(|m| m.as_str().to_string())
-                });
+        let dotnet_version = regex::Regex::new(r"<TargetFramework>net(\d+)\.\d+</TargetFramework>")
+            .ok()
+            .and_then(|re| {
+                re.captures(content)
+                    .and_then(|c| c.get(1))
+                    .map(|m| m.as_str().to_string())
+            });
 
         let sdk_pkg = dotnet_version
             .as_ref()
