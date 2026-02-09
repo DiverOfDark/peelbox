@@ -30,6 +30,18 @@ impl ManifestParser for BuildGradleParser {
             .and_then(|re| re.captures(content))
             .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
 
+        // Extract project name from build.gradle content (not from directory — that's unreliable)
+        let project_name = regex::Regex::new(r#"(?m)archivesBaseName\s*=\s*["']([^"']+)["']"#)
+            .ok()
+            .and_then(|re| re.captures(content))
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+            .or_else(|| {
+                regex::Regex::new(r#"(?m)rootProject\.name\s*=\s*["']([^"']+)["']"#)
+                    .ok()
+                    .and_then(|re| re.captures(content))
+                    .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+            });
+
         // Detect if this is an application project (has spring-boot or application plugin)
         let has_spring_boot =
             content.contains("spring-boot") || content.contains("org.springframework.boot");
@@ -44,7 +56,10 @@ impl ManifestParser for BuildGradleParser {
         );
 
         let entrypoint = if is_application {
-            Some("java -jar /app/app.jar".into())
+            match (&project_name, &gradle_version) {
+                (Some(name), Some(ver)) => Some(format!("java -jar /app/{}-{}.jar", name, ver)),
+                _ => Some("java -jar /app/app.jar".into()),
+            }
         } else {
             None
         };

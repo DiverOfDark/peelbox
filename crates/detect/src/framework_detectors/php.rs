@@ -12,7 +12,7 @@ super::simple_detector!(
     &[LanguageId::PHP],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "laravel/framework"),
     vec![8000],
-    vec![],
+    vec!["/health".into(), "/_health".into()],
     btree(&[("APP_ENV", "production")]),
     vec![]
 );

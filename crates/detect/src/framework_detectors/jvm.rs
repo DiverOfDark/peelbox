@@ -24,7 +24,11 @@ impl FrameworkDetector for SpringBootDetector {
         FrameworkContribution {
             framework: FrameworkId::SpringBoot,
             default_ports: vec![8080],
-            health_endpoints: vec!["/actuator/health".into()],
+            health_endpoints: vec![
+                "/actuator/health".into(),
+                "/actuator/health/liveness".into(),
+                "/actuator/health/readiness".into(),
+            ],
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
             runtime_env: BTreeMap::new(),
@@ -83,7 +87,7 @@ super::simple_detector!(
     &[LanguageId::Kotlin],
     |deps: &[Dependency]| deps.iter().any(|d| d.name.contains("io.ktor:ktor-")),
     vec![8080],
-    vec![],
+    vec!["/health".into()],
     BTreeMap::new(),
     vec![]
 );

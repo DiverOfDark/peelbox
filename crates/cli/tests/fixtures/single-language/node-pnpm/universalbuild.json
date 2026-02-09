@@ -11,7 +11,7 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25",
+        "nodejs-22",
         "pnpm",
         "build-base",
         "python-3.14",
@@ -38,12 +38,15 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-25",
+        "nodejs-22",
         "npm",
         "busybox",
         "dumb-init",
         "ca-certificates"
       ],
+      "health": {
+        "endpoint": "/health"
+      },
       "ports": [
         3000
       ],

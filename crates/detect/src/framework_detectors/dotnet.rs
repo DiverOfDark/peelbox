@@ -20,7 +20,7 @@ impl FrameworkDetector for AspNetCoreDetector {
         FrameworkContribution {
             framework: FrameworkId::AspNetCore,
             default_ports: vec![5000],
-            health_endpoints: vec!["/health".into()],
+            health_endpoints: vec!["/health".into(), "/healthz".into()],
             env_vars: btree(&[("ASPNETCORE_URLS", "http://0.0.0.0:5000")]),
             runtime_packages: vec![],
             runtime_command: None,

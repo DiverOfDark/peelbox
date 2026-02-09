@@ -10,7 +10,7 @@ super::simple_detector!(
         .iter()
         .any(|d| d.name.contains("github.com/gin-gonic/gin")),
     vec![8080],
-    vec!["/health".into()],
+    vec!["/health".into(), "/healthz".into(), "/ping".into()],
     BTreeMap::new(),
     vec![]
 );
@@ -27,7 +27,7 @@ super::simple_detector!(
         .iter()
         .any(|d| d.name.contains("github.com/labstack/echo")),
     vec![8080],
-    vec![],
+    vec!["/health".into(), "/healthz".into()],
     BTreeMap::new(),
     vec![]
 );

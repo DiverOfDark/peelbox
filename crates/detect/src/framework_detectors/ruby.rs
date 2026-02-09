@@ -12,7 +12,7 @@ super::simple_detector!(
     &[LanguageId::Ruby],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "rails"),
     vec![3000],
-    vec!["/up".into()],
+    vec!["/health".into(), "/up".into()],
     btree(&[("RAILS_ENV", "production")]),
     vec![]
 );

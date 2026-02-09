@@ -70,6 +70,26 @@ pub fn detect_with_registry_and_wolfi(
         scan_source_ports(repo_path, build);
     }
 
+    // Step 4c: Scan source code for health endpoints
+    for build in &mut builds {
+        scan_source_health(repo_path, build);
+    }
+
+    // Step 4d: Scan source code for environment variables
+    for build in &mut builds {
+        scan_source_env_vars(repo_path, build);
+    }
+
+    // Step 4e: Scan version files (.nvmrc, .python-version, etc.)
+    for build in &mut builds {
+        scan_version_files(repo_path, build);
+    }
+
+    // Step 4f: Scan Python entrypoints
+    for build in &mut builds {
+        scan_python_entrypoints(repo_path, build);
+    }
+
     // Step 5: Resolve Wolfi package versions
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
@@ -1227,14 +1247,7 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
     }
 
     // Determine the project directory to scan
-    let reasoning = &build.metadata.reasoning;
-    let project_dir = if let Some(in_pos) = reasoning.rfind(" in ") {
-        // Extract directory from "Detected from Cargo.toml in app" → "app"
-        let dir = &reasoning[in_pos + 4..];
-        repo_root.join(dir)
-    } else {
-        repo_root.to_path_buf()
-    };
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
 
     if !project_dir.is_dir() {
         return;
@@ -1287,6 +1300,366 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         source_ports.sort();
         source_ports.dedup();
         build.runtime.ports = source_ports;
+    }
+}
+
+// ── Source code health endpoint scanning ──────────────────────────────────
+
+/// Language-specific regex patterns for detecting health endpoints in source code.
+const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
+    (
+        "JavaScript",
+        &["js", "ts", "mjs", "cjs"],
+        &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+    (
+        "TypeScript",
+        &["js", "ts", "mjs", "cjs"],
+        &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+    (
+        "Java",
+        &["java", "kt", "kts"],
+        &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+    (
+        "Kotlin",
+        &["java", "kt", "kts"],
+        &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+    (
+        "Python",
+        &["py"],
+        &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+    (
+        "Go",
+        &["go"],
+        &[r#"\.(?:GET|Handle(?:Func)?)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+    (
+        "Rust",
+        &["rs"],
+        &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+    ),
+];
+
+/// Scan source files for health endpoint patterns.
+/// Only sets health if not already set by config or framework.
+fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
+    if build.runtime.health.is_some() {
+        return;
+    }
+
+    let language = &build.metadata.language;
+    let patterns_entry = HEALTH_PATTERNS
+        .iter()
+        .find(|(lang, _, _)| *lang == language);
+    let (_, extensions, patterns) = match patterns_entry {
+        Some(entry) => entry,
+        None => return,
+    };
+
+    let compiled: Vec<regex::Regex> = patterns
+        .iter()
+        .filter_map(|p| regex::Regex::new(p).ok())
+        .collect();
+
+    if compiled.is_empty() {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    if !project_dir.is_dir() {
+        return;
+    }
+
+    let walker = WalkBuilder::new(&project_dir)
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(true)
+        .build();
+
+    for entry in walker.flatten() {
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+
+        let path = entry.path();
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !extensions.contains(&ext) {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        for re in &compiled {
+            if let Some(cap) = re.captures(&content) {
+                if let Some(endpoint) = cap.get(1) {
+                    let ep = endpoint.as_str().to_string();
+                    debug!(endpoint = %ep, file = %path.display(), "Found health endpoint in source code");
+                    build.runtime.health = Some(HealthCheck { endpoint: ep });
+                    return;
+                }
+            }
+        }
+    }
+}
+
+// ── Source code env var scanning ──────────────────────────────────────────
+
+/// Language-specific regex patterns for detecting environment variable access.
+const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
+    (
+        "JavaScript",
+        &["js", "ts", "mjs", "cjs"],
+        &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
+    ),
+    (
+        "TypeScript",
+        &["js", "ts", "mjs", "cjs"],
+        &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
+    ),
+    (
+        "Python",
+        &["py"],
+        &[
+            r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+            r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+        ],
+    ),
+    ("Rust", &["rs"], &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#]),
+    ("Go", &["go"], &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#]),
+    (
+        "Java",
+        &["java", "kt", "kts"],
+        &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+    (
+        "Kotlin",
+        &["java", "kt", "kts"],
+        &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+];
+
+/// Built-in environment variables to skip.
+const BUILTIN_ENV_VARS: &[&str] = &["PATH", "HOME", "USER", "SHELL", "LANG", "TERM"];
+
+/// Scan source files for environment variable references.
+/// Adds discovered vars to runtime env with empty values (only if not already present).
+fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
+    let language = &build.metadata.language;
+    let patterns_entry = ENV_VAR_PATTERNS
+        .iter()
+        .find(|(lang, _, _)| *lang == language);
+    let (_, extensions, patterns) = match patterns_entry {
+        Some(entry) => entry,
+        None => return,
+    };
+
+    let compiled: Vec<regex::Regex> = patterns
+        .iter()
+        .filter_map(|p| regex::Regex::new(p).ok())
+        .collect();
+
+    if compiled.is_empty() {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    if !project_dir.is_dir() {
+        return;
+    }
+
+    let walker = WalkBuilder::new(&project_dir)
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(true)
+        .build();
+
+    for entry in walker.flatten() {
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+
+        let path = entry.path();
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if !extensions.contains(&ext) {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        for re in &compiled {
+            for cap in re.captures_iter(&content) {
+                if let Some(var_match) = cap.get(1) {
+                    let var_name = var_match.as_str();
+                    if BUILTIN_ENV_VARS.contains(&var_name) {
+                        continue;
+                    }
+                    if !build.runtime.env.contains_key(var_name) {
+                        debug!(var = var_name, file = %path.display(), "Found env var in source code");
+                        build
+                            .runtime
+                            .env
+                            .insert(var_name.to_string(), String::new());
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Version file scanning ────────────────────────────────────────────────
+
+/// Scan for language version files (.nvmrc, .node-version, .python-version)
+/// and update package names to include specific versions.
+fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
+    let language = &build.metadata.language;
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+
+    match language.as_str() {
+        "JavaScript" | "TypeScript" => {
+            if let Some(version) = read_node_version(&project_dir, repo_root) {
+                let versioned_pkg = format!("nodejs-{}", version);
+                replace_package(&mut build.build.packages, "nodejs", &versioned_pkg);
+                replace_package(&mut build.runtime.packages, "nodejs", &versioned_pkg);
+            }
+        }
+        "Python" => {
+            if let Some(version) = read_python_version(&project_dir, repo_root) {
+                let versioned_pkg = format!("python-{}", version);
+                replace_package(&mut build.build.packages, "python", &versioned_pkg);
+                replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Read Node.js version from .nvmrc or .node-version file.
+fn read_node_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        for filename in &[".nvmrc", ".node-version"] {
+            let path = dir.join(filename);
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let trimmed = content.trim();
+                if let Some(version) = parse_node_version_string(trimmed) {
+                    return Some(version);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Parse a Node.js version string: strip 'v' prefix, map LTS codenames, extract major.
+fn parse_node_version_string(s: &str) -> Option<String> {
+    let s = s.trim().trim_start_matches('v');
+
+    // Map LTS codenames
+    let s = match s.to_lowercase().as_str() {
+        "lts/iron" => "20",
+        "lts/hydrogen" => "18",
+        "lts/gallium" => "16",
+        "lts/fermium" => "14",
+        "lts/*" => return None, // Can't resolve "latest LTS" statically
+        _ => s,
+    };
+
+    // Extract major version
+    let major = s.split('.').next()?;
+    if major.chars().all(|c| c.is_ascii_digit()) && !major.is_empty() {
+        Some(major.to_string())
+    } else {
+        None
+    }
+}
+
+/// Read Python version from .python-version file.
+fn read_python_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join(".python-version");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            // Extract major.minor (e.g., "3.11.4" → "3.11")
+            let parts: Vec<&str> = trimmed.split('.').collect();
+            if parts.len() >= 2
+                && parts[0].chars().all(|c| c.is_ascii_digit())
+                && parts[1].chars().all(|c| c.is_ascii_digit())
+            {
+                return Some(format!("{}.{}", parts[0], parts[1]));
+            }
+        }
+    }
+    None
+}
+
+/// Replace an unversioned package with a versioned one.
+/// Only replaces exact matches (not already-versioned packages).
+fn replace_package(packages: &mut [String], unversioned: &str, versioned: &str) {
+    for pkg in packages.iter_mut() {
+        if pkg == unversioned {
+            *pkg = versioned.to_string();
+        }
+    }
+}
+
+// ── Python entrypoint scanning ───────────────────────────────────────────
+
+/// Common Python entrypoint filenames, ordered by priority.
+const PYTHON_ENTRYPOINTS: &[&str] = &["app.py", "main.py", "server.py", "wsgi.py", "manage.py"];
+
+/// Scan project directory for common Python entrypoint files.
+/// Only overrides if current entrypoint is the fallback "python -m {name}".
+fn scan_python_entrypoints(repo_root: &Path, build: &mut UniversalBuild) {
+    if build.metadata.language != "Python" {
+        return;
+    }
+
+    // Only override fallback entrypoints
+    let is_fallback = build.runtime.command.is_empty()
+        || (build.runtime.command.len() == 3
+            && build.runtime.command[0] == "python"
+            && build.runtime.command[1] == "-m");
+
+    if !is_fallback {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    if !project_dir.is_dir() {
+        return;
+    }
+
+    for filename in PYTHON_ENTRYPOINTS {
+        if project_dir.join(filename).exists() {
+            let workdir = &build.runtime.workdir;
+            let entrypoint_path = format!("{}/{}", workdir, filename);
+            debug!(entrypoint = %entrypoint_path, "Found Python entrypoint");
+            build.runtime.command = vec!["python".into(), entrypoint_path];
+            return;
+        }
+    }
+}
+
+// ── Helper ───────────────────────────────────────────────────────────────
+
+/// Extract the project directory from the build metadata reasoning string.
+fn extract_project_dir(repo_root: &Path, reasoning: &str) -> PathBuf {
+    if let Some(in_pos) = reasoning.rfind(" in ") {
+        let dir = &reasoning[in_pos + 4..];
+        repo_root.join(dir)
+    } else {
+        repo_root.to_path_buf()
     }
 }
 
@@ -1410,5 +1783,196 @@ mod tests {
                 endpoint: "/actuator/health".into()
             })
         );
+    }
+
+    #[test]
+    fn test_scan_source_health_express() {
+        let dir = tempfile::tempdir().unwrap();
+        let src_dir = dir.path().join("src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(
+            src_dir.join("index.js"),
+            r#"
+const express = require('express');
+const app = express();
+
+app.get('/healthz', (req, res) => {
+    res.status(200).send('ok');
+});
+
+app.listen(3000);
+"#,
+        )
+        .unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("test".into()),
+                language: "JavaScript".into(),
+                build_system: "npm".into(),
+                framework: Some("Express".into()),
+                reasoning: "Detected from package.json".into(),
+            },
+            build: BuildStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec!["npm".into(), "start".into()],
+                workdir: "/app".into(),
+                ports: vec![3000],
+                health: None,
+            },
+        };
+
+        scan_source_health(dir.path(), &mut build);
+        assert_eq!(
+            build.runtime.health,
+            Some(HealthCheck {
+                endpoint: "/healthz".into()
+            })
+        );
+    }
+
+    #[test]
+    fn test_scan_source_health_does_not_override() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("index.js"),
+            r#"app.get('/healthz', (req, res) => res.send('ok'));"#,
+        )
+        .unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("test".into()),
+                language: "JavaScript".into(),
+                build_system: "npm".into(),
+                framework: None,
+                reasoning: "Detected from package.json".into(),
+            },
+            build: BuildStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec![],
+                workdir: "/app".into(),
+                ports: vec![],
+                health: Some(HealthCheck {
+                    endpoint: "/actuator/health".into(),
+                }),
+            },
+        };
+
+        scan_source_health(dir.path(), &mut build);
+        // Should NOT override the existing health endpoint
+        assert_eq!(
+            build.runtime.health,
+            Some(HealthCheck {
+                endpoint: "/actuator/health".into()
+            })
+        );
+    }
+
+    #[test]
+    fn test_scan_source_env_vars_javascript() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("config.js"),
+            r#"
+const port = process.env.PORT || 3000;
+const dbUrl = process.env.DATABASE_URL;
+const home = process.env.HOME;
+"#,
+        )
+        .unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("test".into()),
+                language: "JavaScript".into(),
+                build_system: "npm".into(),
+                framework: None,
+                reasoning: "Detected from package.json".into(),
+            },
+            build: BuildStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec![],
+                workdir: "/app".into(),
+                ports: vec![],
+                health: None,
+            },
+        };
+
+        scan_source_env_vars(dir.path(), &mut build);
+        assert!(build.runtime.env.contains_key("PORT"));
+        assert!(build.runtime.env.contains_key("DATABASE_URL"));
+        // HOME is a built-in var and should be skipped
+        assert!(!build.runtime.env.contains_key("HOME"));
+    }
+
+    #[test]
+    fn test_parse_node_version_string() {
+        assert_eq!(
+            parse_node_version_string("v18.12.0"),
+            Some("18".to_string())
+        );
+        assert_eq!(parse_node_version_string("20"), Some("20".to_string()));
+        assert_eq!(parse_node_version_string("18.12.0"), Some("18".to_string()));
+        assert_eq!(
+            parse_node_version_string("lts/iron"),
+            Some("20".to_string())
+        );
+        assert_eq!(
+            parse_node_version_string("lts/hydrogen"),
+            Some("18".to_string())
+        );
+        assert_eq!(parse_node_version_string("lts/*"), None);
+    }
+
+    #[test]
+    fn test_extract_project_dir() {
+        let root = Path::new("/repo");
+        assert_eq!(
+            extract_project_dir(root, "Detected from package.json in api"),
+            PathBuf::from("/repo/api")
+        );
+        assert_eq!(
+            extract_project_dir(root, "Detected from Cargo.toml"),
+            PathBuf::from("/repo")
+        );
+    }
+
+    #[test]
+    fn test_replace_package() {
+        let mut packages = vec!["nodejs".into(), "npm".into(), "ca-certificates".into()];
+        replace_package(&mut packages, "nodejs", "nodejs-20");
+        assert_eq!(packages, vec!["nodejs-20", "npm", "ca-certificates"]);
+
+        // Should not replace already-versioned packages
+        replace_package(&mut packages, "nodejs", "nodejs-18");
+        assert_eq!(packages[0], "nodejs-20");
     }
 }

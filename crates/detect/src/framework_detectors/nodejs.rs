@@ -8,7 +8,7 @@ super::simple_detector!(
     &[LanguageId::JavaScript, LanguageId::TypeScript],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "express"),
     vec![3000],
-    vec!["/health".into()],
+    vec!["/health".into(), "/healthz".into(), "/ping".into()],
     BTreeMap::new(),
     vec![]
 );
@@ -38,7 +38,7 @@ super::simple_detector!(
     &[LanguageId::JavaScript, LanguageId::TypeScript],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@nestjs/core"),
     vec![3000],
-    vec![],
+    vec!["/health".into(), "/healthz".into()],
     BTreeMap::new(),
     vec![]
 );
@@ -53,7 +53,7 @@ super::simple_detector!(
     &[LanguageId::JavaScript, LanguageId::TypeScript],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "fastify"),
     vec![3000],
-    vec![],
+    vec!["/health".into()],
     BTreeMap::new(),
     vec![]
 );

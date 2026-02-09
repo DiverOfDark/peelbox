@@ -20,6 +20,7 @@ impl ManifestParser for PackageJsonParser {
             .and_then(|v| v.as_str())
             .map(String::from);
         let has_start = json.get("scripts").and_then(|s| s.get("start")).is_some();
+        let has_build = json.get("scripts").and_then(|s| s.get("build")).is_some();
 
         let build_system = match json.get("packageManager").and_then(|v| v.as_str()) {
             Some(pm) if pm.starts_with("yarn") => BuildSystemId::Yarn,
@@ -34,6 +35,25 @@ impl ManifestParser for PackageJsonParser {
             BuildSystemId::Bun => "bun",
             _ => "npm",
         };
+
+        // Extract Node.js version from engines.node or volta.node
+        let node_major = json
+            .get("engines")
+            .and_then(|e| e.get("node"))
+            .and_then(|v| v.as_str())
+            .and_then(extract_node_major)
+            .or_else(|| {
+                json.get("volta")
+                    .and_then(|v| v.get("node"))
+                    .and_then(|v| v.as_str())
+                    .and_then(extract_node_major)
+            });
+
+        let node_build_pkg = node_major
+            .as_ref()
+            .map(|v| format!("nodejs-{}", v))
+            .unwrap_or_else(|| "nodejs".into());
+        let node_runtime_pkg = node_build_pkg.clone();
 
         let workspace = json.get("workspaces").and_then(|ws| {
             let members = match ws {
@@ -87,6 +107,16 @@ impl ManifestParser for PackageJsonParser {
             None
         };
 
+        let mut build_commands = vec!["npm ci".to_string()];
+        if has_build {
+            build_commands.push(format!("{} run build", pkg_manager));
+        }
+
+        let mut member_commands = vec!["npm ci".to_string()];
+        if has_build {
+            member_commands.push(format!("cd {{module}} && {} run build", pkg_manager));
+        }
+
         Some(Manifest {
             path: path.to_path_buf(),
             language,
@@ -100,17 +130,10 @@ impl ManifestParser for PackageJsonParser {
             workspace,
             dependencies,
             build: BuildSpec {
-                packages: vec![
-                    "nodejs".into(),
-                    pkg_manager.into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec!["npm ci".to_string(), format!("{} run build", pkg_manager)],
+                packages: vec![node_build_pkg, pkg_manager.into(), "ca-certificates".into()],
+                commands: build_commands,
                 member_transform: Some(MemberBuildTransform {
-                    member_commands: vec![
-                        "npm ci".to_string(),
-                        format!("cd {{module}} && {} run build", pkg_manager),
-                    ],
+                    member_commands,
                     member_artifacts: None,
                 }),
                 env: BTreeMap::new(),
@@ -119,7 +142,7 @@ impl ManifestParser for PackageJsonParser {
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
-                    "nodejs".into(),
+                    node_runtime_pkg,
                     "npm".into(),
                     "busybox".into(),
                     "dumb-init".into(),
@@ -132,6 +155,20 @@ impl ManifestParser for PackageJsonParser {
                 health_endpoint: None,
             },
         })
+    }
+}
+
+/// Extract major version number from a Node.js version constraint.
+/// Handles: ">=18", "^20.0.0", "~18.0", "20", "v18.12.0", "18.x"
+fn extract_node_major(constraint: &str) -> Option<String> {
+    let cleaned = constraint
+        .trim()
+        .trim_start_matches(['>', '<', '=', '^', '~', 'v']);
+    let major = cleaned.split('.').next()?.trim_end_matches('x');
+    if major.chars().all(|c| c.is_ascii_digit()) && !major.is_empty() {
+        Some(major.to_string())
+    } else {
+        None
     }
 }
 

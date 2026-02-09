@@ -121,7 +121,7 @@ super::simple_detector!(
         .iter()
         .any(|d| d.name == "fastapi" || d.name == "FastAPI"),
     vec![8000],
-    vec!["/health".into()],
+    vec!["/health".into(), "/healthz".into()],
     BTreeMap::new(),
     vec![]
 );

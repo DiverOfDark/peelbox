@@ -48,6 +48,9 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "health": {
+        "endpoint": "/health"
+      },
       "ports": [
         3000
       ],
