@@ -369,6 +369,17 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                 primary_idx = lf_idx;
             }
 
+            // Prefer manifests with dependencies (e.g., build.zig.zon over build.zig)
+            // as they carry richer metadata (package name, specific artifacts)
+            if lock_file_idx.is_none() {
+                if let Some(dep_idx) = manifests_in_dir
+                    .iter()
+                    .position(|mwf| !mwf.manifest.dependencies.is_empty())
+                {
+                    primary_idx = dep_idx;
+                }
+            }
+
             let mut primary = manifests_in_dir.remove(primary_idx);
 
             // Merge workspace from the other manifest if the primary doesn't have one
