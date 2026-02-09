@@ -99,7 +99,7 @@
         "ca-certificates"
       ],
       "ports": [
-        8080
+        8082
       ],
       "workdir": "/app"
     },

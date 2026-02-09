@@ -54,18 +54,22 @@ impl ManifestParser for CargoTomlParser {
 
         let dependencies = parse_cargo_deps(&toml_val);
 
-        let (artifacts, entrypoint, ports) = if is_application {
+        let (artifacts, entrypoint) = if is_application {
             (
                 vec![(
                     format!("target/release/{}", bin_name),
                     format!("/app/{}", bin_name),
                 )],
                 Some(format!("/app/{}", bin_name)),
-                vec![8080],
             )
         } else {
-            (vec![], None, vec![])
+            (vec![], None)
         };
+
+        // Ports are NOT hardcoded here — they come from:
+        // 1. Source code scanning (scan_source_ports in pipeline.rs)
+        // 2. Framework detection (e.g., Actix Web detector)
+        // 3. Config files (Dockerfile EXPOSE, .env, etc.)
 
         let member_transform = if is_application {
             Some(MemberBuildTransform {
@@ -109,7 +113,7 @@ impl ManifestParser for CargoTomlParser {
                 env: BTreeMap::new(),
                 entrypoint,
                 workdir: Some("/app".into()),
-                ports,
+                ports: vec![],
                 health_endpoint: None,
             },
         })
