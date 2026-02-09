@@ -37,7 +37,10 @@ macro_rules! simple_detector {
             fn detect(&self, deps: &[$crate::types::Dependency]) -> bool {
                 ($detect_fn)(deps)
             }
-            fn contribution(&self) -> $crate::types::FrameworkContribution {
+            fn contribution(
+                &self,
+                _deps: &[$crate::types::Dependency],
+            ) -> $crate::types::FrameworkContribution {
                 $crate::types::FrameworkContribution {
                     framework: $id,
                     default_ports: $ports,
@@ -78,7 +81,7 @@ mod tests {
         let detector = super::SpringBootDetector;
         let deps = vec![make_dep("org.springframework.boot:spring-boot-starter-web")];
         assert!(detector.detect(&deps));
-        let contrib = detector.contribution();
+        let contrib = detector.contribution(&deps);
         assert_eq!(contrib.framework, FrameworkId::SpringBoot);
         assert_eq!(contrib.default_ports, vec![8080]);
     }

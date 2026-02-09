@@ -31,5 +31,6 @@ pub trait FrameworkDetector: Send + Sync {
     fn detect(&self, deps: &[Dependency]) -> bool;
 
     /// Additional configuration when this framework is detected.
-    fn contribution(&self) -> FrameworkContribution;
+    /// Receives the dependency list so detectors can conditionally adjust contributions.
+    fn contribution(&self, deps: &[Dependency]) -> FrameworkContribution;
 }

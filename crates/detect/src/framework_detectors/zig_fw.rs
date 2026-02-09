@@ -15,7 +15,7 @@ impl FrameworkDetector for ZapDetector {
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| d.name == "zap")
     }
-    fn contribution(&self) -> FrameworkContribution {
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: FrameworkId::Custom("Zap".into()),
             default_ports: vec![3000],

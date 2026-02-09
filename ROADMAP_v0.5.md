@@ -3,8 +3,6 @@
 ## Phase 1: Core Cleanup & Architecture Refactoring 🏗️
 *Goal: Address technical debt and stabilize the core logic.*
 
-- **[P1] Refactor Detectors Architecture:** Move away from "enrichment by ton of methods" to a unified **Decision Tree** approach with a single entry point.
-- **[P2] Decouple Concerns:** Fix the wrong split between runtime/framework/buildsystem/language (e.g., remove Maven details from JVM crate).
 - **[P2] Optimize BuildKit Caching:**
     - Investigation: Set timestamp to 0 only in the runtime image, but preserve them in the build image to fix Maven/Cargo caching issues.
     - Fix: Ensure `target/` and downloaded crates are correctly cached.

@@ -42,7 +42,7 @@ impl FrameworkDetector for FlaskDetector {
                 || d.name.starts_with("Flask==")
         })
     }
-    fn contribution(&self) -> FrameworkContribution {
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: FrameworkId::Flask,
             default_ports: vec![5000],
@@ -86,7 +86,7 @@ impl FrameworkDetector for FlaskPoetryDetector {
         // This is used specifically for Poetry projects; detection is handled externally
         false
     }
-    fn contribution(&self) -> FrameworkContribution {
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: FrameworkId::Flask,
             default_ports: vec![5000],

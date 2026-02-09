@@ -35,7 +35,7 @@ impl FrameworkDetector for SinatraDetector {
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| d.name == "sinatra")
     }
-    fn contribution(&self) -> FrameworkContribution {
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: FrameworkId::Sinatra,
             default_ports: vec![4567],

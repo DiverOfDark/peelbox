@@ -20,15 +20,24 @@ impl FrameworkDetector for SpringBootDetector {
                 .contains("org.springframework.boot:spring-boot-starter")
         })
     }
-    fn contribution(&self) -> FrameworkContribution {
-        FrameworkContribution {
-            framework: FrameworkId::SpringBoot,
-            default_ports: vec![8080],
-            health_endpoints: vec![
+    fn contribution(&self, deps: &[Dependency]) -> FrameworkContribution {
+        let has_actuator = deps.iter().any(|d| {
+            d.name.contains("spring-boot-starter-actuator")
+                || d.name.contains("spring-boot-actuator")
+        });
+        let health_endpoints = if has_actuator {
+            vec![
                 "/actuator/health".into(),
                 "/actuator/health/liveness".into(),
                 "/actuator/health/readiness".into(),
-            ],
+            ]
+        } else {
+            vec!["/health".into()]
+        };
+        FrameworkContribution {
+            framework: FrameworkId::SpringBoot,
+            default_ports: vec![8080],
+            health_endpoints,
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
             runtime_env: BTreeMap::new(),

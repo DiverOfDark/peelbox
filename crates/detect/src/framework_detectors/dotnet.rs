@@ -16,7 +16,7 @@ impl FrameworkDetector for AspNetCoreDetector {
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| d.name.contains("Microsoft.AspNetCore"))
     }
-    fn contribution(&self) -> FrameworkContribution {
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: FrameworkId::AspNetCore,
             default_ports: vec![5000],

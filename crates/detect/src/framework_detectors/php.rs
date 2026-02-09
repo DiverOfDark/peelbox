@@ -35,7 +35,7 @@ impl FrameworkDetector for SymfonyDetector {
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| d.name.starts_with("symfony/"))
     }
-    fn contribution(&self) -> FrameworkContribution {
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: FrameworkId::Symfony,
             default_ports: vec![8000],

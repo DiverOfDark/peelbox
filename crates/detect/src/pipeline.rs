@@ -290,7 +290,7 @@ fn collect_manifests_with_frameworks(
                     return None;
                 }
                 if detector.detect(&manifest.dependencies) {
-                    Some(detector.contribution())
+                    Some(detector.contribution(&manifest.dependencies))
                 } else {
                     None
                 }
@@ -302,7 +302,7 @@ fn collect_manifests_with_frameworks(
                     if fw.framework == crate::id_enums::FrameworkId::Flask {
                         // Find FlaskPoetryDetector and use its contribution instead
                         if let Some(poetry_fw) = detectors.iter().find_map(|d| {
-                            let contrib = d.contribution();
+                            let contrib = d.contribution(&manifest.dependencies);
                             if contrib.framework == crate::id_enums::FrameworkId::Flask
                                 && contrib.runtime_env.contains_key("VIRTUAL_ENV")
                             {
@@ -1199,6 +1199,11 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
     ),
     (
+        "TypeScript",
+        &["js", "ts", "mjs", "cjs"],
+        &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
+    ),
+    (
         "Python",
         &["py"],
         &[
@@ -1222,7 +1227,42 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
             r#"server\.port\s*=\s*(\d{4,5})"#,
         ],
     ),
+    (
+        "Kotlin",
+        &["java", "kt", "kts"],
+        &[
+            r"\.setPort\(\s*(\d{4,5})\s*\)",
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+        ],
+    ),
     ("Elixir", &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
+    (
+        "Ruby",
+        &["rb"],
+        &[r#"set\s*:port\s*,\s*(\d{4,5})"#, r#"port\s*=\s*(\d{4,5})"#],
+    ),
+    (
+        "C#",
+        &["cs"],
+        &[
+            r#"UseUrls\([^)]*:(\d{4,5})"#,
+            r#"app\.Run\([^)]*:(\d{4,5})"#,
+            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
+        ],
+    ),
+    (
+        "F#",
+        &["fs"],
+        &[
+            r#"UseUrls\([^)]*:(\d{4,5})"#,
+            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
+        ],
+    ),
+    (
+        "PHP",
+        &["php"],
+        &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
+    ),
 ];
 
 /// Scan source files in a project directory for port patterns.
@@ -1584,8 +1624,9 @@ fn parse_node_version_string(s: &str) -> Option<String> {
     }
 }
 
-/// Read Python version from .python-version file.
+/// Read Python version from .python-version file or Pipfile.
 fn read_python_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    // Check .python-version first (highest priority)
     for dir in &[project_dir, repo_root] {
         let path = dir.join(".python-version");
         if let Ok(content) = std::fs::read_to_string(&path) {
@@ -1600,7 +1641,26 @@ fn read_python_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
             }
         }
     }
+
+    // Check Pipfile for python_version in [requires] section
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join("Pipfile");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Some(version) = parse_pipfile_python_version(&content) {
+                return Some(version);
+            }
+        }
+    }
+
     None
+}
+
+/// Extract python_version from Pipfile [requires] section.
+/// Matches `python_version = "3.11"` or `python_version = "3"`.
+fn parse_pipfile_python_version(content: &str) -> Option<String> {
+    let re = regex::Regex::new(r#"(?m)^\s*python_version\s*=\s*["'](\d+\.\d+)["']"#).ok()?;
+    re.captures(content)
+        .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
 }
 
 /// Replace an unversioned package with a versioned one.
