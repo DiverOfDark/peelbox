@@ -146,7 +146,23 @@ impl ManifestParser for PomXmlParser {
                         .unwrap_or_else(|| "openjdk".into()),
                     "ca-certificates".into(),
                 ],
-                env: btree(&[("CLASSPATH", "/app/*:/app/lib/*")]),
+                env: {
+                    let java_home = format!(
+                        "/usr/lib/jvm/java-{}-openjdk",
+                        java_version.as_deref().unwrap_or("21")
+                    );
+                    btree(&[
+                        ("CLASSPATH", "/app/*:/app/lib/*"),
+                        ("JAVA_HOME", &java_home),
+                        (
+                            "PATH",
+                            &format!(
+                                "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                                java_home
+                            ),
+                        ),
+                    ])
+                },
                 entrypoint,
                 workdir: Some("/app".into()),
                 ports: vec![8080],

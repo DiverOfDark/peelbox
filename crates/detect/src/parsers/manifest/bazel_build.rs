@@ -56,8 +56,8 @@ impl ManifestParser for BazelBuildParser {
             build: BuildSpec {
                 packages: vec![
                     "build-base".into(),
-                    "bazel".into(),
-                    "openjdk".into(),
+                    "bazel-7".into(),
+                    "openjdk-21".into(),
                     "ca-certificates".into(),
                 ],
                 commands: vec!["bazel build //...".into()],

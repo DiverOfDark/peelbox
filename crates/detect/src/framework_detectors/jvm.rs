@@ -1,4 +1,3 @@
-use crate::helpers::btree;
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
 use crate::id_enums::{FrameworkId, LanguageId};
@@ -28,11 +27,7 @@ impl FrameworkDetector for SpringBootDetector {
             health_endpoints: vec!["/actuator/health".into()],
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
-            // Spring Boot runtime needs JAVA_HOME and PATH
-            runtime_env: btree(&[
-                ("JAVA_HOME", "/usr/lib/jvm/java-17-openjdk"),
-                ("PATH", "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"),
-            ]),
+            runtime_env: BTreeMap::new(),
             runtime_command: None,
             workdir: None,
             extra_copy: vec![],

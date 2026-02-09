@@ -58,7 +58,10 @@ impl FrameworkDetector for FlaskDetector {
                 ("PYTHONPATH", "/root/.local/lib/python3.14/site-packages"),
             ]),
             workdir: Some("/build".into()),
-            extra_copy: vec![("/root/.local/".into(), "/root/.local".into())],
+            extra_copy: vec![
+                (".".into(), "/build".into()),
+                ("/root/.local/".into(), "/root/.local".into()),
+            ],
         }
     }
 }

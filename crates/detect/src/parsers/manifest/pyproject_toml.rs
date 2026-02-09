@@ -60,7 +60,7 @@ impl ManifestParser for PyProjectTomlParser {
                 build_system: build_system_id,
                 runtime: RuntimeId::Python,
                 package: Some(Package {
-                    name: name.unwrap_or_else(|| "app".to_string()),
+                    name: "app".to_string(),
                     version,
                     is_application: true,
                 }),

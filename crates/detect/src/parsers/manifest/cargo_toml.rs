@@ -15,6 +15,12 @@ impl ManifestParser for CargoTomlParser {
     fn parse(&self, path: &Path, content: &str) -> Option<Manifest> {
         let toml_val: toml::Value = toml::from_str(content).ok()?;
 
+        // Check if this is a binary crate (has src/main.rs, [[bin]] section, or autobins)
+        let has_bin_section = toml_val.get("bin").and_then(|v| v.as_array()).map(|a| !a.is_empty()).unwrap_or(false);
+        let dir = path.parent().unwrap_or(Path::new("."));
+        let has_main_rs = dir.join("src/main.rs").exists();
+        let is_application = has_bin_section || has_main_rs;
+
         let package = toml_val.get("package").and_then(|pkg| {
             let name = pkg.get("name")?.as_str()?.to_string();
             let version = pkg
@@ -24,7 +30,7 @@ impl ManifestParser for CargoTomlParser {
             Some(Package {
                 name,
                 version,
-                is_application: true,
+                is_application,
             })
         });
 
@@ -44,6 +50,33 @@ impl ManifestParser for CargoTomlParser {
 
         let dependencies = parse_cargo_deps(&toml_val);
 
+        let (artifacts, entrypoint, ports) = if is_application {
+            (
+                vec![(
+                    format!("target/release/{}", bin_name),
+                    format!("/app/{}", bin_name),
+                )],
+                Some(format!("/app/{}", bin_name)),
+                vec![8080],
+            )
+        } else {
+            (vec![], None, vec![])
+        };
+
+        let member_transform = if is_application {
+            Some(MemberBuildTransform {
+                member_commands: vec![
+                    "cargo build --release --manifest-path {module}/Cargo.toml --target-dir target".into(),
+                ],
+                member_artifacts: Some(vec![(
+                    format!("target/release/{}", bin_name),
+                    format!("/app/{}", bin_name),
+                )]),
+            })
+        } else {
+            None
+        };
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: LanguageId::Rust,
@@ -61,28 +94,17 @@ impl ManifestParser for CargoTomlParser {
                     "ca-certificates".into(),
                 ],
                 commands: vec!["cargo build --release".into()],
-                member_transform: Some(MemberBuildTransform {
-                    member_commands: vec![
-                        "cargo build --release --manifest-path {module}/Cargo.toml --target-dir target".into(),
-                    ],
-                    member_artifacts: Some(vec![(
-                        format!("target/release/{}", bin_name),
-                        format!("/app/{}", bin_name),
-                    )]),
-                }),
+                member_transform,
                 env: btree(&[("CARGO_HOME", ".cargo")]),
                 cache_dirs: vec![".cargo".into(), "target".into()],
-                artifacts: vec![(
-                    format!("target/release/{}", bin_name),
-                    format!("/app/{}", bin_name),
-                )],
+                artifacts,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
-                entrypoint: Some(format!("/app/{}", bin_name)),
+                entrypoint,
                 workdir: Some("/app".into()),
-                ports: vec![8080],
+                ports,
                 health_endpoint: None,
             },
         })

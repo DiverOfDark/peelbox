@@ -9,25 +9,18 @@
         "pnpm install",
         "pnpm build"
       ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
       "env": {},
       "packages": [
-        "nodejs-22",
+        "nodejs-25",
         "pnpm",
         "build-base",
-        "python-3.12",
+        "python-3.14",
         "npm",
         "ca-certificates"
       ]
     },
     "metadata": {
       "build_system": "pnpm",
-      "confidence": 0.949999988079071,
       "language": "JavaScript",
       "project_name": "example-node-app",
       "reasoning": "Detected from pnpm-lock.yaml"
@@ -45,7 +38,7 @@
       ],
       "env": {},
       "packages": [
-        "nodejs-22",
+        "nodejs-25",
         "npm",
         "busybox",
         "dumb-init",

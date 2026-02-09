@@ -33,16 +33,11 @@ impl ManifestParser for PnpmLockParser {
             .and_then(|s| s.get("start"))
             .is_some();
 
-        let dependencies = super::parse_npm_deps(&json);
+        // Lock file parsers don't carry dependencies — framework detection
+        // happens on the sibling package.json manifest instead.
+        let dependencies: Vec<Dependency> = Vec::new();
 
-        let language = if dependencies
-            .iter()
-            .any(|d| d.name == "typescript" && d.scope == DepScope::Runtime)
-        {
-            LanguageId::TypeScript
-        } else {
-            LanguageId::JavaScript
-        };
+        let language = LanguageId::JavaScript;
 
         let entrypoint = json
             .get("main")

@@ -2,7 +2,6 @@ use crate::helpers::btree;
 use crate::traits::ManifestParser;
 use crate::types::*;
 use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
-use std::collections::BTreeMap;
 use std::path::Path;
 
 pub struct BuildGradleParser;
@@ -25,21 +24,52 @@ impl ManifestParser for BuildGradleParser {
 
         let dependencies = parse_gradle_deps(content);
 
-        // Try to extract version from build.gradle for artifact naming
-        let _project_version = regex::Regex::new(r#"version\s*=?\s*['"]([^'"]+)['"]"#)
+        // Extract version from build.gradle (e.g., `version = '1.0.0'` or `version = "1.0.0"`)
+        let gradle_version = regex::Regex::new(r#"(?m)^version\s*=\s*["']([^"']+)["']"#)
             .ok()
-            .and_then(|re| {
-                re.captures(content)
-                    .and_then(|c| c.get(1))
-                    .map(|m| m.as_str().to_string())
-            });
+            .and_then(|re| re.captures(content))
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
+
+        // Detect if this is an application project (has spring-boot or application plugin)
+        let has_spring_boot = content.contains("spring-boot")
+            || content.contains("org.springframework.boot");
+        let has_application_plugin = content.contains("'application'")
+            || content.contains("\"application\"")
+            || content.contains("id(\"application\")");
+        let is_application = has_spring_boot || has_application_plugin;
+
+        let java_home = format!(
+            "/usr/lib/jvm/java-{}-openjdk",
+            java_version.as_deref().unwrap_or("21")
+        );
+
+        let entrypoint = if is_application {
+            Some("java -jar /app/app.jar".into())
+        } else {
+            None
+        };
+
+        let runtime_env = btree(&[
+            ("JAVA_HOME", &java_home),
+            (
+                "PATH",
+                &format!(
+                    "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    java_home
+                ),
+            ),
+        ]);
 
         Some(Manifest {
             path: path.to_path_buf(),
             language: LanguageId::Java,
             build_system: BuildSystemId::Gradle,
             runtime: RuntimeId::JVM,
-            package: None, // Gradle project names come from settings.gradle
+            package: gradle_version.as_ref().map(|v| Package {
+                name: String::new(), // Will be filled from settings.gradle merge
+                version: Some(v.clone()),
+                is_application,
+            }),
             workspace: None, // Workspace comes from SettingsGradleParser
             dependencies,
             build: BuildSpec {
@@ -57,13 +87,7 @@ impl ManifestParser for BuildGradleParser {
                     )]),
                 }),
                 env: btree(&[
-                    (
-                        "JAVA_HOME",
-                        &format!(
-                            "/usr/lib/jvm/java-{}-openjdk",
-                            java_version.as_deref().unwrap_or("21")
-                        ),
-                    ),
+                    ("JAVA_HOME", &java_home),
                     ("GRADLE_USER_HOME", "/root/.gradle"),
                     ("GRADLE_OPTS", "-Dorg.gradle.native=false"),
                 ]),
@@ -78,8 +102,8 @@ impl ManifestParser for BuildGradleParser {
                         .unwrap_or_else(|| "openjdk".into()),
                     "ca-certificates".into(),
                 ],
-                env: BTreeMap::new(),
-                entrypoint: Some("java -jar /app/app.jar".into()),
+                env: runtime_env,
+                entrypoint,
                 workdir: Some("/app".into()),
                 ports: vec![8080],
                 health_endpoint: None,
@@ -91,7 +115,7 @@ impl ManifestParser for BuildGradleParser {
 fn parse_gradle_deps(content: &str) -> Vec<Dependency> {
     let mut deps = Vec::new();
     let dep_re =
-        regex::Regex::new(r#"(?:implementation|api|compile|runtimeOnly|testImplementation)\s*[\("]([^")\s]+)"#)
+        regex::Regex::new(r#"(?:implementation|api|compile|runtimeOnly|testImplementation)\s*\(?["']([^"')\s]+)"#)
             .unwrap();
     for cap in dep_re.captures_iter(content) {
         if let Some(m) = cap.get(1) {

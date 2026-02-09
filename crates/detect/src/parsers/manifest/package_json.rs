@@ -73,10 +73,22 @@ impl ManifestParser for PackageJsonParser {
             LanguageId::JavaScript
         };
 
-        let entrypoint = json
-            .get("main")
-            .and_then(|v| v.as_str())
-            .map(|m| format!("node {}", m));
+        let start_script = json
+            .get("scripts")
+            .and_then(|s| s.get("start"))
+            .and_then(|v| v.as_str());
+
+        let entrypoint = if let Some(script) = start_script {
+            // scripts.start takes priority — it defines how to run the application
+            if script.starts_with("node ") {
+                Some(script.to_string())
+            } else {
+                Some(format!("{} start", pkg_manager))
+            }
+        } else {
+            // No scripts.start → no entrypoint (main field is for library entry, not runtime)
+            None
+        };
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -105,7 +117,7 @@ impl ManifestParser for PackageJsonParser {
                 }),
                 env: BTreeMap::new(),
                 cache_dirs: vec![".npm".into(), "node_modules".into()],
-                artifacts: vec![(".".into(), "/app".into())],
+                artifacts: vec![(".".into(), "/app/".into())],
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

@@ -31,16 +31,21 @@ impl ManifestParser for SettingsGradleParser {
             }
 
             if trimmed.starts_with("include") {
-                if let Some(projects_str) = trimmed
+                // Handle both `include('a', 'b')` and `include 'a', 'b'` syntax
+                let projects_str = if let Some(inner) = trimmed
                     .split('(')
                     .nth(1)
                     .and_then(|s| s.split(')').next())
                 {
-                    for project in projects_str.split(',') {
-                        let project = project.trim().trim_matches(|c| c == '\'' || c == '"');
-                        if !project.is_empty() {
-                            members.push(project.trim_start_matches(':').to_string());
-                        }
+                    inner.to_string()
+                } else {
+                    // Groovy `include 'a', 'b'` syntax (no parens)
+                    trimmed.strip_prefix("include").unwrap_or("").to_string()
+                };
+                for project in projects_str.split(',') {
+                    let project = project.trim().trim_matches(|c: char| c == '\'' || c == '"' || c.is_whitespace());
+                    if !project.is_empty() {
+                        members.push(project.trim_start_matches(':').to_string());
                     }
                 }
             }
@@ -67,7 +72,7 @@ impl ManifestParser for SettingsGradleParser {
             package: project_name.map(|name| Package {
                 name,
                 version: None,
-                is_application: true,
+                is_application: false, // settings.gradle doesn't indicate runnability
             }),
             workspace,
             dependencies: Vec::new(),

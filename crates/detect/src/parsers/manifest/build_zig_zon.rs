@@ -37,19 +37,7 @@ impl ManifestParser for BuildZigZonParser {
                 continue;
             }
             if in_deps {
-                for ch in trimmed.chars() {
-                    if ch == '{' {
-                        brace_depth += 1;
-                    }
-                    if ch == '}' {
-                        brace_depth -= 1;
-                    }
-                }
-                if brace_depth <= 0 {
-                    in_deps = false;
-                    continue;
-                }
-                // Look for .depname = .{ patterns at depth 1
+                // Check for dep names BEFORE counting braces on this line
                 if brace_depth == 1 {
                     if let Some(cap) = dep_re.captures(trimmed) {
                         if let Some(dep_name) = cap.get(1) {
@@ -61,6 +49,17 @@ impl ManifestParser for BuildZigZonParser {
                             });
                         }
                     }
+                }
+                for ch in trimmed.chars() {
+                    if ch == '{' {
+                        brace_depth += 1;
+                    }
+                    if ch == '}' {
+                        brace_depth -= 1;
+                    }
+                }
+                if brace_depth <= 0 {
+                    in_deps = false;
                 }
             }
         }
