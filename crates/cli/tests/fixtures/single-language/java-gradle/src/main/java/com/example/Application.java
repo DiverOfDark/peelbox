@@ -27,7 +27,7 @@ public class Application {
         );
     }
 
-    @GetMapping("/actuator/health")
+    @GetMapping("/health")
     public Map<String, String> health() {
         return Map.of("status", "healthy");
     }

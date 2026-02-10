@@ -43,7 +43,7 @@
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "health": {
-        "endpoint": "/actuator/health"
+        "endpoint": "/health"
       },
       "packages": [
         "openjdk-17-jre",

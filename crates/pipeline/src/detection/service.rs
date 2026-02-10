@@ -228,9 +228,6 @@ impl DetectionService {
             "Starting repository detection"
         );
 
-        use crate::pipeline::{AnalysisContext, PipelineOrchestrator};
-        use peelbox_stack::StackRegistry;
-
         let wolfi_index = peelbox_wolfi::WolfiPackageIndex::fetch().map_err(|e| {
             use peelbox_core::BackendError;
             ServiceError::BackendError(BackendError::Other {
@@ -238,35 +235,25 @@ impl DetectionService {
             })
         })?;
 
-        let llm_client = match mode {
-            peelbox_core::config::DetectionMode::StaticOnly => None,
-            _ => Some(self.client.clone()),
-        };
-
-        let mut context = AnalysisContext::new(
+        // Use new map-reduce detection pipeline with Wolfi resolution
+        let registry = peelbox_detect::Registry::with_defaults();
+        let results = peelbox_detect::detect_with_registry_and_wolfi(
             &repo_path,
-            Arc::new(StackRegistry::with_defaults(llm_client)),
-            Arc::new(wolfi_index),
-            mode,
-        );
-
-        let orchestrator = PipelineOrchestrator::new();
-
-        let results = orchestrator
-            .execute(&repo_path, &mut context)
-            .await
-            .map_err(|e| {
-                use peelbox_core::BackendError;
-                ServiceError::BackendError(BackendError::Other {
-                    message: e.to_string(),
-                })
-            })?;
+            &registry,
+            Some(&wolfi_index),
+        )
+        .map_err(|e| {
+            use peelbox_core::BackendError;
+            ServiceError::BackendError(BackendError::Other {
+                message: e.to_string(),
+            })
+        })?;
 
         // Ensure unique service names
         Self::ensure_unique_service_names(&results)?;
 
         // Validate all builds with Wolfi package index
-        let validator = crate::validation::Validator::with_wolfi_index(context.wolfi_index.clone());
+        let validator = crate::validation::Validator::with_wolfi_index(Arc::new(wolfi_index));
         for build in &results {
             if let Err(e) = validator.validate(build) {
                 use peelbox_core::BackendError;

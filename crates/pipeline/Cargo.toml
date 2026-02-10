@@ -6,19 +6,14 @@ edition.workspace = true
 [dependencies]
 peelbox-core = { path = "../core" }
 peelbox-llm = { path = "../llm" }
-peelbox-stack = { path = "../stack" }
 peelbox-wolfi = { path = "../wolfi" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+peelbox-detect = { path = "../detect" }
 anyhow = "1.0"
 tracing = "0.1"
-async-trait = "0.1"
-regex = "1.10"
-ignore = "0.4"
-tokio = { version = "1.35", features = ["full"] }
 thiserror = "1.0"
 strsim = "0.11"
-genai = "0.4"
 
 [dev-dependencies]
 tempfile = "3.24"
+tokio = { version = "1.35", features = ["full"] }
+genai = "0.4"
