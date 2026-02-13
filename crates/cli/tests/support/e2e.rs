@@ -232,15 +232,33 @@ pub fn assert_detection_with_mode(
 }
 
 #[allow(dead_code)]
-#[allow(clippy::type_complexity)]
-pub fn get_fixture_container_infos(
+pub enum ContainerValidation {
+    Port {
+        port: u16,
+        health_endpoint: Option<String>,
+    },
+    Stdout {
+        expected_output: String,
+    },
+}
+
+#[allow(dead_code)]
+pub struct ContainerTestInfo {
+    pub project_name: String,
+    pub command: Vec<String>,
+    pub env: Vec<String>,
+    pub validation: ContainerValidation,
+}
+
+#[allow(dead_code)]
+pub fn get_fixture_container_test_infos(
     category: &str,
     fixture_name: &str,
-) -> Option<Vec<(String, u16, Option<String>, Vec<String>, Vec<String>)>> {
-    let spec_path = PathBuf::from("tests/fixtures")
+) -> Option<Vec<ContainerTestInfo>> {
+    let fixture_dir = PathBuf::from("tests/fixtures")
         .join(category)
-        .join(fixture_name)
-        .join("universalbuild.json");
+        .join(fixture_name);
+    let spec_path = fixture_dir.join("universalbuild.json");
 
     if !spec_path.exists() {
         return None;
@@ -251,19 +269,15 @@ pub fn get_fixture_container_infos(
         .or_else(|_| serde_json::from_str::<UniversalBuild>(&content).map(|single| vec![single]))
         .ok()?;
 
+    let expected_output_path = fixture_dir.join("expected_output.txt");
+
     let infos: Vec<_> = ub
         .into_iter()
         .filter_map(|build| {
-            if build.runtime.ports.is_empty() {
-                return None;
-            }
-
             let project_name = build
                 .metadata
                 .project_name
                 .unwrap_or_else(|| "unknown".to_string());
-            let port = build.runtime.ports.first().copied()?;
-            let health = build.runtime.health.as_ref().map(|h| h.endpoint.clone());
             let command = build.runtime.command.clone();
             let env: Vec<String> = build
                 .runtime
@@ -272,7 +286,29 @@ pub fn get_fixture_container_infos(
                 .map(|(k, v)| format!("{}={}", k, v))
                 .collect();
 
-            Some((project_name, port, health, command, env))
+            let validation = if !build.runtime.ports.is_empty() {
+                let port = build.runtime.ports.first().copied()?;
+                let health_endpoint =
+                    build.runtime.health.as_ref().map(|h| h.endpoint.clone());
+                ContainerValidation::Port {
+                    port,
+                    health_endpoint,
+                }
+            } else if expected_output_path.exists() {
+                let expected_output =
+                    std::fs::read_to_string(&expected_output_path).ok()?;
+                ContainerValidation::Stdout { expected_output }
+            } else {
+                // No ports and no expected_output.txt — skip this entry
+                return None;
+            };
+
+            Some(ContainerTestInfo {
+                project_name,
+                command,
+                env,
+                validation,
+            })
         })
         .collect();
 
@@ -310,7 +346,7 @@ pub async fn run_container_integration_test(
         ));
     }
 
-    let infos = get_fixture_container_infos(category, fixture_name).ok_or_else(|| {
+    let infos = get_fixture_container_test_infos(category, fixture_name).ok_or_else(|| {
         format!(
             "No runnable container info found for fixture {}",
             fixture_name
@@ -320,12 +356,12 @@ pub async fn run_container_integration_test(
     let harness =
         ContainerTestHarness::new().map_err(|e| format!("Failed to create harness: {}", e))?;
 
-    for (project_name, port, health_path, _cmd, env) in infos {
+    for info in infos {
         let image_name = format!(
             "localhost/peelbox-test-{}-{}-{}:latest",
             category.replace("/", "-"),
             fixture_name,
-            project_name.replace('@', "").replace('/', "-")
+            info.project_name.replace('@', "").replace('/', "-")
         );
 
         let image = harness
@@ -334,65 +370,144 @@ pub async fn run_container_integration_test(
                 &fixture_path,
                 &image_name,
                 &temp_cache_dir,
-                Some(&project_name),
+                Some(&info.project_name),
                 None,
             )
             .await
-            .map_err(|e| format!("Failed to build image for {}: {}", project_name, e))?;
+            .map_err(|e| format!("Failed to build image for {}: {}", info.project_name, e))?;
 
-        let container_id = harness
-            .start_container(
-                &image,
+        match &info.validation {
+            ContainerValidation::Port {
                 port,
-                None,
-                if env.is_empty() { None } else { Some(env) },
-            )
-            .await
-            .map_err(|e| format!("Failed to start container for {}: {}", project_name, e))?;
+                health_endpoint,
+            } => {
+                let container_id = harness
+                    .start_container(
+                        &image,
+                        Some(*port),
+                        None,
+                        if info.env.is_empty() {
+                            None
+                        } else {
+                            Some(info.env.clone())
+                        },
+                    )
+                    .await
+                    .map_err(|e| {
+                        format!("Failed to start container for {}: {}", info.project_name, e)
+                    })?;
 
-        let host_port = harness
-            .get_host_port(&container_id, port)
-            .await
-            .map_err(|e| format!("Failed to get host port for {}: {}", project_name, e))?;
+                let host_port = harness
+                    .get_host_port(&container_id, *port)
+                    .await
+                    .map_err(|e| {
+                        format!("Failed to get host port for {}: {}", info.project_name, e)
+                    })?;
 
-        let wait_result = harness
-            .wait_for_port(&container_id, host_port, Duration::from_secs(30))
-            .await;
+                let wait_result = harness
+                    .wait_for_port(&container_id, host_port, Duration::from_secs(30))
+                    .await;
 
-        if wait_result.is_err() {
-            let logs = harness
-                .get_container_logs(&container_id)
-                .await
-                .unwrap_or_default();
-            let _ = harness.cleanup_container(&container_id).await;
-            let _ = harness.cleanup_image(&image_name).await;
-            return Err(format!(
-                "Container for {} failed to start on port {}: {:?}\nLogs:\n{}",
-                project_name, port, wait_result, logs
-            ));
-        }
+                if wait_result.is_err() {
+                    let logs = harness
+                        .get_container_logs(&container_id)
+                        .await
+                        .unwrap_or_default();
+                    let _ = harness.cleanup_container(&container_id).await;
+                    let _ = harness.cleanup_image(&image_name).await;
+                    return Err(format!(
+                        "Container for {} failed to start on port {}: {:?}\nLogs:\n{}",
+                        info.project_name, port, wait_result, logs
+                    ));
+                }
 
-        if let Some(health_endpoint) = health_path {
-            let health_ok = harness
-                .http_health_check(host_port, &health_endpoint, Duration::from_secs(10))
-                .await
-                .map_err(|e| format!("Health check failed for {}: {}", project_name, e))?;
+                if let Some(endpoint) = health_endpoint {
+                    let health_ok = harness
+                        .http_health_check(host_port, endpoint, Duration::from_secs(10))
+                        .await
+                        .map_err(|e| {
+                            format!("Health check failed for {}: {}", info.project_name, e)
+                        })?;
 
-            if !health_ok {
+                    if !health_ok {
+                        let logs = harness
+                            .get_container_logs(&container_id)
+                            .await
+                            .unwrap_or_default();
+                        let _ = harness.cleanup_container(&container_id).await;
+                        let _ = harness.cleanup_image(&image_name).await;
+                        return Err(format!(
+                            "Health check for {} returned non-2xx status.\nContainer Logs:\n{}",
+                            info.project_name, logs
+                        ));
+                    }
+                }
+
+                let _ = harness.cleanup_container(&container_id).await;
+            }
+            ContainerValidation::Stdout { expected_output } => {
+                let container_id = harness
+                    .start_container(
+                        &image,
+                        None,
+                        None,
+                        if info.env.is_empty() {
+                            None
+                        } else {
+                            Some(info.env.clone())
+                        },
+                    )
+                    .await
+                    .map_err(|e| {
+                        format!("Failed to start container for {}: {}", info.project_name, e)
+                    })?;
+
+                let exit_code = harness
+                    .wait_for_exit(&container_id, Duration::from_secs(30))
+                    .await
+                    .map_err(|e| {
+                        format!(
+                            "Failed waiting for container exit for {}: {}",
+                            info.project_name, e
+                        )
+                    })?;
+
+                if exit_code != 0 {
+                    let logs = harness
+                        .get_container_logs(&container_id)
+                        .await
+                        .unwrap_or_default();
+                    let _ = harness.cleanup_container(&container_id).await;
+                    let _ = harness.cleanup_image(&image_name).await;
+                    return Err(format!(
+                        "Container for {} exited with code {}\nLogs:\n{}",
+                        info.project_name, exit_code, logs
+                    ));
+                }
+
                 let logs = harness
                     .get_container_logs(&container_id)
                     .await
-                    .unwrap_or_default();
+                    .map_err(|e| {
+                        format!("Failed to get logs for {}: {}", info.project_name, e)
+                    })?;
+
+                let actual = logs.trim();
+                let expected = expected_output.trim();
+
+                if actual != expected {
+                    let _ = harness.cleanup_container(&container_id).await;
+                    let _ = harness.cleanup_image(&image_name).await;
+                    return Err(format!(
+                        "Stdout mismatch for {}:\n--- expected ---\n{}\n--- actual ---\n{}",
+                        info.project_name, expected, actual
+                    ));
+                }
+
                 let _ = harness.cleanup_container(&container_id).await;
-                let _ = harness.cleanup_image(&image_name).await;
-                return Err(format!(
-                    "Health check for {} returned non-2xx status.\nContainer Logs:\n{}",
-                    project_name, logs
-                ));
             }
         }
 
-        let _ = harness.cleanup_container(&container_id).await;
         let _ = harness.cleanup_image(&image_name).await;
     }
 

@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use bollard::container::{Config, LogsOptions, RemoveContainerOptions, StartContainerOptions};
+use bollard::container::{
+    Config, LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
+};
 use bollard::service::{HostConfig, PortBinding};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
@@ -421,36 +423,41 @@ impl ContainerTestHarness {
     pub async fn start_container(
         &self,
         image_name: &str,
-        container_port: u16,
+        container_port: Option<u16>,
         cmd: Option<Vec<String>>,
         env: Option<Vec<String>>,
     ) -> Result<String> {
+        let (exposed_ports, host_config) = if let Some(port) = container_port {
+            let mut ep = std::collections::HashMap::new();
+            ep.insert(
+                format!("{}/tcp", port),
+                std::collections::HashMap::new(),
+            );
+            let mut pb = std::collections::HashMap::new();
+            pb.insert(
+                format!("{}/tcp", port),
+                Some(vec![bollard::service::PortBinding {
+                    host_ip: Some("127.0.0.1".to_string()),
+                    host_port: Some("0".to_string()),
+                }]),
+            );
+            (
+                Some(ep),
+                Some(bollard::service::HostConfig {
+                    port_bindings: Some(pb),
+                    ..Default::default()
+                }),
+            )
+        } else {
+            (None, None)
+        };
+
         let container_config = Config {
             image: Some(image_name.to_string()),
             cmd,
             env,
-            exposed_ports: Some(
-                [(
-                    format!("{}/tcp", container_port),
-                    std::collections::HashMap::new(),
-                )]
-                .into_iter()
-                .collect(),
-            ),
-            host_config: Some(bollard::service::HostConfig {
-                port_bindings: Some(
-                    [(
-                        format!("{}/tcp", container_port),
-                        Some(vec![bollard::service::PortBinding {
-                            host_ip: Some("127.0.0.1".to_string()),
-                            host_port: Some("0".to_string()),
-                        }]),
-                    )]
-                    .into_iter()
-                    .collect(),
-                ),
-                ..Default::default()
-            }),
+            exposed_ports,
+            host_config,
             ..Default::default()
         };
 
@@ -466,6 +473,29 @@ impl ContainerTestHarness {
             .context("Failed to start container")?;
 
         Ok(container.id)
+    }
+
+    pub async fn wait_for_exit(
+        &self,
+        container_id: &str,
+        timeout: Duration,
+    ) -> Result<i64> {
+        let wait_fut = async {
+            let options = WaitContainerOptions {
+                condition: "not-running",
+            };
+            let mut stream = self.docker.wait_container(container_id, Some(options));
+            if let Some(result) = stream.next().await {
+                let response = result.context("Error waiting for container")?;
+                Ok(response.status_code)
+            } else {
+                anyhow::bail!("Wait stream ended without result")
+            }
+        };
+
+        tokio::time::timeout(timeout, wait_fut)
+            .await
+            .context("Timeout waiting for container to exit")?
     }
 
     pub async fn get_host_port(&self, container_id: &str, container_port: u16) -> Result<u16> {

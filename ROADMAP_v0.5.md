@@ -3,7 +3,6 @@
 ## Phase 2: Testing Infrastructure & Stability 🧪
 *Goal: Fix flaky tests and expand validation capabilities.*
 
-- **[P2] Non-Webserver E2E Support:** Extend e2e tests to validate apps that only output to `stdout` (based on expected JSON patterns) instead of listening on a port.
 - **[P2] Caching Validation:** Add container tests that verify:
     - No network access required on second run (offline build).
     - All layers are correctly cached by BuildKit.

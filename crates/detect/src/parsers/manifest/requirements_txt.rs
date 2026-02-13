@@ -70,7 +70,7 @@ impl ManifestParser for RequirementsTxtParser {
                 env: BTreeMap::new(),
                 entrypoint: None,
                 workdir: Some("/app".into()),
-                ports: vec![8000],
+                ports: vec![],
                 health_endpoint: None,
             },
         })
