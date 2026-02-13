@@ -6,8 +6,6 @@
 - **[P2] Optimize BuildKit Caching:**
     - Investigation: Set timestamp to 0 only in the runtime image, but preserve them in the build image to fix Maven/Cargo caching issues.
     - Fix: Ensure `target/` and downloaded crates are correctly cached.
-- **[P3] Pipeline Cleanup:** Remove redundant `ca-certificates` from `peelbox-stack` (already handled in pipeline).
-- **[P3] Crate Documentation:** For each crate, analyze and write a high-quality `CLAUDE.md` development guide.
 
 ## Phase 2: Testing Infrastructure & Stability 🧪
 *Goal: Fix flaky tests and expand validation capabilities.*
