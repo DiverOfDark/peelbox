@@ -469,25 +469,38 @@ impl ContainerTestHarness {
     }
 
     pub async fn get_host_port(&self, container_id: &str, container_port: u16) -> Result<u16> {
-        let inspect = self
-            .docker
-            .inspect_container(container_id, None)
-            .await
-            .context("Failed to inspect container")?;
-
         let port_key = format!("{}/tcp", container_port);
-        let host_port = inspect
-            .network_settings
-            .and_then(|ns| ns.ports)
-            .and_then(|ports| ports.get(&port_key).cloned())
-            .and_then(|bindings| bindings)
-            .and_then(|bindings| bindings.first().cloned())
-            .and_then(|binding| binding.host_port)
-            .context("Failed to get host port from container")?;
 
-        host_port
-            .parse::<u16>()
-            .context("Failed to parse host port as u16")
+        // Retry: port bindings may not be immediately available after container start
+        for attempt in 0..10 {
+            let inspect = self
+                .docker
+                .inspect_container(container_id, None)
+                .await
+                .context("Failed to inspect container")?;
+
+            if let Some(host_port) = inspect
+                .network_settings
+                .and_then(|ns| ns.ports)
+                .and_then(|ports| ports.get(&port_key).cloned())
+                .and_then(|bindings| bindings)
+                .and_then(|bindings| bindings.first().cloned())
+                .and_then(|binding| binding.host_port)
+            {
+                return host_port
+                    .parse::<u16>()
+                    .context("Failed to parse host port as u16");
+            }
+
+            if attempt < 9 {
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            }
+        }
+
+        anyhow::bail!(
+            "Failed to get host port from container after 10 attempts (port {})",
+            container_port
+        )
     }
 
     pub async fn wait_for_port(

@@ -3,7 +3,6 @@
 ## Phase 2: Testing Infrastructure & Stability 🧪
 *Goal: Fix flaky tests and expand validation capabilities.*
 
-- **[P1] Fix Monorepo Flakiness:** Debug `Failed to get host port from container` error in `monorepo::cargo-workspace` test.
 - **[P2] Non-Webserver E2E Support:** Extend e2e tests to validate apps that only output to `stdout` (based on expected JSON patterns) instead of listening on a port.
 - **[P2] Caching Validation:** Add container tests that verify:
     - No network access required on second run (offline build).
