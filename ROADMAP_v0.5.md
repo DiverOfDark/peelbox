@@ -1,12 +1,5 @@
 # Peelbox Roadmap to v0.5
 
-## Phase 1: Core Cleanup & Architecture Refactoring 🏗️
-*Goal: Address technical debt and stabilize the core logic.*
-
-- **[P2] Optimize BuildKit Caching:**
-    - Investigation: Set timestamp to 0 only in the runtime image, but preserve them in the build image to fix Maven/Cargo caching issues.
-    - Fix: Ensure `target/` and downloaded crates are correctly cached.
-
 ## Phase 2: Testing Infrastructure & Stability 🧪
 *Goal: Fix flaky tests and expand validation capabilities.*
 

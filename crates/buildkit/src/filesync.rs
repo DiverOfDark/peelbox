@@ -75,14 +75,19 @@ impl FileSync {
                 }
             };
 
+            let mod_time = Self::get_mod_time(&metadata);
+
             let stat = FileStat {
                 path: relative_path.clone(),
                 size: metadata.len(),
                 mode: Self::get_file_mode(&metadata),
-                // Normalize metadata to ensure deterministic file digests for BuildKit caching
+                // Preserve real timestamps so build tools (Maven, Cargo) can use
+                // timestamp-based incremental compilation with cache mounts.
+                // Reproducibility of the final image is handled by the OCI exporter's
+                // rewrite-timestamp and source-date-epoch settings.
                 uid: 0,
                 gid: 0,
-                mod_time: 0,
+                mod_time,
                 linkname: Self::get_linkname(path).await,
                 is_dir: metadata.is_dir(),
             };
@@ -144,6 +149,16 @@ impl FileSync {
 
         debug!("Read {} chunks ({} bytes total)", chunks.len(), total_read);
         Ok(chunks)
+    }
+
+    /// Get file modification time as Unix timestamp (seconds since epoch)
+    fn get_mod_time(metadata: &std::fs::Metadata) -> i64 {
+        metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0)
     }
 
     /// Get Unix file mode from metadata

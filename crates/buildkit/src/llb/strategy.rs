@@ -31,7 +31,7 @@ impl BuildStrategy for PeelboxStrategy {
                     "-c".to_string(),
                     format!("apk add --no-cache {}", packages),
                 ],
-                env: vec![format!("SOURCE_DATE_EPOCH={}", SOURCE_DATE_EPOCH)],
+                env: vec![],
                 cwd: "/".to_string(),
                 user: String::new(),
                 proxy_env: None,
@@ -71,7 +71,6 @@ impl BuildStrategy for PeelboxStrategy {
                     .iter()
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect();
-                env_vars.push(format!("SOURCE_DATE_EPOCH={}", SOURCE_DATE_EPOCH));
                 env_vars.sort();
 
                 let meta = pb::Meta {
