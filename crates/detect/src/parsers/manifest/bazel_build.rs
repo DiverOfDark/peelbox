@@ -1,9 +1,20 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const CPP: LanguageId = LanguageId::new("c++");
+const JAVA: LanguageId = LanguageId::new("java");
+const PYTHON: LanguageId = LanguageId::new("python");
+const GO: LanguageId = LanguageId::new("go");
+const BAZEL: BuildSystemId = BuildSystemId::new("bazel");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    BuildSystemMeta { slug: "bazel", display_name: "Bazel", aliases: &["bazel"] }
+}
 
 pub struct BazelBuildParser;
 
@@ -32,20 +43,20 @@ impl ManifestParser for BazelBuildParser {
 
         // Detect language from binary type
         let language = if content.contains("cc_binary") {
-            LanguageId::Cpp
+            CPP
         } else if content.contains("java_binary") {
-            LanguageId::Java
+            JAVA
         } else if content.contains("py_binary") {
-            LanguageId::Python
+            PYTHON
         } else {
-            LanguageId::Go
+            GO
         };
 
         Some(Manifest {
             path: path.to_path_buf(),
             language,
-            build_system: BuildSystemId::Bazel,
-            runtime: RuntimeId::Native,
+            build_system: BAZEL,
+            runtime: NATIVE,
             package: Some(Package {
                 name: name.clone(),
                 version: None,

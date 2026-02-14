@@ -1,9 +1,23 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const RUBY: LanguageId = LanguageId::new("ruby");
+const BUNDLER: BuildSystemId = BuildSystemId::new("bundler");
+const RUBY_RT: RuntimeId = RuntimeId::new("ruby");
+
+inventory::submit! {
+    LanguageMeta { slug: "ruby", display_name: "Ruby", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "bundler", display_name: "Bundler", aliases: &["bundler"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "ruby", display_name: "Ruby", aliases: &["ruby"] }
+}
 
 pub struct GemfileParser;
 
@@ -44,9 +58,9 @@ impl ManifestParser for GemfileParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Ruby,
-            build_system: BuildSystemId::Bundler,
-            runtime: RuntimeId::Ruby,
+            language: RUBY,
+            build_system: BUNDLER,
+            runtime: RUBY_RT,
             package: Some(Package {
                 name: "app".to_string(),
                 version: None,

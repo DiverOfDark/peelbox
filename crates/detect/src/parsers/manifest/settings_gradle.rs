@@ -1,7 +1,11 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::path::Path;
+
+const JAVA: LanguageId = LanguageId::new("java");
+const GRADLE: BuildSystemId = BuildSystemId::new("gradle");
+const JVM: RuntimeId = RuntimeId::new("jvm");
 
 pub struct SettingsGradleParser;
 
@@ -66,9 +70,9 @@ impl ManifestParser for SettingsGradleParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Java,
-            build_system: BuildSystemId::Gradle,
-            runtime: RuntimeId::JVM,
+            language: JAVA,
+            build_system: GRADLE,
+            runtime: JVM,
             package: project_name.map(|name| Package {
                 name,
                 version: None,

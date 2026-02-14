@@ -1,11 +1,16 @@
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::types::Dependency;
 use std::collections::BTreeMap;
 
+const ELIXIR: LanguageId = LanguageId::new("elixir");
+
+const PHOENIX: FrameworkId = FrameworkId::new("phoenix");
+inventory::submit! { FrameworkMeta { slug: "phoenix", display_name: "Phoenix", aliases: &[] } }
+
 super::simple_detector!(
     PhoenixDetector,
-    FrameworkId::Phoenix,
-    &[LanguageId::Elixir],
+    PHOENIX,
+    &[ELIXIR],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "phoenix"),
     vec![4000],
     vec![],

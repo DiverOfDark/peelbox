@@ -1,8 +1,12 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const PYTHON: LanguageId = LanguageId::new("python");
+const PIP: BuildSystemId = BuildSystemId::new("pip");
+const PYTHON_RT: RuntimeId = RuntimeId::new("python");
 
 pub struct RequirementsTxtParser;
 
@@ -37,9 +41,9 @@ impl ManifestParser for RequirementsTxtParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Python,
-            build_system: BuildSystemId::Pip,
-            runtime: RuntimeId::Python,
+            language: PYTHON,
+            build_system: PIP,
+            runtime: PYTHON_RT,
             package: Some(Package {
                 name: "app".to_string(),
                 version: None,

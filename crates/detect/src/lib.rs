@@ -11,7 +11,7 @@
 
 pub mod framework_detectors;
 pub mod helpers;
-pub mod id_enums;
+pub mod ids;
 pub mod parsers;
 pub mod pipeline;
 pub mod registry;

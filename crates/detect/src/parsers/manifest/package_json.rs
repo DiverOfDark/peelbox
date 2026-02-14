@@ -1,8 +1,38 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const JAVASCRIPT: LanguageId = LanguageId::new("javascript");
+const TYPESCRIPT: LanguageId = LanguageId::new("typescript");
+const NPM: BuildSystemId = BuildSystemId::new("npm");
+const YARN: BuildSystemId = BuildSystemId::new("yarn");
+const PNPM: BuildSystemId = BuildSystemId::new("pnpm");
+const BUN: BuildSystemId = BuildSystemId::new("bun");
+const NODE: RuntimeId = RuntimeId::new("node");
+
+inventory::submit! {
+    LanguageMeta { slug: "javascript", display_name: "JavaScript", aliases: &[] }
+}
+inventory::submit! {
+    LanguageMeta { slug: "typescript", display_name: "TypeScript", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "npm", display_name: "npm", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "yarn", display_name: "Yarn", aliases: &["yarn"] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "pnpm", display_name: "pnpm", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "bun", display_name: "Bun", aliases: &["bun"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "node", display_name: "Node", aliases: &["node"] }
+}
 
 pub struct PackageJsonParser;
 
@@ -23,16 +53,16 @@ impl ManifestParser for PackageJsonParser {
         let has_build = json.get("scripts").and_then(|s| s.get("build")).is_some();
 
         let build_system = match json.get("packageManager").and_then(|v| v.as_str()) {
-            Some(pm) if pm.starts_with("yarn") => BuildSystemId::Yarn,
-            Some(pm) if pm.starts_with("pnpm") => BuildSystemId::Pnpm,
-            Some(pm) if pm.starts_with("bun") => BuildSystemId::Bun,
-            _ => BuildSystemId::Npm,
+            Some(pm) if pm.starts_with("yarn") => YARN,
+            Some(pm) if pm.starts_with("pnpm") => PNPM,
+            Some(pm) if pm.starts_with("bun") => BUN,
+            _ => NPM,
         };
 
-        let pkg_manager = match &build_system {
-            BuildSystemId::Yarn => "yarn",
-            BuildSystemId::Pnpm => "pnpm",
-            BuildSystemId::Bun => "bun",
+        let pkg_manager = match build_system {
+            YARN => "yarn",
+            PNPM => "pnpm",
+            BUN => "bun",
             _ => "npm",
         };
 
@@ -85,9 +115,9 @@ impl ManifestParser for PackageJsonParser {
             .iter()
             .any(|d| d.name == "typescript" && d.scope == DepScope::Runtime)
         {
-            LanguageId::TypeScript
+            TYPESCRIPT
         } else {
-            LanguageId::JavaScript
+            JAVASCRIPT
         };
 
         let start_script = json
@@ -121,7 +151,7 @@ impl ManifestParser for PackageJsonParser {
             path: path.to_path_buf(),
             language,
             build_system,
-            runtime: RuntimeId::Node,
+            runtime: NODE,
             package: name.as_ref().map(|n| Package {
                 name: n.clone(),
                 version,

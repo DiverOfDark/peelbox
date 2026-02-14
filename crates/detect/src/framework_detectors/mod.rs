@@ -28,10 +28,10 @@ macro_rules! simple_detector {
     ($name:ident, $id:expr, $langs:expr, $detect_fn:expr, $ports:expr, $health:expr, $env:expr, $pkgs:expr) => {
         pub struct $name;
         impl $crate::traits::FrameworkDetector for $name {
-            fn id(&self) -> $crate::id_enums::FrameworkId {
+            fn id(&self) -> $crate::ids::FrameworkId {
                 $id
             }
-            fn compatible_languages(&self) -> &[$crate::id_enums::LanguageId] {
+            fn compatible_languages(&self) -> &[$crate::ids::LanguageId] {
                 $langs
             }
             fn detect(&self, deps: &[$crate::types::Dependency]) -> bool {
@@ -62,7 +62,7 @@ pub(crate) use simple_detector;
 
 #[cfg(test)]
 mod tests {
-    use crate::id_enums::FrameworkId;
+    use crate::ids::FrameworkId;
     use crate::traits::FrameworkDetector;
     use crate::types::DepScope;
     use crate::types::Dependency;
@@ -76,13 +76,15 @@ mod tests {
         }
     }
 
+    const SPRING_BOOT: FrameworkId = FrameworkId::new("spring-boot");
+
     #[test]
     fn test_spring_boot_detection() {
         let detector = super::SpringBootDetector;
         let deps = vec![make_dep("org.springframework.boot:spring-boot-starter-web")];
         assert!(detector.detect(&deps));
         let contrib = detector.contribution(&deps);
-        assert_eq!(contrib.framework, FrameworkId::SpringBoot);
+        assert_eq!(contrib.framework, SPRING_BOOT);
         assert_eq!(contrib.default_ports, vec![8080]);
     }
 

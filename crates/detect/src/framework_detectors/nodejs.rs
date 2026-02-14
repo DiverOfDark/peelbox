@@ -1,13 +1,19 @@
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::types::{Dependency, FrameworkContribution};
 use std::collections::BTreeMap;
 
+const JS: LanguageId = LanguageId::new("javascript");
+const TS: LanguageId = LanguageId::new("typescript");
+
 // ── Server Frameworks ──────────────────────────────────────────────────────
+
+const EXPRESS: FrameworkId = FrameworkId::new("express");
+inventory::submit! { FrameworkMeta { slug: "express", display_name: "Express", aliases: &[] } }
 
 super::simple_detector!(
     ExpressDetector,
-    FrameworkId::Express,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    EXPRESS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "express"),
     vec![3000],
     vec!["/health".into(), "/healthz".into(), "/ping".into()],
@@ -19,10 +25,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ExpressDetector))
 }
 
+const NEXTJS: FrameworkId = FrameworkId::new("nextjs");
+inventory::submit! { FrameworkMeta { slug: "nextjs", display_name: "Next.js", aliases: &[] } }
+
 super::simple_detector!(
     NextJsDetector,
-    FrameworkId::NextJs,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    NEXTJS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "next"),
     vec![3000],
     vec![],
@@ -34,10 +43,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(NextJsDetector))
 }
 
+const NESTJS: FrameworkId = FrameworkId::new("nestjs");
+inventory::submit! { FrameworkMeta { slug: "nestjs", display_name: "NestJS", aliases: &[] } }
+
 super::simple_detector!(
     NestJsDetector,
-    FrameworkId::NestJs,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    NESTJS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@nestjs/core"),
     vec![3000],
     vec!["/health".into(), "/healthz".into()],
@@ -49,10 +61,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(NestJsDetector))
 }
 
+const FASTIFY: FrameworkId = FrameworkId::new("fastify");
+inventory::submit! { FrameworkMeta { slug: "fastify", display_name: "Fastify", aliases: &[] } }
+
 super::simple_detector!(
     FastifyDetector,
-    FrameworkId::Fastify,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    FASTIFY,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "fastify"),
     vec![3000],
     vec!["/health".into()],
@@ -64,10 +79,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FastifyDetector))
 }
 
+const HONO: FrameworkId = FrameworkId::new("hono");
+inventory::submit! { FrameworkMeta { slug: "hono", display_name: "Hono", aliases: &[] } }
+
 super::simple_detector!(
     HonoDetector,
-    FrameworkId::Hono,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    HONO,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "hono"),
     vec![3000],
     vec!["/health".into(), "/healthz".into()],
@@ -79,10 +97,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(HonoDetector))
 }
 
+const KOA: FrameworkId = FrameworkId::new("koa");
+inventory::submit! { FrameworkMeta { slug: "koa", display_name: "Koa", aliases: &[] } }
+
 super::simple_detector!(
     KoaDetector,
-    FrameworkId::Koa,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    KOA,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "koa"),
     vec![3000],
     vec!["/health".into(), "/healthz".into()],
@@ -94,10 +115,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(KoaDetector))
 }
 
+const H3: FrameworkId = FrameworkId::new("h3");
+inventory::submit! { FrameworkMeta { slug: "h3", display_name: "H3", aliases: &[] } }
+
 super::simple_detector!(
     H3Detector,
-    FrameworkId::H3,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    H3,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "h3"),
     vec![3000],
     vec!["/health".into(), "/healthz".into()],
@@ -109,10 +133,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(H3Detector))
 }
 
+const NITRO: FrameworkId = FrameworkId::new("nitro");
+inventory::submit! { FrameworkMeta { slug: "nitro", display_name: "Nitro", aliases: &[] } }
+
 super::simple_detector!(
     NitroDetector,
-    FrameworkId::Nitro,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    NITRO,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "nitropack"),
     vec![3000],
     vec!["/health".into(), "/healthz".into()],
@@ -126,10 +153,13 @@ inventory::submit! {
 
 // ── SSR / Full-stack Frameworks ────────────────────────────────────────────
 
+const NUXT: FrameworkId = FrameworkId::new("nuxt");
+inventory::submit! { FrameworkMeta { slug: "nuxt", display_name: "Nuxt", aliases: &[] } }
+
 super::simple_detector!(
     NuxtDetector,
-    FrameworkId::Nuxt,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    NUXT,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| {
         d.name == "nuxt"
             || d.name == "nuxt3"
@@ -146,10 +176,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(NuxtDetector))
 }
 
+const REMIX: FrameworkId = FrameworkId::new("remix");
+inventory::submit! { FrameworkMeta { slug: "remix", display_name: "Remix", aliases: &[] } }
+
 super::simple_detector!(
     RemixDetector,
-    FrameworkId::Remix,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    REMIX,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@remix-run/dev"),
     vec![3000],
     vec!["/healthcheck".into()],
@@ -161,10 +194,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(RemixDetector))
 }
 
+const REACT_ROUTER: FrameworkId = FrameworkId::new("react-router");
+inventory::submit! { FrameworkMeta { slug: "react-router", display_name: "React Router", aliases: &[] } }
+
 super::simple_detector!(
     ReactRouterDetector,
-    FrameworkId::ReactRouter,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    REACT_ROUTER,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@react-router/dev"),
     vec![3000],
     vec![],
@@ -176,10 +212,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ReactRouterDetector))
 }
 
+const ASTRO: FrameworkId = FrameworkId::new("astro");
+inventory::submit! { FrameworkMeta { slug: "astro", display_name: "Astro", aliases: &[] } }
+
 super::simple_detector!(
     AstroDetector,
-    FrameworkId::Astro,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    ASTRO,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "astro"),
     vec![4321],
     vec![],
@@ -191,10 +230,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(AstroDetector))
 }
 
+const SVELTEKIT: FrameworkId = FrameworkId::new("sveltekit");
+inventory::submit! { FrameworkMeta { slug: "sveltekit", display_name: "SvelteKit", aliases: &[] } }
+
 super::simple_detector!(
     SvelteKitDetector,
-    FrameworkId::SvelteKit,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SVELTEKIT,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@sveltejs/kit"),
     vec![3000],
     vec![],
@@ -206,10 +248,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(SvelteKitDetector))
 }
 
+const GATSBY: FrameworkId = FrameworkId::new("gatsby");
+inventory::submit! { FrameworkMeta { slug: "gatsby", display_name: "Gatsby", aliases: &[] } }
+
 super::simple_detector!(
     GatsbyDetector,
-    FrameworkId::Gatsby,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    GATSBY,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "gatsby"),
     vec![8000],
     vec![],
@@ -221,10 +266,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(GatsbyDetector))
 }
 
+const SOLID_START: FrameworkId = FrameworkId::new("solid-start");
+inventory::submit! { FrameworkMeta { slug: "solid-start", display_name: "SolidStart", aliases: &[] } }
+
 super::simple_detector!(
     SolidStartDetector,
-    FrameworkId::SolidStart,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SOLID_START,
+    &[JS, TS],
     |deps: &[Dependency]| {
         deps.iter()
             .any(|d| d.name == "@solidjs/start" || d.name == "solid-start")
@@ -239,10 +287,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(SolidStartDetector))
 }
 
+const REDWOODJS: FrameworkId = FrameworkId::new("redwoodjs");
+inventory::submit! { FrameworkMeta { slug: "redwoodjs", display_name: "RedwoodJS", aliases: &[] } }
+
 super::simple_detector!(
     RedwoodJsDetector,
-    FrameworkId::RedwoodJs,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    REDWOODJS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@redwoodjs/core"),
     vec![8910],
     vec![],
@@ -254,10 +305,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(RedwoodJsDetector))
 }
 
+const HYDROGEN: FrameworkId = FrameworkId::new("hydrogen");
+inventory::submit! { FrameworkMeta { slug: "hydrogen", display_name: "Hydrogen", aliases: &[] } }
+
 super::simple_detector!(
     HydrogenDetector,
-    FrameworkId::Hydrogen,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    HYDROGEN,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@shopify/hydrogen"),
     vec![3000],
     vec![],
@@ -269,10 +323,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(HydrogenDetector))
 }
 
+const TANSTACK_START: FrameworkId = FrameworkId::new("tanstack-start");
+inventory::submit! { FrameworkMeta { slug: "tanstack-start", display_name: "TanStack Start", aliases: &[] } }
+
 super::simple_detector!(
     TanStackStartDetector,
-    FrameworkId::TanStackStart,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    TANSTACK_START,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@tanstack/router-plugin"),
     vec![3000],
     vec![],
@@ -284,10 +341,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(TanStackStartDetector))
 }
 
+const BLITZ: FrameworkId = FrameworkId::new("blitz");
+inventory::submit! { FrameworkMeta { slug: "blitz", display_name: "Blitz", aliases: &[] } }
+
 super::simple_detector!(
     BlitzDetector,
-    FrameworkId::Blitz,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    BLITZ,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "blitz"),
     vec![3000],
     vec![],
@@ -301,16 +361,19 @@ inventory::submit! {
 
 // ── Frontend Build / SSG Frameworks ────────────────────────────────────────
 
+const VITE: FrameworkId = FrameworkId::new("vite");
+inventory::submit! { FrameworkMeta { slug: "vite", display_name: "Vite", aliases: &[] } }
+
 // Vite needs special handling: exclude meta-frameworks that bundle Vite internally.
 pub struct ViteDetector;
 
 impl crate::traits::FrameworkDetector for ViteDetector {
     fn id(&self) -> FrameworkId {
-        FrameworkId::Vite
+        VITE
     }
 
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[LanguageId::JavaScript, LanguageId::TypeScript]
+        &[JS, TS]
     }
 
     fn detect(&self, deps: &[Dependency]) -> bool {
@@ -340,7 +403,7 @@ impl crate::traits::FrameworkDetector for ViteDetector {
 
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
-            framework: FrameworkId::Vite,
+            framework: VITE,
             default_ports: vec![5173],
             health_endpoints: vec![],
             env_vars: BTreeMap::new(),
@@ -357,10 +420,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ViteDetector))
 }
 
+const CREATE_REACT_APP: FrameworkId = FrameworkId::new("create-react-app");
+inventory::submit! { FrameworkMeta { slug: "create-react-app", display_name: "Create React App", aliases: &[] } }
+
 super::simple_detector!(
     CreateReactAppDetector,
-    FrameworkId::CreateReactApp,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    CREATE_REACT_APP,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "react-scripts"),
     vec![3000],
     vec![],
@@ -372,10 +438,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(CreateReactAppDetector))
 }
 
+const ANGULAR: FrameworkId = FrameworkId::new("angular");
+inventory::submit! { FrameworkMeta { slug: "angular", display_name: "Angular", aliases: &[] } }
+
 super::simple_detector!(
     AngularDetector,
-    FrameworkId::Angular,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    ANGULAR,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@angular/cli"),
     vec![4200],
     vec![],
@@ -387,10 +456,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(AngularDetector))
 }
 
+const VUE_CLI: FrameworkId = FrameworkId::new("vue-cli");
+inventory::submit! { FrameworkMeta { slug: "vue-cli", display_name: "Vue CLI", aliases: &[] } }
+
 super::simple_detector!(
     VueCliDetector,
-    FrameworkId::VueCli,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    VUE_CLI,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@vue/cli-service"),
     vec![8080],
     vec![],
@@ -402,10 +474,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(VueCliDetector))
 }
 
+const PREACT_CLI: FrameworkId = FrameworkId::new("preact-cli");
+inventory::submit! { FrameworkMeta { slug: "preact-cli", display_name: "Preact CLI", aliases: &[] } }
+
 super::simple_detector!(
     PreactCliDetector,
-    FrameworkId::PreactCli,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    PREACT_CLI,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "preact-cli"),
     vec![8080],
     vec![],
@@ -417,10 +492,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(PreactCliDetector))
 }
 
+const EMBER: FrameworkId = FrameworkId::new("ember");
+inventory::submit! { FrameworkMeta { slug: "ember", display_name: "Ember", aliases: &[] } }
+
 super::simple_detector!(
     EmberDetector,
-    FrameworkId::Ember,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    EMBER,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "ember-cli"),
     vec![4200],
     vec![],
@@ -432,10 +510,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(EmberDetector))
 }
 
+const SVELTE: FrameworkId = FrameworkId::new("svelte");
+inventory::submit! { FrameworkMeta { slug: "svelte", display_name: "Svelte", aliases: &[] } }
+
 super::simple_detector!(
     SvelteDetector,
-    FrameworkId::Svelte,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SVELTE,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "sirv-cli"),
     vec![5000],
     vec![],
@@ -447,10 +528,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(SvelteDetector))
 }
 
+const DOCUSAURUS: FrameworkId = FrameworkId::new("docusaurus");
+inventory::submit! { FrameworkMeta { slug: "docusaurus", display_name: "Docusaurus", aliases: &[] } }
+
 super::simple_detector!(
     DocusaurusDetector,
-    FrameworkId::Docusaurus,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    DOCUSAURUS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@docusaurus/core"),
     vec![3000],
     vec![],
@@ -462,10 +546,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(DocusaurusDetector))
 }
 
+const ELEVENTY: FrameworkId = FrameworkId::new("eleventy");
+inventory::submit! { FrameworkMeta { slug: "eleventy", display_name: "Eleventy", aliases: &[] } }
+
 super::simple_detector!(
     EleventyDetector,
-    FrameworkId::Eleventy,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    ELEVENTY,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@11ty/eleventy"),
     vec![8080],
     vec![],
@@ -477,10 +564,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(EleventyDetector))
 }
 
+const VITEPRESS: FrameworkId = FrameworkId::new("vitepress");
+inventory::submit! { FrameworkMeta { slug: "vitepress", display_name: "VitePress", aliases: &[] } }
+
 super::simple_detector!(
     VitePressDetector,
-    FrameworkId::VitePress,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    VITEPRESS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "vitepress"),
     vec![5173],
     vec![],
@@ -492,10 +582,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(VitePressDetector))
 }
 
+const VUEPRESS: FrameworkId = FrameworkId::new("vuepress");
+inventory::submit! { FrameworkMeta { slug: "vuepress", display_name: "VuePress", aliases: &[] } }
+
 super::simple_detector!(
     VuePressDetector,
-    FrameworkId::VuePress,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    VUEPRESS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "vuepress"),
     vec![8080],
     vec![],
@@ -507,10 +600,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(VuePressDetector))
 }
 
+const STENCIL: FrameworkId = FrameworkId::new("stencil");
+inventory::submit! { FrameworkMeta { slug: "stencil", display_name: "Stencil", aliases: &[] } }
+
 super::simple_detector!(
     StencilDetector,
-    FrameworkId::Stencil,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    STENCIL,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@stencil/core"),
     vec![3333],
     vec![],
@@ -522,10 +618,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(StencilDetector))
 }
 
+const PARCEL: FrameworkId = FrameworkId::new("parcel");
+inventory::submit! { FrameworkMeta { slug: "parcel", display_name: "Parcel", aliases: &[] } }
+
 super::simple_detector!(
     ParcelDetector,
-    FrameworkId::Parcel,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    PARCEL,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "parcel"),
     vec![1234],
     vec![],
@@ -537,10 +636,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ParcelDetector))
 }
 
+const HEXO: FrameworkId = FrameworkId::new("hexo");
+inventory::submit! { FrameworkMeta { slug: "hexo", display_name: "Hexo", aliases: &[] } }
+
 super::simple_detector!(
     HexoDetector,
-    FrameworkId::Hexo,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    HEXO,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "hexo"),
     vec![4000],
     vec![],
@@ -552,10 +654,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(HexoDetector))
 }
 
+const GRIDSOME: FrameworkId = FrameworkId::new("gridsome");
+inventory::submit! { FrameworkMeta { slug: "gridsome", display_name: "Gridsome", aliases: &[] } }
+
 super::simple_detector!(
     GridsomeDetector,
-    FrameworkId::Gridsome,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    GRIDSOME,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "gridsome"),
     vec![8080],
     vec![],
@@ -567,10 +672,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(GridsomeDetector))
 }
 
+const BRUNCH: FrameworkId = FrameworkId::new("brunch");
+inventory::submit! { FrameworkMeta { slug: "brunch", display_name: "Brunch", aliases: &[] } }
+
 super::simple_detector!(
     BrunchDetector,
-    FrameworkId::Brunch,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    BRUNCH,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "brunch"),
     vec![3333],
     vec![],
@@ -582,10 +690,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(BrunchDetector))
 }
 
+const STORYBOOK: FrameworkId = FrameworkId::new("storybook");
+inventory::submit! { FrameworkMeta { slug: "storybook", display_name: "Storybook", aliases: &[] } }
+
 super::simple_detector!(
     StorybookDetector,
-    FrameworkId::Storybook,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    STORYBOOK,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "storybook"),
     vec![6006],
     vec![],
@@ -597,10 +708,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(StorybookDetector))
 }
 
+const SANITY: FrameworkId = FrameworkId::new("sanity");
+inventory::submit! { FrameworkMeta { slug: "sanity", display_name: "Sanity", aliases: &[] } }
+
 super::simple_detector!(
     SanityDetector,
-    FrameworkId::Sanity,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SANITY,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "sanity"),
     vec![3333],
     vec![],
@@ -614,10 +728,13 @@ inventory::submit! {
 
 // ── Legacy / Niche Frameworks ──────────────────────────────────────────────
 
+const SAPPER: FrameworkId = FrameworkId::new("sapper");
+inventory::submit! { FrameworkMeta { slug: "sapper", display_name: "Sapper", aliases: &[] } }
+
 super::simple_detector!(
     SapperDetector,
-    FrameworkId::Sapper,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SAPPER,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "sapper"),
     vec![3000],
     vec![],
@@ -629,10 +746,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(SapperDetector))
 }
 
+const SABER: FrameworkId = FrameworkId::new("saber");
+inventory::submit! { FrameworkMeta { slug: "saber", display_name: "Saber", aliases: &[] } }
+
 super::simple_detector!(
     SaberDetector,
-    FrameworkId::Saber,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SABER,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "saber"),
     vec![3000],
     vec![],
@@ -644,10 +764,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(SaberDetector))
 }
 
+const UMIJS: FrameworkId = FrameworkId::new("umijs");
+inventory::submit! { FrameworkMeta { slug: "umijs", display_name: "UmiJS", aliases: &[] } }
+
 super::simple_detector!(
     UmiJsDetector,
-    FrameworkId::UmiJs,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    UMIJS,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "umi"),
     vec![8000],
     vec![],
@@ -659,10 +782,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(UmiJsDetector))
 }
 
+const DOJO: FrameworkId = FrameworkId::new("dojo");
+inventory::submit! { FrameworkMeta { slug: "dojo", display_name: "Dojo", aliases: &[] } }
+
 super::simple_detector!(
     DojoDetector,
-    FrameworkId::Dojo,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    DOJO,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@dojo/framework"),
     vec![9999],
     vec![],
@@ -674,10 +800,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(DojoDetector))
 }
 
+const POLYMER: FrameworkId = FrameworkId::new("polymer");
+inventory::submit! { FrameworkMeta { slug: "polymer", display_name: "Polymer", aliases: &[] } }
+
 super::simple_detector!(
     PolymerDetector,
-    FrameworkId::Polymer,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    POLYMER,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "polymer-cli"),
     vec![8080],
     vec![],
@@ -691,10 +820,13 @@ inventory::submit! {
 
 // ── Ionic / Angular Variants ───────────────────────────────────────────────
 
+const IONIC_ANGULAR: FrameworkId = FrameworkId::new("ionic-angular");
+inventory::submit! { FrameworkMeta { slug: "ionic-angular", display_name: "Ionic Angular", aliases: &[] } }
+
 super::simple_detector!(
     IonicAngularDetector,
-    FrameworkId::IonicAngular,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    IONIC_ANGULAR,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@ionic/angular"),
     vec![8100],
     vec![],
@@ -706,10 +838,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(IonicAngularDetector))
 }
 
+const IONIC_REACT: FrameworkId = FrameworkId::new("ionic-react");
+inventory::submit! { FrameworkMeta { slug: "ionic-react", display_name: "Ionic React", aliases: &[] } }
+
 super::simple_detector!(
     IonicReactDetector,
-    FrameworkId::IonicReact,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    IONIC_REACT,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@ionic/react"),
     vec![8100],
     vec![],
@@ -721,10 +856,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(IonicReactDetector))
 }
 
+const SCULLY: FrameworkId = FrameworkId::new("scully");
+inventory::submit! { FrameworkMeta { slug: "scully", display_name: "Scully", aliases: &[] } }
+
 super::simple_detector!(
     ScullyDetector,
-    FrameworkId::Scully,
-    &[LanguageId::JavaScript, LanguageId::TypeScript],
+    SCULLY,
+    &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@scullyio/init"),
     vec![1668],
     vec![],

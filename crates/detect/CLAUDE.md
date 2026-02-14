@@ -15,7 +15,8 @@ src/
 │                       # FrameworkDetectorEntry), Registry::with_defaults()
 ├── helpers.rs          # btree() helper
 ├── pipeline.rs         # Full detection pipeline (~1,725 lines) with Wolfi resolution + post-processing
-├── id_enums.rs         # define_id_enum! macros: LanguageId, BuildSystemId, FrameworkId, RuntimeId, OrchestratorId
+├── ids.rs              # &'static str newtypes: LanguageId, BuildSystemId, FrameworkId, RuntimeId, OrchestratorId
+│                       # Constants defined in parser/detector files, metadata via inventory
 ├── version/
 │   └── java.rs         # detect_java_version(), parse_pom_version(), parse_gradle_version()
 ├── parsers/

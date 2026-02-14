@@ -1,8 +1,22 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const PHP: LanguageId = LanguageId::new("php");
+const COMPOSER: BuildSystemId = BuildSystemId::new("composer");
+const PHP_RT: RuntimeId = RuntimeId::new("php");
+
+inventory::submit! {
+    LanguageMeta { slug: "php", display_name: "PHP", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "composer", display_name: "Composer", aliases: &["composer"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "php", display_name: "PHP", aliases: &["php"] }
+}
 
 pub struct ComposerJsonParser;
 
@@ -98,9 +112,9 @@ impl ManifestParser for ComposerJsonParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::PHP,
-            build_system: BuildSystemId::Composer,
-            runtime: RuntimeId::PHP,
+            language: PHP,
+            build_system: COMPOSER,
+            runtime: PHP_RT,
             package: Some(Package {
                 name: "app".to_string(),
                 version: None,

@@ -1,15 +1,20 @@
 use crate::helpers::btree;
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
 use std::collections::BTreeMap;
 
+const PYTHON: LanguageId = LanguageId::new("python");
+
 // ── Django ──────────────────────────────────────────────────────────────────
+
+const DJANGO: FrameworkId = FrameworkId::new("django");
+inventory::submit! { FrameworkMeta { slug: "django", display_name: "Django", aliases: &[] } }
 
 super::simple_detector!(
     DjangoDetector,
-    FrameworkId::Django,
-    &[LanguageId::Python],
+    DJANGO,
+    &[PYTHON],
     |deps: &[Dependency]| deps
         .iter()
         .any(|d| d.name == "django" || d.name == "Django"),
@@ -25,14 +30,17 @@ inventory::submit! {
 
 // ── Flask ───────────────────────────────────────────────────────────────────
 
+const FLASK: FrameworkId = FrameworkId::new("flask");
+inventory::submit! { FrameworkMeta { slug: "flask", display_name: "Flask", aliases: &[] } }
+
 pub struct FlaskDetector;
 
 impl FrameworkDetector for FlaskDetector {
     fn id(&self) -> FrameworkId {
-        FrameworkId::Flask
+        FLASK
     }
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[LanguageId::Python]
+        &[PYTHON]
     }
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| {
@@ -44,7 +52,7 @@ impl FrameworkDetector for FlaskDetector {
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
-            framework: FrameworkId::Flask,
+            framework: FLASK,
             default_ports: vec![5000],
             health_endpoints: vec!["/health".into()],
             env_vars: BTreeMap::new(),
@@ -77,10 +85,10 @@ pub struct FlaskPoetryDetector;
 
 impl FrameworkDetector for FlaskPoetryDetector {
     fn id(&self) -> FrameworkId {
-        FrameworkId::Flask
+        FLASK
     }
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[LanguageId::Python]
+        &[PYTHON]
     }
     fn detect(&self, _deps: &[Dependency]) -> bool {
         // This is used specifically for Poetry projects; detection is handled externally
@@ -88,7 +96,7 @@ impl FrameworkDetector for FlaskPoetryDetector {
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
-            framework: FrameworkId::Flask,
+            framework: FLASK,
             default_ports: vec![5000],
             health_endpoints: vec!["/health".into()],
             env_vars: BTreeMap::new(),
@@ -113,10 +121,13 @@ inventory::submit! {
 
 // ── FastAPI ─────────────────────────────────────────────────────────────────
 
+const FAST_API: FrameworkId = FrameworkId::new("fastapi");
+inventory::submit! { FrameworkMeta { slug: "fastapi", display_name: "FastAPI", aliases: &[] } }
+
 super::simple_detector!(
     FastApiDetector,
-    FrameworkId::FastApi,
-    &[LanguageId::Python],
+    FAST_API,
+    &[PYTHON],
     |deps: &[Dependency]| deps
         .iter()
         .any(|d| d.name == "fastapi" || d.name == "FastAPI"),

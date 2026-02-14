@@ -1,8 +1,19 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::path::Path;
+
+const JAVA: LanguageId = LanguageId::new("java");
+const GRADLE: BuildSystemId = BuildSystemId::new("gradle");
+const JVM: RuntimeId = RuntimeId::new("jvm");
+
+inventory::submit! {
+    LanguageMeta { slug: "kotlin", display_name: "Kotlin", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "gradle", display_name: "Gradle", aliases: &["gradle"] }
+}
 
 pub struct BuildGradleParser;
 
@@ -77,9 +88,9 @@ impl ManifestParser for BuildGradleParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Java,
-            build_system: BuildSystemId::Gradle,
-            runtime: RuntimeId::JVM,
+            language: JAVA,
+            build_system: GRADLE,
+            runtime: JVM,
             package: gradle_version.as_ref().map(|v| Package {
                 name: String::new(), // Will be filled from settings.gradle merge
                 version: Some(v.clone()),

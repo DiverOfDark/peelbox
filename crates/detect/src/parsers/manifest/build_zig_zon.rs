@@ -1,8 +1,19 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const ZIG: LanguageId = LanguageId::new("zig");
+const ZIG_BS: BuildSystemId = BuildSystemId::new("zig");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    LanguageMeta { slug: "zig", display_name: "Zig", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "zig", display_name: "Zig Build", aliases: &["zig"] }
+}
 
 /// Parses build.zig.zon for package name and dependencies.
 pub struct BuildZigZonParser;
@@ -66,9 +77,9 @@ impl ManifestParser for BuildZigZonParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Zig,
-            build_system: BuildSystemId::Zig,
-            runtime: RuntimeId::Native,
+            language: ZIG,
+            build_system: ZIG_BS,
+            runtime: NATIVE,
             package: Some(Package {
                 name: name.clone(),
                 version: None,

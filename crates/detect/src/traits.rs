@@ -1,6 +1,6 @@
 //! Parser and detector trait definitions.
 
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, LanguageId};
 use crate::types::{ConfigContribution, Dependency, FrameworkContribution, Manifest};
 use std::path::Path;
 

@@ -1,8 +1,22 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::path::Path;
+
+const DENO: LanguageId = LanguageId::new("deno");
+const DENO_BS: BuildSystemId = BuildSystemId::new("deno");
+const DENO_RT: RuntimeId = RuntimeId::new("deno");
+
+inventory::submit! {
+    LanguageMeta { slug: "deno", display_name: "Deno", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "deno", display_name: "Deno", aliases: &["deno"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "deno", display_name: "Deno", aliases: &["deno"] }
+}
 
 pub struct DenoJsonParser;
 
@@ -29,9 +43,9 @@ impl ManifestParser for DenoJsonParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Deno,
-            build_system: BuildSystemId::Deno,
-            runtime: RuntimeId::Deno,
+            language: DENO,
+            build_system: DENO_BS,
+            runtime: DENO_RT,
             package: Some(Package {
                 name: "app".to_string(),
                 version: None,

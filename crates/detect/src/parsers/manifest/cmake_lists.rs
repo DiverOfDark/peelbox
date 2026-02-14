@@ -1,8 +1,19 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const CPP: LanguageId = LanguageId::new("c++");
+const CMAKE: BuildSystemId = BuildSystemId::new("cmake");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    LanguageMeta { slug: "c++", display_name: "C++", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "cmake", display_name: "CMake", aliases: &["cmake"] }
+}
 
 pub struct CMakeListsParser;
 
@@ -25,9 +36,9 @@ impl ManifestParser for CMakeListsParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Cpp,
-            build_system: BuildSystemId::CMake,
-            runtime: RuntimeId::Native,
+            language: CPP,
+            build_system: CMAKE,
+            runtime: NATIVE,
             package: Some(Package {
                 name: name.clone(),
                 version: None,

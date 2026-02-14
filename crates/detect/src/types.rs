@@ -3,7 +3,7 @@
 //! All manifest formats normalize into generic `Manifest` and `ConfigContribution` types.
 //! No per-format structs are exposed outside the parsers.
 
-use crate::id_enums::{BuildSystemId, FrameworkId, LanguageId, OrchestratorId, RuntimeId};
+use crate::ids::{BuildSystemId, FrameworkId, LanguageId, OrchestratorId, RuntimeId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
