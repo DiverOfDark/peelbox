@@ -1,12 +1,5 @@
 # Peelbox Roadmap to v0.5
 
-## Phase 2: Testing Infrastructure & Stability 🧪
-*Goal: Fix flaky tests and expand validation capabilities.*
-
-- **[P2] Caching Validation:** Add container tests that verify:
-    - No network access required on second run (offline build).
-    - All layers are correctly cached by BuildKit.
-
 ## Phase 3: Language & Build System Expansion 🌍
 *Goal: Fill the gaps in supported stacks and fixtures.*
 
