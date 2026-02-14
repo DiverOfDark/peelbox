@@ -3,7 +3,6 @@
 ## Phase 3: Language & Build System Expansion 🌍
 *Goal: Fill the gaps in supported stacks and fixtures.*
 
-- **[P1] Node/NPM Framework Support:** Import missing framework definitions from [Vercel](https://github.com/vercel/vercel/blob/main/packages/frameworks/src/frameworks.ts).
 - **[P2] Add Missing Fixtures:**
     - `pipenv` test fixture.
     - Check `peelbox-stack` for all supported stacks and ensure each has a corresponding fixture.
