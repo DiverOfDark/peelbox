@@ -71,13 +71,46 @@ impl ManifestParser for SetupPyParser {
 }
 
 /// Extract dependencies from install_requires=[...] in setup.py content.
+/// Uses bracket-depth tracking to handle extras like `uvicorn[standard]` inside quotes.
 fn parse_install_requires(content: &str) -> Vec<Dependency> {
-    let re = regex::Regex::new(r"(?s)install_requires\s*=\s*\[(.*?)\]").ok();
-    let Some(cap) = re.and_then(|r| r.captures(content)) else {
+    // Find the start of install_requires=[
+    let re = regex::Regex::new(r"install_requires\s*=\s*\[").ok();
+    let Some(m) = re.and_then(|r| r.find(content)) else {
         return Vec::new();
     };
 
-    let block = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+    // Track bracket depth to find matching closing ]
+    let start = m.end();
+    let mut depth = 1;
+    let mut in_string = false;
+    let mut string_char = '"';
+    let mut end = start;
+
+    for (i, ch) in content[start..].char_indices() {
+        if in_string {
+            if ch == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' => {
+                in_string = true;
+                string_char = ch;
+            }
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let block = &content[start..end];
     let dep_re = regex::Regex::new(r#"['"]([^'"]+)['"]"#).unwrap();
 
     dep_re

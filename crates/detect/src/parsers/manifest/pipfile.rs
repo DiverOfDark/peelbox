@@ -27,16 +27,9 @@ impl ManifestParser for PipfileParser {
         // Parse [packages] → runtime deps
         if let Some(packages) = toml_val.get("packages").and_then(|v| v.as_table()) {
             for (name, val) in packages {
-                let version = match val {
-                    toml::Value::String(s) if s != "*" => Some(s.clone()),
-                    toml::Value::Table(t) => {
-                        t.get("version").and_then(|v| v.as_str()).map(String::from)
-                    }
-                    _ => None,
-                };
                 deps.push(Dependency {
                     name: name.clone(),
-                    version,
+                    version: extract_pipfile_version(val),
                     scope: DepScope::Runtime,
                     is_internal: false,
                 });
@@ -46,16 +39,9 @@ impl ManifestParser for PipfileParser {
         // Parse [dev-packages] → dev deps
         if let Some(dev_packages) = toml_val.get("dev-packages").and_then(|v| v.as_table()) {
             for (name, val) in dev_packages {
-                let version = match val {
-                    toml::Value::String(s) if s != "*" => Some(s.clone()),
-                    toml::Value::Table(t) => {
-                        t.get("version").and_then(|v| v.as_str()).map(String::from)
-                    }
-                    _ => None,
-                };
                 deps.push(Dependency {
                     name: name.clone(),
-                    version,
+                    version: extract_pipfile_version(val),
                     scope: DepScope::Dev,
                     is_internal: false,
                 });
@@ -121,6 +107,19 @@ impl ManifestParser for PipfileParser {
                 health_endpoint: None,
             },
         })
+    }
+}
+
+/// Extract version from a Pipfile dependency value, normalizing "*" to None.
+fn extract_pipfile_version(val: &toml::Value) -> Option<String> {
+    match val {
+        toml::Value::String(s) if s != "*" => Some(s.clone()),
+        toml::Value::Table(t) => t
+            .get("version")
+            .and_then(|v| v.as_str())
+            .filter(|s| *s != "*")
+            .map(String::from),
+        _ => None,
     }
 }
 
@@ -228,5 +227,44 @@ python_version = "3.12"
             .find(|d| d.name == "pytest")
             .unwrap();
         assert_eq!(pytest_dep.version, None);
+    }
+
+    #[test]
+    fn test_pipfile_table_wildcard_normalized_to_none() {
+        let parser = PipfileParser;
+        let content = r#"
+[packages]
+flask = {version = "==3.0.0"}
+requests = {version = "*"}
+gunicorn = "*"
+"#;
+        let manifest = parser.parse(Path::new("Pipfile"), content).unwrap();
+
+        let flask = manifest
+            .dependencies
+            .iter()
+            .find(|d| d.name == "flask")
+            .unwrap();
+        assert_eq!(flask.version, Some("==3.0.0".to_string()));
+
+        let requests = manifest
+            .dependencies
+            .iter()
+            .find(|d| d.name == "requests")
+            .unwrap();
+        assert_eq!(
+            requests.version, None,
+            "Table {{version = \"*\"}} should normalize to None"
+        );
+
+        let gunicorn = manifest
+            .dependencies
+            .iter()
+            .find(|d| d.name == "gunicorn")
+            .unwrap();
+        assert_eq!(
+            gunicorn.version, None,
+            "String \"*\" should normalize to None"
+        );
     }
 }
