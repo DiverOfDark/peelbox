@@ -26,6 +26,8 @@ impl ManifestParser for SetupPyParser {
             .and_then(|c| c.get(1))
             .map(|m| m.as_str().to_string());
 
+        let dependencies = parse_install_requires(content);
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: PYTHON,
@@ -37,7 +39,7 @@ impl ManifestParser for SetupPyParser {
                 is_application: true,
             }),
             workspace: None,
-            dependencies: Vec::new(),
+            dependencies,
             build: BuildSpec {
                 packages: vec![
                     "python".into(),
@@ -66,6 +68,36 @@ impl ManifestParser for SetupPyParser {
             },
         })
     }
+}
+
+/// Extract dependencies from install_requires=[...] in setup.py content.
+fn parse_install_requires(content: &str) -> Vec<Dependency> {
+    let re = regex::Regex::new(r"(?s)install_requires\s*=\s*\[(.*?)\]").ok();
+    let Some(cap) = re.and_then(|r| r.captures(content)) else {
+        return Vec::new();
+    };
+
+    let block = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+    let dep_re = regex::Regex::new(r#"['"]([^'"]+)['"]"#).unwrap();
+
+    dep_re
+        .captures_iter(block)
+        .map(|c| {
+            let raw = c.get(1).unwrap().as_str();
+            let name = raw
+                .split(&['>', '<', '=', '~', '!', '['][..])
+                .next()
+                .unwrap_or(raw)
+                .trim()
+                .to_string();
+            Dependency {
+                name,
+                version: None,
+                scope: DepScope::Runtime,
+                is_internal: false,
+            }
+        })
+        .collect()
 }
 
 inventory::submit! {

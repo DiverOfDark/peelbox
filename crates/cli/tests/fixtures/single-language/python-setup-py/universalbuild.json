@@ -1,0 +1,63 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cache/pip"
+      ],
+      "commands": [
+        "pip install --user --no-cache-dir ."
+      ],
+      "env": {},
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "pip",
+      "framework": "Flask",
+      "language": "Python",
+      "project_name": "app",
+      "reasoning": "Detected from setup.py"
+    },
+    "runtime": {
+      "command": [
+        "flask",
+        "run"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local"
+        }
+      ],
+      "env": {
+        "FLASK_APP": "/build/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONPATH": "/root/.local/lib/python3.14/site-packages"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "ports": [
+        5000
+      ],
+      "workdir": "/build"
+    },
+    "version": "1.0"
+  }
+]
