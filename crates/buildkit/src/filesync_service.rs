@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status, Streaming};
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use super::call_tracker::CallTracker;
 use super::filesync::FileSync;
@@ -26,15 +26,18 @@ static CALL_TRACKER: CallTracker = CallTracker::new();
 /// when BuildKit makes concurrent requests.
 pub struct FileSyncService {
     file_sync: Arc<FileSync>,
+    /// Exclude patterns applied to file scanning (same as LLB exclude-patterns)
+    exclude_patterns: Arc<Vec<String>>,
     /// Mutex to ensure only one DiffCopy call is active at a time
     /// Prevents packet interleaving from concurrent BuildKit requests
     diff_copy_lock: Arc<Mutex<()>>,
 }
 
 impl FileSyncService {
-    pub fn new(context_path: PathBuf) -> Self {
+    pub fn new(context_path: PathBuf, exclude_patterns: Vec<String>) -> Self {
         Self {
             file_sync: Arc::new(FileSync::new(&context_path)),
+            exclude_patterns: Arc::new(exclude_patterns),
             diff_copy_lock: Arc::new(Mutex::new(())),
         }
     }
@@ -50,7 +53,7 @@ impl FileSyncTrait for FileSyncService {
         request: Request<Streaming<Packet>>,
     ) -> Result<Response<Self::DiffCopyStream>, Status> {
         let call_id = CALL_TRACKER.next_id();
-        debug!("FileSync::DiffCopy called - call_id={}", call_id);
+        info!("FileSync::DiffCopy called - call_id={}", call_id);
 
         // Extract metadata from request headers (BuildKit sends dir-name, patterns, etc.)
         let metadata = request.metadata();
@@ -73,6 +76,7 @@ impl FileSyncTrait for FileSyncService {
 
         let mut in_stream = request.into_inner();
         let file_sync = self.file_sync.clone();
+        let exclude_patterns = self.exclude_patterns.clone();
         let diff_copy_lock = self.diff_copy_lock.clone();
 
         let (tx, rx) = mpsc::channel(1000); // Larger buffer to prevent blocking
@@ -86,10 +90,10 @@ impl FileSyncTrait for FileSyncService {
                 call_id
             );
 
-            // Step 1: Scan files
-            let file_stats = match file_sync.scan_files().await {
+            // Step 1: Scan files (applying the same exclude patterns as the LLB context)
+            let file_stats = match file_sync.scan_files(&exclude_patterns).await {
                 Ok(stats) => {
-                    debug!(
+                    info!(
                         "DiffCopy call_id={} scanned {} files to transfer",
                         call_id,
                         stats.len()
@@ -231,12 +235,13 @@ impl FileSyncTrait for FileSyncService {
                 return;
             }
 
-            debug!(
+            info!(
                 "DiffCopy call_id={} waiting for PACKET_REQ from BuildKit receiver",
                 call_id
             );
 
             // Step 4: Wait for PACKET_REQ from BuildKit and respond with PACKET_DATA
+            let mut packet_req_count: u32 = 0;
             loop {
                 match in_stream.message().await {
                     Ok(Some(packet)) => {
@@ -249,6 +254,7 @@ impl FileSyncTrait for FileSyncService {
                         match packet_type {
                             Some(PacketType::PacketReq) => {
                                 // BuildKit requests file data
+                                packet_req_count += 1;
                                 let req_id = packet.id;
                                 debug!(
                                     "DiffCopy call_id={} received PACKET_REQ for id={}",
@@ -327,6 +333,10 @@ impl FileSyncTrait for FileSyncService {
                             }
                             Some(PacketType::PacketFin) => {
                                 // BuildKit signals completion - send PACKET_FIN back and exit
+                                info!(
+                                    "DiffCopy call_id={} complete: {} PACKET_REQ received out of {} files",
+                                    call_id, packet_req_count, files_map.len()
+                                );
                                 debug!("DiffCopy call_id={} received PACKET_FIN, sending PACKET_FIN back", call_id);
                                 let fin_packet = Packet {
                                     r#type: PacketType::PacketFin as i32,

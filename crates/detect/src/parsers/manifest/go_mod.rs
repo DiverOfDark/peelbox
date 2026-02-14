@@ -1,9 +1,20 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const GO: LanguageId = LanguageId::new("go");
+const GOMOD: BuildSystemId = BuildSystemId::new("go-mod");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    LanguageMeta { slug: "go", display_name: "Go", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "go-mod", display_name: "go mod", aliases: &["go-mod"] }
+}
 
 pub struct GoModParser;
 
@@ -42,9 +53,9 @@ impl ManifestParser for GoModParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Go,
-            build_system: BuildSystemId::GoMod,
-            runtime: RuntimeId::Native,
+            language: GO,
+            build_system: GOMOD,
+            runtime: NATIVE,
             package: Some(Package {
                 name: short_name.to_string(),
                 version: None,

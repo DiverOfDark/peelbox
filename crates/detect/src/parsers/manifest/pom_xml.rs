@@ -1,8 +1,24 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::path::Path;
+
+const JAVA: LanguageId = LanguageId::new("java");
+const MAVEN: BuildSystemId = BuildSystemId::new("maven");
+const JVM: RuntimeId = RuntimeId::new("jvm");
+
+inventory::submit! {
+    LanguageMeta { slug: "java", display_name: "Java", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "maven", display_name: "Maven", aliases: &["maven"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "jvm", display_name: "JVM", aliases: &["java", "kotlin"] }
+}
 
 pub struct PomXmlParser;
 
@@ -92,9 +108,9 @@ impl ManifestParser for PomXmlParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Java,
-            build_system: BuildSystemId::Maven,
-            runtime: RuntimeId::JVM,
+            language: JAVA,
+            build_system: MAVEN,
+            runtime: JVM,
             package: Some(Package {
                 name: name.clone(),
                 version: effective_version,

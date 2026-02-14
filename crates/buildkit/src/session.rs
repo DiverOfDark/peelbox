@@ -65,6 +65,7 @@ impl Default for AttestationConfig {
 pub struct BuildSession {
     connection: BuildKitConnection,
     session_id: String,
+    shared_key: String,
     context_path: PathBuf,
     output_dest: OutputDestination,
 
@@ -72,6 +73,7 @@ pub struct BuildSession {
     cache_imports: Vec<CacheImport>,
     cache_exports: Vec<CacheExport>,
     cache_key: Option<String>,
+    exclude_patterns: Vec<String>,
     session_server: Option<JoinHandle<Result<()>>>,
     session_tx: Option<mpsc::Sender<BytesMessage>>,
     conn_tx: Option<mpsc::Sender<Result<StreamConn, std::io::Error>>>,
@@ -90,15 +92,34 @@ impl BuildSession {
         let session_id = Self::generate_session_id();
         debug!("Creating new build session: {}", session_id);
 
+        let exclude_patterns = crate::llb::load_exclude_patterns(&context_path);
+
+        let shared_key = match crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
+        {
+            Ok(hash) => {
+                info!("Session shared_key derived from context hash: {}", hash);
+                hash
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to compute context hash for shared_key, falling back to session_id: {}",
+                    e
+                );
+                session_id.clone()
+            }
+        };
+
         Self {
             connection,
             session_id,
+            shared_key,
             context_path,
             output_dest,
             attestation_config: AttestationConfig::default(),
             cache_imports: Vec::new(),
             cache_exports: Vec::new(),
             cache_key: None,
+            exclude_patterns,
             session_server: None,
             session_tx: None,
             conn_tx: None,
@@ -148,7 +169,7 @@ impl BuildSession {
         let file_sync = FileSync::new(&self.context_path);
 
         let file_stats = file_sync
-            .scan_files()
+            .scan_files(&self.exclude_patterns)
             .await
             .with_context(|| format!("Failed to scan build context at {:?}", self.context_path))?;
 
@@ -292,7 +313,7 @@ impl BuildSession {
 
         request.metadata_mut().insert(
             "x-docker-expose-session-sharedkey",
-            self.session_id
+            self.shared_key
                 .parse()
                 .context("Failed to parse shared key")?,
         );
@@ -428,7 +449,8 @@ impl BuildSession {
             }
         }
 
-        let filesync_service = FileSyncService::new(self.context_path.clone());
+        let filesync_service =
+            FileSyncService::new(self.context_path.clone(), self.exclude_patterns.clone());
         let filesend_service = FileSendService::new(
             self.output_dest.clone(),
             export_signal,

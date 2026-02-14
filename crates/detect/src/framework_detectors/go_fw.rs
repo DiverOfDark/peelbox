@@ -1,11 +1,16 @@
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::types::Dependency;
 use std::collections::BTreeMap;
 
+const GO: LanguageId = LanguageId::new("go");
+
+const GIN: FrameworkId = FrameworkId::new("gin");
+inventory::submit! { FrameworkMeta { slug: "gin", display_name: "Gin", aliases: &[] } }
+
 super::simple_detector!(
     GinDetector,
-    FrameworkId::Gin,
-    &[LanguageId::Go],
+    GIN,
+    &[GO],
     |deps: &[Dependency]| deps
         .iter()
         .any(|d| d.name.contains("github.com/gin-gonic/gin")),
@@ -19,10 +24,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(GinDetector))
 }
 
+const ECHO: FrameworkId = FrameworkId::new("echo");
+inventory::submit! { FrameworkMeta { slug: "echo", display_name: "Echo", aliases: &[] } }
+
 super::simple_detector!(
     EchoDetector,
-    FrameworkId::Echo,
-    &[LanguageId::Go],
+    ECHO,
+    &[GO],
     |deps: &[Dependency]| deps
         .iter()
         .any(|d| d.name.contains("github.com/labstack/echo")),

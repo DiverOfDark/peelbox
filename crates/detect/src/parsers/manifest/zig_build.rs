@@ -1,8 +1,12 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const ZIG: LanguageId = LanguageId::new("zig");
+const ZIG_BS: BuildSystemId = BuildSystemId::new("zig");
+const NATIVE: RuntimeId = RuntimeId::new("native");
 
 pub struct ZigBuildParser;
 
@@ -18,9 +22,9 @@ impl ManifestParser for ZigBuildParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Zig,
-            build_system: BuildSystemId::Zig,
-            runtime: RuntimeId::Native,
+            language: ZIG,
+            build_system: ZIG_BS,
+            runtime: NATIVE,
             package: Some(Package {
                 name: "app".to_string(),
                 version: None,

@@ -25,7 +25,7 @@ pub use filesend_service::FileSendService;
 pub use filesync::{FileStat, FileSync};
 pub use filesync_service::FileSyncService;
 pub use health_service::HealthService;
-pub use llb::{BuildStrategy, LLBBuilder, PeelboxStrategy};
+pub use llb::{load_exclude_patterns, BuildStrategy, LLBBuilder, PeelboxStrategy};
 pub use oci_index::OciIndex;
 pub use progress::{ProgressEvent, ProgressTracker};
 pub use proto::{

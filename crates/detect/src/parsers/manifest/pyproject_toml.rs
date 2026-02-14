@@ -1,9 +1,29 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const PYTHON: LanguageId = LanguageId::new("python");
+const POETRY: BuildSystemId = BuildSystemId::new("poetry");
+const PIP: BuildSystemId = BuildSystemId::new("pip");
+const PYTHON_RT: RuntimeId = RuntimeId::new("python");
+
+inventory::submit! {
+    LanguageMeta { slug: "python", display_name: "Python", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "poetry", display_name: "Poetry", aliases: &["poetry"] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "pip", display_name: "pip", aliases: &[] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "python", display_name: "Python", aliases: &["python"] }
+}
 
 pub struct PyProjectTomlParser;
 
@@ -49,11 +69,7 @@ impl ManifestParser for PyProjectTomlParser {
             (name, version)
         };
 
-        let build_system_id = if is_poetry {
-            BuildSystemId::Poetry
-        } else {
-            BuildSystemId::Pip
-        };
+        let build_system_id = if is_poetry { POETRY } else { PIP };
 
         let dependencies = parse_pyproject_deps(&toml_val, is_poetry);
 
@@ -61,9 +77,9 @@ impl ManifestParser for PyProjectTomlParser {
             // Poetry-specific build
             Some(Manifest {
                 path: path.to_path_buf(),
-                language: LanguageId::Python,
+                language: PYTHON,
                 build_system: build_system_id,
-                runtime: RuntimeId::Python,
+                runtime: PYTHON_RT,
                 package: Some(Package {
                     name: "app".to_string(),
                     version,
@@ -107,9 +123,9 @@ impl ManifestParser for PyProjectTomlParser {
         } else {
             Some(Manifest {
                 path: path.to_path_buf(),
-                language: LanguageId::Python,
+                language: PYTHON,
                 build_system: build_system_id,
-                runtime: RuntimeId::Python,
+                runtime: PYTHON_RT,
                 package: name.as_ref().map(|n| Package {
                     name: n.clone(),
                     version,

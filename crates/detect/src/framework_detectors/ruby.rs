@@ -1,15 +1,20 @@
 use crate::helpers::btree;
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
 use std::collections::BTreeMap;
 
+const RUBY: LanguageId = LanguageId::new("ruby");
+
 // ── Rails ───────────────────────────────────────────────────────────────────
+
+const RAILS: FrameworkId = FrameworkId::new("rails");
+inventory::submit! { FrameworkMeta { slug: "rails", display_name: "Rails", aliases: &[] } }
 
 super::simple_detector!(
     RailsDetector,
-    FrameworkId::Rails,
-    &[LanguageId::Ruby],
+    RAILS,
+    &[RUBY],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "rails"),
     vec![3000],
     vec!["/health".into(), "/up".into()],
@@ -23,21 +28,24 @@ inventory::submit! {
 
 // ── Sinatra ─────────────────────────────────────────────────────────────────
 
+const SINATRA: FrameworkId = FrameworkId::new("sinatra");
+inventory::submit! { FrameworkMeta { slug: "sinatra", display_name: "Sinatra", aliases: &[] } }
+
 pub struct SinatraDetector;
 
 impl FrameworkDetector for SinatraDetector {
     fn id(&self) -> FrameworkId {
-        FrameworkId::Sinatra
+        SINATRA
     }
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[LanguageId::Ruby]
+        &[RUBY]
     }
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| d.name == "sinatra")
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
-            framework: FrameworkId::Sinatra,
+            framework: SINATRA,
             default_ports: vec![4567],
             health_endpoints: vec!["/health".into()],
             env_vars: BTreeMap::new(),

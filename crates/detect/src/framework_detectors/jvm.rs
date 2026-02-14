@@ -1,18 +1,24 @@
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
 use std::collections::BTreeMap;
 
+const JAVA: LanguageId = LanguageId::new("java");
+const KOTLIN: LanguageId = LanguageId::new("kotlin");
+
 // ── Spring Boot ─────────────────────────────────────────────────────────────
+
+const SPRING_BOOT: FrameworkId = FrameworkId::new("spring-boot");
+inventory::submit! { FrameworkMeta { slug: "spring-boot", display_name: "Spring Boot", aliases: &[] } }
 
 pub struct SpringBootDetector;
 
 impl FrameworkDetector for SpringBootDetector {
     fn id(&self) -> FrameworkId {
-        FrameworkId::SpringBoot
+        SPRING_BOOT
     }
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[LanguageId::Java, LanguageId::Kotlin]
+        &[JAVA, KOTLIN]
     }
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| {
@@ -35,7 +41,7 @@ impl FrameworkDetector for SpringBootDetector {
             vec!["/health".into()]
         };
         FrameworkContribution {
-            framework: FrameworkId::SpringBoot,
+            framework: SPRING_BOOT,
             default_ports: vec![8080],
             health_endpoints,
             env_vars: BTreeMap::new(),
@@ -54,10 +60,13 @@ inventory::submit! {
 
 // ── Quarkus ─────────────────────────────────────────────────────────────────
 
+const QUARKUS: FrameworkId = FrameworkId::new("quarkus");
+inventory::submit! { FrameworkMeta { slug: "quarkus", display_name: "Quarkus", aliases: &[] } }
+
 super::simple_detector!(
     QuarkusDetector,
-    FrameworkId::Quarkus,
-    &[LanguageId::Java, LanguageId::Kotlin],
+    QUARKUS,
+    &[JAVA, KOTLIN],
     |deps: &[Dependency]| deps.iter().any(|d| d.name.contains("io.quarkus:quarkus-")),
     vec![8080],
     vec!["/q/health".into()],
@@ -71,10 +80,13 @@ inventory::submit! {
 
 // ── Micronaut ───────────────────────────────────────────────────────────────
 
+const MICRONAUT: FrameworkId = FrameworkId::new("micronaut");
+inventory::submit! { FrameworkMeta { slug: "micronaut", display_name: "Micronaut", aliases: &[] } }
+
 super::simple_detector!(
     MicronautDetector,
-    FrameworkId::Micronaut,
-    &[LanguageId::Java, LanguageId::Kotlin],
+    MICRONAUT,
+    &[JAVA, KOTLIN],
     |deps: &[Dependency]| deps
         .iter()
         .any(|d| d.name.contains("io.micronaut:micronaut-")),
@@ -90,10 +102,13 @@ inventory::submit! {
 
 // ── Ktor ────────────────────────────────────────────────────────────────────
 
+const KTOR: FrameworkId = FrameworkId::new("ktor");
+inventory::submit! { FrameworkMeta { slug: "ktor", display_name: "Ktor", aliases: &[] } }
+
 super::simple_detector!(
     KtorDetector,
-    FrameworkId::Ktor,
-    &[LanguageId::Kotlin],
+    KTOR,
+    &[KOTLIN],
     |deps: &[Dependency]| deps.iter().any(|d| d.name.contains("io.ktor:ktor-")),
     vec![8080],
     vec!["/health".into()],

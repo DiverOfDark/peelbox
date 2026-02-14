@@ -1,15 +1,20 @@
 use crate::helpers::btree;
-use crate::id_enums::{FrameworkId, LanguageId};
+use crate::ids::{FrameworkId, FrameworkMeta, LanguageId};
 use crate::traits::FrameworkDetector;
 use crate::types::{Dependency, FrameworkContribution};
 use std::collections::BTreeMap;
 
+const PHP: LanguageId = LanguageId::new("php");
+
 // ── Laravel ─────────────────────────────────────────────────────────────────
+
+const LARAVEL: FrameworkId = FrameworkId::new("laravel");
+inventory::submit! { FrameworkMeta { slug: "laravel", display_name: "Laravel", aliases: &[] } }
 
 super::simple_detector!(
     LaravelDetector,
-    FrameworkId::Laravel,
-    &[LanguageId::PHP],
+    LARAVEL,
+    &[PHP],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "laravel/framework"),
     vec![8000],
     vec!["/health".into(), "/_health".into()],
@@ -23,21 +28,24 @@ inventory::submit! {
 
 // ── Symfony ─────────────────────────────────────────────────────────────────
 
+const SYMFONY: FrameworkId = FrameworkId::new("symfony");
+inventory::submit! { FrameworkMeta { slug: "symfony", display_name: "Symfony", aliases: &[] } }
+
 pub struct SymfonyDetector;
 
 impl FrameworkDetector for SymfonyDetector {
     fn id(&self) -> FrameworkId {
-        FrameworkId::Symfony
+        SYMFONY
     }
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[LanguageId::PHP]
+        &[PHP]
     }
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| d.name.starts_with("symfony/"))
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
-            framework: FrameworkId::Symfony,
+            framework: SYMFONY,
             default_ports: vec![8000],
             health_endpoints: vec!["/_health".into()],
             env_vars: BTreeMap::new(),

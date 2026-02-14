@@ -1,8 +1,12 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const JAVASCRIPT: LanguageId = LanguageId::new("javascript");
+const PNPM: BuildSystemId = BuildSystemId::new("pnpm");
+const NODE: RuntimeId = RuntimeId::new("node");
 
 /// Detects pnpm projects by presence of pnpm-lock.yaml.
 pub struct PnpmLockParser;
@@ -34,7 +38,7 @@ impl ManifestParser for PnpmLockParser {
         // happens on the sibling package.json manifest instead.
         let dependencies: Vec<Dependency> = Vec::new();
 
-        let language = LanguageId::JavaScript;
+        let language = JAVASCRIPT;
 
         let entrypoint = json
             .get("main")
@@ -44,8 +48,8 @@ impl ManifestParser for PnpmLockParser {
         Some(Manifest {
             path: path.to_path_buf(),
             language,
-            build_system: BuildSystemId::Pnpm,
-            runtime: RuntimeId::Node,
+            build_system: PNPM,
+            runtime: NODE,
             package: name.as_ref().map(|n| Package {
                 name: n.clone(),
                 version,

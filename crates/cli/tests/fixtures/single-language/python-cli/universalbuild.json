@@ -1,0 +1,47 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cache/pip"
+      ],
+      "commands": [
+        "pip install --user --no-cache-dir -r requirements.txt"
+      ],
+      "env": {},
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "pip",
+      "language": "Python",
+      "project_name": "app",
+      "reasoning": "Detected from requirements.txt"
+    },
+    "runtime": {
+      "command": [
+        "python",
+        "/app/main.py"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "ports": [],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

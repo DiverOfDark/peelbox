@@ -1,8 +1,24 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::path::Path;
+
+const ELIXIR: LanguageId = LanguageId::new("elixir");
+const MIX: BuildSystemId = BuildSystemId::new("mix");
+const BEAM: RuntimeId = RuntimeId::new("beam");
+
+inventory::submit! {
+    LanguageMeta { slug: "elixir", display_name: "Elixir", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "mix", display_name: "Mix", aliases: &["mix"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "beam", display_name: "BEAM", aliases: &["elixir"] }
+}
 
 pub struct MixExsParser;
 
@@ -25,9 +41,9 @@ impl ManifestParser for MixExsParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Elixir,
-            build_system: BuildSystemId::Mix,
-            runtime: RuntimeId::BEAM,
+            language: ELIXIR,
+            build_system: MIX,
+            runtime: BEAM,
             package: Some(Package {
                 name: name.clone(),
                 version: None,

@@ -1,8 +1,16 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const CPP: LanguageId = LanguageId::new("c++");
+const MESON: BuildSystemId = BuildSystemId::new("meson");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    BuildSystemMeta { slug: "meson", display_name: "Meson", aliases: &["meson"] }
+}
 
 pub struct MesonBuildParser;
 
@@ -25,9 +33,9 @@ impl ManifestParser for MesonBuildParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Cpp,
-            build_system: BuildSystemId::Meson,
-            runtime: RuntimeId::Native,
+            language: CPP,
+            build_system: MESON,
+            runtime: NATIVE,
             package: Some(Package {
                 name: name.clone(),
                 version: None,

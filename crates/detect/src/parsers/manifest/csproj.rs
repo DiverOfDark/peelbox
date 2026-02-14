@@ -1,9 +1,29 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const CSHARP: LanguageId = LanguageId::new("csharp");
+const FSHARP: LanguageId = LanguageId::new("fsharp");
+const DOTNET_BS: BuildSystemId = BuildSystemId::new("dotnet");
+const DOTNET_RT: RuntimeId = RuntimeId::new("dotnet");
+
+inventory::submit! {
+    LanguageMeta { slug: "csharp", display_name: "C#", aliases: &[] }
+}
+inventory::submit! {
+    LanguageMeta { slug: "fsharp", display_name: "F#", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "dotnet", display_name: ".NET", aliases: &["dotnet"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "dotnet", display_name: ".NET", aliases: &["dotnet", "csharp", "fsharp"] }
+}
 
 pub struct CsprojParser;
 
@@ -24,11 +44,7 @@ impl ManifestParser for CsprojParser {
             .map(|e| e == "fsproj")
             .unwrap_or(false);
 
-        let language = if is_fsharp {
-            LanguageId::FSharp
-        } else {
-            LanguageId::CSharp
-        };
+        let language = if is_fsharp { FSHARP } else { CSHARP };
 
         let file_stem = path.file_stem().and_then(|s| s.to_str()).map(String::from);
 
@@ -57,8 +73,8 @@ impl ManifestParser for CsprojParser {
         Some(Manifest {
             path: path.to_path_buf(),
             language,
-            build_system: BuildSystemId::DotNet,
-            runtime: RuntimeId::DotNet,
+            build_system: DOTNET_BS,
+            runtime: DOTNET_RT,
             package: Some(Package {
                 name: "app".to_string(), // Normalized to "app"
                 version: None,

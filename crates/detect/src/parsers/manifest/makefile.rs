@@ -1,8 +1,16 @@
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const CPP: LanguageId = LanguageId::new("c++");
+const MAKE: BuildSystemId = BuildSystemId::new("make");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    BuildSystemMeta { slug: "make", display_name: "Make", aliases: &["make"] }
+}
 
 pub struct MakefileParser;
 
@@ -16,12 +24,12 @@ impl ManifestParser for MakefileParser {
             return None;
         }
 
-        let (language, runtime) = (LanguageId::Cpp, RuntimeId::Native);
+        let (language, runtime) = (CPP, NATIVE);
 
         Some(Manifest {
             path: path.to_path_buf(),
             language,
-            build_system: BuildSystemId::Make,
+            build_system: MAKE,
             runtime,
             package: None,
             workspace: None,

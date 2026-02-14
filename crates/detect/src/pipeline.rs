@@ -2,9 +2,24 @@
 //!
 //! Four steps: Parse → Detect Framework → Partition → Reduce.
 
+use crate::ids::{BuildSystemId, FrameworkId};
 use crate::registry::Registry;
 use crate::traits::{ConfigParser, FrameworkDetector, ManifestParser};
 use crate::types::*;
+
+// Build system IDs used in pipeline logic
+const MAVEN: BuildSystemId = BuildSystemId::new("maven");
+const CARGO: BuildSystemId = BuildSystemId::new("cargo");
+const NPM: BuildSystemId = BuildSystemId::new("npm");
+const PNPM: BuildSystemId = BuildSystemId::new("pnpm");
+const YARN: BuildSystemId = BuildSystemId::new("yarn");
+const BUN: BuildSystemId = BuildSystemId::new("bun");
+const GRADLE: BuildSystemId = BuildSystemId::new("gradle");
+const POETRY: BuildSystemId = BuildSystemId::new("poetry");
+const PIP: BuildSystemId = BuildSystemId::new("pip");
+
+// Framework IDs used in pipeline logic
+const FLASK: FrameworkId = FrameworkId::new("flask");
 use anyhow::Result;
 use ignore::WalkBuilder;
 use peelbox_core::output::schema::{
@@ -297,13 +312,13 @@ fn collect_manifests_with_frameworks(
             });
 
             // If Poetry build_system + Flask framework, swap in FlaskPoetry contribution
-            if manifest.build_system == crate::id_enums::BuildSystemId::Poetry {
+            if manifest.build_system == POETRY {
                 if let Some(ref fw) = framework {
-                    if fw.framework == crate::id_enums::FrameworkId::Flask {
+                    if fw.framework == FLASK {
                         // Find FlaskPoetryDetector and use its contribution instead
                         if let Some(poetry_fw) = detectors.iter().find_map(|d| {
                             let contrib = d.contribution(&manifest.dependencies);
-                            if contrib.framework == crate::id_enums::FrameworkId::Flask
+                            if contrib.framework == FLASK
                                 && contrib.runtime_env.contains_key("VIRTUAL_ENV")
                             {
                                 Some(contrib)
@@ -376,10 +391,7 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                     workspace_idx = Some(i);
                 }
                 // Lock file parsers produce Pnpm or Yarn build_system
-                if matches!(
-                    mwf.manifest.build_system,
-                    crate::id_enums::BuildSystemId::Pnpm | crate::id_enums::BuildSystemId::Yarn
-                ) {
+                if mwf.manifest.build_system == PNPM || mwf.manifest.build_system == YARN {
                     lock_file_idx = Some(i);
                 }
             }
@@ -755,42 +767,32 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
             .commands
             .iter()
             .map(|cmd| {
-                match m.build_system {
-                    crate::id_enums::BuildSystemId::Maven => {
-                        // Maven: use -f flag
-                        if cmd.starts_with("mvn ") {
-                            let mut result =
-                                cmd.replacen("mvn ", &format!("mvn -f {}/pom.xml ", subdir), 1);
-                            // For dependency:copy-dependencies, ensure the target dir exists
-                            if cmd.contains("dependency:copy-dependencies") {
-                                result = format!("{}; mkdir -p {}/target/lib", result, subdir);
-                            }
-                            result
-                        } else {
-                            format!("cd {} && {}", subdir, cmd)
+                if m.build_system == MAVEN {
+                    // Maven: use -f flag
+                    if cmd.starts_with("mvn ") {
+                        let mut result =
+                            cmd.replacen("mvn ", &format!("mvn -f {}/pom.xml ", subdir), 1);
+                        // For dependency:copy-dependencies, ensure the target dir exists
+                        if cmd.contains("dependency:copy-dependencies") {
+                            result = format!("{}; mkdir -p {}/target/lib", result, subdir);
                         }
-                    }
-                    crate::id_enums::BuildSystemId::Cargo => {
-                        // Cargo: use --manifest-path flag
-                        if cmd.starts_with("cargo ") {
-                            format!(
-                                "{} --manifest-path {}/Cargo.toml --target-dir target",
-                                cmd, subdir
-                            )
-                        } else {
-                            format!("cd {} && {}", subdir, cmd)
-                        }
-                    }
-                    crate::id_enums::BuildSystemId::Npm
-                    | crate::id_enums::BuildSystemId::Pnpm
-                    | crate::id_enums::BuildSystemId::Yarn
-                    | crate::id_enums::BuildSystemId::Bun => {
-                        // npm: use cd prefix
+                        result
+                    } else {
                         format!("cd {} && {}", subdir, cmd)
                     }
-                    _ => {
+                } else if m.build_system == CARGO {
+                    // Cargo: use --manifest-path flag
+                    if cmd.starts_with("cargo ") {
+                        format!(
+                            "{} --manifest-path {}/Cargo.toml --target-dir target",
+                            cmd, subdir
+                        )
+                    } else {
                         format!("cd {} && {}", subdir, cmd)
                     }
+                } else {
+                    // npm, pnpm, yarn, bun, and others: use cd prefix
+                    format!("cd {} && {}", subdir, cmd)
                 }
             })
             .collect()
@@ -832,7 +834,7 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     } else if is_subdirectory {
         // For standalone subdirectory projects, prepend directory to artifact paths
         // Exception: Cargo projects use --target-dir target, so artifacts are at repo root
-        let uses_shared_target = matches!(m.build_system, crate::id_enums::BuildSystemId::Cargo);
+        let uses_shared_target = m.build_system == CARGO;
         m.build
             .artifacts
             .iter()
@@ -857,7 +859,7 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     };
 
     // Gradle-specific: replace glob artifacts with specific jar name when package has name+version
-    if m.build_system == crate::id_enums::BuildSystemId::Gradle {
+    if m.build_system == GRADLE {
         if let Some(pkg) = &m.package {
             if let Some(version) = &pkg.version {
                 let specific_jar = format!("{}-{}.jar", pkg.name, version);
@@ -941,16 +943,14 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     let project_name = if is_root_project {
         // For root-level projects: use package name only from strong naming sources
         // (npm, cargo, zig), not from settings.gradle or pyproject.toml
-        match m.build_system {
-            crate::id_enums::BuildSystemId::Gradle
-            | crate::id_enums::BuildSystemId::Poetry
-            | crate::id_enums::BuildSystemId::Pip => Some("app".into()),
-            _ => m
-                .package
+        if m.build_system == GRADLE || m.build_system == POETRY || m.build_system == PIP {
+            Some("app".into())
+        } else {
+            m.package
                 .as_ref()
                 .filter(|p| !p.name.is_empty())
                 .map(|p| p.name.clone())
-                .or(Some("app".into())),
+                .or(Some("app".into()))
         }
     } else {
         // Non-root: package name or directory name
@@ -973,19 +973,19 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root Node.js projects, use pkg_manager start instead of direct command
         if !is_root_project
-            && matches!(
-                m.build_system,
-                crate::id_enums::BuildSystemId::Npm
-                    | crate::id_enums::BuildSystemId::Pnpm
-                    | crate::id_enums::BuildSystemId::Yarn
-                    | crate::id_enums::BuildSystemId::Bun
-            )
+            && (m.build_system == NPM
+                || m.build_system == PNPM
+                || m.build_system == YARN
+                || m.build_system == BUN)
         {
-            let pkg_manager = match m.build_system {
-                crate::id_enums::BuildSystemId::Yarn => "yarn",
-                crate::id_enums::BuildSystemId::Pnpm => "pnpm",
-                crate::id_enums::BuildSystemId::Bun => "bun",
-                _ => "npm",
+            let pkg_manager = if m.build_system == YARN {
+                "yarn"
+            } else if m.build_system == PNPM {
+                "pnpm"
+            } else if m.build_system == BUN {
+                "bun"
+            } else {
+                "npm"
             };
             vec![pkg_manager.into(), "start".into()]
         } else {
@@ -1726,7 +1726,14 @@ fn extract_project_dir(repo_root: &Path, reasoning: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ids::{FrameworkId, LanguageId, RuntimeId};
     use std::collections::BTreeMap;
+
+    const RUST: LanguageId = LanguageId::new("rust");
+    const JAVA: LanguageId = LanguageId::new("java");
+    const NATIVE: RuntimeId = RuntimeId::new("native");
+    const JVM: RuntimeId = RuntimeId::new("jvm");
+    const SPRING_BOOT: FrameworkId = FrameworkId::new("spring-boot");
 
     #[test]
     fn test_reduce_standalone_rust() {
@@ -1734,9 +1741,9 @@ mod tests {
             path: PathBuf::new(),
             manifest: Manifest {
                 path: PathBuf::from("Cargo.toml"),
-                language: crate::id_enums::LanguageId::Rust,
-                build_system: crate::id_enums::BuildSystemId::Cargo,
-                runtime: crate::id_enums::RuntimeId::Native,
+                language: RUST,
+                build_system: CARGO,
+                runtime: NATIVE,
                 package: Some(Package {
                     name: "my-app".into(),
                     version: Some("0.1.0".into()),
@@ -1781,9 +1788,9 @@ mod tests {
             path: PathBuf::from("api-service"),
             manifest: Manifest {
                 path: PathBuf::from("api-service/pom.xml"),
-                language: crate::id_enums::LanguageId::Java,
-                build_system: crate::id_enums::BuildSystemId::Maven,
-                runtime: crate::id_enums::RuntimeId::JVM,
+                language: JAVA,
+                build_system: MAVEN,
+                runtime: JVM,
                 package: Some(Package {
                     name: "api-service".into(),
                     version: Some("1.0.0".into()),
@@ -1816,7 +1823,7 @@ mod tests {
             },
             configs: vec![],
             framework: Some(FrameworkContribution {
-                framework: crate::id_enums::FrameworkId::SpringBoot,
+                framework: SPRING_BOOT,
                 default_ports: vec![8080],
                 health_endpoints: vec!["/actuator/health".into()],
                 env_vars: BTreeMap::new(),

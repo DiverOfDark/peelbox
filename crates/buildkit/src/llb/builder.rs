@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::debug;
+use tracing::{debug, info};
 
 pub struct LLBBuilder {
     pub(crate) context_name: String,
@@ -96,36 +96,7 @@ impl LLBBuilder {
             .context_path
             .as_deref()
             .unwrap_or_else(|| Path::new("."));
-        let gitignore_path = context_root.join(".gitignore");
-
-        let mut patterns = Vec::new();
-
-        if gitignore_path.exists() {
-            if let Ok(content) = fs::read_to_string(&gitignore_path) {
-                for line in content.lines() {
-                    let line = line.trim();
-                    if !line.is_empty() && !line.starts_with('#') {
-                        patterns.push(line.to_string());
-                    }
-                }
-                debug!("Loaded {} patterns from .gitignore", patterns.len());
-            }
-        }
-
-        patterns.extend(vec![
-            ".git/".to_string(),
-            ".gitignore".to_string(),
-            "*.md".to_string(),
-            "LICENSE".to_string(),
-            ".vscode/".to_string(),
-            ".idea/".to_string(),
-            ".buildkit-cache/".to_string(),
-            "*.tar".to_string(),
-        ]);
-
-        patterns.sort();
-
-        patterns
+        load_exclude_patterns(context_root)
     }
 
     pub(crate) fn create_merge(&mut self, inputs: Vec<(i64, i64)>) -> i64 {
@@ -189,7 +160,8 @@ impl LLBBuilder {
         }
 
         if let Some(path) = &self.context_path {
-            if let Ok(hash) = self.calculate_context_hash(path) {
+            if let Ok(hash) = self.calculate_context_hash(path, exclude_patterns) {
+                info!("local.unique context hash: {}", hash);
                 attrs.insert("local.unique".to_string(), hash);
             }
         }
@@ -401,59 +373,193 @@ impl LLBBuilder {
         }
 
         output.push_str("\n=== End of Graph ===\n");
-        debug!("{}", output);
+        info!("{}", output);
     }
 
-    fn calculate_context_hash(&self, path: &Path) -> Result<String> {
-        let mut hasher = Sha256::new();
+    fn calculate_context_hash(&self, path: &Path, exclude_patterns: &[String]) -> Result<String> {
+        calculate_context_hash(path, exclude_patterns)
+    }
+}
 
-        let mut entries: Vec<_> = ignore::WalkBuilder::new(path)
-            .standard_filters(true)
-            .hidden(false)
-            .filter_entry(|e| {
-                let path_str = e.path().to_string_lossy();
-                !path_str.contains("/.git/")
-            })
+/// Calculate a stable content hash for the build context directory.
+/// Uses the same exclude-pattern logic as `FileSync::scan_files` so the hash
+/// covers exactly the files that BuildKit will receive via DiffCopy.
+pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Result<String> {
+    let mut hasher = Sha256::new();
+
+    let mut overrides = ignore::overrides::OverrideBuilder::new(path);
+    for pattern in exclude_patterns {
+        let negated = format!("!{}", pattern);
+        if let Err(e) = overrides.add(&negated) {
+            tracing::warn!("Failed to add exclude pattern '{}': {}", pattern, e);
+        }
+    }
+    let overrides = overrides.build().unwrap_or_else(|_| {
+        ignore::overrides::OverrideBuilder::new(path)
             .build()
-            .filter_map(|e| match e {
-                Ok(entry) => Some(entry),
-                Err(err) => {
-                    tracing::warn!("Failed to read context directory entry: {}", err);
+            .unwrap()
+    });
+
+    let mut entries: Vec<_> = ignore::WalkBuilder::new(path)
+        .hidden(false)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(false)
+        .overrides(overrides)
+        .filter_entry(|e| !e.path().to_string_lossy().contains("/.git/"))
+        .build()
+        .filter_map(|e| match e {
+            Ok(entry) => {
+                // Skip root directory
+                if entry.path() == path {
                     None
+                } else {
+                    Some(entry)
                 }
-            })
-            .collect();
+            }
+            Err(err) => {
+                tracing::warn!("Failed to read context directory entry: {}", err);
+                None
+            }
+        })
+        .collect();
 
-        entries.sort_by(|a, b| a.path().cmp(b.path()));
+    entries.sort_by(|a, b| a.path().cmp(b.path()));
 
-        for entry in entries {
-            let entry_path = entry.path();
-            let rel_path = entry_path.strip_prefix(path).unwrap_or(entry_path);
-            hasher.update(rel_path.to_string_lossy().as_bytes());
+    for entry in entries {
+        let entry_path = entry.path();
+        let rel_path = entry_path.strip_prefix(path).unwrap_or(entry_path);
+        hasher.update(rel_path.to_string_lossy().as_bytes());
 
-            if let Some(file_type) = entry.file_type() {
-                if file_type.is_file() {
-                    match entry.metadata() {
-                        Ok(metadata) => {
-                            hasher.update(metadata.len().to_le_bytes());
+        if let Some(file_type) = entry.file_type() {
+            if file_type.is_file() {
+                match entry.metadata() {
+                    Ok(metadata) => {
+                        hasher.update(metadata.len().to_le_bytes());
 
-                            if let Ok(content) = fs::read(entry_path) {
-                                hasher.update(&content);
-                            } else {
-                                tracing::warn!(
-                                    "Failed to read file content for hashing: {:?}",
-                                    entry_path
-                                );
-                            }
+                        if let Ok(content) = fs::read(entry_path) {
+                            hasher.update(&content);
+                        } else {
+                            tracing::warn!(
+                                "Failed to read file content for hashing: {:?}",
+                                entry_path
+                            );
                         }
-                        Err(e) => {
-                            tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
-                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
                     }
                 }
             }
         }
+    }
 
-        Ok(hex::encode(hasher.finalize()))
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Build the list of exclude patterns for the build context.
+/// Reads `.gitignore` from `context_root` and appends hard-coded patterns
+/// for files that should never be part of a build context.
+pub fn load_exclude_patterns(context_root: &Path) -> Vec<String> {
+    let gitignore_path = context_root.join(".gitignore");
+
+    let mut patterns = Vec::new();
+
+    if gitignore_path.exists() {
+        if let Ok(content) = fs::read_to_string(&gitignore_path) {
+            for line in content.lines() {
+                let line = line.trim();
+                if !line.is_empty() && !line.starts_with('#') {
+                    patterns.push(line.to_string());
+                }
+            }
+            debug!("Loaded {} patterns from .gitignore", patterns.len());
+        }
+    }
+
+    patterns.extend(vec![
+        ".git/".to_string(),
+        ".gitignore".to_string(),
+        "*.md".to_string(),
+        "LICENSE".to_string(),
+        ".vscode/".to_string(),
+        ".idea/".to_string(),
+        ".buildkit-cache/".to_string(),
+        "*.tar".to_string(),
+    ]);
+
+    patterns.sort();
+
+    patterns
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_context_hash_stable_when_excluded_files_change() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), b"fn main() {}").unwrap();
+        fs::write(temp_dir.path().join("README.md"), b"# v1").unwrap();
+
+        let builder = LLBBuilder::new("context").with_context_path(temp_dir.path().to_path_buf());
+        let exclude = vec!["*.md".to_string()];
+
+        let hash1 = builder
+            .calculate_context_hash(temp_dir.path(), &exclude)
+            .unwrap();
+
+        // Change excluded file — hash should NOT change
+        fs::write(
+            temp_dir.path().join("README.md"),
+            b"# v2 completely different",
+        )
+        .unwrap();
+        let hash2 = builder
+            .calculate_context_hash(temp_dir.path(), &exclude)
+            .unwrap();
+
+        assert_eq!(
+            hash1, hash2,
+            "Hash must be stable when only excluded files change"
+        );
+    }
+
+    #[test]
+    fn test_context_hash_changes_when_included_files_change() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), b"fn main() {}").unwrap();
+
+        let builder = LLBBuilder::new("context").with_context_path(temp_dir.path().to_path_buf());
+        let exclude = vec!["*.md".to_string()];
+
+        let hash1 = builder
+            .calculate_context_hash(temp_dir.path(), &exclude)
+            .unwrap();
+
+        // Change included file — hash MUST change
+        fs::write(
+            temp_dir.path().join("main.rs"),
+            b"fn main() { println!(\"hi\"); }",
+        )
+        .unwrap();
+        let hash2 = builder
+            .calculate_context_hash(temp_dir.path(), &exclude)
+            .unwrap();
+
+        assert_ne!(hash1, hash2, "Hash must change when included files change");
+    }
+
+    #[test]
+    fn test_load_exclude_patterns_includes_hardcoded() {
+        let temp_dir = TempDir::new().unwrap();
+        let patterns = load_exclude_patterns(temp_dir.path());
+        assert!(patterns.contains(&"*.md".to_string()));
+        assert!(patterns.contains(&".vscode/".to_string()));
+        assert!(patterns.contains(&".idea/".to_string()));
+        assert!(patterns.contains(&"*.tar".to_string()));
     }
 }

@@ -1,9 +1,25 @@
 use crate::helpers::btree;
-use crate::id_enums::{BuildSystemId, LanguageId, RuntimeId};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+const RUST: LanguageId = LanguageId::new("rust");
+const CARGO: BuildSystemId = BuildSystemId::new("cargo");
+const NATIVE: RuntimeId = RuntimeId::new("native");
+
+inventory::submit! {
+    LanguageMeta { slug: "rust", display_name: "Rust", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "cargo", display_name: "Cargo", aliases: &["cargo"] }
+}
+inventory::submit! {
+    RuntimeMeta { slug: "native", display_name: "Native", aliases: &["rust", "c++", "go"] }
+}
 
 pub struct CargoTomlParser;
 
@@ -88,9 +104,9 @@ impl ManifestParser for CargoTomlParser {
 
         Some(Manifest {
             path: path.to_path_buf(),
-            language: LanguageId::Rust,
-            build_system: BuildSystemId::Cargo,
-            runtime: RuntimeId::Native,
+            language: RUST,
+            build_system: CARGO,
+            runtime: NATIVE,
             package,
             workspace,
             dependencies,
