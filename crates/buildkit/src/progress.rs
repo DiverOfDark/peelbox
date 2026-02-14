@@ -95,7 +95,10 @@ impl ProgressTracker {
                 state.total_started += 1;
                 state.current_active = Some(digest.clone());
 
-                let msg = format!("Started [{}] {}", state.total_started, vertex.name);
+                let msg = format!(
+                    "Started [{}] {} (digest: {})",
+                    state.total_started, vertex.name, digest
+                );
                 if !self.quiet {
                     info!("{}", msg);
                 }
@@ -109,7 +112,7 @@ impl ProgressTracker {
                     .unwrap_or(false);
                 if !was_cached {
                     state.total_cached += 1;
-                    let msg = format!("  CACHED {}", vertex.name);
+                    let msg = format!("  CACHED {} (digest: {})", vertex.name, digest);
                     if !self.quiet {
                         info!("{}", msg);
                     }
@@ -126,7 +129,7 @@ impl ProgressTracker {
                 state.total_completed += 1;
 
                 if !self.quiet {
-                    let msg = format!("  DONE {}", vertex.name);
+                    let msg = format!("  DONE {} (digest: {})", vertex.name, digest);
                     info!("{}", msg);
                 }
 

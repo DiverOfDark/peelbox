@@ -6,7 +6,6 @@
 - **[P2] Caching Validation:** Add container tests that verify:
     - No network access required on second run (offline build).
     - All layers are correctly cached by BuildKit.
-- **[P3] Fix "Dirty Source" Caching:** Investigate why layers are invalidated once the source is mounted.
 
 ## Phase 3: Language & Build System Expansion 🌍
 *Goal: Fill the gaps in supported stacks and fixtures.*

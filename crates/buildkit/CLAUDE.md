@@ -67,8 +67,8 @@ Unix file modes must use Go's `os.FileMode` format:
 ### 3MB Chunk Limit
 `StreamConn` enforces max 3MB chunks for `BytesMessage`. Larger chunks cause BuildKit errors. Defined as `MAX_CHUNK_SIZE`.
 
-### Normalized Metadata
-`FileSync` sets `uid=0, gid=0, mod_time=0` for deterministic digests -- enables cache hits across machines.
+### File Metadata & Caching
+`FileSync` sets `uid=0, gid=0` but preserves real `mod_time` so build tools can use timestamp-based incremental compilation. Reproducibility is handled by the OCI exporter's `rewrite-timestamp` + `source-date-epoch=0` settings. Both `scan_files()` and `calculate_context_hash()` apply the same exclude patterns (`load_exclude_patterns`) to ensure the context hash stays stable when only excluded files change.
 
 ### Tar Export Timeout
 5 minutes (`TAR_EXPORT_TIMEOUT_SECS = 300`). Long builds may timeout during export.

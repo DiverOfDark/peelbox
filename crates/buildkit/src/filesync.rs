@@ -31,16 +31,31 @@ impl FileSync {
         }
     }
 
-    /// Scan directory and collect file stats
-    pub async fn scan_files(&self) -> Result<Vec<FileStat>> {
+    /// Scan directory and collect file stats, optionally excluding files
+    /// matching the given patterns (same format as .gitignore / BuildKit exclude-patterns).
+    pub async fn scan_files(&self, exclude_patterns: &[String]) -> Result<Vec<FileStat>> {
         debug!("Scanning files in: {:?}", self.root_path);
         let mut stats = Vec::new();
+
+        let mut overrides = ignore::overrides::OverrideBuilder::new(&self.root_path);
+        for pattern in exclude_patterns {
+            let negated = format!("!{}", pattern);
+            if let Err(e) = overrides.add(&negated) {
+                tracing::warn!("Failed to add exclude pattern '{}': {}", pattern, e);
+            }
+        }
+        let overrides = overrides.build().unwrap_or_else(|_| {
+            ignore::overrides::OverrideBuilder::new(&self.root_path)
+                .build()
+                .unwrap()
+        });
 
         let walker = WalkBuilder::new(&self.root_path)
             .hidden(false)
             .git_ignore(true)
             .git_global(false) // Ignore global gitignore to match LLB exclude patterns
             .git_exclude(false) // Ignore .git/info/exclude to match LLB exclude patterns
+            .overrides(overrides)
             .filter_entry(|e| !e.path().to_string_lossy().contains("/.git/"))
             .build();
 
@@ -232,7 +247,7 @@ mod tests {
     async fn test_scan_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
         let sync = FileSync::new(temp_dir.path());
-        let stats = sync.scan_files().await.unwrap();
+        let stats = sync.scan_files(&[]).await.unwrap();
         assert_eq!(stats.len(), 0);
     }
 
@@ -243,7 +258,7 @@ mod tests {
         fs::write(&file_path, b"hello world").unwrap();
 
         let sync = FileSync::new(temp_dir.path());
-        let stats = sync.scan_files().await.unwrap();
+        let stats = sync.scan_files(&[]).await.unwrap();
 
         assert_eq!(stats.len(), 1);
         assert_eq!(stats[0].path, PathBuf::from("test.txt"));
@@ -259,7 +274,7 @@ mod tests {
         fs::write(sub_dir.join("nested.txt"), b"nested").unwrap();
 
         let sync = FileSync::new(temp_dir.path());
-        let stats = sync.scan_files().await.unwrap();
+        let stats = sync.scan_files(&[]).await.unwrap();
 
         assert_eq!(stats.len(), 2); // subdir + nested.txt
         assert!(stats
@@ -299,5 +314,48 @@ mod tests {
         assert_eq!(chunks.len(), 2);
         assert_eq!(chunks[0].len(), CHUNK_SIZE);
         assert_eq!(chunks[1].len(), 100);
+    }
+
+    #[tokio::test]
+    async fn test_scan_excludes_md_files() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), b"fn main() {}").unwrap();
+        fs::write(temp_dir.path().join("README.md"), b"# Hello").unwrap();
+        fs::write(temp_dir.path().join("CHANGELOG.md"), b"# Changes").unwrap();
+
+        let sync = FileSync::new(temp_dir.path());
+        let exclude = vec!["*.md".to_string()];
+        let stats = sync.scan_files(&exclude).await.unwrap();
+
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].path, PathBuf::from("main.rs"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_excludes_directories() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), b"fn main() {}").unwrap();
+        let vscode_dir = temp_dir.path().join(".vscode");
+        fs::create_dir(&vscode_dir).unwrap();
+        fs::write(vscode_dir.join("settings.json"), b"{}").unwrap();
+
+        let sync = FileSync::new(temp_dir.path());
+        let exclude = vec![".vscode/".to_string()];
+        let stats = sync.scan_files(&exclude).await.unwrap();
+
+        assert_eq!(stats.len(), 1);
+        assert_eq!(stats[0].path, PathBuf::from("main.rs"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_no_excludes_returns_all() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("main.rs"), b"fn main() {}").unwrap();
+        fs::write(temp_dir.path().join("README.md"), b"# Hello").unwrap();
+
+        let sync = FileSync::new(temp_dir.path());
+        let stats = sync.scan_files(&[]).await.unwrap();
+
+        assert_eq!(stats.len(), 2);
     }
 }
