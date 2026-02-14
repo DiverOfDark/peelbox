@@ -259,22 +259,10 @@ mod tests {
             RuntimeId::from_name("Native"),
             Some(RuntimeId::new("native"))
         );
-        assert_eq!(
-            RuntimeId::from_name("rust"),
-            Some(RuntimeId::new("native"))
-        );
-        assert_eq!(
-            RuntimeId::from_name("c++"),
-            Some(RuntimeId::new("native"))
-        );
-        assert_eq!(
-            RuntimeId::from_name("go"),
-            Some(RuntimeId::new("native"))
-        );
-        assert_eq!(
-            RuntimeId::from_name(".NET"),
-            Some(RuntimeId::new("dotnet"))
-        );
+        assert_eq!(RuntimeId::from_name("rust"), Some(RuntimeId::new("native")));
+        assert_eq!(RuntimeId::from_name("c++"), Some(RuntimeId::new("native")));
+        assert_eq!(RuntimeId::from_name("go"), Some(RuntimeId::new("native")));
+        assert_eq!(RuntimeId::from_name(".NET"), Some(RuntimeId::new("dotnet")));
         assert_eq!(
             RuntimeId::from_name("dotnet"),
             Some(RuntimeId::new("dotnet"))

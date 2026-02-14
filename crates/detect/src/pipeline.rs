@@ -391,8 +391,7 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                     workspace_idx = Some(i);
                 }
                 // Lock file parsers produce Pnpm or Yarn build_system
-                if mwf.manifest.build_system == PNPM
-                    || mwf.manifest.build_system == YARN {
+                if mwf.manifest.build_system == PNPM || mwf.manifest.build_system == YARN {
                     lock_file_idx = Some(i);
                 }
             }

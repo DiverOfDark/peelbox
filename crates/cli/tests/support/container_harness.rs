@@ -429,10 +429,7 @@ impl ContainerTestHarness {
     ) -> Result<String> {
         let (exposed_ports, host_config) = if let Some(port) = container_port {
             let mut ep = std::collections::HashMap::new();
-            ep.insert(
-                format!("{}/tcp", port),
-                std::collections::HashMap::new(),
-            );
+            ep.insert(format!("{}/tcp", port), std::collections::HashMap::new());
             let mut pb = std::collections::HashMap::new();
             pb.insert(
                 format!("{}/tcp", port),
@@ -475,11 +472,7 @@ impl ContainerTestHarness {
         Ok(container.id)
     }
 
-    pub async fn wait_for_exit(
-        &self,
-        container_id: &str,
-        timeout: Duration,
-    ) -> Result<i64> {
+    pub async fn wait_for_exit(&self, container_id: &str, timeout: Duration) -> Result<i64> {
         let wait_fut = async {
             let options = WaitContainerOptions {
                 condition: "not-running",

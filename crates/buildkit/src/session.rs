@@ -94,20 +94,20 @@ impl BuildSession {
 
         let exclude_patterns = crate::llb::load_exclude_patterns(&context_path);
 
-        let shared_key =
-            match crate::llb::calculate_context_hash(&context_path, &exclude_patterns) {
-                Ok(hash) => {
-                    info!("Session shared_key derived from context hash: {}", hash);
-                    hash
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to compute context hash for shared_key, falling back to session_id: {}",
-                        e
-                    );
-                    session_id.clone()
-                }
-            };
+        let shared_key = match crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
+        {
+            Ok(hash) => {
+                info!("Session shared_key derived from context hash: {}", hash);
+                hash
+            }
+            Err(e) => {
+                warn!(
+                    "Failed to compute context hash for shared_key, falling back to session_id: {}",
+                    e
+                );
+                session_id.clone()
+            }
+        };
 
         Self {
             connection,

@@ -1,5 +1,7 @@
 use crate::helpers::btree;
-use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
@@ -42,11 +44,7 @@ impl ManifestParser for CsprojParser {
             .map(|e| e == "fsproj")
             .unwrap_or(false);
 
-        let language = if is_fsharp {
-            FSHARP
-        } else {
-            CSHARP
-        };
+        let language = if is_fsharp { FSHARP } else { CSHARP };
 
         let file_stem = path.file_stem().and_then(|s| s.to_str()).map(String::from);
 

@@ -288,15 +288,13 @@ pub fn get_fixture_container_test_infos(
 
             let validation = if !build.runtime.ports.is_empty() {
                 let port = build.runtime.ports.first().copied()?;
-                let health_endpoint =
-                    build.runtime.health.as_ref().map(|h| h.endpoint.clone());
+                let health_endpoint = build.runtime.health.as_ref().map(|h| h.endpoint.clone());
                 ContainerValidation::Port {
                     port,
                     health_endpoint,
                 }
             } else if expected_output_path.exists() {
-                let expected_output =
-                    std::fs::read_to_string(&expected_output_path).ok()?;
+                let expected_output = std::fs::read_to_string(&expected_output_path).ok()?;
                 ContainerValidation::Stdout { expected_output }
             } else {
                 // No ports and no expected_output.txt — skip this entry
@@ -488,9 +486,7 @@ pub async fn run_container_integration_test(
                 let logs = harness
                     .get_container_logs(&container_id)
                     .await
-                    .map_err(|e| {
-                        format!("Failed to get logs for {}: {}", info.project_name, e)
-                    })?;
+                    .map_err(|e| format!("Failed to get logs for {}: {}", info.project_name, e))?;
 
                 let actual = logs.trim();
                 let expected = expected_output.trim();

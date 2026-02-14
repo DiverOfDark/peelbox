@@ -513,12 +513,19 @@ mod tests {
             .unwrap();
 
         // Change excluded file — hash should NOT change
-        fs::write(temp_dir.path().join("README.md"), b"# v2 completely different").unwrap();
+        fs::write(
+            temp_dir.path().join("README.md"),
+            b"# v2 completely different",
+        )
+        .unwrap();
         let hash2 = builder
             .calculate_context_hash(temp_dir.path(), &exclude)
             .unwrap();
 
-        assert_eq!(hash1, hash2, "Hash must be stable when only excluded files change");
+        assert_eq!(
+            hash1, hash2,
+            "Hash must be stable when only excluded files change"
+        );
     }
 
     #[test]
@@ -534,7 +541,11 @@ mod tests {
             .unwrap();
 
         // Change included file — hash MUST change
-        fs::write(temp_dir.path().join("main.rs"), b"fn main() { println!(\"hi\"); }").unwrap();
+        fs::write(
+            temp_dir.path().join("main.rs"),
+            b"fn main() { println!(\"hi\"); }",
+        )
+        .unwrap();
         let hash2 = builder
             .calculate_context_hash(temp_dir.path(), &exclude)
             .unwrap();

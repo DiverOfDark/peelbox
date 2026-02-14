@@ -1,5 +1,7 @@
 use crate::helpers::btree;
-use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta};
+use crate::ids::{
+    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
+};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
@@ -67,11 +69,7 @@ impl ManifestParser for PyProjectTomlParser {
             (name, version)
         };
 
-        let build_system_id = if is_poetry {
-            POETRY
-        } else {
-            PIP
-        };
+        let build_system_id = if is_poetry { POETRY } else { PIP };
 
         let dependencies = parse_pyproject_deps(&toml_val, is_poetry);
 

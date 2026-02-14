@@ -93,7 +93,10 @@ tokio = { version = "1.0", features = ["full"] }
             crate::traits::ManifestParser::parse(&parser, Path::new("Cargo.toml"), content)
                 .unwrap();
         assert_eq!(manifest.language, crate::ids::LanguageId::new("rust"));
-        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("cargo"));
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("cargo")
+        );
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-app");
         assert_eq!(manifest.dependencies.len(), 2);
@@ -145,7 +148,10 @@ members = ["crates/*", "apps/cli"]
         let manifest =
             crate::traits::ManifestParser::parse(&parser, Path::new("package.json"), content)
                 .unwrap();
-        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("pnpm"));
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("pnpm")
+        );
     }
 
     #[test]
@@ -168,7 +174,10 @@ members = ["crates/*", "apps/cli"]
         let manifest =
             crate::traits::ManifestParser::parse(&parser, Path::new("pom.xml"), content).unwrap();
         assert_eq!(manifest.language, crate::ids::LanguageId::new("java"));
-        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("maven"));
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("maven")
+        );
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-app");
         assert!(manifest
@@ -191,7 +200,10 @@ require (
         let manifest =
             crate::traits::ManifestParser::parse(&parser, Path::new("go.mod"), content).unwrap();
         assert_eq!(manifest.language, crate::ids::LanguageId::new("go"));
-        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("go-mod"));
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("go-mod")
+        );
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "myserver");
         assert_eq!(manifest.dependencies.len(), 2);

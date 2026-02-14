@@ -161,10 +161,7 @@ super::simple_detector!(
     NUXT,
     &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| {
-        d.name == "nuxt"
-            || d.name == "nuxt3"
-            || d.name == "nuxt-edge"
-            || d.name == "nuxt-nightly"
+        d.name == "nuxt" || d.name == "nuxt3" || d.name == "nuxt-edge" || d.name == "nuxt-nightly"
     }),
     vec![3000],
     vec![],
