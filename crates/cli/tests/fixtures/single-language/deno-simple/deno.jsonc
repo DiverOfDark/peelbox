@@ -1,0 +1,8 @@
+{
+  // Deno configuration for a simple HTTP server
+  "lock": false,
+  "tasks": {
+    "start": "deno run --allow-net --allow-read --allow-env main.ts",
+    "build": "echo build"
+  }
+}

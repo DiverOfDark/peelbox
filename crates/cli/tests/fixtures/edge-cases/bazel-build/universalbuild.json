@@ -5,7 +5,7 @@
         ".cache/bazel"
       ],
       "commands": [
-        "bazel build //..."
+        "bazel build //... && mkdir -p _output && cp -rL bazel-bin/hello _output/"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
@@ -30,7 +30,7 @@
       ],
       "copy": [
         {
-          "from": "bazel-bin/hello",
+          "from": "_output/hello",
           "to": "/app/hello"
         }
       ],

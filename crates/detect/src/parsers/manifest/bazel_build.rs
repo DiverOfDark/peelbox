@@ -52,6 +52,81 @@ impl ManifestParser for BazelBuildParser {
             GO
         };
 
+        // Language-specific build/runtime configuration
+        // Note: Bazel creates `bazel-bin` as an absolute symlink to its cache directory
+        // (e.g., /root/.cache/bazel/...); this symlink breaks during BuildKit's artifact
+        // copy step because the target isn't under the /build mount. We resolve this by
+        // adding a post-build `cp -rL` step that dereferences symlinks into `_output/`.
+        let (build_commands, artifacts, runtime_packages, entrypoint, extra_build_packages) =
+            if language == JAVA {
+                // Java: build deploy JAR (self-contained uber JAR) for clean container packaging
+                (
+                    vec![format!(
+                        "bazel build //:{n}_deploy.jar && mkdir -p _output && cp -rL bazel-bin/{n}_deploy.jar _output/",
+                        n = name
+                    )],
+                    vec![(
+                        format!("_output/{}_deploy.jar", name),
+                        format!("/app/{}.jar", name),
+                    )],
+                    vec![
+                        "openjdk-21-default-jvm".into(),
+                        "openjdk-21-jre".into(),
+                        "ca-certificates".into(),
+                    ],
+                    format!("java -jar /app/{}.jar", name),
+                    vec![],
+                )
+            } else if language == PYTHON {
+                // Python: copy binary + runfiles directory (Bazel py_binary needs both)
+                (
+                    vec![format!(
+                        "bazel build //... && mkdir -p _output && cp -rL bazel-bin/{n} _output/ && cp -rL bazel-bin/{n}.runfiles _output/",
+                        n = name
+                    )],
+                    vec![
+                        (
+                            format!("_output/{}", name),
+                            format!("/app/{}", name),
+                        ),
+                        (
+                            format!("_output/{}.runfiles/", name),
+                            format!("/app/{}.runfiles/", name),
+                        ),
+                    ],
+                    vec!["python".into(), "busybox".into(), "glibc".into(), "ca-certificates".into()],
+                    format!("/app/{}", name),
+                    vec!["python".into()],
+                )
+            } else {
+                // C++ / Go: standalone binary
+                (
+                    vec![format!(
+                        "bazel build //... && mkdir -p _output && cp -rL bazel-bin/{n} _output/",
+                        n = name
+                    )],
+                    vec![(
+                        format!("_output/{}", name),
+                        format!("/app/{}", name),
+                    )],
+                    vec!["glibc".into(), "ca-certificates".into()],
+                    format!("/app/{}", name),
+                    vec![],
+                )
+            };
+
+        let mut build_packages = vec![
+            "build-base".into(),
+            "bazel-7".into(),
+            "openjdk-21".into(),
+            "ca-certificates".into(),
+        ];
+        for pkg in extra_build_packages {
+            if !build_packages.contains(&pkg) {
+                build_packages.push(pkg);
+            }
+        }
+
         Some(Manifest {
             path: path.to_path_buf(),
             language,
@@ -65,13 +140,8 @@ impl ManifestParser for BazelBuildParser {
             workspace: None,
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: vec![
-                    "build-base".into(),
-                    "bazel-7".into(),
-                    "openjdk-21".into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec!["bazel build //...".into()],
+                packages: build_packages,
+                commands: build_commands,
                 member_transform: None,
                 env: btree(&[
                     ("JAVA_HOME", "/usr/lib/jvm/java-21-openjdk"),
@@ -81,15 +151,12 @@ impl ManifestParser for BazelBuildParser {
                     ),
                 ]),
                 cache_dirs: vec![".cache/bazel".into()],
-                artifacts: vec![(
-                    format!("bazel-bin/{}", name),
-                    format!("/app/{}", name),
-                )],
+                artifacts,
             },
             runtime_config: RuntimeSpec {
-                packages: vec!["glibc".into(), "ca-certificates".into()],
+                packages: runtime_packages,
                 env: BTreeMap::new(),
-                entrypoint: Some(format!("/app/{}", name)),
+                entrypoint: Some(entrypoint),
                 workdir: Some("/app".into()),
                 ports: vec![8080],
                 health_endpoint: None,

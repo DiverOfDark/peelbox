@@ -1,0 +1,46 @@
+[
+  {
+    "build": {
+      "cache": [
+        "zig-cache",
+        "zig-out"
+      ],
+      "commands": [
+        "zig build -Doptimize=ReleaseSafe"
+      ],
+      "env": {},
+      "packages": [
+        "zig",
+        "build-base",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Zig Build",
+      "language": "Zig",
+      "project_name": "app",
+      "reasoning": "Detected from build.zig"
+    },
+    "runtime": {
+      "command": [
+        "/app/app"
+      ],
+      "copy": [
+        {
+          "from": "zig-out/bin/*",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]
