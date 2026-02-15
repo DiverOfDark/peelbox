@@ -63,7 +63,7 @@ impl FrameworkDetector for FlaskDetector {
                 ("FLASK_RUN_HOST", "0.0.0.0"),
                 ("FLASK_RUN_PORT", "5000"),
                 ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
-                ("PYTHONPATH", "/root/.local/lib/python3.14/site-packages"),
+                ("PYTHONUSERBASE", "/root/.local"),
             ]),
             workdir: Some("/build".into()),
             extra_copy: vec![

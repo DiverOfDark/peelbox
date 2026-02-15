@@ -26,6 +26,8 @@ impl ManifestParser for SetupPyParser {
             .and_then(|c| c.get(1))
             .map(|m| m.as_str().to_string());
 
+        let dependencies = parse_install_requires(content);
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: PYTHON,
@@ -37,7 +39,7 @@ impl ManifestParser for SetupPyParser {
                 is_application: true,
             }),
             workspace: None,
-            dependencies: Vec::new(),
+            dependencies,
             build: BuildSpec {
                 packages: vec![
                     "python".into(),
@@ -66,6 +68,69 @@ impl ManifestParser for SetupPyParser {
             },
         })
     }
+}
+
+/// Extract dependencies from install_requires=[...] in setup.py content.
+/// Uses bracket-depth tracking to handle extras like `uvicorn[standard]` inside quotes.
+fn parse_install_requires(content: &str) -> Vec<Dependency> {
+    // Find the start of install_requires=[
+    let re = regex::Regex::new(r"install_requires\s*=\s*\[").ok();
+    let Some(m) = re.and_then(|r| r.find(content)) else {
+        return Vec::new();
+    };
+
+    // Track bracket depth to find matching closing ]
+    let start = m.end();
+    let mut depth = 1;
+    let mut in_string = false;
+    let mut string_char = '"';
+    let mut end = start;
+
+    for (i, ch) in content[start..].char_indices() {
+        if in_string {
+            if ch == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+        match ch {
+            '\'' | '"' => {
+                in_string = true;
+                string_char = ch;
+            }
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let block = &content[start..end];
+    let dep_re = regex::Regex::new(r#"['"]([^'"]+)['"]"#).unwrap();
+
+    dep_re
+        .captures_iter(block)
+        .map(|c| {
+            let raw = c.get(1).unwrap().as_str();
+            let name = raw
+                .split(&['>', '<', '=', '~', '!', '['][..])
+                .next()
+                .unwrap_or(raw)
+                .trim()
+                .to_string();
+            Dependency {
+                name,
+                version: None,
+                scope: DepScope::Runtime,
+                is_internal: false,
+            }
+        })
+        .collect()
 }
 
 inventory::submit! {

@@ -2,8 +2,7 @@
   {
     "build": {
       "cache": [
-        ".npm",
-        "node_modules"
+        ".npm"
       ],
       "commands": [
         "npm ci",
@@ -48,7 +47,7 @@
       "ports": [
         3000
       ],
-      "workdir": "/app"
+      "workdir": "/app/apps/web"
     },
     "version": "1.0"
   }

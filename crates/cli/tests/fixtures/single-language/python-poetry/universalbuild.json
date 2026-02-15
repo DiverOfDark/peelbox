@@ -22,7 +22,6 @@
     },
     "metadata": {
       "build_system": "Poetry",
-      "confidence": 0.949999988079071,
       "framework": "Flask",
       "language": "Python",
       "project_name": "app",
@@ -43,10 +42,9 @@
         "FLASK_APP": "/build/app.py",
         "FLASK_RUN_HOST": "0.0.0.0",
         "FLASK_RUN_PORT": "5000",
-        "VIRTUAL_ENV": "/build/.venv",
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/build/.venv"
       },
-      "workdir": "/build",
       "health": {
         "endpoint": "/health"
       },
@@ -58,7 +56,8 @@
       ],
       "ports": [
         5000
-      ]
+      ],
+      "workdir": "/build"
     },
     "version": "1.0"
   }

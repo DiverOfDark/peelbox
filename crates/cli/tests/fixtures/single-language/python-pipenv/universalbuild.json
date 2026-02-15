@@ -1,0 +1,64 @@
+[
+  {
+    "build": {
+      "cache": [
+        "/root/.cache/pip/"
+      ],
+      "commands": [
+        "pip install --user pipenv",
+        "/root/.local/bin/pipenv lock && /root/.local/bin/pipenv requirements > /tmp/requirements.txt && pip install --user --no-cache-dir -r /tmp/requirements.txt"
+      ],
+      "env": {},
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Pipenv",
+      "framework": "Flask",
+      "language": "Python",
+      "project_name": "app",
+      "reasoning": "Detected from Pipfile"
+    },
+    "runtime": {
+      "command": [
+        "flask",
+        "run"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local"
+        }
+      ],
+      "env": {
+        "FLASK_APP": "/build/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "python-3.11",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "ports": [
+        5000
+      ],
+      "workdir": "/build"
+    },
+    "version": "1.0"
+  }
+]

@@ -69,7 +69,7 @@ impl ManifestParser for PnpmLockParser {
                 commands: vec!["pnpm install".into(), "pnpm build".into()],
                 member_transform: None,
                 env: BTreeMap::new(),
-                cache_dirs: vec![".pnpm-store".into(), "node_modules".into()],
+                cache_dirs: vec![".pnpm-store".into()],
                 artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {

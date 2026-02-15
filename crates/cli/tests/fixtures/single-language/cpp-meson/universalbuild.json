@@ -1,0 +1,45 @@
+[
+  {
+    "build": {
+      "cache": [
+        "build/"
+      ],
+      "commands": [
+        "meson setup build --buildtype=release",
+        "meson compile -C build"
+      ],
+      "env": {},
+      "packages": [
+        "meson",
+        "build-base",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Meson",
+      "language": "C++",
+      "project_name": "myapp",
+      "reasoning": "Detected from meson.build"
+    },
+    "runtime": {
+      "command": [
+        "/app/myapp"
+      ],
+      "copy": [
+        {
+          "from": "build/myapp",
+          "to": "/app/myapp"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

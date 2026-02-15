@@ -3,8 +3,7 @@
     "build": {
       "cache": [
         ".npm",
-        ".turbo",
-        "node_modules"
+        ".turbo"
       ],
       "commands": [
         "npm ci",
@@ -49,7 +48,7 @@
       "ports": [
         3000
       ],
-      "workdir": "/app"
+      "workdir": "/app/apps/web"
     },
     "version": "1.0"
   }

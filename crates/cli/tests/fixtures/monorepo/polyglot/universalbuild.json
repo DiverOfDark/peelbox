@@ -108,8 +108,7 @@
   {
     "build": {
       "cache": [
-        ".npm",
-        "node_modules"
+        ".npm"
       ],
       "commands": [
         "cd frontend && npm ci",

@@ -86,7 +86,7 @@ impl ManifestParser for YarnLockParser {
                 ],
                 member_transform: None,
                 env: BTreeMap::new(),
-                cache_dirs: vec![".yarn-cache".into(), "node_modules".into()],
+                cache_dirs: vec![".yarn-cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {

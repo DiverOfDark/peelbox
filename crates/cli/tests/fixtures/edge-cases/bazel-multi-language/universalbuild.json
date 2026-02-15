@@ -1,0 +1,106 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cache/bazel"
+      ],
+      "commands": [
+        "cd java && bazel build //:server_deploy.jar && mkdir -p _output && cp -rL bazel-bin/server_deploy.jar _output/"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "packages": [
+        "build-base",
+        "bazel-7",
+        "openjdk-21",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Bazel",
+      "language": "Java",
+      "project_name": "server",
+      "reasoning": "Detected from BUILD in java"
+    },
+    "runtime": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/server.jar"
+      ],
+      "copy": [
+        {
+          "from": "java/_output/server_deploy.jar",
+          "to": "/app/server.jar"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "openjdk-21-default-jvm",
+        "openjdk-21-jre",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  },
+  {
+    "build": {
+      "cache": [
+        ".cache/bazel"
+      ],
+      "commands": [
+        "cd python && bazel build //... && mkdir -p _output && cp -rL bazel-bin/worker _output/ && cp -rL bazel-bin/worker.runfiles _output/"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "packages": [
+        "build-base",
+        "bazel-7",
+        "openjdk-21",
+        "ca-certificates",
+        "python-3.14"
+      ]
+    },
+    "metadata": {
+      "build_system": "Bazel",
+      "language": "Python",
+      "project_name": "worker",
+      "reasoning": "Detected from BUILD in python"
+    },
+    "runtime": {
+      "command": [
+        "/app/worker"
+      ],
+      "copy": [
+        {
+          "from": "python/_output/worker",
+          "to": "/app/worker"
+        },
+        {
+          "from": "python/_output/worker.runfiles/",
+          "to": "/app/worker.runfiles/"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "python-3.14",
+        "busybox",
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

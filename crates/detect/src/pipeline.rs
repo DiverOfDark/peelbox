@@ -996,9 +996,28 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     };
 
     // Workdir: framework override > manifest workdir
-    let workdir = framework_workdir
-        .or_else(|| m.runtime_config.workdir.clone())
-        .unwrap_or_else(|| "/app".into());
+    // For Node.js workspace members, set workdir to the member's directory
+    // so that `npm start` finds the member's package.json
+    let workdir = if bucket.is_workspace_member
+        && (m.build_system == NPM
+            || m.build_system == PNPM
+            || m.build_system == YARN
+            || m.build_system == BUN)
+    {
+        let base = framework_workdir
+            .or_else(|| m.runtime_config.workdir.clone())
+            .unwrap_or_else(|| "/app".into());
+        let member_path = bucket.path.display().to_string();
+        if member_path.is_empty() || member_path == "." {
+            base
+        } else {
+            format!("{}/{}", base, member_path)
+        }
+    } else {
+        framework_workdir
+            .or_else(|| m.runtime_config.workdir.clone())
+            .unwrap_or_else(|| "/app".into())
+    };
 
     Ok(UniversalBuild {
         version: "1.0".into(),

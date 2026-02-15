@@ -2,18 +2,11 @@
   {
     "build": {
       "cache": [
-        ".yarn-cache",
-        "node_modules"
+        ".yarn-cache"
       ],
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
         "./node_modules/.bin/tsc"
-      ],
-      "context": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {},
       "packages": [
@@ -24,7 +17,6 @@
     },
     "metadata": {
       "build_system": "Yarn",
-      "confidence": 0.949999988079071,
       "language": "JavaScript",
       "project_name": "example-node-app",
       "reasoning": "Detected from yarn.lock"
@@ -41,6 +33,9 @@
         }
       ],
       "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
       "packages": [
         "nodejs-25",
         "npm",
@@ -48,9 +43,6 @@
         "dumb-init",
         "ca-certificates"
       ],
-      "health": {
-        "endpoint": "/health"
-      },
       "ports": [
         3000
       ],

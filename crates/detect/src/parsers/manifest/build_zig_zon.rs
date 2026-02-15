@@ -92,7 +92,7 @@ impl ManifestParser for BuildZigZonParser {
                 commands: vec!["zig build -Doptimize=ReleaseSafe".into()],
                 member_transform: None,
                 env: BTreeMap::new(),
-                cache_dirs: vec!["zig-cache".into(), "zig-out".into()],
+                cache_dirs: vec!["zig-cache".into()],
                 artifacts: vec![
                     (format!("zig-out/bin/{}", name), format!("/app/{}", name)),
                     ("zig-out/lib/".into(), "/app/lib/".into()),
