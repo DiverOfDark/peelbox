@@ -258,9 +258,7 @@ impl BuildKitConnection {
         use crate::proto::ControlClient;
 
         let mut client = ControlClient::new(self.channel.clone());
-        let request = crate::proto::moby::buildkit::v1::ListWorkersRequest {
-            filter: vec![],
-        };
+        let request = crate::proto::moby::buildkit::v1::ListWorkersRequest { filter: vec![] };
 
         for attempt in 1..=10 {
             match client.list_workers(request.clone()).await {
