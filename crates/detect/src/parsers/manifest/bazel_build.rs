@@ -105,10 +105,7 @@ impl ManifestParser for BazelBuildParser {
                         "bazel build //... && mkdir -p _output && cp -rL bazel-bin/{n} _output/",
                         n = name
                     )],
-                    vec![(
-                        format!("_output/{}", name),
-                        format!("/app/{}", name),
-                    )],
+                    vec![(format!("_output/{}", name), format!("/app/{}", name))],
                     vec!["glibc".into(), "ca-certificates".into()],
                     format!("/app/{}", name),
                     vec![],
