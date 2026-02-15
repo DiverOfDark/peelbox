@@ -169,7 +169,7 @@ impl ManifestParser for PackageJsonParser {
                     member_artifacts: None,
                 }),
                 env: BTreeMap::new(),
-                cache_dirs: vec![".npm".into(), "node_modules".into()],
+                cache_dirs: vec![".npm".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
             },
             runtime_config: RuntimeSpec {

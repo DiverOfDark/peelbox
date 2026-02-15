@@ -2,8 +2,7 @@
   {
     "build": {
       "cache": [
-        ".pnpm-store",
-        "node_modules"
+        ".pnpm-store"
       ],
       "commands": [
         "pnpm install",
@@ -37,6 +36,9 @@
         }
       ],
       "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
       "packages": [
         "nodejs-22",
         "npm",
@@ -44,9 +46,6 @@
         "dumb-init",
         "ca-certificates"
       ],
-      "health": {
-        "endpoint": "/health"
-      },
       "ports": [
         3000
       ],

@@ -3,7 +3,7 @@ use std::path::Path;
 #[cfg(not(windows))]
 use tonic::transport::Uri;
 use tonic::transport::{Channel, Endpoint};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 const DEFAULT_UNIX_SOCKET: &str = "/run/buildkit/buildkitd.sock";
 const DEFAULT_DOCKER_SOCKET: &str = "/var/run/docker.sock";
@@ -255,8 +255,34 @@ impl BuildKitConnection {
     }
 
     async fn health_check(&mut self) -> Result<()> {
-        debug!("Health check: OK (placeholder)");
-        Ok(())
+        use crate::proto::ControlClient;
+
+        let mut client = ControlClient::new(self.channel.clone());
+        let request = crate::proto::moby::buildkit::v1::ListWorkersRequest {
+            filter: vec![],
+        };
+
+        for attempt in 1..=10 {
+            match client.list_workers(request.clone()).await {
+                Ok(resp) => {
+                    let workers = resp.into_inner().record.len();
+                    info!("BuildKit health check passed ({} workers)", workers);
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!(
+                        "BuildKit health check attempt {}/10 failed: {}",
+                        attempt,
+                        e.message()
+                    );
+                    if attempt < 10 {
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    }
+                }
+            }
+        }
+
+        anyhow::bail!("BuildKit not ready after 10 health check attempts")
     }
 
     async fn version_check(&mut self) -> Result<()> {
