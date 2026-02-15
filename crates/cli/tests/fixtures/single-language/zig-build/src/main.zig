@@ -2,11 +2,13 @@ const std = @import("std");
 const zap = @import("zap");
 
 fn onHealth(r: zap.Request) !void {
+    r.setStatus(.ok);
     r.setHeader("Content-Type", "application/json") catch {};
     r.sendBody("{\"status\":\"healthy\"}") catch return;
 }
 
 fn onRoot(r: zap.Request) !void {
+    r.setStatus(.ok);
     r.setHeader("Content-Type", "application/json") catch {};
     r.sendBody("{\"message\":\"Hello from Zap\",\"endpoints\":[\"/\",\"/health\"]}") catch return;
 }

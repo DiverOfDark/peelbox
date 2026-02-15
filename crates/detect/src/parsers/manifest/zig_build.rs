@@ -37,7 +37,7 @@ impl ManifestParser for ZigBuildParser {
                 commands: vec!["zig build -Doptimize=ReleaseSafe".into()],
                 member_transform: None,
                 env: BTreeMap::new(),
-                cache_dirs: vec!["zig-cache".into(), "zig-out".into()],
+                cache_dirs: vec!["zig-cache".into()],
                 artifacts: vec![("zig-out/bin/*".into(), "/app/".into())],
             },
             runtime_config: RuntimeSpec {

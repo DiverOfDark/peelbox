@@ -2,8 +2,7 @@
   {
     "build": {
       "cache": [
-        "zig-cache",
-        "zig-out"
+        "zig-cache"
       ],
       "commands": [
         "zig build -Doptimize=ReleaseSafe"
