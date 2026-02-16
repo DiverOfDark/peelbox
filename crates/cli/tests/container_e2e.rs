@@ -13,8 +13,12 @@ fn main() {
 
     let mut tests = Vec::new();
 
-    let skip_fixtures: std::collections::HashSet<&str> =
-        ["multiple-manifests", "rust-openssl"].into_iter().collect();
+    let skip_fixtures: std::collections::HashSet<&str> = [
+        "multiple-manifests",
+        "rust-openssl", // CLI tool, no server ports; runtime needs OpenSSL shared libs not yet in runtime packages
+    ]
+    .into_iter()
+    .collect();
 
     for fixture in fixtures {
         if !fixture.has_snapshot {
