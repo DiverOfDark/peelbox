@@ -1,0 +1,51 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".npm"
+      ],
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "npm",
+      "framework": "Nuxt",
+      "language": "JavaScript",
+      "project_name": "nuxt-3-app",
+      "reasoning": "Detected from package.json"
+    },
+    "runtime": {
+      "command": [
+        "node",
+        ".output/server/index.mjs"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        3000
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]
