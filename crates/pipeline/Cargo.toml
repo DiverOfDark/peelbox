@@ -10,7 +10,7 @@ peelbox-wolfi = { path = "../wolfi" }
 peelbox-detect = { path = "../detect" }
 anyhow = "1.0"
 tracing = "0.1"
-thiserror = "1.0"
+thiserror = "2.0"
 strsim = "0.11"
 
 [dev-dependencies]
