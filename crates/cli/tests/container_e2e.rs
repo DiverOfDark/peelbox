@@ -14,7 +14,7 @@ fn main() {
     let mut tests = Vec::new();
 
     let skip_fixtures: std::collections::HashSet<&str> =
-        ["multiple-manifests"].into_iter().collect();
+        ["multiple-manifests", "rust-openssl"].into_iter().collect();
 
     for fixture in fixtures {
         if !fixture.has_snapshot {

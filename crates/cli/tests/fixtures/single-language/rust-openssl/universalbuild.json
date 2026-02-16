@@ -1,0 +1,48 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cargo",
+        "target"
+      ],
+      "commands": [
+        "cargo build --release"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Cargo",
+      "language": "Rust",
+      "project_name": "rust-openssl-demo",
+      "reasoning": "Detected from Cargo.toml"
+    },
+    "runtime": {
+      "command": [
+        "/app/rust-openssl-demo"
+      ],
+      "copy": [
+        {
+          "from": "target/release/rust-openssl-demo",
+          "to": "/app/rust-openssl-demo"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]
