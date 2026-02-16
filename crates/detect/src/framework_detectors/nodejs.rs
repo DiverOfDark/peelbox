@@ -918,3 +918,63 @@ super::simple_detector!(
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ScullyDetector))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::FrameworkDetector;
+    use crate::types::DepScope;
+
+    fn dep(name: &str) -> Dependency {
+        Dependency {
+            name: name.to_string(),
+            version: None,
+            scope: DepScope::Runtime,
+            is_internal: false,
+        }
+    }
+
+    #[test]
+    fn angular_spa_detected_without_ssr() {
+        let detector = AngularDetector;
+        assert!(detector.detect(&[dep("@angular/cli"), dep("@angular/core")]));
+    }
+
+    #[test]
+    fn angular_spa_excluded_when_angular_ssr_present() {
+        let detector = AngularDetector;
+        assert!(!detector.detect(&[
+            dep("@angular/cli"),
+            dep("@angular/core"),
+            dep("@angular/ssr"),
+        ]));
+    }
+
+    #[test]
+    fn angular_spa_excluded_when_nguniversal_present() {
+        let detector = AngularDetector;
+        assert!(!detector.detect(&[
+            dep("@angular/cli"),
+            dep("@angular/core"),
+            dep("@nguniversal/express-engine"),
+        ]));
+    }
+
+    #[test]
+    fn angular_ssr_detected_with_angular_ssr_package() {
+        let detector = AngularSsrDetector;
+        assert!(detector.detect(&[dep("@angular/ssr"), dep("@angular/core")]));
+    }
+
+    #[test]
+    fn angular_ssr_detected_with_nguniversal() {
+        let detector = AngularSsrDetector;
+        assert!(detector.detect(&[dep("@nguniversal/express-engine"), dep("@angular/core"),]));
+    }
+
+    #[test]
+    fn angular_ssr_not_detected_without_ssr_deps() {
+        let detector = AngularSsrDetector;
+        assert!(!detector.detect(&[dep("@angular/cli"), dep("@angular/core")]));
+    }
+}
