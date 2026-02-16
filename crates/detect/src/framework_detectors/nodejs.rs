@@ -438,19 +438,67 @@ inventory::submit! {
 const ANGULAR: FrameworkId = FrameworkId::new("angular");
 inventory::submit! { FrameworkMeta { slug: "angular", display_name: "Angular", aliases: &[] } }
 
+// Angular needs special handling: exclude SSR projects (detected by AngularSsrDetector).
+pub struct AngularDetector;
+
+impl crate::traits::FrameworkDetector for AngularDetector {
+    fn id(&self) -> FrameworkId {
+        ANGULAR
+    }
+
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[JS, TS]
+    }
+
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        let has_angular = deps.iter().any(|d| d.name == "@angular/cli");
+        if !has_angular {
+            return false;
+        }
+        // Exclude Angular SSR projects (handled by AngularSsrDetector)
+        !deps
+            .iter()
+            .any(|d| d.name == "@angular/ssr" || d.name == "@nguniversal/express-engine")
+    }
+
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: ANGULAR,
+            default_ports: vec![4200],
+            health_endpoints: vec![],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: None,
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(AngularDetector))
+}
+
+const ANGULAR_SSR: FrameworkId = FrameworkId::new("angular-ssr");
+inventory::submit! { FrameworkMeta { slug: "angular-ssr", display_name: "Angular SSR", aliases: &[] } }
+
 super::simple_detector!(
-    AngularDetector,
-    ANGULAR,
+    AngularSsrDetector,
+    ANGULAR_SSR,
     &[JS, TS],
-    |deps: &[Dependency]| deps.iter().any(|d| d.name == "@angular/cli"),
-    vec![4200],
+    |deps: &[Dependency]| {
+        deps.iter()
+            .any(|d| d.name == "@angular/ssr" || d.name == "@nguniversal/express-engine")
+    },
+    vec![4000],
     vec![],
     BTreeMap::new(),
     vec![]
 );
 
 inventory::submit! {
-    crate::registry::FrameworkDetectorEntry(|| Box::new(AngularDetector))
+    crate::registry::FrameworkDetectorEntry(|| Box::new(AngularSsrDetector))
 }
 
 const VUE_CLI: FrameworkId = FrameworkId::new("vue-cli");
