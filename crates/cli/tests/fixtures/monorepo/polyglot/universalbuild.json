@@ -96,6 +96,7 @@
       "env": {},
       "packages": [
         "glibc",
+        "libssl3",
         "ca-certificates"
       ],
       "ports": [
