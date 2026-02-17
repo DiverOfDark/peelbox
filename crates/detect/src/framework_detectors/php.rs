@@ -11,16 +11,38 @@ const PHP: LanguageId = LanguageId::new("php");
 const LARAVEL: FrameworkId = FrameworkId::new("laravel");
 inventory::submit! { FrameworkMeta { slug: "laravel", display_name: "Laravel", aliases: &[] } }
 
-super::simple_detector!(
-    LaravelDetector,
-    LARAVEL,
-    &[PHP],
-    |deps: &[Dependency]| deps.iter().any(|d| d.name == "laravel/framework"),
-    vec![8000],
-    vec!["/health".into(), "/_health".into()],
-    btree(&[("APP_ENV", "production")]),
-    vec![]
-);
+pub struct LaravelDetector;
+
+impl FrameworkDetector for LaravelDetector {
+    fn id(&self) -> FrameworkId {
+        LARAVEL
+    }
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[PHP]
+    }
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        deps.iter().any(|d| d.name == "laravel/framework")
+    }
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: LARAVEL,
+            default_ports: vec![8000],
+            health_endpoints: vec!["/health".into(), "/_health".into()],
+            env_vars: btree(&[("APP_ENV", "production")]),
+            runtime_packages: vec![],
+            runtime_command: Some(vec![
+                "php".into(),
+                "artisan".into(),
+                "serve".into(),
+                "--host=0.0.0.0".into(),
+                "--port=8000".into(),
+            ]),
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(LaravelDetector))
