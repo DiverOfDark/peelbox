@@ -10,16 +10,46 @@ const TS: LanguageId = LanguageId::new("typescript");
 const EXPRESS: FrameworkId = FrameworkId::new("express");
 inventory::submit! { FrameworkMeta { slug: "express", display_name: "Express", aliases: &[] } }
 
-super::simple_detector!(
-    ExpressDetector,
-    EXPRESS,
-    &[JS, TS],
-    |deps: &[Dependency]| deps.iter().any(|d| d.name == "express"),
-    vec![3000],
-    vec!["/health".into(), "/healthz".into(), "/ping".into()],
-    BTreeMap::new(),
-    vec![]
-);
+// Express needs special handling: exclude projects where express is used as a
+// transitive dependency by a higher-level framework (Angular SSR, NestJS, etc.).
+pub struct ExpressDetector;
+
+impl crate::traits::FrameworkDetector for ExpressDetector {
+    fn id(&self) -> FrameworkId {
+        EXPRESS
+    }
+
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[JS, TS]
+    }
+
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        let has_express = deps.iter().any(|d| d.name == "express");
+        if !has_express {
+            return false;
+        }
+        // Exclude projects where express is used by a higher-level framework
+        !deps.iter().any(|d| {
+            d.name == "@angular/ssr"
+                || d.name == "@nguniversal/express-engine"
+                || d.name == "@nestjs/core"
+        })
+    }
+
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: EXPRESS,
+            default_ports: vec![3000],
+            health_endpoints: vec!["/health".into(), "/healthz".into(), "/ping".into()],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: None,
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ExpressDetector))
