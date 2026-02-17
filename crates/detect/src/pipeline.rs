@@ -497,6 +497,33 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                 }
             }
 
+            // Merge build specs from secondary manifests of different languages
+            // (e.g., PHP + Node.js in a Laravel + Vite project)
+            for other in manifests_in_dir.iter() {
+                if other.manifest.language != primary.manifest.language {
+                    for pkg in &other.manifest.build.packages {
+                        if !primary.manifest.build.packages.contains(pkg) {
+                            primary.manifest.build.packages.push(pkg.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .commands
+                        .extend(other.manifest.build.commands.clone());
+                    for dir in &other.manifest.build.cache_dirs {
+                        if !primary.manifest.build.cache_dirs.contains(dir) {
+                            primary.manifest.build.cache_dirs.push(dir.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .env
+                        .extend(other.manifest.build.env.clone());
+                }
+            }
+
             // Merge framework from other manifests (unless primary is a lock file)
             if primary.framework.is_none() && lock_file_idx.is_none() {
                 for other in manifests_in_dir.iter() {

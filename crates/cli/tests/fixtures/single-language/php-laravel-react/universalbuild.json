@@ -1,0 +1,77 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".composer/cache",
+        ".npm"
+      ],
+      "commands": [
+        "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
+        "npm ci",
+        "npm run build"
+      ],
+      "env": {},
+      "packages": [
+        "php-8.2",
+        "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
+        "php-8.2-ctype",
+        "php-8.2-phar",
+        "php-8.2-openssl",
+        "php-8.2-mbstring",
+        "php-8.2-xml",
+        "php-8.2-dom",
+        "php-8.2-curl",
+        "nodejs-25",
+        "npm"
+      ]
+    },
+    "metadata": {
+      "build_system": "Composer",
+      "framework": "Laravel",
+      "language": "PHP",
+      "project_name": "app",
+      "reasoning": "Detected from composer.json"
+    },
+    "runtime": {
+      "command": [
+        "php",
+        "-S",
+        "0.0.0.0:8000",
+        "index.php"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "env": {
+        "APP_ENV": "production"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "php-8.2",
+        "php-8.2-ctype",
+        "php-8.2-phar",
+        "php-8.2-openssl",
+        "php-8.2-mbstring",
+        "php-8.2-xml",
+        "php-8.2-dom",
+        "php-8.2-curl",
+        "php-8.2-fileinfo",
+        "php-8.2-iconv",
+        "ca-certificates"
+      ],
+      "ports": [
+        8000
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]
