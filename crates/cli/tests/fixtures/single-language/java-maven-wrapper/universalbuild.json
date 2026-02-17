@@ -1,0 +1,63 @@
+[
+  {
+    "build": {
+      "cache": [
+        "/root/.m2/repository"
+      ],
+      "commands": [
+        "./mvnw package -DskipTests",
+        "./mvnw dependency:copy-dependencies -DoutputDirectory=target/lib"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
+      },
+      "packages": [
+        "openjdk-17",
+        "maven-3.9",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Maven",
+      "framework": "Spring Boot",
+      "language": "Java",
+      "project_name": "wrapper-app",
+      "reasoning": "Detected from pom.xml"
+    },
+    "runtime": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/wrapper-app-1.0.0.jar"
+      ],
+      "copy": [
+        {
+          "from": "target/*.jar",
+          "to": "/app/"
+        },
+        {
+          "from": "target/lib/",
+          "to": "/app/lib"
+        }
+      ],
+      "env": {
+        "CLASSPATH": "/app/*:/app/lib/*",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

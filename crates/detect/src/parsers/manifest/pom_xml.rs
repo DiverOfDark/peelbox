@@ -89,6 +89,13 @@ impl ManifestParser for PomXmlParser {
 
         let has_spring_boot_plugin = content.contains("spring-boot-maven-plugin");
 
+        // Detect Maven wrapper (mvnw) — prefer over system Maven when present
+        let has_wrapper = path
+            .parent()
+            .map(|dir| dir.join("mvnw").exists())
+            .unwrap_or(false);
+        let mvn_cmd = if has_wrapper { "./mvnw" } else { "mvn" };
+
         let entrypoint = if has_spring_boot_plugin {
             let jar_name = match &effective_version {
                 Some(ver) => format!("/app/{}-{}.jar", name, ver),
@@ -121,17 +128,19 @@ impl ManifestParser for PomXmlParser {
             build: BuildSpec {
                 packages: vec![java_pkg.clone(), "maven".into(), "ca-certificates".into()],
                 commands: vec![
-                    "mvn package -DskipTests".into(),
+                    format!("{} package -DskipTests", mvn_cmd),
                     format!(
-                        "mvn dependency:copy-dependencies -DoutputDirectory={}/lib",
-                        target_dir
+                        "{} dependency:copy-dependencies -DoutputDirectory={}/lib",
+                        mvn_cmd, target_dir
                     ),
                 ],
                 member_transform: Some(MemberBuildTransform {
                     member_commands: vec![
-                        "mvn -pl {module} -am install -DskipTests".into(),
-                        "mvn -pl {module} dependency:copy-dependencies -DoutputDirectory=target/lib"
-                            .into(),
+                        format!("{} -pl {{module}} -am install -DskipTests", mvn_cmd),
+                        format!(
+                            "{} -pl {{module}} dependency:copy-dependencies -DoutputDirectory=target/lib",
+                            mvn_cmd
+                        ),
                     ],
                     member_artifacts: Some(vec![
                         ("{module}/target/*.jar".into(), "/app/".into()),
@@ -245,4 +254,56 @@ fn extract_main_class(doc: &roxmltree::Document) -> Option<String> {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PomXmlParser))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ManifestParser;
+
+    const POM_CONTENT: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <artifactId>my-app</artifactId>
+    <version>1.0.0</version>
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>"#;
+
+    #[test]
+    fn test_pom_without_wrapper_uses_mvn() {
+        let dir = tempfile::tempdir().unwrap();
+        let pom_path = dir.path().join("pom.xml");
+        std::fs::write(&pom_path, POM_CONTENT).unwrap();
+
+        let manifest = PomXmlParser.parse(&pom_path, POM_CONTENT).unwrap();
+        assert_eq!(manifest.build.commands[0], "mvn package -DskipTests");
+        assert!(manifest.build.commands[1].starts_with("mvn dependency:copy-dependencies"));
+    }
+
+    #[test]
+    fn test_pom_with_wrapper_uses_mvnw() {
+        let dir = tempfile::tempdir().unwrap();
+        let pom_path = dir.path().join("pom.xml");
+        std::fs::write(&pom_path, POM_CONTENT).unwrap();
+        // Create mvnw wrapper script
+        std::fs::write(dir.path().join("mvnw"), "#!/bin/sh\n").unwrap();
+
+        let manifest = PomXmlParser.parse(&pom_path, POM_CONTENT).unwrap();
+        assert_eq!(manifest.build.commands[0], "./mvnw package -DskipTests");
+        assert!(manifest.build.commands[1].starts_with("./mvnw dependency:copy-dependencies"));
+
+        // Also check member_transform commands
+        let transform = manifest.build.member_transform.unwrap();
+        assert!(transform.member_commands[0].starts_with("./mvnw -pl"));
+        assert!(transform.member_commands[1].starts_with("./mvnw -pl"));
+    }
 }
