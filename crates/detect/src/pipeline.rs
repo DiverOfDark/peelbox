@@ -768,18 +768,20 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
             .iter()
             .map(|cmd| {
                 if m.build_system == MAVEN {
-                    // Maven: use -f flag
-                    if cmd.starts_with("mvn ") {
-                        let mut result =
-                            cmd.replacen("mvn ", &format!("mvn -f {}/pom.xml ", subdir), 1);
-                        // For dependency:copy-dependencies, ensure the target dir exists
-                        if cmd.contains("dependency:copy-dependencies") {
-                            result = format!("{}; mkdir -p {}/target/lib", result, subdir);
-                        }
-                        result
+                    // Maven: use -f flag (handle both mvn and ./mvnw)
+                    let (prefix, rest) = if let Some(rest) = cmd.strip_prefix("./mvnw ") {
+                        ("./mvnw", rest)
+                    } else if let Some(rest) = cmd.strip_prefix("mvn ") {
+                        ("mvn", rest)
                     } else {
-                        format!("cd {} && {}", subdir, cmd)
+                        return format!("cd {} && {}", subdir, cmd);
+                    };
+                    let mut result = format!("{} -f {}/pom.xml {}", prefix, subdir, rest);
+                    // For dependency:copy-dependencies, ensure the target dir exists
+                    if cmd.contains("dependency:copy-dependencies") {
+                        result = format!("{}; mkdir -p {}/target/lib", result, subdir);
                     }
+                    result
                 } else if m.build_system == CARGO {
                     // Cargo: use --manifest-path flag
                     if cmd.starts_with("cargo ") {
