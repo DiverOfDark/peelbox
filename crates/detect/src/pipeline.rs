@@ -1600,6 +1600,13 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
             }
         }
+        "Rust" => {
+            if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
+            {
+                let versioned_pkg = format!("rust-{}", version);
+                replace_package(&mut build.build.packages, "rust", &versioned_pkg);
+            }
+        }
         _ => {}
     }
 }
