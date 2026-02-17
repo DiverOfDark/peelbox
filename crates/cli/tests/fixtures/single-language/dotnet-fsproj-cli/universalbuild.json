@@ -1,0 +1,53 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".nuget/packages",
+        "bin",
+        "obj"
+      ],
+      "commands": [
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
+      ],
+      "env": {
+        "DOTNET_CLI_HOME": "/root",
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
+      },
+      "packages": [
+        "dotnet-8-sdk",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": ".NET",
+      "language": "F#",
+      "project_name": "app",
+      "reasoning": "Detected from FSharpCli.fsproj"
+    },
+    "runtime": {
+      "command": [
+        "dotnet",
+        "/app/FSharpCli.dll"
+      ],
+      "copy": [
+        {
+          "from": "out/",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "aspnet-8-runtime",
+        "ca-certificates"
+      ],
+      "ports": [
+        5000
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

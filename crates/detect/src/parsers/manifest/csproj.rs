@@ -129,3 +129,116 @@ fn parse_csproj_deps(content: &str) -> Vec<Dependency> {
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(CsprojParser))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ManifestParser;
+
+    #[test]
+    fn test_parse_csproj() {
+        let parser = CsprojParser;
+        let content = r#"<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+  </ItemGroup>
+</Project>"#;
+
+        let manifest = parser.parse(Path::new("App.csproj"), content).unwrap();
+        assert_eq!(manifest.language, CSHARP);
+        assert_eq!(manifest.build_system, DOTNET_BS);
+        assert_eq!(manifest.runtime, DOTNET_RT);
+        assert_eq!(
+            manifest.build.packages,
+            vec!["dotnet-8-sdk", "ca-certificates"]
+        );
+        assert_eq!(
+            manifest.runtime_config.packages,
+            vec!["aspnet-8-runtime", "ca-certificates"]
+        );
+        assert_eq!(
+            manifest.runtime_config.entrypoint,
+            Some("dotnet /app/App.dll".into())
+        );
+        assert_eq!(manifest.dependencies.len(), 1);
+        assert_eq!(
+            manifest.dependencies[0].name,
+            "Microsoft.AspNetCore.OpenApi"
+        );
+    }
+
+    #[test]
+    fn test_parse_fsproj() {
+        let parser = CsprojParser;
+        let content = r#"<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+  </ItemGroup>
+</Project>"#;
+
+        let manifest = parser
+            .parse(Path::new("FSharpApi.fsproj"), content)
+            .unwrap();
+        assert_eq!(manifest.language, FSHARP);
+        assert_eq!(manifest.build_system, DOTNET_BS);
+        assert_eq!(
+            manifest.runtime_config.entrypoint,
+            Some("dotnet /app/FSharpApi.dll".into())
+        );
+        assert_eq!(manifest.dependencies.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_fsproj_cli() {
+        let parser = CsprojParser;
+        let content = r#"<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>"#;
+
+        let manifest = parser
+            .parse(Path::new("FSharpCli.fsproj"), content)
+            .unwrap();
+        assert_eq!(manifest.language, FSHARP);
+        assert_eq!(manifest.dependencies.len(), 0);
+        assert_eq!(
+            manifest.runtime_config.entrypoint,
+            Some("dotnet /app/FSharpCli.dll".into())
+        );
+    }
+
+    #[test]
+    fn test_rejects_non_project_content() {
+        let parser = CsprojParser;
+        let result = parser.parse(Path::new("Readme.fsproj"), "Just some text");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_fallback_dotnet_version() {
+        let parser = CsprojParser;
+        let content = r#"<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+</Project>"#;
+
+        let manifest = parser.parse(Path::new("Lib.csproj"), content).unwrap();
+        assert_eq!(
+            manifest.build.packages,
+            vec!["dotnet-sdk", "ca-certificates"]
+        );
+        assert_eq!(
+            manifest.runtime_config.packages,
+            vec!["dotnet-runtime", "ca-certificates"]
+        );
+    }
+}
