@@ -10,16 +10,46 @@ const TS: LanguageId = LanguageId::new("typescript");
 const EXPRESS: FrameworkId = FrameworkId::new("express");
 inventory::submit! { FrameworkMeta { slug: "express", display_name: "Express", aliases: &[] } }
 
-super::simple_detector!(
-    ExpressDetector,
-    EXPRESS,
-    &[JS, TS],
-    |deps: &[Dependency]| deps.iter().any(|d| d.name == "express"),
-    vec![3000],
-    vec!["/health".into(), "/healthz".into(), "/ping".into()],
-    BTreeMap::new(),
-    vec![]
-);
+// Express needs special handling: exclude projects where express is used as a
+// transitive dependency by a higher-level framework (Angular SSR, NestJS, etc.).
+pub struct ExpressDetector;
+
+impl crate::traits::FrameworkDetector for ExpressDetector {
+    fn id(&self) -> FrameworkId {
+        EXPRESS
+    }
+
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[JS, TS]
+    }
+
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        let has_express = deps.iter().any(|d| d.name == "express");
+        if !has_express {
+            return false;
+        }
+        // Exclude projects where express is used by a higher-level framework
+        !deps.iter().any(|d| {
+            d.name == "@angular/ssr"
+                || d.name == "@nguniversal/express-engine"
+                || d.name == "@nestjs/core"
+        })
+    }
+
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: EXPRESS,
+            default_ports: vec![3000],
+            health_endpoints: vec!["/health".into(), "/healthz".into(), "/ping".into()],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: None,
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ExpressDetector))
@@ -438,19 +468,67 @@ inventory::submit! {
 const ANGULAR: FrameworkId = FrameworkId::new("angular");
 inventory::submit! { FrameworkMeta { slug: "angular", display_name: "Angular", aliases: &[] } }
 
+// Angular needs special handling: exclude SSR projects (detected by AngularSsrDetector).
+pub struct AngularDetector;
+
+impl crate::traits::FrameworkDetector for AngularDetector {
+    fn id(&self) -> FrameworkId {
+        ANGULAR
+    }
+
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[JS, TS]
+    }
+
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        let has_angular = deps.iter().any(|d| d.name == "@angular/cli");
+        if !has_angular {
+            return false;
+        }
+        // Exclude Angular SSR projects (handled by AngularSsrDetector)
+        !deps
+            .iter()
+            .any(|d| d.name == "@angular/ssr" || d.name == "@nguniversal/express-engine")
+    }
+
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: ANGULAR,
+            default_ports: vec![4200],
+            health_endpoints: vec![],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: None,
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(AngularDetector))
+}
+
+const ANGULAR_SSR: FrameworkId = FrameworkId::new("angular-ssr");
+inventory::submit! { FrameworkMeta { slug: "angular-ssr", display_name: "Angular SSR", aliases: &[] } }
+
 super::simple_detector!(
-    AngularDetector,
-    ANGULAR,
+    AngularSsrDetector,
+    ANGULAR_SSR,
     &[JS, TS],
-    |deps: &[Dependency]| deps.iter().any(|d| d.name == "@angular/cli"),
-    vec![4200],
+    |deps: &[Dependency]| {
+        deps.iter()
+            .any(|d| d.name == "@angular/ssr" || d.name == "@nguniversal/express-engine")
+    },
+    vec![4000],
     vec![],
     BTreeMap::new(),
     vec![]
 );
 
 inventory::submit! {
-    crate::registry::FrameworkDetectorEntry(|| Box::new(AngularDetector))
+    crate::registry::FrameworkDetectorEntry(|| Box::new(AngularSsrDetector))
 }
 
 const VUE_CLI: FrameworkId = FrameworkId::new("vue-cli");
@@ -869,4 +947,64 @@ super::simple_detector!(
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(ScullyDetector))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::FrameworkDetector;
+    use crate::types::DepScope;
+
+    fn dep(name: &str) -> Dependency {
+        Dependency {
+            name: name.to_string(),
+            version: None,
+            scope: DepScope::Runtime,
+            is_internal: false,
+        }
+    }
+
+    #[test]
+    fn angular_spa_detected_without_ssr() {
+        let detector = AngularDetector;
+        assert!(detector.detect(&[dep("@angular/cli"), dep("@angular/core")]));
+    }
+
+    #[test]
+    fn angular_spa_excluded_when_angular_ssr_present() {
+        let detector = AngularDetector;
+        assert!(!detector.detect(&[
+            dep("@angular/cli"),
+            dep("@angular/core"),
+            dep("@angular/ssr"),
+        ]));
+    }
+
+    #[test]
+    fn angular_spa_excluded_when_nguniversal_present() {
+        let detector = AngularDetector;
+        assert!(!detector.detect(&[
+            dep("@angular/cli"),
+            dep("@angular/core"),
+            dep("@nguniversal/express-engine"),
+        ]));
+    }
+
+    #[test]
+    fn angular_ssr_detected_with_angular_ssr_package() {
+        let detector = AngularSsrDetector;
+        assert!(detector.detect(&[dep("@angular/ssr"), dep("@angular/core")]));
+    }
+
+    #[test]
+    fn angular_ssr_detected_with_nguniversal() {
+        let detector = AngularSsrDetector;
+        assert!(detector.detect(&[dep("@nguniversal/express-engine"), dep("@angular/core"),]));
+    }
+
+    #[test]
+    fn angular_ssr_not_detected_without_ssr_deps() {
+        let detector = AngularSsrDetector;
+        assert!(!detector.detect(&[dep("@angular/cli"), dep("@angular/core")]));
+    }
 }
