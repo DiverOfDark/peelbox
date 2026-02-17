@@ -42,7 +42,7 @@ pub fn read_rust_version(project_dir: &Path, repo_root: &Path) -> Option<String>
 }
 
 /// Parse `rust-toolchain.toml` content to extract the channel version.
-/// Supports both TOML format `[toolchain] channel = "1.75.0"` and plain `channel = "..."`.
+/// Expects `[toolchain]` section with a `channel` key (standard rust-toolchain.toml format).
 fn parse_rust_toolchain_toml(content: &str) -> Option<String> {
     let toml_val: toml::Value = toml::from_str(content).ok()?;
 
@@ -61,7 +61,7 @@ fn parse_rust_toolchain(content: &str) -> Option<String> {
     let trimmed = content.trim();
 
     // Try TOML format first (some rust-toolchain files use TOML)
-    if trimmed.contains("[toolchain]") || trimmed.contains("channel") {
+    if trimmed.contains("[toolchain]") {
         return parse_rust_toolchain_toml(trimmed);
     }
 
@@ -236,6 +236,22 @@ version = "0.1.0"
         assert_eq!(
             read_rust_version(dir.path(), dir.path()),
             Some("1.70".to_string())
+        );
+    }
+
+    #[test]
+    fn test_plain_toolchain_takes_precedence_over_cargo() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("rust-toolchain"), "1.80.0\n").unwrap();
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            "[package]\nname = \"test\"\nversion = \"0.1.0\"\nrust-version = \"1.70\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(
+            read_rust_version(dir.path(), dir.path()),
+            Some("1.80".to_string())
         );
     }
 

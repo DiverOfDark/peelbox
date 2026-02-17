@@ -1601,6 +1601,7 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
             }
         }
         "Rust" => {
+            // Only build packages need the rust compiler; runtime uses the compiled binary
             if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
             {
                 let versioned_pkg = format!("rust-{}", version);
