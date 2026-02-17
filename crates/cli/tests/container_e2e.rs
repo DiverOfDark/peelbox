@@ -13,10 +13,8 @@ fn main() {
 
     let mut tests = Vec::new();
 
-    // node-angular-ssr: minimal fixture lacks full Angular project scaffold needed by `ng build`
-    let skip_fixtures: std::collections::HashSet<&str> = ["multiple-manifests", "node-angular-ssr"]
-        .into_iter()
-        .collect();
+    let skip_fixtures: std::collections::HashSet<&str> =
+        ["multiple-manifests"].into_iter().collect();
 
     for fixture in fixtures {
         if !fixture.has_snapshot {
