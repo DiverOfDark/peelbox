@@ -89,11 +89,9 @@ impl ManifestParser for PomXmlParser {
 
         let has_spring_boot_plugin = content.contains("spring-boot-maven-plugin");
 
-        // Detect Maven wrapper (mvnw) — prefer over system Maven when present
-        let has_wrapper = path
-            .parent()
-            .map(|dir| dir.join("mvnw").exists())
-            .unwrap_or(false);
+        // Detect Maven wrapper (mvnw) — walk up from pom.xml looking for mvnw
+        // in parent Maven project directories (handles multimodule layouts)
+        let has_wrapper = find_mvnw_in_ancestors(path);
         let mvn_cmd = if has_wrapper { "./mvnw" } else { "mvn" };
 
         let entrypoint = if has_spring_boot_plugin {
@@ -243,6 +241,23 @@ fn detect_java_version_from_pom(content: &str) -> Option<String> {
     crate::version::java::detect_java_version(content)
 }
 
+/// Walk up from a pom.xml looking for mvnw in ancestor directories.
+/// Stops when the parent no longer looks like a Maven project
+/// (i.e., has no pom.xml or .mvn directory).
+fn find_mvnw_in_ancestors(pom_path: &Path) -> bool {
+    let mut dir = pom_path.parent();
+    while let Some(d) = dir {
+        if d.join("mvnw").exists() {
+            return true;
+        }
+        // Only continue up if the parent looks like part of a Maven project hierarchy
+        dir = d
+            .parent()
+            .filter(|p| p.join("pom.xml").exists() || p.join(".mvn").exists());
+    }
+    false
+}
+
 fn extract_main_class(doc: &roxmltree::Document) -> Option<String> {
     for node in doc.descendants() {
         if node.has_tag_name("mainClass") {
@@ -299,11 +314,40 @@ mod tests {
 
         let manifest = PomXmlParser.parse(&pom_path, POM_CONTENT).unwrap();
         assert_eq!(manifest.build.commands[0], "./mvnw package -DskipTests");
-        assert!(manifest.build.commands[1].starts_with("./mvnw dependency:copy-dependencies"));
+        assert_eq!(
+            manifest.build.commands[1],
+            "./mvnw dependency:copy-dependencies -DoutputDirectory=target/lib"
+        );
 
-        // Also check member_transform commands
+        // Check member_transform commands preserve {module} placeholder
         let transform = manifest.build.member_transform.unwrap();
-        assert!(transform.member_commands[0].starts_with("./mvnw -pl"));
-        assert!(transform.member_commands[1].starts_with("./mvnw -pl"));
+        assert_eq!(
+            transform.member_commands[0],
+            "./mvnw -pl {module} -am install -DskipTests"
+        );
+        assert_eq!(
+            transform.member_commands[1],
+            "./mvnw -pl {module} dependency:copy-dependencies -DoutputDirectory=target/lib"
+        );
+    }
+
+    #[test]
+    fn test_pom_in_submodule_finds_wrapper_at_root() {
+        let dir = tempfile::tempdir().unwrap();
+        // Root has mvnw and root pom.xml
+        std::fs::write(dir.path().join("mvnw"), "#!/bin/sh\n").unwrap();
+        std::fs::write(
+            dir.path().join("pom.xml"),
+            "<project><modules><module>api</module></modules></project>",
+        )
+        .unwrap();
+        // Submodule pom.xml
+        let sub = dir.path().join("api");
+        std::fs::create_dir_all(&sub).unwrap();
+        let sub_pom = sub.join("pom.xml");
+        std::fs::write(&sub_pom, POM_CONTENT).unwrap();
+
+        let manifest = PomXmlParser.parse(&sub_pom, POM_CONTENT).unwrap();
+        assert_eq!(manifest.build.commands[0], "./mvnw package -DskipTests");
     }
 }
