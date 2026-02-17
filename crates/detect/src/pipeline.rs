@@ -113,6 +113,13 @@ pub fn detect_with_registry_and_wolfi(
         }
     }
 
+    // Step 6: Handle pinned Rust versions not available in Wolfi (use rustup)
+    if let Some(wolfi) = wolfi_index {
+        for build in &mut builds {
+            crate::version::rust::resolve_rust_toolchain(build, wolfi);
+        }
+    }
+
     // Filter out non-application builds (e.g., library crates, utility packages)
     builds.retain(|b| !b.runtime.command.is_empty());
 
@@ -1600,6 +1607,14 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 let versioned_pkg = format!("python-{}", version);
                 replace_package(&mut build.build.packages, "python", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
+            }
+        }
+        "Rust" => {
+            // Only build packages need the rust compiler; runtime uses the compiled binary
+            if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
+            {
+                let versioned_pkg = format!("rust-{}", version);
+                replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }
         }
         _ => {}
