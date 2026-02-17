@@ -1,11 +1,16 @@
-//! Rust version detection from rust-toolchain.toml, rust-toolchain, and Cargo.toml rust-version.
+//! Rust version detection and toolchain resolution.
 //!
-//! Priority order:
+//! Version detection priority:
 //! 1. `rust-toolchain.toml` — `[toolchain] channel = "1.75.0"`
 //! 2. `rust-toolchain` — plain text channel string (e.g., `1.75.0`, `stable`, `nightly`)
 //! 3. `Cargo.toml` — `rust-version = "1.70"` (MSRV)
+//!
+//! When a pinned version is not available in Wolfi, falls back to rustup installation.
 
+use peelbox_core::output::schema::UniversalBuild;
+use peelbox_wolfi::WolfiPackageIndex;
 use std::path::Path;
+use tracing::debug;
 
 /// Read Rust version from toolchain/version files in the project directory and repo root.
 /// Returns the major.minor version string (e.g., "1.75").
@@ -105,6 +110,69 @@ fn extract_major_minor(version: &str) -> Option<String> {
         Some(format!("{}.{}", parts[0], parts[1]))
     } else {
         None
+    }
+}
+
+/// When a pinned Rust version (e.g., `rust-1.75`) is not available in Wolfi,
+/// switch to installing it via rustup instead.
+pub fn resolve_rust_toolchain(build: &mut UniversalBuild, wolfi: &WolfiPackageIndex) {
+    if build.metadata.language != "Rust" {
+        return;
+    }
+
+    // Find a rust-X.Y package that doesn't exist in Wolfi
+    let pinned_version = build.build.packages.iter().find_map(|pkg| {
+        pkg.strip_prefix("rust-").and_then(|version| {
+            if version.chars().next().is_some_and(|c| c.is_ascii_digit()) && !wolfi.has_package(pkg)
+            {
+                Some(version.to_string())
+            } else {
+                None
+            }
+        })
+    });
+
+    let Some(version) = pinned_version else {
+        return;
+    };
+
+    debug!(
+        version = %version,
+        "Pinned Rust version not in Wolfi, switching to rustup"
+    );
+
+    // Replace the unavailable rust-X.Y package with curl (for rustup download)
+    for pkg in build.build.packages.iter_mut() {
+        if pkg.starts_with("rust-") && !wolfi.has_package(pkg.as_str()) {
+            *pkg = "curl".to_string();
+            break;
+        }
+    }
+
+    // Prepend rustup installation command
+    build.build.commands.insert(
+        0,
+        format!(
+            "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain {}",
+            version
+        ),
+    );
+
+    // Override CARGO_HOME to absolute path (matches rustup default) and add to PATH
+    build
+        .build
+        .env
+        .insert("CARGO_HOME".to_string(), "/root/.cargo".to_string());
+    build.build.env.insert(
+        "PATH".to_string(),
+        "/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+    );
+
+    // Update .cargo cache path to match the absolute CARGO_HOME
+    for cache in build.build.cache.iter_mut() {
+        if cache == ".cargo" {
+            *cache = "/root/.cargo".to_string();
+        }
     }
 }
 
@@ -273,5 +341,102 @@ version = "0.1.0"
             read_rust_version(dir.path(), dir.path()),
             Some("1.75".to_string())
         );
+    }
+
+    #[test]
+    fn test_resolve_rust_toolchain_available_in_wolfi() {
+        use std::collections::BTreeMap;
+
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Rust".into(),
+                build_system: "Cargo".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["rust-1.92".into(), "build-base".into()],
+                commands: vec!["cargo build --release".into()],
+                env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
+                cache: vec![".cargo".into(), "target".into()],
+            },
+            runtime: Default::default(),
+        };
+
+        resolve_rust_toolchain(&mut build, &wolfi);
+
+        // rust-1.92 exists in Wolfi — no changes
+        assert_eq!(build.build.packages[0], "rust-1.92");
+        assert_eq!(build.build.commands.len(), 1);
+        assert_eq!(build.build.env["CARGO_HOME"], ".cargo");
+    }
+
+    #[test]
+    fn test_resolve_rust_toolchain_not_in_wolfi() {
+        use std::collections::BTreeMap;
+
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Rust".into(),
+                build_system: "Cargo".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["rust-1.50".into(), "build-base".into()],
+                commands: vec!["cargo build --release".into()],
+                env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
+                cache: vec![".cargo".into(), "target".into()],
+            },
+            runtime: Default::default(),
+        };
+
+        resolve_rust_toolchain(&mut build, &wolfi);
+
+        // rust-1.50 doesn't exist in Wolfi — should switch to rustup
+        assert_eq!(build.build.packages[0], "curl");
+        assert_eq!(build.build.commands.len(), 2);
+        assert!(build.build.commands[0].contains("rustup"));
+        assert!(build.build.commands[0].contains("1.50"));
+        assert_eq!(build.build.commands[1], "cargo build --release");
+        assert_eq!(build.build.env["CARGO_HOME"], "/root/.cargo");
+        assert!(build.build.env["PATH"].contains("/root/.cargo/bin"));
+        assert_eq!(build.build.cache[0], "/root/.cargo");
+    }
+
+    #[test]
+    fn test_resolve_rust_toolchain_skips_non_rust() {
+        use std::collections::BTreeMap;
+
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Python".into(),
+                build_system: "pip".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["python-3.11".into()],
+                commands: vec!["pip install .".into()],
+                env: BTreeMap::new(),
+                cache: vec![],
+            },
+            runtime: Default::default(),
+        };
+
+        resolve_rust_toolchain(&mut build, &wolfi);
+
+        // Non-Rust project — no changes
+        assert_eq!(build.build.packages[0], "python-3.11");
+        assert_eq!(build.build.commands.len(), 1);
     }
 }

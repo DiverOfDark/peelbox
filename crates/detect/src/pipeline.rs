@@ -113,6 +113,13 @@ pub fn detect_with_registry_and_wolfi(
         }
     }
 
+    // Step 6: Handle pinned Rust versions not available in Wolfi (use rustup)
+    if let Some(wolfi) = wolfi_index {
+        for build in &mut builds {
+            crate::version::rust::resolve_rust_toolchain(build, wolfi);
+        }
+    }
+
     // Filter out non-application builds (e.g., library crates, utility packages)
     builds.retain(|b| !b.runtime.command.is_empty());
 
