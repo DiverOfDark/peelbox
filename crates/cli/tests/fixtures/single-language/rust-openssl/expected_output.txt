@@ -1,0 +1,3 @@
+OpenSSL initialized successfully
+Application: rust-openssl-demo
+TLS backend: native-tls (OpenSSL)

@@ -125,7 +125,7 @@ impl ManifestParser for CargoTomlParser {
                 artifacts,
             },
             runtime_config: RuntimeSpec {
-                packages: vec!["glibc".into(), "ca-certificates".into()],
+                packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
                 entrypoint,
                 workdir: Some("/app".into()),
