@@ -12,7 +12,7 @@
         "CARGO_HOME": ".cargo"
       },
       "packages": [
-        "rust-1.70",
+        "rust-1.72",
         "build-base",
         "openssl-dev",
         "pkgconf",
