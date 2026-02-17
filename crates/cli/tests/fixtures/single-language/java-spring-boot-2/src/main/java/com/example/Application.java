@@ -15,8 +15,9 @@ public class Application {
     }
 
     @GetMapping("/")
-    public Map<String, String> index() {
-        return Map.of("message", "Spring Boot 2 Application");
+    public Map<String, String> index(HttpServletRequest request) {
+        return Map.of("message", "Spring Boot 2 Application",
+                       "path", request.getRequestURI());
     }
 
     @GetMapping("/users")
