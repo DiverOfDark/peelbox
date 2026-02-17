@@ -27,6 +27,16 @@ Run `gh issue edit $ARGUMENTS --add-assignee @me` to assign the issue to yoursel
 
 Study the issue description and the relevant code. Use the appropriate specialized agent (rust-developer for Rust code, java-spring-expert for Spring, nextjs-fullstack-expert for web, etc.) to implement the fix. Make the minimal changes needed to resolve the issue.
 
+### Lock files for test fixtures
+
+When creating or updating test fixtures for Node.js-based projects (e.g., E2E fixtures with `package.json`), **never write lock files manually**. Instead, generate them using the appropriate package manager:
+
+- **npm**: Run `npm install --package-lock-only` in the fixture directory to generate `package-lock.json`
+- **yarn (classic)**: Run `yarn install --mode update-lockfile` or `yarn install` in the fixture directory to generate `yarn.lock`
+- **pnpm**: Run `pnpm install --lockfile-only` in the fixture directory to generate `pnpm-lock.yaml`
+
+This ensures lock files are valid and match the actual dependency resolution output.
+
 ## Step 5: Run Tests
 
 Run `cargo nextest run --features cuda` to execute all tests. If any tests fail, fix them before proceeding. Re-run until all tests pass.
