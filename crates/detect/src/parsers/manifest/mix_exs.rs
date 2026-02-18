@@ -30,13 +30,13 @@ fn parse_mix_deps(content: &str) -> Vec<Dependency> {
         Err(_) => return Vec::new(),
     };
 
-    // Find the deps function body
-    let deps_start = match content.find("defp deps") {
+    // Find the deps function body (match full signature to avoid partial matches)
+    let deps_start = match content.find("defp deps do") {
         Some(pos) => pos,
         None => return Vec::new(),
     };
 
-    // Find the opening bracket after defp deps
+    // Find the opening bracket after defp deps do
     let after_deps = &content[deps_start..];
     let bracket_start = match after_deps.find('[') {
         Some(pos) => deps_start + pos,
@@ -45,20 +45,25 @@ fn parse_mix_deps(content: &str) -> Vec<Dependency> {
 
     // Find matching closing bracket (simple nesting)
     let mut depth = 0;
-    let mut bracket_end = bracket_start;
+    let mut bracket_end = None;
     for (i, ch) in content[bracket_start..].char_indices() {
         match ch {
             '[' => depth += 1,
             ']' => {
                 depth -= 1;
                 if depth == 0 {
-                    bracket_end = bracket_start + i;
+                    bracket_end = Some(bracket_start + i);
                     break;
                 }
             }
             _ => {}
         }
     }
+
+    let bracket_end = match bracket_end {
+        Some(pos) => pos,
+        None => return Vec::new(),
+    };
 
     let deps_block = &content[bracket_start..=bracket_end];
     dep_re
