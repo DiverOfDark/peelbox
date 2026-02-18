@@ -22,6 +22,56 @@ inventory::submit! {
 
 pub struct MixExsParser;
 
+/// Extract dependency names from a mix.exs deps block.
+/// Matches patterns like `{:dep_name, "~> 1.0"}` and `{:dep_name, ">= 0.0.0"}`.
+fn parse_mix_deps(content: &str) -> Vec<Dependency> {
+    let dep_re = match regex::Regex::new(r#"\{:(\w+)\s*,"#) {
+        Ok(re) => re,
+        Err(_) => return Vec::new(),
+    };
+
+    // Find the deps function body
+    let deps_start = match content.find("defp deps") {
+        Some(pos) => pos,
+        None => return Vec::new(),
+    };
+
+    // Find the opening bracket after defp deps
+    let after_deps = &content[deps_start..];
+    let bracket_start = match after_deps.find('[') {
+        Some(pos) => deps_start + pos,
+        None => return Vec::new(),
+    };
+
+    // Find matching closing bracket (simple nesting)
+    let mut depth = 0;
+    let mut bracket_end = bracket_start;
+    for (i, ch) in content[bracket_start..].char_indices() {
+        match ch {
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    bracket_end = bracket_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let deps_block = &content[bracket_start..=bracket_end];
+    dep_re
+        .captures_iter(deps_block)
+        .map(|cap| Dependency {
+            name: cap[1].to_string(),
+            version: None,
+            scope: DepScope::Runtime,
+            is_internal: false,
+        })
+        .collect()
+}
+
 impl ManifestParser for MixExsParser {
     fn filenames(&self) -> &[&str] {
         &["mix.exs"]
@@ -39,6 +89,8 @@ impl ManifestParser for MixExsParser {
             .map(|m| m.as_str().to_string())
             .unwrap_or_else(|| "app".to_string());
 
+        let dependencies = parse_mix_deps(content);
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: ELIXIR,
@@ -50,7 +102,7 @@ impl ManifestParser for MixExsParser {
                 is_application: true,
             }),
             workspace: None,
-            dependencies: Vec::new(),
+            dependencies,
             build: BuildSpec {
                 packages: vec![
                     "elixir".into(),
@@ -102,4 +154,82 @@ impl ManifestParser for MixExsParser {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(MixExsParser))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ManifestParser;
+
+    #[test]
+    fn test_parse_mix_deps_extracts_dependencies() {
+        let content = r#"
+defmodule MyApp.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :my_app,
+      version: "1.0.0",
+      deps: deps()
+    ]
+  end
+
+  defp deps do
+    [
+      {:ecto, "~> 3.11"},
+      {:ecto_sql, "~> 3.11"},
+      {:postgrex, "~> 0.18"},
+      {:jason, "~> 1.4"}
+    ]
+  end
+end
+"#;
+        let deps = parse_mix_deps(content);
+        let names: Vec<&str> = deps.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(names, vec!["ecto", "ecto_sql", "postgrex", "jason"]);
+    }
+
+    #[test]
+    fn test_parse_mix_deps_empty_when_no_deps_function() {
+        let content = r#"
+defmodule MyApp.MixProject do
+  use Mix.Project
+  def project do
+    [app: :my_app]
+  end
+end
+"#;
+        let deps = parse_mix_deps(content);
+        assert!(deps.is_empty());
+    }
+
+    #[test]
+    fn test_mix_parser_includes_dependencies() {
+        let parser = MixExsParser;
+        let content = r#"
+defmodule EctoApp.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :ecto_app,
+      version: "0.1.0",
+      deps: deps()
+    ]
+  end
+
+  defp deps do
+    [
+      {:ecto, "~> 3.11"},
+      {:phoenix, "~> 1.7"}
+    ]
+  end
+end
+"#;
+        let manifest = parser.parse(Path::new("mix.exs"), content).unwrap();
+        assert_eq!(manifest.dependencies.len(), 2);
+        assert_eq!(manifest.dependencies[0].name, "ecto");
+        assert_eq!(manifest.dependencies[1].name, "phoenix");
+    }
 }
