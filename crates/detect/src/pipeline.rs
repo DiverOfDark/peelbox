@@ -1512,6 +1512,11 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["java", "kt", "kts"],
         &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
     ),
+    (
+        "Elixir",
+        &["ex", "exs"],
+        &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
 ];
 
 /// Built-in environment variables to skip.
