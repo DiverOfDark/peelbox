@@ -1,4 +1,4 @@
-import { defineConfig } from '@tanstack/react-start/config'
+import { defineConfig } from '@tanstack/start/config'
 import tsrPlugin from '@tanstack/router-plugin/vite'
 
 export default defineConfig({
