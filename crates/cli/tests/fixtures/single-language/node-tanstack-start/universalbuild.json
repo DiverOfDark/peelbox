@@ -24,8 +24,8 @@
     },
     "runtime": {
       "command": [
-        "npm",
-        "start"
+        "node",
+        ".output/server/index.mjs"
       ],
       "copy": [
         {
