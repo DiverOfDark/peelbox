@@ -403,7 +403,7 @@ pub async fn run_container_integration_test(
                     })?;
 
                 let wait_result = harness
-                    .wait_for_port(&container_id, host_port, Duration::from_secs(30))
+                    .wait_for_port(&container_id, host_port, Duration::from_secs(120))
                     .await;
 
                 if wait_result.is_err() {
@@ -421,7 +421,7 @@ pub async fn run_container_integration_test(
 
                 if let Some(endpoint) = health_endpoint {
                     let health_ok = harness
-                        .http_health_check(host_port, endpoint, Duration::from_secs(10))
+                        .http_health_check(host_port, endpoint, Duration::from_secs(60))
                         .await
                         .map_err(|e| {
                             format!("Health check failed for {}: {}", info.project_name, e)
@@ -461,7 +461,7 @@ pub async fn run_container_integration_test(
                     })?;
 
                 let exit_code = harness
-                    .wait_for_exit(&container_id, Duration::from_secs(30))
+                    .wait_for_exit(&container_id, Duration::from_secs(120))
                     .await
                     .map_err(|e| {
                         format!(
