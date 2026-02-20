@@ -2,9 +2,9 @@
 slow-timeout = { period = "100s", terminate-after = 15 }
 
 [profile.ci]
-# Longer slow-timeout for CI: GitHub runners (2-core, 7GB RAM) are slower
-# under parallel load — give container builds up to 5 min before flagging
-slow-timeout = { period = "300s", terminate-after = 3 }
+# CI slow-timeout: 300s × 5 = 1500s max (matches old default profile behavior)
+# GitHub runners (2-core, 7GB RAM) are slower under parallel load
+slow-timeout = { period = "300s", terminate-after = 5 }
 
 [profile.ci.junit]
 path = "junit.xml"
@@ -26,7 +26,9 @@ test-group = 'serial-tests'
 filter = 'test(container_) | test(e2e) | binary(container_e2e) | binary(static_e2e) | test(llm_) | binary(llm_e2e) | binary(llm_embedded)'
 test-group = 'ci-container-tests'
 
-# BuildKit daemon tests share state via OnceCell — keep serial
+# BuildKit daemon tests share state via OnceCell — keep serial.
+# Extra-long timeout: these pull moby/buildkit image + build peelbox image from scratch.
 [[profile.ci.overrides]]
 filter = 'binary(container_buildkit)'
 test-group = 'serial-tests'
+slow-timeout = { period = "600s", terminate-after = 5 }
