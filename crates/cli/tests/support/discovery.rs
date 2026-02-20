@@ -1,5 +1,32 @@
 use std::path::{Path, PathBuf};
 
+/// Check if a directory contains any files (recursively).
+fn has_any_file(path: &Path) -> bool {
+    let entries = match std::fs::read_dir(path) {
+        Ok(e) => e,
+        Err(_) => return false,
+    };
+    for entry in entries.flatten() {
+        let ft = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        if ft.is_file() {
+            return true;
+        }
+        if ft.is_dir() {
+            let name = entry.file_name();
+            if name.to_string_lossy().starts_with('.') {
+                continue;
+            }
+            if has_any_file(&entry.path()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Fixture {
@@ -34,6 +61,12 @@ pub fn find_fixtures() -> Vec<Fixture> {
                 let name = path.file_name().unwrap().to_string_lossy().into_owned();
 
                 if name.starts_with('.') {
+                    continue;
+                }
+
+                // Skip empty directories (no files anywhere)
+                let has_files = has_any_file(&path);
+                if !has_files {
                     continue;
                 }
 
