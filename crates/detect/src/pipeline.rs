@@ -385,6 +385,9 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
         if manifests_in_dir.len() == 1 {
             merged.insert(dir.clone(), manifests_in_dir.remove(0));
         } else {
+            // Sort by filename for deterministic merge order across platforms
+            manifests_in_dir.sort_by(|a, b| a.path.cmp(&b.path));
+
             // Prefer lock file manifests (pnpm/yarn) over package.json
             let mut primary_idx = 0;
             let mut workspace_idx = None;
@@ -494,6 +497,33 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                             primary.manifest.dependencies.push(dep.clone());
                         }
                     }
+                }
+            }
+
+            // Merge build specs from secondary manifests of different languages
+            // (e.g., PHP + Node.js in a Laravel + Vite project)
+            for other in manifests_in_dir.iter() {
+                if other.manifest.language != primary.manifest.language {
+                    for pkg in &other.manifest.build.packages {
+                        if !primary.manifest.build.packages.contains(pkg) {
+                            primary.manifest.build.packages.push(pkg.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .commands
+                        .extend(other.manifest.build.commands.clone());
+                    for dir in &other.manifest.build.cache_dirs {
+                        if !primary.manifest.build.cache_dirs.contains(dir) {
+                            primary.manifest.build.cache_dirs.push(dir.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .env
+                        .extend(other.manifest.build.env.clone());
                 }
             }
 
@@ -2082,5 +2112,105 @@ const home = process.env.HOME;
         // Should not replace already-versioned packages
         replace_package(&mut packages, "nodejs", "nodejs-18");
         assert_eq!(packages[0], "nodejs-20");
+    }
+
+    #[test]
+    fn test_cross_language_build_merge() {
+        // Test that PHP + Node.js manifests in the same directory get merged,
+        // with PHP as primary and Node.js build specs appended.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // Create .git directory so the walker treats it as a repo
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+
+        // Create composer.json (PHP/Laravel)
+        std::fs::write(
+            root.join("composer.json"),
+            r#"{
+                "name": "laravel/laravel",
+                "require": {
+                    "php": "^8.2",
+                    "laravel/framework": "^11.0"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        // Create package.json (Node.js/Vite for frontend assets)
+        std::fs::write(
+            root.join("package.json"),
+            r#"{
+                "private": true,
+                "scripts": { "build": "vite build" },
+                "dependencies": { "react": "^18.2.0" },
+                "devDependencies": { "vite": "^5.0.0" }
+            }"#,
+        )
+        .unwrap();
+
+        let results = detect_without_wolfi(root).unwrap();
+
+        // Should produce exactly one service (merged)
+        assert_eq!(results.len(), 1);
+        let build = &results[0];
+
+        // Primary should be PHP/Composer (alphabetically first, server-side language)
+        assert_eq!(build.metadata.language, "PHP");
+        assert_eq!(build.metadata.build_system, "Composer");
+        assert_eq!(build.metadata.framework.as_deref(), Some("Laravel"));
+
+        // Build commands should include both Composer and npm commands
+        assert!(
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("composer install")),
+            "Should have composer command"
+        );
+        assert!(
+            build.build.commands.iter().any(|c| c.contains("npm ci")),
+            "Should have npm ci command"
+        );
+        assert!(
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("npm run build")),
+            "Should have npm run build command"
+        );
+
+        // Build packages should include both PHP and Node.js packages
+        assert!(
+            build.build.packages.iter().any(|p| p.starts_with("php")),
+            "Should have PHP build packages"
+        );
+        assert!(
+            build.build.packages.iter().any(|p| p.starts_with("nodejs")),
+            "Should have Node.js build packages"
+        );
+
+        // Build cache should include both .composer/cache and .npm
+        assert!(
+            build.build.cache.contains(&".composer/cache".to_string()),
+            "Should have composer cache"
+        );
+        assert!(
+            build.build.cache.contains(&".npm".to_string()),
+            "Should have npm cache"
+        );
+
+        // Runtime should be PHP-only (no Node.js packages)
+        assert!(
+            !build
+                .runtime
+                .packages
+                .iter()
+                .any(|p| p.starts_with("nodejs")),
+            "Runtime should not have Node.js packages"
+        );
+        assert_eq!(build.runtime.ports, vec![8000]);
     }
 }
