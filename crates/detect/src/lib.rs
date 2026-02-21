@@ -23,3 +23,4 @@ pub use pipeline::{
     detect, detect_with_registry, detect_with_registry_and_wolfi, detect_without_wolfi,
 };
 pub use registry::Registry;
+pub use types::BuildSystemConfig;

@@ -271,6 +271,31 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PomXmlParser))
 }
 
+// ── Build System Profile ────────────────────────────────────────────────────
+
+fn maven_subdirectory_command(cmd: &str, subdir: &str) -> String {
+    let (prefix, rest) = if let Some(rest) = cmd.strip_prefix("./mvnw ") {
+        ("./mvnw", rest)
+    } else if let Some(rest) = cmd.strip_prefix("mvn ") {
+        ("mvn", rest)
+    } else {
+        return format!("cd {} && {}", subdir, cmd);
+    };
+    let mut result = format!("{} -f {}/pom.xml {}", prefix, subdir, rest);
+    // For dependency:copy-dependencies, ensure the target dir exists
+    if cmd.contains("dependency:copy-dependencies") {
+        result = format!("{}; mkdir -p {}/target/lib", result, subdir);
+    }
+    result
+}
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        transform_subdirectory_command: maven_subdirectory_command,
+        ..BuildSystemConfig::new(MAVEN)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

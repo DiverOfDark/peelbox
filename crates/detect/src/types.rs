@@ -223,6 +223,74 @@ impl ServiceBucket {
     }
 }
 
+// ── Build system profile ────────────────────────────────────────────────────
+
+/// Build-system-specific pipeline behavior.
+///
+/// Each build system can register a config to customize how the pipeline handles
+/// subdirectory projects, artifact resolution, workspace members, etc. Build
+/// systems without a registered config use default behavior.
+///
+/// Use `BuildSystemConfig::new(id)` then override the fields you need:
+/// ```ignore
+/// BuildSystemConfig {
+///     transform_subdirectory_command: my_custom_fn,
+///     ..BuildSystemConfig::new(MY_BUILD_SYSTEM)
+/// }
+/// ```
+pub struct BuildSystemConfig {
+    /// Which build system this config handles.
+    pub id: BuildSystemId,
+    /// Whether manifests with this build system take merge priority in a directory.
+    /// Used for lock file sources (pnpm, yarn) to prioritize over package.json.
+    pub merge_priority: bool,
+    /// Whether artifacts in subdirectory projects use a shared target directory.
+    /// When true, artifact paths are NOT prefixed with the subdirectory.
+    pub shared_target_dir: bool,
+    /// Whether root-level projects should use the package name for project naming.
+    pub use_package_name_for_root: bool,
+    /// Override the entrypoint for non-root projects (e.g., `&["npm", "start"]`).
+    pub non_root_entrypoint_override: Option<&'static [&'static str]>,
+    /// Whether workspace members should have their workdir appended with the member path.
+    pub adjusts_workspace_member_workdir: bool,
+    /// Env keys that preferred framework contributions should contain.
+    /// Used to select variant framework contributions (e.g., FlaskPoetry over Flask for Poetry).
+    pub preferred_framework_env_keys: &'static [&'static str],
+    /// Transform a build command for a standalone subdirectory project.
+    /// Default: `cd {subdir} && {cmd}`.
+    pub transform_subdirectory_command: fn(cmd: &str, subdir: &str) -> String,
+    /// Post-process resolved artifacts (e.g., replace glob patterns with specific filenames).
+    pub resolve_artifacts:
+        fn(artifacts: &mut [peelbox_core::output::schema::CopySpec], package: Option<&Package>),
+}
+
+pub fn default_subdirectory_command(cmd: &str, subdir: &str) -> String {
+    format!("cd {} && {}", subdir, cmd)
+}
+
+fn noop_resolve_artifacts(
+    _artifacts: &mut [peelbox_core::output::schema::CopySpec],
+    _package: Option<&Package>,
+) {
+}
+
+impl BuildSystemConfig {
+    /// Create a config with default behavior for the given build system.
+    pub fn new(id: BuildSystemId) -> Self {
+        Self {
+            id,
+            merge_priority: false,
+            shared_target_dir: false,
+            use_package_name_for_root: true,
+            non_root_entrypoint_override: None,
+            adjusts_workspace_member_workdir: false,
+            preferred_framework_env_keys: &[],
+            transform_subdirectory_command: default_subdirectory_command,
+            resolve_artifacts: noop_resolve_artifacts,
+        }
+    }
+}
+
 // ── Default impls ───────────────────────────────────────────────────────────
 
 impl Default for RuntimeSpec {
