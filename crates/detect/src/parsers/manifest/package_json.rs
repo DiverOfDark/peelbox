@@ -207,3 +207,21 @@ fn extract_node_major(constraint: &str) -> Option<String> {
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PackageJsonParser))
 }
+
+// ── Build System Profiles ───────────────────────────────────────────────────
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        non_root_entrypoint_override: Some(&["npm", "start"]),
+        adjusts_workspace_member_workdir: true,
+        ..BuildSystemConfig::new(NPM)
+    })
+}
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        non_root_entrypoint_override: Some(&["bun", "start"]),
+        adjusts_workspace_member_workdir: true,
+        ..BuildSystemConfig::new(BUN)
+    })
+}
