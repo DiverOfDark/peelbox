@@ -16,8 +16,7 @@ fn shared_wolfi_cache_dir() -> PathBuf {
     static DIR: OnceLock<PathBuf> = OnceLock::new();
 
     DIR.get_or_init(|| {
-        let mut target_dir =
-            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let mut target_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         if !target_dir.join("Cargo.lock").exists() && !target_dir.join("target").exists() {
             if let Some(parent) = target_dir.parent() {
                 if parent.join("Cargo.lock").exists() {
