@@ -1,0 +1,3 @@
+projects:
+  api: "apps/api"
+  shared: "packages/shared"
