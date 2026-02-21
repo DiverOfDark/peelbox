@@ -3,44 +3,63 @@ use peelbox_core::output::schema::UniversalBuild;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Duration;
 
+/// Returns a shared Wolfi cache directory that persists across all E2E tests.
+///
+/// Copies `tests/data/APKINDEX.tar.gz` once (or when the source is newer),
+/// so that the binary `packages.bin` cache is reused instead of re-parsed
+/// for every single test invocation.
 #[allow(dead_code)]
-pub fn setup_test_apkindex_cache() {
-    use std::sync::Once;
-    static INIT: Once = Once::new();
+fn shared_wolfi_cache_dir() -> PathBuf {
+    static DIR: OnceLock<PathBuf> = OnceLock::new();
 
-    INIT.call_once(|| {
-        let test_apkindex =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
-
-        if !test_apkindex.exists() {
-            eprintln!("WARNING: Test APKINDEX not found at {:?}", test_apkindex);
-            return;
+    DIR.get_or_init(|| {
+        let mut target_dir =
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        if !target_dir.join("Cargo.lock").exists() && !target_dir.join("target").exists() {
+            if let Some(parent) = target_dir.parent() {
+                if parent.join("Cargo.lock").exists() {
+                    target_dir = parent.to_path_buf();
+                } else if let Some(grandparent) = parent.parent() {
+                    if grandparent.join("Cargo.lock").exists() {
+                        target_dir = grandparent.to_path_buf();
+                    }
+                }
+            }
         }
 
-        let cache_dir = dirs::cache_dir()
-            .expect("Failed to get cache dir")
-            .join("peelbox")
-            .join("apkindex");
+        let cache_dir = target_dir.join("target").join("test-wolfi-cache");
+        let apkindex_dir = cache_dir.join("apkindex");
+        std::fs::create_dir_all(&apkindex_dir).expect("Failed to create shared wolfi cache dir");
 
-        std::fs::create_dir_all(&cache_dir).expect("Failed to create cache dir");
+        let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
+        let dest = apkindex_dir.join("APKINDEX.tar.gz");
 
-        let cache_apkindex = cache_dir.join("APKINDEX.tar.gz");
-        std::fs::copy(&test_apkindex, &cache_apkindex)
-            .expect("Failed to copy test APKINDEX to cache");
+        let needs_copy = if dest.exists() {
+            let src_mtime = std::fs::metadata(&src).and_then(|m| m.modified()).ok();
+            let dest_mtime = std::fs::metadata(&dest).and_then(|m| m.modified()).ok();
+            match (src_mtime, dest_mtime) {
+                (Some(s), Some(d)) => s > d,
+                _ => true,
+            }
+        } else {
+            true
+        };
 
-        let now = std::time::SystemTime::now();
-        filetime::set_file_mtime(&cache_apkindex, filetime::FileTime::from_system_time(now))
-            .expect("Failed to update cache file modification time");
-
-        let parsed_cache = cache_dir.join("packages.bin");
-        if parsed_cache.exists() {
-            std::fs::remove_file(&parsed_cache).ok();
+        if needs_copy && src.exists() {
+            std::fs::copy(&src, &dest).expect("Failed to copy APKINDEX.tar.gz to shared cache");
+            // Invalidate the binary cache since the source changed
+            let packages_bin = apkindex_dir.join("packages.bin");
+            if packages_bin.exists() {
+                std::fs::remove_file(&packages_bin).ok();
+            }
         }
 
-        eprintln!("✓ Test APKINDEX cache setup complete");
-    });
+        cache_dir
+    })
+    .clone()
 }
 
 #[allow(dead_code)]
@@ -105,19 +124,7 @@ pub fn run_detection_with_mode(
     test_name: &str,
     mode: Option<&str>,
 ) -> Result<Vec<UniversalBuild>, String> {
-    let temp_cache_dir = super::get_test_temp_dir();
-
-    let apkindex_cache_dir = temp_cache_dir.join("apkindex");
-    std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
-
-    let test_apkindex =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
-    if test_apkindex.exists() {
-        std::fs::copy(&test_apkindex, apkindex_cache_dir.join("APKINDEX.tar.gz"))
-            .expect("Failed to copy test APKINDEX to temp cache");
-    }
-
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    let temp_cache_dir = shared_wolfi_cache_dir();
 
     let git_dir = fixture.join(".git");
     if !git_dir.exists() {
@@ -322,17 +329,7 @@ pub async fn run_container_integration_test(
     category: &str,
     fixture_name: &str,
 ) -> Result<(), String> {
-    let temp_cache_dir = super::get_test_temp_dir();
-
-    let apkindex_cache_dir = temp_cache_dir.join("apkindex");
-    std::fs::create_dir_all(&apkindex_cache_dir).expect("Failed to create temp cache dir");
-
-    let test_apkindex =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/APKINDEX.tar.gz");
-    if test_apkindex.exists() {
-        std::fs::copy(&test_apkindex, apkindex_cache_dir.join("APKINDEX.tar.gz"))
-            .expect("Failed to copy test APKINDEX to temp cache");
-    }
+    let temp_cache_dir = shared_wolfi_cache_dir();
 
     let fixture_path = fixture_path(category, fixture_name);
     let spec_path = fixture_path.join("universalbuild.json");
