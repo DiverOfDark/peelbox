@@ -12,6 +12,7 @@ pub struct LLBBuilder {
     pub(crate) context_path: Option<PathBuf>,
     pub(crate) project_name: Option<String>,
     pub(crate) session_id: Option<String>,
+    pub(crate) cache_namespace: Option<String>,
 
     pub(crate) ops: Vec<pb::Op>,
     pub(crate) digests: Vec<String>,
@@ -24,6 +25,7 @@ impl LLBBuilder {
             context_path: None,
             project_name: None,
             session_id: None,
+            cache_namespace: None,
             ops: Vec::new(),
             digests: Vec::new(),
         }
@@ -41,6 +43,11 @@ impl LLBBuilder {
 
     pub fn with_session_id(mut self, session_id: String) -> Self {
         self.session_id = Some(session_id);
+        self
+    }
+
+    pub fn with_cache_namespace(mut self, ns: String) -> Self {
+        self.cache_namespace = Some(ns);
         self
     }
 
@@ -88,7 +95,12 @@ impl LLBBuilder {
             id
         });
         let normalized = cache_path.trim_start_matches("/build/").replace('/', "-");
-        format!("{}-{}", project_name, normalized)
+        if let Some(ns) = &self.cache_namespace {
+            let prefix = &ns[..ns.len().min(12)];
+            format!("{}-{}-{}", project_name, prefix, normalized)
+        } else {
+            format!("{}-{}", project_name, normalized)
+        }
     }
 
     pub(crate) fn load_gitignore_patterns(&self) -> Vec<String> {
