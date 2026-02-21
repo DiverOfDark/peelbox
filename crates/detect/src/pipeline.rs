@@ -944,7 +944,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     let project_name = if is_root_project {
         // For root-level projects: use package name only from strong naming sources,
         // unless the build system profile opts out (e.g., Gradle, Poetry, Pip)
-        if !profile.is_none_or(|p| p.use_package_name_for_root) {
+        if profile.is_some_and(|p| !p.use_package_name_for_root) {
             Some("app".into())
         } else {
             m.package

@@ -284,7 +284,7 @@ fn maven_subdirectory_command(cmd: &str, subdir: &str) -> String {
     let mut result = format!("{} -f {}/pom.xml {}", prefix, subdir, rest);
     // For dependency:copy-dependencies, ensure the target dir exists
     if cmd.contains("dependency:copy-dependencies") {
-        result = format!("{}; mkdir -p {}/target/lib", result, subdir);
+        result = format!("{} && mkdir -p {}/target/lib", result, subdir);
     }
     result
 }

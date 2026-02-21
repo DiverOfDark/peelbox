@@ -238,6 +238,7 @@ impl ServiceBucket {
 ///     ..BuildSystemConfig::new(MY_BUILD_SYSTEM)
 /// }
 /// ```
+#[derive(Debug)]
 pub struct BuildSystemConfig {
     /// Which build system this config handles.
     pub id: BuildSystemId,

@@ -110,3 +110,14 @@ impl ManifestParser for YarnLockParser {
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(YarnLockParser))
 }
+
+// ── Build System Profile ────────────────────────────────────────────────────
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        merge_priority: true,
+        non_root_entrypoint_override: Some(&["yarn", "start"]),
+        adjusts_workspace_member_workdir: true,
+        ..BuildSystemConfig::new(YARN)
+    })
+}
