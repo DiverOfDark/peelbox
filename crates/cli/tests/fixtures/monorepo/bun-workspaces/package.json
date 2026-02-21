@@ -1,0 +1,19 @@
+{
+  "name": "bun-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "bun@1.0.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "bun run --filter '*' build",
+    "start": "bun run packages/api/src/index.ts",
+    "test": "bun run --filter '*' test"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

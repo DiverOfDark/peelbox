@@ -1,0 +1,54 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".npm"
+      ],
+      "commands": [
+        "bun install",
+        "cd packages/api && bun run build"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "bun",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Bun",
+      "framework": "Express",
+      "language": "JavaScript",
+      "project_name": "@bun-monorepo/api",
+      "reasoning": "Detected from package.json in packages/api"
+    },
+    "runtime": {
+      "command": [
+        "bun",
+        "start"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "nodejs-25",
+        "bun",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        3000
+      ],
+      "workdir": "/app/packages/api"
+    },
+    "version": "1.0"
+  }
+]
