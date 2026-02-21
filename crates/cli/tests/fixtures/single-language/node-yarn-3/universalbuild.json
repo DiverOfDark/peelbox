@@ -1,0 +1,53 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".yarn-cache"
+      ],
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "yarn run build"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Yarn",
+      "language": "JavaScript",
+      "project_name": "example-yarn3-app",
+      "reasoning": "Detected from yarn.lock"
+    },
+    "runtime": {
+      "command": [
+        "node",
+        "src/index.js"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        3000
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

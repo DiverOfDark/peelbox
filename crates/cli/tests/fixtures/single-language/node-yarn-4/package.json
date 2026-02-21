@@ -1,0 +1,18 @@
+{
+  "name": "example-yarn4-app",
+  "version": "1.0.0",
+  "description": "Example Yarn 4 application",
+  "packageManager": "yarn@4.1.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0"
+  }
+}
