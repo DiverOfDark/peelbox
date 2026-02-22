@@ -182,7 +182,7 @@ impl ManifestParser for PackageJsonParser {
             runtime_config: RuntimeSpec {
                 packages: vec![
                     node_runtime_pkg,
-                    "npm".into(),
+                    pkg_manager.into(),
                     "busybox".into(),
                     "dumb-init".into(),
                     "ca-certificates".into(),

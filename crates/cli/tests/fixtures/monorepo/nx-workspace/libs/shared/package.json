@@ -1,0 +1,5 @@
+{
+  "name": "@nx-workspace/shared",
+  "version": "1.0.0",
+  "main": "src/index.ts"
+}
