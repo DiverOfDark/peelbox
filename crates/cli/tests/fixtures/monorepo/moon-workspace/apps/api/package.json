@@ -1,0 +1,12 @@
+{
+  "name": "@moon-workspace/api",
+  "version": "1.0.0",
+  "dependencies": {
+    "@moon-workspace/shared": "*",
+    "express": "^4.18.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  }
+}
