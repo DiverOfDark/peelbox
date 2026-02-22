@@ -420,6 +420,7 @@ impl crate::traits::FrameworkDetector for ViteDetector {
             "nuxt-edge",
             "nuxt-nightly",
             "@remix-run/dev",
+            "@react-router/dev",
             "@tanstack/router-plugin",
             "@shopify/hydrogen",
         ];

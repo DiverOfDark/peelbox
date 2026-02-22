@@ -140,10 +140,11 @@ impl ManifestParser for PackageJsonParser {
         };
 
         let install_cmd = match build_system {
+            PNPM => "pnpm install".to_string(),
+            YARN => "yarn install".to_string(),
             BUN => "bun install".to_string(),
             _ => "npm ci".to_string(),
         };
-
         let mut build_commands = vec![install_cmd.clone()];
         if has_build {
             build_commands.push(format!("{} run build", pkg_manager));
