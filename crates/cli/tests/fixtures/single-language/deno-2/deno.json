@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "start": "deno run -A main.ts",
+    "dev": "deno run --watch -A main.ts",
+    "build": "deno check main.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}
