@@ -1,0 +1,13 @@
+{
+  "name": "@bun-monorepo/api",
+  "version": "1.0.0",
+  "packageManager": "bun@1.0.0",
+  "dependencies": {
+    "@bun-monorepo/shared": "*",
+    "express": "^4.18.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  }
+}
