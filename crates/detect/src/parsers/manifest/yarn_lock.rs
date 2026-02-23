@@ -52,19 +52,48 @@ impl ManifestParser for YarnLockParser {
             .and_then(|v| v.as_str())
             .map(|m| format!("node {}", m));
 
-        // Detect tsc build script
-        let has_tsc = json
+        // Detect build script
+        let build_script = json
             .get("scripts")
             .and_then(|s| s.get("build"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.contains("tsc"))
-            .unwrap_or(false);
+            .and_then(|v| v.as_str());
+
+        let has_tsc = build_script.map(|s| s.contains("tsc")).unwrap_or(false);
 
         let build_cmd = if has_tsc {
-            "./node_modules/.bin/tsc".to_string()
+            Some("./node_modules/.bin/tsc".to_string())
+        } else if build_script.is_some() {
+            Some("yarn run build".to_string())
         } else {
-            "yarn run build".to_string()
+            None
         };
+
+        // Check if packageManager specifies Yarn >= 2 (needs corepack)
+        let needs_corepack = json
+            .get("packageManager")
+            .and_then(|v| v.as_str())
+            .filter(|pm| pm.starts_with("yarn@"))
+            .and_then(|pm| pm.strip_prefix("yarn@"))
+            .and_then(|ver| ver.split('.').next())
+            .and_then(|major| major.parse::<u32>().ok())
+            .is_some_and(|major| major >= 2);
+
+        let mut commands = Vec::new();
+        if needs_corepack {
+            commands.push("corepack enable".to_string());
+            // Yarn >= 2 (Berry) does not support --network-timeout/--network-concurrency
+            commands.push("yarn install".into());
+        } else {
+            commands.push("yarn install --network-timeout 100000 --network-concurrency 1".into());
+        }
+        if let Some(cmd) = build_cmd {
+            commands.push(cmd);
+        }
+
+        let mut build_packages = vec!["nodejs".into(), "yarn".into(), "ca-certificates".into()];
+        if needs_corepack {
+            build_packages.push("corepack".into());
+        }
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -79,11 +108,8 @@ impl ManifestParser for YarnLockParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec!["nodejs".into(), "yarn".into(), "ca-certificates".into()],
-                commands: vec![
-                    "yarn install --network-timeout 100000 --network-concurrency 1".into(),
-                    build_cmd,
-                ],
+                packages: build_packages,
+                commands,
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec![".yarn-cache".into()],

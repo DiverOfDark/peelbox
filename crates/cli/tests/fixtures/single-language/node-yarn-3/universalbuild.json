@@ -5,14 +5,15 @@
         ".yarn-cache"
       ],
       "commands": [
-        "yarn install --network-timeout 100000 --network-concurrency 1",
-        "yarn run build"
+        "corepack enable",
+        "yarn install"
       ],
       "env": {},
       "packages": [
         "nodejs-25",
         "yarn",
-        "ca-certificates"
+        "ca-certificates",
+        "corepack"
       ]
     },
     "metadata": {
