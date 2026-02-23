@@ -1,0 +1,17 @@
+[package]
+name = "multi-bin-app"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "multi-bin-app"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "worker"
+path = "src/bin/worker.rs"
+
+[dependencies]
+
+[lib]
+path = "src/lib.rs"
