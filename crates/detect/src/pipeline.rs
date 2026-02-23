@@ -592,8 +592,7 @@ fn partition(
             let ws_root_build_system = ws_root_manifest.map(|m| m.manifest.build_system);
             let ws_root_build_commands =
                 ws_root_manifest.map(|m| m.manifest.build.commands.clone());
-            let ws_root_cache_dirs =
-                ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
+            let ws_root_cache_dirs = ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
 
             for member_dir in expanded_members {
                 if let Some(mut mwf) = merged.remove(&member_dir) {
@@ -653,27 +652,18 @@ fn partition(
                             // Ensure the new package manager is in runtime packages
                             // since the entrypoint override will use it (e.g., "yarn start")
                             let new_pm_pkg = new_pm.to_string();
-                            if !mwf
-                                .manifest
-                                .runtime_config
-                                .packages
-                                .contains(&new_pm_pkg)
-                            {
+                            if !mwf.manifest.runtime_config.packages.contains(&new_pm_pkg) {
                                 mwf.manifest.runtime_config.packages.push(new_pm_pkg);
                             }
 
                             // Update member_transform commands similarly
-                            if let Some(ref mut transform) =
-                                mwf.manifest.build.member_transform
-                            {
+                            if let Some(ref mut transform) = mwf.manifest.build.member_transform {
                                 if let Some(ref root_cmds) = ws_root_build_commands {
                                     if !root_cmds.is_empty()
                                         && !transform.member_commands.is_empty()
                                     {
                                         transform.member_commands[0] = root_cmds[0].clone();
-                                        for cmd in
-                                            transform.member_commands.iter_mut().skip(1)
-                                        {
+                                        for cmd in transform.member_commands.iter_mut().skip(1) {
                                             *cmd = cmd.replace(old_pm, new_pm);
                                         }
                                     }
