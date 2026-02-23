@@ -145,6 +145,7 @@ impl ManifestParser for PackageJsonParser {
             BUN => "bun install".to_string(),
             _ => "npm ci".to_string(),
         };
+
         let mut build_commands = vec![install_cmd.clone()];
         if has_build {
             build_commands.push(format!("{} run build", pkg_manager));

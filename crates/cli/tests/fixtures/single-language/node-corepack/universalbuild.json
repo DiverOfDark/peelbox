@@ -1,0 +1,53 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".npm"
+      ],
+      "commands": [
+        "pnpm install"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "pnpm",
+      "framework": "Express",
+      "language": "JavaScript",
+      "project_name": "corepack-express-app",
+      "reasoning": "Detected from package.json"
+    },
+    "runtime": {
+      "command": [
+        "node",
+        "src/index.js"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        3000
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]
