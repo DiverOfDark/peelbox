@@ -878,12 +878,16 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     let mut runtime_ports = m.runtime_config.ports.clone();
     let mut runtime_packages = m.runtime_config.packages.clone();
     let mut health_endpoint = m.runtime_config.health_endpoint.clone();
+    let mut config_runtime_command: Option<String> = None;
 
     for config in &bucket.configs {
         runtime_env.extend(config.env_vars.clone());
         runtime_ports.extend(config.ports.clone());
         if health_endpoint.is_none() {
             health_endpoint.clone_from(&config.health_endpoint);
+        }
+        if config_runtime_command.is_none() {
+            config_runtime_command.clone_from(&config.runtime_command);
         }
     }
 
@@ -919,6 +923,20 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     } else {
         None
     };
+
+    // When a config provides a runtime command (e.g., Procfile), its ports should
+    // take priority over framework defaults since it represents an explicit user declaration.
+    if config_runtime_command.is_some() {
+        for config in &bucket.configs {
+            if config.runtime_command.is_some() {
+                for &port in &config.ports {
+                    if !runtime_ports.contains(&port) {
+                        runtime_ports.push(port);
+                    }
+                }
+            }
+        }
+    }
 
     // When framework sets workdir, update artifact copy targets from /app to framework workdir
     if let Some(ref fw_workdir) = framework_workdir {
@@ -968,8 +986,10 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             })
     };
 
-    // Build entrypoint command: framework override > manifest entrypoint
-    let entrypoint_cmd = if let Some(fw_cmd) = framework_runtime_command {
+    // Build entrypoint command: config (Procfile) > framework override > manifest entrypoint
+    let entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
+        config_cmd.split_whitespace().map(String::from).collect()
+    } else if let Some(fw_cmd) = framework_runtime_command {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root projects, build system profile may override the entrypoint

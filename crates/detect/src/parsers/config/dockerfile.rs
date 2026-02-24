@@ -76,6 +76,7 @@ impl ConfigParser for DockerfileParser {
             env_vars,
             ports,
             health_endpoint,
+            runtime_command: None,
         })
     }
 }

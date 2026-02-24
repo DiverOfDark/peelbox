@@ -1,0 +1,66 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cache/pip"
+      ],
+      "commands": [
+        "pip install --user --no-cache-dir -r requirements.txt"
+      ],
+      "env": {},
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "pip",
+      "framework": "Flask",
+      "language": "Python",
+      "project_name": "app",
+      "reasoning": "Detected from requirements.txt"
+    },
+    "runtime": {
+      "command": [
+        "gunicorn",
+        "app:app",
+        "--bind",
+        "0.0.0.0:8000"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local"
+        }
+      ],
+      "env": {
+        "FLASK_APP": "/build/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "ports": [
+        5000,
+        8000
+      ],
+      "workdir": "/build"
+    },
+    "version": "1.0"
+  }
+]

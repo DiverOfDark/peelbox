@@ -57,6 +57,7 @@ impl ConfigParser for KubernetesParser {
             env_vars,
             ports,
             health_endpoint,
+            runtime_command: None,
         })
     }
 }
