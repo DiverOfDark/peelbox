@@ -158,9 +158,7 @@ impl ManifestParser for PyProjectTomlParser {
                         "/root/.local/bin/pdm install --no-self --prod".into(),
                     ],
                     member_transform: None,
-                    env: btree(&[
-                        ("PDM_PYTHON", "/usr/bin/python3"),
-                    ]),
+                    env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                     artifacts: vec![(".".into(), "/build".into())],
                 },
@@ -431,14 +429,13 @@ build-backend = "pdm.backend"
         assert!(manifest.build.env.contains_key("PDM_PYTHON"));
 
         // Check cache dirs include pdm cache
-        assert!(manifest
-            .build
-            .cache_dirs
-            .iter()
-            .any(|c| c.contains("pdm")));
+        assert!(manifest.build.cache_dirs.iter().any(|c| c.contains("pdm")));
 
         // Check artifacts
-        assert_eq!(manifest.build.artifacts, vec![(".".into(), "/build".into())]);
+        assert_eq!(
+            manifest.build.artifacts,
+            vec![(".".into(), "/build".into())]
+        );
     }
 
     #[test]
