@@ -90,8 +90,7 @@ mod tests {
         let index_path = tmp.path().join("index.php");
         std::fs::write(&index_path, content).unwrap();
 
-        let manifest =
-            crate::traits::ManifestParser::parse(&parser, &index_path, content).unwrap();
+        let manifest = crate::traits::ManifestParser::parse(&parser, &index_path, content).unwrap();
         assert_eq!(manifest.language, PHP);
         assert_eq!(manifest.build_system, PHP_NONE);
         assert_eq!(manifest.runtime, PHP_RT);
