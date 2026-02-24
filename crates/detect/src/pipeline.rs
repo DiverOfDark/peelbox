@@ -1390,6 +1390,15 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["rs"],
         &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
+    (
+        "PHP",
+        &["php"],
+        &[
+            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"case\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+    ),
 ];
 
 /// Scan source files for health endpoint patterns.
@@ -1594,6 +1603,13 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
             }
         }
+        "PHP" => {
+            if let Some(version) = read_php_version(&project_dir, repo_root) {
+                let versioned_pkg = format!("php-{}", version);
+                replace_package(&mut build.build.packages, "php", &versioned_pkg);
+                replace_package(&mut build.runtime.packages, "php", &versioned_pkg);
+            }
+        }
         "Rust" => {
             // Only build packages need the rust compiler; runtime uses the compiled binary
             if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
@@ -1682,6 +1698,25 @@ fn parse_pipfile_python_version(content: &str) -> Option<String> {
     let re = regex::Regex::new(r#"(?m)^\s*python_version\s*=\s*["'](\d+\.\d+)["']"#).ok()?;
     re.captures(content)
         .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+}
+
+/// Read PHP version from .php-version file.
+fn read_php_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join(".php-version");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            // Extract major.minor (e.g., "8.2.15" → "8.2", "8.2" → "8.2")
+            let parts: Vec<&str> = trimmed.split('.').collect();
+            if parts.len() >= 2
+                && parts[0].chars().all(|c| c.is_ascii_digit())
+                && parts[1].chars().all(|c| c.is_ascii_digit())
+            {
+                return Some(format!("{}.{}", parts[0], parts[1]));
+            }
+        }
+    }
+    None
 }
 
 /// Replace an unversioned package with a versioned one.
