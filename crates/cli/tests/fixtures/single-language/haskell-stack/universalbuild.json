@@ -1,0 +1,50 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".stack",
+        ".stack-work"
+      ],
+      "commands": [
+        "curl -sSL https://get.haskellstack.org/ | sh",
+        "stack build --copy-bins --local-bin-path .stack-bin"
+      ],
+      "env": {},
+      "packages": [
+        "build-base",
+        "gcc",
+        "gmp-dev",
+        "zlib-dev",
+        "ca-certificates",
+        "curl"
+      ]
+    },
+    "metadata": {
+      "build_system": "Stack",
+      "language": "Haskell",
+      "project_name": "my-haskell-app",
+      "reasoning": "Detected from stack.yaml"
+    },
+    "runtime": {
+      "command": [
+        "/app/my-haskell-app"
+      ],
+      "copy": [
+        {
+          "from": ".stack-bin/my-haskell-app",
+          "to": "/app/my-haskell-app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "gmp",
+        "zlib",
+        "ca-certificates"
+      ],
+      "ports": [],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

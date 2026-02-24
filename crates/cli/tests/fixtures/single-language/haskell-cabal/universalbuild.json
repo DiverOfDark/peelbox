@@ -1,0 +1,51 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cabal",
+        "dist-newstyle"
+      ],
+      "commands": [
+        "curl -sSL https://get-ghcup.haskell.org | sh",
+        "cabal update",
+        "cabal build"
+      ],
+      "env": {},
+      "packages": [
+        "build-base",
+        "gcc",
+        "gmp-dev",
+        "zlib-dev",
+        "ca-certificates",
+        "curl"
+      ]
+    },
+    "metadata": {
+      "build_system": "Cabal",
+      "language": "Haskell",
+      "project_name": "my-cabal-app",
+      "reasoning": "Detected from my-cabal-app.cabal"
+    },
+    "runtime": {
+      "command": [
+        "/app/my-cabal-app"
+      ],
+      "copy": [
+        {
+          "from": "dist-newstyle/build/**/build/my-cabal-app/my-cabal-app",
+          "to": "/app/my-cabal-app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "gmp",
+        "zlib",
+        "ca-certificates"
+      ],
+      "ports": [],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]
