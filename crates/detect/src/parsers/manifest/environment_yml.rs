@@ -54,7 +54,7 @@ impl ManifestParser for EnvironmentYmlParser {
             } else if let Some(mapping) = item.as_mapping() {
                 // Handle pip sub-dependencies: - pip: [...]
                 if let Some(pip_deps) = mapping
-                    .get(&serde_yaml::Value::String("pip".into()))
+                    .get(serde_yaml::Value::String("pip".into()))
                     .and_then(|v| v.as_sequence())
                 {
                     for pip_dep in pip_deps {
@@ -166,11 +166,7 @@ fn parse_pip_dep(dep_str: &str) -> (String, Option<String>) {
         .trim()
         .to_string();
 
-    let version = if let Some(idx) = dep_str.find(&['>', '<', '=', '~', '!'][..]) {
-        Some(dep_str[idx..].trim().to_string())
-    } else {
-        None
-    };
+    let version = dep_str.find(&['>', '<', '=', '~', '!'][..]).map(|idx| dep_str[idx..].trim().to_string());
 
     (name, version)
 }
