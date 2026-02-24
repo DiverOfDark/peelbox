@@ -51,7 +51,7 @@ impl ManifestParser for GoWorkParser {
             }),
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: vec![go_pkg, "ca-certificates".into()],
+                packages: vec![go_pkg, "git".into(), "ca-certificates".into()],
                 commands: vec![],
                 member_transform: None,
                 env: BTreeMap::new(),

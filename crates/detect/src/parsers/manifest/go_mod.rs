@@ -64,7 +64,7 @@ impl ManifestParser for GoModParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![go_pkg, "ca-certificates".into()],
+                packages: vec![go_pkg, "git".into(), "ca-certificates".into()],
                 commands: vec![
                     "go mod download".into(),
                     format!("go build -o {} .", short_name),

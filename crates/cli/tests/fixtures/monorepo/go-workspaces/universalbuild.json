@@ -17,6 +17,7 @@
       },
       "packages": [
         "go-1.21",
+        "git",
         "ca-certificates"
       ]
     },
@@ -66,6 +67,7 @@
       },
       "packages": [
         "go-1.21",
+        "git",
         "ca-certificates"
       ]
     },
