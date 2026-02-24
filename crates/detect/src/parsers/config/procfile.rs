@@ -75,9 +75,7 @@ impl ConfigParser for ProcfileParser {
 
         // Extract the web process type as the primary runtime command
         let web_command = processes.get("web").cloned();
-        if web_command.is_none() {
-            return None;
-        }
+        web_command.as_ref()?;
 
         let command = web_command.as_deref().unwrap();
         let ports = Self::extract_port(command).into_iter().collect();
