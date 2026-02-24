@@ -40,10 +40,7 @@ impl ManifestParser for PyProjectTomlParser {
         let toml_val: toml::Value = toml::from_str(content).ok()?;
 
         let is_poetry = toml_val.get("tool").and_then(|t| t.get("poetry")).is_some();
-        let is_uv = toml_val
-            .get("tool")
-            .and_then(|t| t.get("uv"))
-            .is_some();
+        let is_uv = toml_val.get("tool").and_then(|t| t.get("uv")).is_some();
 
         // Detect UV workspace members
         let uv_workspace = if is_uv {

@@ -35,11 +35,7 @@ impl ManifestParser for UvLockParser {
         // If [tool.uv] is already present, the PyProjectTomlParser will handle it
         // with full UV support. This parser only kicks in when uv.lock exists
         // alongside a plain pyproject.toml (no [tool.uv] section).
-        if toml_val
-            .get("tool")
-            .and_then(|t| t.get("uv"))
-            .is_some()
-        {
+        if toml_val.get("tool").and_then(|t| t.get("uv")).is_some() {
             return None;
         }
 

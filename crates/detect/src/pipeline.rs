@@ -593,10 +593,8 @@ fn partition(
             let ws_root_build_system = ws_root_manifest.map(|m| m.manifest.build_system);
             let ws_root_member_transform =
                 ws_root_manifest.and_then(|m| m.manifest.build.member_transform.clone());
-            let ws_root_cache_dirs =
-                ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
-            let ws_root_artifacts =
-                ws_root_manifest.map(|m| m.manifest.build.artifacts.clone());
+            let ws_root_cache_dirs = ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
+            let ws_root_artifacts = ws_root_manifest.map(|m| m.manifest.build.artifacts.clone());
             let ws_root_runtime_workdir =
                 ws_root_manifest.and_then(|m| m.manifest.runtime_config.workdir.clone());
             let ws_root_language = ws_root_manifest.map(|m| m.manifest.language);

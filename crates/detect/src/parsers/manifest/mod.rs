@@ -247,17 +247,11 @@ requires-python = ">=3.12"
 [tool.uv.workspace]
 members = ["packages/*"]
 "#;
-        let manifest = crate::traits::ManifestParser::parse(
-            &parser,
-            Path::new("pyproject.toml"),
-            content,
-        )
-        .unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("pyproject.toml"), content)
+                .unwrap();
         assert_eq!(manifest.language, crate::ids::LanguageId::new("python"));
-        assert_eq!(
-            manifest.build_system,
-            crate::ids::BuildSystemId::new("uv")
-        );
+        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("uv"));
         let ws = manifest.workspace.unwrap();
         assert_eq!(ws.members, vec!["packages/*"]);
         let pkg = manifest.package.unwrap();
@@ -283,26 +277,17 @@ dependencies = ["flask>=3.0.0"]
 [tool.uv]
 dev-dependencies = ["pytest"]
 "#;
-        let manifest = crate::traits::ManifestParser::parse(
-            &parser,
-            Path::new("pyproject.toml"),
-            content,
-        )
-        .unwrap();
-        assert_eq!(
-            manifest.build_system,
-            crate::ids::BuildSystemId::new("uv")
-        );
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("pyproject.toml"), content)
+                .unwrap();
+        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("uv"));
         assert!(manifest.workspace.is_none());
         assert!(manifest
             .build
             .commands
             .iter()
             .any(|c| c.contains("uv sync")));
-        assert!(manifest
-            .dependencies
-            .iter()
-            .any(|d| d.name == "flask"));
+        assert!(manifest.dependencies.iter().any(|d| d.name == "flask"));
     }
 
     #[test]
@@ -314,23 +299,13 @@ name = "my-app"
 version = "1.0.0"
 dependencies = ["requests>=2.0"]
 "#;
-        let manifest = crate::traits::ManifestParser::parse(
-            &parser,
-            Path::new("pyproject.toml"),
-            content,
-        )
-        .unwrap();
-        assert_eq!(
-            manifest.build_system,
-            crate::ids::BuildSystemId::new("pip")
-        );
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("pyproject.toml"), content)
+                .unwrap();
+        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("pip"));
         assert!(manifest.workspace.is_none());
         // Should NOT have UV commands
-        assert!(!manifest
-            .build
-            .commands
-            .iter()
-            .any(|c| c.contains("uv")));
+        assert!(!manifest.build.commands.iter().any(|c| c.contains("uv")));
     }
 
     #[test]
@@ -344,12 +319,9 @@ version = "0.1.0"
 [tool.uv.workspace]
 members = ["packages/*", "apps/*", "libs/core"]
 "#;
-        let manifest = crate::traits::ManifestParser::parse(
-            &parser,
-            Path::new("pyproject.toml"),
-            content,
-        )
-        .unwrap();
+        let manifest =
+            crate::traits::ManifestParser::parse(&parser, Path::new("pyproject.toml"), content)
+                .unwrap();
         let ws = manifest.workspace.unwrap();
         assert_eq!(ws.members, vec!["packages/*", "apps/*", "libs/core"]);
     }
