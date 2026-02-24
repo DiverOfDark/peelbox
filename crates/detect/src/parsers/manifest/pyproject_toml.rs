@@ -10,6 +10,7 @@ use std::path::Path;
 const PYTHON: LanguageId = LanguageId::new("python");
 const POETRY: BuildSystemId = BuildSystemId::new("poetry");
 const PIP: BuildSystemId = BuildSystemId::new("pip");
+pub(crate) const UV: BuildSystemId = BuildSystemId::new("uv");
 const PYTHON_RT: RuntimeId = RuntimeId::new("python");
 
 inventory::submit! {
@@ -20,6 +21,9 @@ inventory::submit! {
 }
 inventory::submit! {
     BuildSystemMeta { slug: "pip", display_name: "pip", aliases: &[] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "uv", display_name: "uv", aliases: &["uv"] }
 }
 inventory::submit! {
     RuntimeMeta { slug: "python", display_name: "Python", aliases: &["python"] }
@@ -36,6 +40,17 @@ impl ManifestParser for PyProjectTomlParser {
         let toml_val: toml::Value = toml::from_str(content).ok()?;
 
         let is_poetry = toml_val.get("tool").and_then(|t| t.get("poetry")).is_some();
+        let is_uv = toml_val
+            .get("tool")
+            .and_then(|t| t.get("uv"))
+            .is_some();
+
+        // Detect UV workspace members
+        let uv_workspace = if is_uv {
+            extract_uv_workspace(&toml_val)
+        } else {
+            None
+        };
 
         // Detect Python version from requires-python or poetry python dep
         let python_version = extract_python_version(content, &toml_val, is_poetry);
@@ -69,7 +84,13 @@ impl ManifestParser for PyProjectTomlParser {
             (name, version)
         };
 
-        let build_system_id = if is_poetry { POETRY } else { PIP };
+        let build_system_id = if is_poetry {
+            POETRY
+        } else if is_uv {
+            UV
+        } else {
+            PIP
+        };
 
         let dependencies = parse_pyproject_deps(&toml_val, is_poetry);
 
@@ -115,6 +136,58 @@ impl ManifestParser for PyProjectTomlParser {
                     ],
                     env: BTreeMap::new(),
                     entrypoint: None, // Will be set by framework detector (Flask)
+                    workdir: Some("/build".into()),
+                    ports: vec![8000],
+                    health_endpoint: None,
+                },
+            })
+        } else if is_uv {
+            // UV-specific build
+            Some(Manifest {
+                path: path.to_path_buf(),
+                language: PYTHON,
+                build_system: UV,
+                runtime: PYTHON_RT,
+                package: name.as_ref().map(|n| Package {
+                    name: n.clone(),
+                    version,
+                    is_application: true,
+                }),
+                workspace: uv_workspace,
+                dependencies,
+                build: BuildSpec {
+                    packages: vec![
+                        python_build_pkg,
+                        "pip".into(),
+                        "build-base".into(),
+                        "ca-certificates".into(),
+                    ],
+                    commands: vec![
+                        "pip install --user uv".into(),
+                        "/root/.local/bin/uv sync --frozen --no-dev".into(),
+                    ],
+                    member_transform: Some(MemberBuildTransform {
+                        member_commands: vec![
+                            "pip install --user uv".into(),
+                            "/root/.local/bin/uv sync --frozen --no-dev".into(),
+                        ],
+                        member_artifacts: None,
+                    }),
+                    env: btree(&[("UV_CACHE_DIR", "/root/.cache/uv")]),
+                    cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
+                    artifacts: vec![(".".into(), "/build".into())],
+                },
+                runtime_config: RuntimeSpec {
+                    packages: vec![
+                        python_runtime_pkg,
+                        "libgcc".into(),
+                        "libstdc++".into(),
+                        "ca-certificates".into(),
+                    ],
+                    env: BTreeMap::new(),
+                    entrypoint: name
+                        .as_ref()
+                        .map(|n| format!("python -m {}", n.replace('-', "_"))),
                     workdir: Some("/build".into()),
                     ports: vec![8000],
                     health_endpoint: None,
@@ -221,6 +294,32 @@ fn parse_pyproject_deps(toml_val: &toml::Value, is_poetry: bool) -> Vec<Dependen
     deps
 }
 
+/// Extract UV workspace members from `[tool.uv.workspace]` section.
+fn extract_uv_workspace(toml_val: &toml::Value) -> Option<Workspace> {
+    let uv_workspace = toml_val
+        .get("tool")
+        .and_then(|t| t.get("uv"))
+        .and_then(|u| u.get("workspace"));
+
+    let members = uv_workspace
+        .and_then(|ws| ws.get("members"))
+        .and_then(|m| m.as_array())?;
+
+    let member_patterns: Vec<String> = members
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect();
+
+    if member_patterns.is_empty() {
+        return None;
+    }
+
+    Some(Workspace {
+        members: member_patterns,
+        orchestrator: None,
+    })
+}
+
 /// Extract Python major.minor version from pyproject.toml content.
 /// Only extracts exact/pinned versions (e.g., "==3.11"), not constraint-based ones
 /// (e.g., "^3.9", ">=3.10") — those are minimum requirements that should be resolved
@@ -303,3 +402,5 @@ inventory::submit! {
         ..BuildSystemConfig::new(PIP)
     })
 }
+
+// Note: UV build system profile is defined in uv_lock.rs

@@ -26,6 +26,7 @@ mod pyproject_toml;
 mod requirements_txt;
 mod settings_gradle;
 mod setup_py;
+mod uv_lock;
 mod yarn_lock;
 mod zig_build;
 
@@ -53,6 +54,7 @@ pub use pyproject_toml::PyProjectTomlParser;
 pub use requirements_txt::RequirementsTxtParser;
 pub use settings_gradle::SettingsGradleParser;
 pub use setup_py::SetupPyParser;
+pub use uv_lock::UvLockParser;
 pub use yarn_lock::YarnLockParser;
 pub use zig_build::ZigBuildParser;
 
@@ -231,5 +233,124 @@ include('core', 'web', 'api-service')
         assert_eq!(ws.members, vec!["core", "web", "api-service"]);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-project");
+    }
+
+    #[test]
+    fn test_pyproject_toml_uv_workspace() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "my-workspace"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = ["packages/*"]
+"#;
+        let manifest = crate::traits::ManifestParser::parse(
+            &parser,
+            Path::new("pyproject.toml"),
+            content,
+        )
+        .unwrap();
+        assert_eq!(manifest.language, crate::ids::LanguageId::new("python"));
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("uv")
+        );
+        let ws = manifest.workspace.unwrap();
+        assert_eq!(ws.members, vec!["packages/*"]);
+        let pkg = manifest.package.unwrap();
+        assert_eq!(pkg.name, "my-workspace");
+        // Should have UV build commands
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("uv sync")));
+        assert!(manifest.build.member_transform.is_some());
+    }
+
+    #[test]
+    fn test_pyproject_toml_uv_without_workspace() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "my-app"
+version = "1.0.0"
+dependencies = ["flask>=3.0.0"]
+
+[tool.uv]
+dev-dependencies = ["pytest"]
+"#;
+        let manifest = crate::traits::ManifestParser::parse(
+            &parser,
+            Path::new("pyproject.toml"),
+            content,
+        )
+        .unwrap();
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("uv")
+        );
+        assert!(manifest.workspace.is_none());
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("uv sync")));
+        assert!(manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name == "flask"));
+    }
+
+    #[test]
+    fn test_pyproject_toml_plain_pip() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "my-app"
+version = "1.0.0"
+dependencies = ["requests>=2.0"]
+"#;
+        let manifest = crate::traits::ManifestParser::parse(
+            &parser,
+            Path::new("pyproject.toml"),
+            content,
+        )
+        .unwrap();
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("pip")
+        );
+        assert!(manifest.workspace.is_none());
+        // Should NOT have UV commands
+        assert!(!manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("uv")));
+    }
+
+    #[test]
+    fn test_pyproject_toml_uv_workspace_multiple_members() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "monorepo"
+version = "0.1.0"
+
+[tool.uv.workspace]
+members = ["packages/*", "apps/*", "libs/core"]
+"#;
+        let manifest = crate::traits::ManifestParser::parse(
+            &parser,
+            Path::new("pyproject.toml"),
+            content,
+        )
+        .unwrap();
+        let ws = manifest.workspace.unwrap();
+        assert_eq!(ws.members, vec!["packages/*", "apps/*", "libs/core"]);
     }
 }

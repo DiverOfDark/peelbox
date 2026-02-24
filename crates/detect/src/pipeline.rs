@@ -587,6 +587,19 @@ fn partition(
                 ws_root_manifest.map(|m| m.manifest.runtime_config.env.clone());
             let ws_root_runtime_packages =
                 ws_root_manifest.map(|m| m.manifest.runtime_config.packages.clone());
+            // Propagate build system and member transform from workspace root.
+            // This ensures workspace members (e.g., UV member pyproject.toml without
+            // [tool.uv]) inherit the workspace root's build system and commands.
+            let ws_root_build_system = ws_root_manifest.map(|m| m.manifest.build_system);
+            let ws_root_member_transform =
+                ws_root_manifest.and_then(|m| m.manifest.build.member_transform.clone());
+            let ws_root_cache_dirs =
+                ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
+            let ws_root_artifacts =
+                ws_root_manifest.map(|m| m.manifest.build.artifacts.clone());
+            let ws_root_runtime_workdir =
+                ws_root_manifest.and_then(|m| m.manifest.runtime_config.workdir.clone());
+            let ws_root_language = ws_root_manifest.map(|m| m.manifest.language);
 
             // Extract build system info for lock-file-based propagation
             let ws_root_build_system = ws_root_manifest.map(|m| m.manifest.build_system);
@@ -695,6 +708,31 @@ fn partition(
                     if let Some(ref ws_env) = ws_root_runtime_env {
                         for (k, v) in ws_env {
                             mwf.manifest.runtime_config.env.insert(k.clone(), v.clone());
+                        }
+                    }
+
+                    // Propagate build system from workspace root when the member uses the
+                    // same language but a less specific build system (e.g., pip -> uv).
+                    // This ensures UV workspace members detected as plain pip projects
+                    // inherit the workspace root's UV build system and commands.
+                    if let Some(ws_bs) = ws_root_build_system {
+                        if mwf.manifest.language
+                            == ws_root_language.unwrap_or(mwf.manifest.language)
+                            && mwf.manifest.build_system != ws_bs
+                        {
+                            mwf.manifest.build_system = ws_bs;
+                            if let Some(ref transform) = ws_root_member_transform {
+                                mwf.manifest.build.member_transform = Some(transform.clone());
+                            }
+                            if let Some(ref cache_dirs) = ws_root_cache_dirs {
+                                mwf.manifest.build.cache_dirs = cache_dirs.clone();
+                            }
+                            if let Some(ref artifacts) = ws_root_artifacts {
+                                mwf.manifest.build.artifacts = artifacts.clone();
+                            }
+                            if let Some(ref workdir) = ws_root_runtime_workdir {
+                                mwf.manifest.runtime_config.workdir = Some(workdir.clone());
+                            }
                         }
                     }
 
