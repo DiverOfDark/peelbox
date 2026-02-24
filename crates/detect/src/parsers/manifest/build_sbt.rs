@@ -79,14 +79,14 @@ impl ManifestParser for BuildSbtParser {
 
         let artifacts = if has_assembly {
             vec![(
-                format!("target/scala-*/{}*-assembly.jar", project_name.as_deref().unwrap_or("app")),
+                format!(
+                    "target/scala-*/{}*-assembly.jar",
+                    project_name.as_deref().unwrap_or("app")
+                ),
                 "/app/app.jar".into(),
             )]
         } else {
-            vec![(
-                "target/scala-*/*.jar".into(),
-                "/app/app.jar".into(),
-            )]
+            vec![("target/scala-*/*.jar".into(), "/app/app.jar".into())]
         };
 
         let member_transform = Some(MemberBuildTransform {
@@ -126,13 +126,12 @@ impl ManifestParser for BuildSbtParser {
                 member_transform,
                 env: btree(&[
                     ("JAVA_HOME", &java_home),
-                    ("SBT_OPTS", "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"),
+                    (
+                        "SBT_OPTS",
+                        "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2",
+                    ),
                 ]),
-                cache_dirs: vec![
-                    ".ivy2".into(),
-                    ".sbt".into(),
-                    "target".into(),
-                ],
+                cache_dirs: vec![".ivy2".into(), ".sbt".into(), "target".into()],
                 artifacts,
             },
             runtime_config: RuntimeSpec {
@@ -195,10 +194,8 @@ fn parse_sbt_deps(content: &str) -> Vec<Dependency> {
 
     // Match: "groupId" %% "artifactId" % "version" [% scope]
     // Also: "groupId" % "artifactId" % "version" [% scope]
-    let re = regex::Regex::new(
-        r#""([^"]+)"\s*%%?\s*"([^"]+)"\s*%\s*"([^"]+)"(?:\s*%\s*(\w+))?"#,
-    )
-    .unwrap();
+    let re = regex::Regex::new(r#""([^"]+)"\s*%%?\s*"([^"]+)"\s*%\s*"([^"]+)"(?:\s*%\s*(\w+))?"#)
+        .unwrap();
 
     for cap in re.captures_iter(content) {
         let group = cap.get(1).map(|m| m.as_str()).unwrap_or("");
@@ -261,7 +258,9 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream" % "2.8.5"
 )
 "#;
-        let manifest = BuildSbtParser.parse(Path::new("build.sbt"), content).unwrap();
+        let manifest = BuildSbtParser
+            .parse(Path::new("build.sbt"), content)
+            .unwrap();
         assert_eq!(manifest.language, LanguageId::new("scala"));
         assert_eq!(manifest.build_system, BuildSystemId::new("sbt"));
         assert_eq!(manifest.runtime, RuntimeId::new("jvm"));
@@ -272,8 +271,14 @@ libraryDependencies ++= Seq(
         assert!(!pkg.is_application);
 
         assert_eq!(manifest.dependencies.len(), 2);
-        assert!(manifest.dependencies.iter().any(|d| d.name == "com.typesafe.akka:akka-http"));
-        assert!(manifest.dependencies.iter().any(|d| d.name == "com.typesafe.akka:akka-stream"));
+        assert!(manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name == "com.typesafe.akka:akka-http"));
+        assert!(manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name == "com.typesafe.akka:akka-stream"));
     }
 
     #[test]
@@ -286,7 +291,9 @@ assembly / mainClass := Some("com.example.Main")
 
 libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.5.3"
 "#;
-        let manifest = BuildSbtParser.parse(Path::new("build.sbt"), content).unwrap();
+        let manifest = BuildSbtParser
+            .parse(Path::new("build.sbt"), content)
+            .unwrap();
         let pkg = manifest.package.unwrap();
         assert!(pkg.is_application);
         assert_eq!(manifest.build.commands, vec!["sbt assembly"]);
@@ -304,9 +311,15 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.17" % Test
 )
 "#;
-        let manifest = BuildSbtParser.parse(Path::new("build.sbt"), content).unwrap();
+        let manifest = BuildSbtParser
+            .parse(Path::new("build.sbt"), content)
+            .unwrap();
         assert_eq!(manifest.dependencies.len(), 2);
-        let test_dep = manifest.dependencies.iter().find(|d| d.name.contains("scalatest")).unwrap();
+        let test_dep = manifest
+            .dependencies
+            .iter()
+            .find(|d| d.name.contains("scalatest"))
+            .unwrap();
         assert_eq!(test_dep.scope, DepScope::Dev);
     }
 
@@ -333,6 +346,8 @@ libraryDependencies ++= Seq(
     #[test]
     fn test_non_sbt_content_returns_none() {
         let content = "this is not a build.sbt file at all";
-        assert!(BuildSbtParser.parse(Path::new("build.sbt"), content).is_none());
+        assert!(BuildSbtParser
+            .parse(Path::new("build.sbt"), content)
+            .is_none());
     }
 }
