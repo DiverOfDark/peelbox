@@ -1271,6 +1271,22 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["php"],
         &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
     ),
+    (
+        "C",
+        &["c", "h"],
+        &[
+            r#"htons\(\s*(\d{4,5})\s*\)"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[
+            r#"htons\(\s*(\d{4,5})\s*\)"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+    ),
 ];
 
 /// Scan source files in a project directory for port patterns.
@@ -1390,6 +1406,22 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["rs"],
         &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
+    (
+        "C",
+        &["c", "h"],
+        &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+    ),
 ];
 
 /// Scan source files for health endpoint patterns.
@@ -1496,6 +1528,16 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         "Elixir",
         &["ex", "exs"],
         &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+    (
+        "C",
+        &["c", "h"],
+        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
     ),
 ];
 

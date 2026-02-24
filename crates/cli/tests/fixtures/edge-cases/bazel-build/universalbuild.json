@@ -34,7 +34,12 @@
           "to": "/app/hello"
         }
       ],
-      "env": {},
+      "env": {
+        "PORT": ""
+      },
+      "health": {
+        "endpoint": "/health"
+      },
       "packages": [
         "glibc",
         "ca-certificates"

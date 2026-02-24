@@ -34,9 +34,13 @@
         }
       ],
       "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
       "packages": [
         "glibc",
-        "ca-certificates"
+        "ca-certificates",
+        "libstdc++"
       ],
       "ports": [
         8080
