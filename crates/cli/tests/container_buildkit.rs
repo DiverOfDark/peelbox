@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
-use bollard::container::Config;
-use bollard::container::LogsOptions;
-use bollard::container::{RemoveContainerOptions, StartContainerOptions, WaitContainerOptions};
+use bollard::models::ContainerCreateBody;
+use bollard::query_parameters::{
+    LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
+};
 use bollard::Docker;
 use futures_util::StreamExt;
 use std::path::Path;
@@ -273,25 +274,27 @@ async fn test_binary_exists_and_executable() -> Result<()> {
     println!("=== Binary Location Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
     let docker = Docker::connect_with_local_defaults()?;
-    let container_config = Config {
+    let container_config = ContainerCreateBody {
         image: Some(image_name.clone()),
         user: Some("root".to_string()),
         cmd: Some(vec!["--version".to_string()]),
         ..Default::default()
     };
     let test_container = docker
-        .create_container::<String, String>(None, container_config)
+        .create_container(
+            None::<bollard::query_parameters::CreateContainerOptions>,
+            container_config,
+        )
         .await?;
     docker
-        .start_container(&test_container.id, None::<StartContainerOptions<String>>)
+        .start_container(&test_container.id, None::<StartContainerOptions>)
         .await?;
-    let mut wait_stream =
-        docker.wait_container(&test_container.id, None::<WaitContainerOptions<String>>);
+    let mut wait_stream = docker.wait_container(&test_container.id, None::<WaitContainerOptions>);
     let wait_result = wait_stream.next().await.context("No wait result")??;
 
     let mut log_stream = docker.logs(
         &test_container.id,
-        Some(LogsOptions::<String> {
+        Some(LogsOptions {
             stdout: true,
             stderr: true,
             ..Default::default()
@@ -323,25 +326,27 @@ async fn test_image_runs_help_command() -> Result<()> {
     println!("=== Image Execution Test ===\n");
     let image_name = get_or_build_peelbox_image().await?;
     let docker = Docker::connect_with_local_defaults()?;
-    let container_config = Config {
+    let container_config = ContainerCreateBody {
         image: Some(image_name.clone()),
         user: Some("root".to_string()),
         cmd: Some(vec!["--help".to_string()]),
         ..Default::default()
     };
     let test_container = docker
-        .create_container::<String, String>(None, container_config)
+        .create_container(
+            None::<bollard::query_parameters::CreateContainerOptions>,
+            container_config,
+        )
         .await?;
     docker
-        .start_container(&test_container.id, None::<StartContainerOptions<String>>)
+        .start_container(&test_container.id, None::<StartContainerOptions>)
         .await?;
-    let mut wait_stream =
-        docker.wait_container(&test_container.id, None::<WaitContainerOptions<String>>);
+    let mut wait_stream = docker.wait_container(&test_container.id, None::<WaitContainerOptions>);
     let wait_result = wait_stream.next().await.context("No wait result")??;
 
     let mut log_stream = docker.logs(
         &test_container.id,
-        Some(LogsOptions::<String> {
+        Some(LogsOptions {
             stdout: true,
             stderr: true,
             ..Default::default()
