@@ -184,10 +184,7 @@ worker: celery -A tasks worker";
         let parser = ProcfileParser;
         let content = "web: python app.py";
         let contrib = parser.parse(Path::new("Procfile"), content).unwrap();
-        assert_eq!(
-            contrib.runtime_command,
-            Some("python app.py".to_string())
-        );
+        assert_eq!(contrib.runtime_command, Some("python app.py".to_string()));
         assert!(contrib.ports.is_empty());
     }
 
@@ -201,17 +198,26 @@ release: python manage.py migrate";
         assert_eq!(processes.len(), 3);
         assert_eq!(processes.get("web").unwrap(), "gunicorn app:app");
         assert_eq!(processes.get("worker").unwrap(), "celery worker");
-        assert_eq!(processes.get("release").unwrap(), "python manage.py migrate");
+        assert_eq!(
+            processes.get("release").unwrap(),
+            "python manage.py migrate"
+        );
     }
 
     #[test]
     fn test_extract_port_bind_flag() {
-        assert_eq!(ProcfileParser::extract_port("gunicorn app:app --bind 0.0.0.0:8000"), Some(8000));
+        assert_eq!(
+            ProcfileParser::extract_port("gunicorn app:app --bind 0.0.0.0:8000"),
+            Some(8000)
+        );
     }
 
     #[test]
     fn test_extract_port_port_flag() {
-        assert_eq!(ProcfileParser::extract_port("flask run --port 5000"), Some(5000));
+        assert_eq!(
+            ProcfileParser::extract_port("flask run --port 5000"),
+            Some(5000)
+        );
     }
 
     #[test]
@@ -221,6 +227,9 @@ release: python manage.py migrate";
 
     #[test]
     fn test_extract_port_ip_port() {
-        assert_eq!(ProcfileParser::extract_port("uvicorn app:app --host 0.0.0.0 --port 8080"), Some(8080));
+        assert_eq!(
+            ProcfileParser::extract_port("uvicorn app:app --host 0.0.0.0 --port 8080"),
+            Some(8080)
+        );
     }
 }
