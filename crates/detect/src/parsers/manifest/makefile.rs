@@ -42,8 +42,7 @@ impl ManifestParser for MakefileParser {
         // Extract target name from common Makefile patterns:
         // TARGET = name, TARGET := name, BINARY = name, APP = name, PROGRAM = name
         let target_re =
-            regex::Regex::new(r"(?m)^(?:TARGET|BINARY|APP|PROGRAM|BIN)\s*[:?]?=\s*(\S+)")
-                .ok()?;
+            regex::Regex::new(r"(?m)^(?:TARGET|BINARY|APP|PROGRAM|BIN)\s*[:?]?=\s*(\S+)").ok()?;
         let name = target_re
             .captures(content)
             .and_then(|c| c.get(1))
@@ -150,9 +149,15 @@ clean:
         assert_eq!(pkg.name, "app");
         assert!(pkg.is_application);
         assert_eq!(manifest.build.commands, vec!["make"]);
-        assert_eq!(manifest.build.artifacts, vec![("app".into(), "/app/app".into())]);
+        assert_eq!(
+            manifest.build.artifacts,
+            vec![("app".into(), "/app/app".into())]
+        );
         assert_eq!(manifest.runtime_config.entrypoint, Some("/app/app".into()));
-        assert!(manifest.runtime_config.packages.contains(&"libstdc++".into()));
+        assert!(manifest
+            .runtime_config
+            .packages
+            .contains(&"libstdc++".into()));
     }
 
     #[test]
@@ -179,10 +184,19 @@ clean:
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "myserver");
         // With install target, should have install command
-        assert_eq!(manifest.build.commands, vec!["make", "make install DESTDIR=/out"]);
-        assert_eq!(manifest.runtime_config.entrypoint, Some("/app/myserver".into()));
+        assert_eq!(
+            manifest.build.commands,
+            vec!["make", "make install DESTDIR=/out"]
+        );
+        assert_eq!(
+            manifest.runtime_config.entrypoint,
+            Some("/app/myserver".into())
+        );
         // Pure C should not have libstdc++
-        assert!(!manifest.runtime_config.packages.contains(&"libstdc++".into()));
+        assert!(!manifest
+            .runtime_config
+            .packages
+            .contains(&"libstdc++".into()));
     }
 
     #[test]

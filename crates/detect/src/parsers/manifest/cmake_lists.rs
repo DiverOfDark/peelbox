@@ -155,7 +155,10 @@ add_executable(app src/main.cpp)
         assert_eq!(manifest.build_system, CMAKE);
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "app");
-        assert!(manifest.runtime_config.packages.contains(&"libstdc++".into()));
+        assert!(manifest
+            .runtime_config
+            .packages
+            .contains(&"libstdc++".into()));
     }
 
     #[test]
@@ -174,7 +177,10 @@ add_executable(myserver src/main.c)
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "myserver");
         // Pure C should not have libstdc++
-        assert!(!manifest.runtime_config.packages.contains(&"libstdc++".into()));
+        assert!(!manifest
+            .runtime_config
+            .packages
+            .contains(&"libstdc++".into()));
     }
 
     #[test]
@@ -187,7 +193,10 @@ add_executable(myapp src/main.cpp src/util.c)
 "#;
         let manifest = parser.parse(Path::new("CMakeLists.txt"), content).unwrap();
         assert_eq!(manifest.language, CPP); // Mixed -> C++
-        assert!(manifest.runtime_config.packages.contains(&"libstdc++".into()));
+        assert!(manifest
+            .runtime_config
+            .packages
+            .contains(&"libstdc++".into()));
     }
 
     #[test]
