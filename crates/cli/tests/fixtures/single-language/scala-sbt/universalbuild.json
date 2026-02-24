@@ -1,0 +1,59 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".ivy2",
+        ".sbt",
+        "target"
+      ],
+      "commands": [
+        "sbt assembly"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "SBT_OPTS": "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"
+      },
+      "packages": [
+        "openjdk-25",
+        "sbt",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "sbt",
+      "framework": "Akka HTTP",
+      "language": "Scala",
+      "project_name": "my-scala-app",
+      "reasoning": "Detected from build.sbt"
+    },
+    "runtime": {
+      "command": [
+        "java",
+        "-jar",
+        "/app/my-scala-app_3_0.1.0-assembly.jar"
+      ],
+      "copy": [
+        {
+          "from": "target/scala-*/my-scala-app*-assembly.jar",
+          "to": "/app/app.jar"
+        }
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "openjdk-25",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

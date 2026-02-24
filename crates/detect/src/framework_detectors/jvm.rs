@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 const JAVA: LanguageId = LanguageId::new("java");
 const KOTLIN: LanguageId = LanguageId::new("kotlin");
+const SCALA: LanguageId = LanguageId::new("scala");
 
 // ── Spring Boot ─────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ impl FrameworkDetector for SpringBootDetector {
         SPRING_BOOT
     }
     fn compatible_languages(&self) -> &[LanguageId] {
-        &[JAVA, KOTLIN]
+        &[JAVA, KOTLIN, SCALA]
     }
     fn detect(&self, deps: &[Dependency]) -> bool {
         deps.iter().any(|d| {
@@ -66,7 +67,7 @@ inventory::submit! { FrameworkMeta { slug: "quarkus", display_name: "Quarkus", a
 super::simple_detector!(
     QuarkusDetector,
     QUARKUS,
-    &[JAVA, KOTLIN],
+    &[JAVA, KOTLIN, SCALA],
     |deps: &[Dependency]| deps.iter().any(|d| d.name.contains("io.quarkus:quarkus-")),
     vec![8080],
     vec!["/q/health".into()],
@@ -86,7 +87,7 @@ inventory::submit! { FrameworkMeta { slug: "micronaut", display_name: "Micronaut
 super::simple_detector!(
     MicronautDetector,
     MICRONAUT,
-    &[JAVA, KOTLIN],
+    &[JAVA, KOTLIN, SCALA],
     |deps: &[Dependency]| deps
         .iter()
         .any(|d| d.name.contains("io.micronaut:micronaut-")),
@@ -118,4 +119,48 @@ super::simple_detector!(
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(KtorDetector))
+}
+
+// ── Akka HTTP ────────────────────────────────────────────────────────────
+
+const AKKA_HTTP: FrameworkId = FrameworkId::new("akka-http");
+inventory::submit! { FrameworkMeta { slug: "akka-http", display_name: "Akka HTTP", aliases: &[] } }
+
+super::simple_detector!(
+    AkkaHttpDetector,
+    AKKA_HTTP,
+    &[JAVA, SCALA],
+    |deps: &[Dependency]| deps
+        .iter()
+        .any(|d| d.name.contains("akka-http") || d.name.contains("pekko-http")),
+    vec![8080],
+    vec!["/health".into()],
+    BTreeMap::new(),
+    vec![]
+);
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(AkkaHttpDetector))
+}
+
+// ── Play Framework ───────────────────────────────────────────────────────
+
+const PLAY: FrameworkId = FrameworkId::new("play");
+inventory::submit! { FrameworkMeta { slug: "play", display_name: "Play Framework", aliases: &[] } }
+
+super::simple_detector!(
+    PlayDetector,
+    PLAY,
+    &[JAVA, SCALA],
+    |deps: &[Dependency]| deps
+        .iter()
+        .any(|d| d.name.contains("com.typesafe.play:play") || d.name.contains("playframework")),
+    vec![9000],
+    vec!["/health".into()],
+    BTreeMap::new(),
+    vec![]
+);
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(PlayDetector))
 }

@@ -4,6 +4,7 @@
 
 mod bazel_build;
 mod build_gradle;
+mod build_sbt;
 mod build_zig_zon;
 mod cargo_toml;
 mod cmake_lists;
@@ -28,6 +29,7 @@ mod zig_build;
 
 pub use bazel_build::BazelBuildParser;
 pub use build_gradle::BuildGradleParser;
+pub use build_sbt::BuildSbtParser;
 pub use build_zig_zon::BuildZigZonParser;
 pub use cargo_toml::CargoTomlParser;
 pub use cmake_lists::CMakeListsParser;

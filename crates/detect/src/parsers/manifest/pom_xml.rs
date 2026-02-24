@@ -17,7 +17,7 @@ inventory::submit! {
     BuildSystemMeta { slug: "maven", display_name: "Maven", aliases: &["maven"] }
 }
 inventory::submit! {
-    RuntimeMeta { slug: "jvm", display_name: "JVM", aliases: &["java", "kotlin"] }
+    RuntimeMeta { slug: "jvm", display_name: "JVM", aliases: &["java", "kotlin", "scala"] }
 }
 
 pub struct PomXmlParser;
