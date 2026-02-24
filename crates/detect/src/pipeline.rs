@@ -1271,6 +1271,15 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["php"],
         &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
     ),
+    (
+        "Clojure",
+        &["clj", "cljc", "cljs"],
+        &[
+            r#":port\s+(\d{4,5})"#,
+            r#"\{:port\s+(\d{4,5})\}"#,
+            r#"run-jetty\s+[^\{]*\{[^}]*:port\s+(\d{4,5})"#,
+        ],
+    ),
 ];
 
 /// Scan source files in a project directory for port patterns.
@@ -1496,6 +1505,11 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         "Elixir",
         &["ex", "exs"],
         &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+    (
+        "Clojure",
+        &["clj", "cljc", "cljs"],
+        &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
     ),
 ];
 
