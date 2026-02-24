@@ -228,7 +228,11 @@ extra-deps: []
         assert_eq!(manifest.build_system, STACK);
         assert_eq!(manifest.runtime, NATIVE);
         assert!(manifest.workspace.is_none());
-        assert!(manifest.build.commands.iter().any(|c| c.contains("stack build")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("stack build")));
     }
 
     #[test]

@@ -26,14 +26,13 @@ impl ManifestParser for CabalFileParser {
             return None;
         }
 
-        let name = parse_cabal_field(content, "name")
-            .unwrap_or_else(|| {
-                // Fall back to filename stem
-                path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("app")
-                    .to_string()
-            });
+        let name = parse_cabal_field(content, "name").unwrap_or_else(|| {
+            // Fall back to filename stem
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("app")
+                .to_string()
+        });
 
         let version = parse_cabal_field(content, "version");
 
@@ -152,7 +151,9 @@ fn parse_cabal_build_depends(content: &str) -> Vec<Dependency> {
                 // Check if it looks like a cabal field (word followed by colon)
                 if let Some(before_colon) = trimmed.split(':').next() {
                     let is_field = !before_colon.is_empty()
-                        && before_colon.chars().all(|c| c.is_alphanumeric() || c == '-');
+                        && before_colon
+                            .chars()
+                            .all(|c| c.is_alphanumeric() || c == '-');
                     if is_field {
                         in_build_depends = false;
                         continue;
@@ -300,7 +301,9 @@ executable app
   build-depends: base
 "#;
 
-        let manifest = parser.parse(Path::new("fallback-app.cabal"), content).unwrap();
+        let manifest = parser
+            .parse(Path::new("fallback-app.cabal"), content)
+            .unwrap();
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "fallback-app");
     }
