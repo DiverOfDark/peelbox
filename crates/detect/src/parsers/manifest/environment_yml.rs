@@ -214,9 +214,7 @@ dependencies:
   - pip:
     - gunicorn==21.2.0
 "#;
-        let manifest = parser
-            .parse(Path::new("environment.yml"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("environment.yml"), content).unwrap();
         assert_eq!(manifest.language, PYTHON);
         assert_eq!(manifest.build_system, CONDA);
         assert_eq!(manifest.runtime, PYTHON_RT);
@@ -253,7 +251,9 @@ channels:
   - defaults
 dependencies: []
 "#;
-        assert!(parser.parse(Path::new("environment.yml"), content).is_none());
+        assert!(parser
+            .parse(Path::new("environment.yml"), content)
+            .is_none());
     }
 
     #[test]
@@ -264,7 +264,9 @@ name: python-only
 dependencies:
   - python=3.11
 "#;
-        assert!(parser.parse(Path::new("environment.yml"), content).is_none());
+        assert!(parser
+            .parse(Path::new("environment.yml"), content)
+            .is_none());
     }
 
     #[test]
@@ -276,9 +278,7 @@ dependencies:
   - numpy
   - pandas
 "#;
-        let manifest = parser
-            .parse(Path::new("environment.yml"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("environment.yml"), content).unwrap();
         assert!(manifest.build.packages.contains(&"python".to_string()));
     }
 
@@ -301,9 +301,7 @@ dependencies:
     - flask>=3.0
     - gunicorn==21.2.0
 "#;
-        let manifest = parser
-            .parse(Path::new("environment.yml"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("environment.yml"), content).unwrap();
         assert_eq!(manifest.dependencies.len(), 3);
         assert!(manifest
             .dependencies
