@@ -945,12 +945,16 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     let mut runtime_ports = m.runtime_config.ports.clone();
     let mut runtime_packages = m.runtime_config.packages.clone();
     let mut health_endpoint = m.runtime_config.health_endpoint.clone();
+    let mut config_runtime_command: Option<String> = None;
 
     for config in &bucket.configs {
         runtime_env.extend(config.env_vars.clone());
         runtime_ports.extend(config.ports.clone());
         if health_endpoint.is_none() {
             health_endpoint.clone_from(&config.health_endpoint);
+        }
+        if config_runtime_command.is_none() {
+            config_runtime_command.clone_from(&config.runtime_command);
         }
     }
 
@@ -987,6 +991,26 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         None
     };
 
+    // When a config provides a runtime command (e.g., Procfile), its ports should
+    // take priority over framework defaults since it represents an explicit user declaration.
+    // Insert config ports at the front so they are used for health checks (which use the first port).
+    if config_runtime_command.is_some() {
+        let mut config_ports = Vec::new();
+        for config in &bucket.configs {
+            if config.runtime_command.is_some() {
+                for &port in &config.ports {
+                    if !config_ports.contains(&port) {
+                        config_ports.push(port);
+                    }
+                }
+            }
+        }
+        // Remove any config ports already in runtime_ports, then prepend them
+        runtime_ports.retain(|p| !config_ports.contains(p));
+        config_ports.extend(runtime_ports);
+        runtime_ports = config_ports;
+    }
+
     // When framework sets workdir, update artifact copy targets from /app to framework workdir
     if let Some(ref fw_workdir) = framework_workdir {
         if fw_workdir != "/app" {
@@ -998,9 +1022,11 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         }
     }
 
-    // Deduplicate (preserve order, remove later duplicates)
-    runtime_ports.sort();
-    runtime_ports.dedup();
+    // Deduplicate (preserve insertion order, remove later duplicates)
+    {
+        let mut seen = std::collections::HashSet::new();
+        runtime_ports.retain(|p| seen.insert(*p));
+    }
     {
         let mut seen = std::collections::HashSet::new();
         runtime_packages.retain(|p| seen.insert(p.clone()));
@@ -1035,8 +1061,10 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             })
     };
 
-    // Build entrypoint command: framework override > manifest entrypoint
-    let entrypoint_cmd = if let Some(fw_cmd) = framework_runtime_command {
+    // Build entrypoint command: config (Procfile) > framework override > manifest entrypoint
+    let entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
+        config_cmd.split_whitespace().map(String::from).collect()
+    } else if let Some(fw_cmd) = framework_runtime_command {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root projects, build system profile may override the entrypoint

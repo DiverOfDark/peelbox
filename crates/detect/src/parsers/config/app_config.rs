@@ -66,6 +66,7 @@ impl ConfigParser for AppConfigParser {
             env_vars: BTreeMap::new(),
             ports,
             health_endpoint: None,
+            runtime_command: None,
         })
     }
 }

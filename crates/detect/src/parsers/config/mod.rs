@@ -5,12 +5,14 @@ mod docker_compose;
 mod dockerfile;
 mod env_file;
 mod kubernetes;
+mod procfile;
 
 pub use app_config::AppConfigParser;
 pub use docker_compose::DockerComposeParser;
 pub use dockerfile::DockerfileParser;
 pub use env_file::EnvFileParser;
 pub use kubernetes::KubernetesParser;
+pub use procfile::ProcfileParser;
 
 #[cfg(test)]
 mod tests {
