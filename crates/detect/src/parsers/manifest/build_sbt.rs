@@ -227,11 +227,7 @@ inventory::submit! {
 // ── Build System Profile ────────────────────────────────────────────────────
 
 fn sbt_subdirectory_command(cmd: &str, subdir: &str) -> String {
-    if cmd.starts_with("sbt ") {
-        format!("cd {} && {}", subdir, cmd)
-    } else {
-        format!("cd {} && {}", subdir, cmd)
-    }
+    format!("cd {} && {}", subdir, cmd)
 }
 
 inventory::submit! {
