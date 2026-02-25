@@ -1,0 +1,18 @@
+{
+  "name": "nx-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "scripts": {
+    "build": "nx run-many --target=build",
+    "start": "nx run api:serve",
+    "test": "nx run-many --target=test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

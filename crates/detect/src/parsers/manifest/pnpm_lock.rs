@@ -93,3 +93,14 @@ impl ManifestParser for PnpmLockParser {
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PnpmLockParser))
 }
+
+// ── Build System Profile ────────────────────────────────────────────────────
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        merge_priority: true,
+        non_root_entrypoint_override: Some(&["pnpm", "start"]),
+        adjusts_workspace_member_workdir: true,
+        ..BuildSystemConfig::new(PNPM)
+    })
+}

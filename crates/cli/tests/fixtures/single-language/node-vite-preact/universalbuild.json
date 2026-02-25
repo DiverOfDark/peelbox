@@ -1,0 +1,51 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".npm"
+      ],
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "npm",
+      "framework": "Vite",
+      "language": "JavaScript",
+      "project_name": "vite-preact-app",
+      "reasoning": "Detected from package.json"
+    },
+    "runtime": {
+      "command": [
+        "npm",
+        "start"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        5173
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

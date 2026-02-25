@@ -125,7 +125,7 @@ impl ManifestParser for CargoTomlParser {
                 artifacts,
             },
             runtime_config: RuntimeSpec {
-                packages: vec!["glibc".into(), "ca-certificates".into()],
+                packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
                 entrypoint,
                 workdir: Some("/app".into()),
@@ -177,4 +177,25 @@ fn parse_cargo_deps(toml_val: &toml::Value) -> Vec<Dependency> {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(CargoTomlParser))
+}
+
+// ── Build System Profile ────────────────────────────────────────────────────
+
+fn cargo_subdirectory_command(cmd: &str, subdir: &str) -> String {
+    if cmd.starts_with("cargo ") {
+        format!(
+            "{} --manifest-path {}/Cargo.toml --target-dir target",
+            cmd, subdir
+        )
+    } else {
+        format!("cd {} && {}", subdir, cmd)
+    }
+}
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        shared_target_dir: true,
+        transform_subdirectory_command: cargo_subdirectory_command,
+        ..BuildSystemConfig::new(CARGO)
+    })
 }

@@ -1,0 +1,54 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".npm"
+      ],
+      "commands": [
+        "pnpm install",
+        "cd apps/web && pnpm run build"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "pnpm",
+      "framework": "Express",
+      "language": "JavaScript",
+      "project_name": "@monorepo/web",
+      "reasoning": "Detected from package.json in apps/web"
+    },
+    "runtime": {
+      "command": [
+        "pnpm",
+        "start"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        3000
+      ],
+      "workdir": "/app/apps/web"
+    },
+    "version": "1.0"
+  }
+]

@@ -1,0 +1,54 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".npm"
+      ],
+      "commands": [
+        "npm ci",
+        "cd apps/api && npm run build"
+      ],
+      "env": {},
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "npm",
+      "framework": "Express",
+      "language": "JavaScript",
+      "project_name": "@nx-workspace/api",
+      "reasoning": "Detected from package.json in apps/api"
+    },
+    "runtime": {
+      "command": [
+        "npm",
+        "start"
+      ],
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "ports": [
+        3000
+      ],
+      "workdir": "/app/apps/api"
+    },
+    "version": "1.0"
+  }
+]

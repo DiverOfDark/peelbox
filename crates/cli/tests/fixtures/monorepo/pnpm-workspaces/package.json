@@ -1,0 +1,20 @@
+{
+  "name": "monorepo-example",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "start": "node apps/web/dist/index.js",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

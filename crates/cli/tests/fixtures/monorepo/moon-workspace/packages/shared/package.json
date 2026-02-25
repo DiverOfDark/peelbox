@@ -1,0 +1,9 @@
+{
+  "name": "@moon-workspace/shared",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "echo 'no build needed'",
+    "test": "echo 'no tests'"
+  }
+}

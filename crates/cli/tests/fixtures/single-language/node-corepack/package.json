@@ -1,0 +1,13 @@
+{
+  "name": "corepack-express-app",
+  "version": "1.0.0",
+  "description": "Express app using Corepack-managed pnpm",
+  "packageManager": "pnpm@9.1.0",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"no tests\""
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

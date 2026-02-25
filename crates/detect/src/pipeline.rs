@@ -1,25 +1,14 @@
 //! Map-Reduce detection pipeline.
 //!
 //! Four steps: Parse → Detect Framework → Partition → Reduce.
+//!
+//! Build-system-specific behavior is delegated to `BuildSystemConfig` profiles
+//! registered via `inventory::submit!` in the parser files.
 
-use crate::ids::{BuildSystemId, FrameworkId};
 use crate::registry::Registry;
-use crate::traits::{ConfigParser, FrameworkDetector, ManifestParser};
+use crate::traits::{ConfigParser, ManifestParser};
 use crate::types::*;
 
-// Build system IDs used in pipeline logic
-const MAVEN: BuildSystemId = BuildSystemId::new("maven");
-const CARGO: BuildSystemId = BuildSystemId::new("cargo");
-const NPM: BuildSystemId = BuildSystemId::new("npm");
-const PNPM: BuildSystemId = BuildSystemId::new("pnpm");
-const YARN: BuildSystemId = BuildSystemId::new("yarn");
-const BUN: BuildSystemId = BuildSystemId::new("bun");
-const GRADLE: BuildSystemId = BuildSystemId::new("gradle");
-const POETRY: BuildSystemId = BuildSystemId::new("poetry");
-const PIP: BuildSystemId = BuildSystemId::new("pip");
-
-// Framework IDs used in pipeline logic
-const FLASK: FrameworkId = FrameworkId::new("flask");
 use anyhow::Result;
 use ignore::WalkBuilder;
 use peelbox_core::output::schema::{
@@ -61,17 +50,17 @@ pub fn detect_with_registry_and_wolfi(
     let repo_tree = build_tree(repo_path, registry)?;
 
     // Step 2: Framework detection on all manifests
-    let manifests_with_frameworks = detect_frameworks(&repo_tree, &registry.framework_detectors);
+    let manifests_with_frameworks = detect_frameworks(&repo_tree, registry);
 
     // Step 3: Partition into service buckets
-    let buckets = partition(&repo_tree, manifests_with_frameworks);
+    let buckets = partition(&repo_tree, manifests_with_frameworks, registry);
 
     info!(services = buckets.len(), "Partitioned into service buckets");
 
     // Step 4: Reduce each bucket into UniversalBuild
     let mut builds: Vec<UniversalBuild> = buckets
         .into_iter()
-        .filter_map(|bucket| match reduce(bucket) {
+        .filter_map(|bucket| match reduce(bucket, registry) {
             Ok(build) => Some(build),
             Err(e) => {
                 warn!("Failed to reduce service bucket: {}", e);
@@ -110,6 +99,13 @@ pub fn detect_with_registry_and_wolfi(
         for build in &mut builds {
             resolve_wolfi_packages(&mut build.build.packages, wolfi);
             resolve_wolfi_packages(&mut build.runtime.packages, wolfi);
+        }
+    }
+
+    // Step 6: Handle pinned Rust versions not available in Wolfi (use rustup)
+    if let Some(wolfi) = wolfi_index {
+        for build in &mut builds {
+            crate::version::rust::resolve_rust_toolchain(build, wolfi);
         }
     }
 
@@ -284,20 +280,19 @@ struct ManifestWithFramework {
     framework: Option<FrameworkContribution>,
 }
 
-fn detect_frameworks(
-    tree: &RepoTree,
-    detectors: &[Box<dyn FrameworkDetector>],
-) -> Vec<ManifestWithFramework> {
+fn detect_frameworks(tree: &RepoTree, registry: &Registry) -> Vec<ManifestWithFramework> {
     let mut results = Vec::new();
-    collect_manifests_with_frameworks(&tree.tree, detectors, &mut results);
+    collect_manifests_with_frameworks(&tree.tree, registry, &mut results);
     results
 }
 
 fn collect_manifests_with_frameworks(
     node: &DirNode,
-    detectors: &[Box<dyn FrameworkDetector>],
+    registry: &Registry,
     results: &mut Vec<ManifestWithFramework>,
 ) {
+    let detectors = &registry.framework_detectors;
+
     for file in &node.files {
         if let FileKind::Manifest(manifest) = &file.kind {
             let mut framework = detectors.iter().find_map(|detector| {
@@ -311,22 +306,25 @@ fn collect_manifests_with_frameworks(
                 }
             });
 
-            // If Poetry build_system + Flask framework, swap in FlaskPoetry contribution
-            if manifest.build_system == POETRY {
-                if let Some(ref fw) = framework {
-                    if fw.framework == FLASK {
-                        // Find FlaskPoetryDetector and use its contribution instead
-                        if let Some(poetry_fw) = detectors.iter().find_map(|d| {
+            // If the build system profile prefers framework variants with specific env keys,
+            // look for a matching variant (e.g., Poetry prefers FlaskPoetry with VIRTUAL_ENV)
+            if let Some(profile) = registry.get_profile(&manifest.build_system) {
+                let env_keys = profile.preferred_framework_env_keys;
+                if !env_keys.is_empty() {
+                    if let Some(ref fw) = framework {
+                        if let Some(variant) = detectors.iter().find_map(|d| {
                             let contrib = d.contribution(&manifest.dependencies);
-                            if contrib.framework == FLASK
-                                && contrib.runtime_env.contains_key("VIRTUAL_ENV")
+                            if contrib.framework == fw.framework
+                                && env_keys
+                                    .iter()
+                                    .all(|k| contrib.runtime_env.contains_key(*k))
                             {
                                 Some(contrib)
                             } else {
                                 None
                             }
                         }) {
-                            framework = Some(poetry_fw);
+                            framework = Some(variant);
                         }
                     }
                 }
@@ -341,7 +339,7 @@ fn collect_manifests_with_frameworks(
     }
 
     for child in &node.children {
-        collect_manifests_with_frameworks(child, detectors, results);
+        collect_manifests_with_frameworks(child, registry, results);
     }
 }
 
@@ -360,7 +358,11 @@ fn collect_configs(node: &DirNode) -> Vec<ConfigContribution> {
     configs
 }
 
-fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<ServiceBucket> {
+fn partition(
+    tree: &RepoTree,
+    manifests: Vec<ManifestWithFramework>,
+    registry: &Registry,
+) -> Vec<ServiceBucket> {
     // Group manifests by directory
     let mut dir_manifests: HashMap<PathBuf, Vec<ManifestWithFramework>> = HashMap::new();
     for mwf in manifests {
@@ -378,6 +380,9 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
         if manifests_in_dir.len() == 1 {
             merged.insert(dir.clone(), manifests_in_dir.remove(0));
         } else {
+            // Sort by filename for deterministic merge order across platforms
+            manifests_in_dir.sort_by(|a, b| a.path.cmp(&b.path));
+
             // Prefer lock file manifests (pnpm/yarn) over package.json
             let mut primary_idx = 0;
             let mut workspace_idx = None;
@@ -390,8 +395,10 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                 if mwf.manifest.workspace.is_some() {
                     workspace_idx = Some(i);
                 }
-                // Lock file parsers produce Pnpm or Yarn build_system
-                if mwf.manifest.build_system == PNPM || mwf.manifest.build_system == YARN {
+                if registry
+                    .get_profile(&mwf.manifest.build_system)
+                    .is_some_and(|p| p.merge_priority)
+                {
                     lock_file_idx = Some(i);
                 }
             }
@@ -487,6 +494,33 @@ fn partition(tree: &RepoTree, manifests: Vec<ManifestWithFramework>) -> Vec<Serv
                             primary.manifest.dependencies.push(dep.clone());
                         }
                     }
+                }
+            }
+
+            // Merge build specs from secondary manifests of different languages
+            // (e.g., PHP + Node.js in a Laravel + Vite project)
+            for other in manifests_in_dir.iter() {
+                if other.manifest.language != primary.manifest.language {
+                    for pkg in &other.manifest.build.packages {
+                        if !primary.manifest.build.packages.contains(pkg) {
+                            primary.manifest.build.packages.push(pkg.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .commands
+                        .extend(other.manifest.build.commands.clone());
+                    for dir in &other.manifest.build.cache_dirs {
+                        if !primary.manifest.build.cache_dirs.contains(dir) {
+                            primary.manifest.build.cache_dirs.push(dir.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .env
+                        .extend(other.manifest.build.env.clone());
                 }
             }
 
@@ -738,8 +772,9 @@ fn collect_configs_for_service(
 
 // ── Step 4: Reduce ──────────────────────────────────────────────────────────
 
-fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
+fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> {
     let m = &bucket.manifest;
+    let profile = registry.get_profile(&m.build_system);
 
     // Check if this is a standalone project in a subdirectory
     let is_subdirectory = !bucket.is_workspace_member
@@ -762,39 +797,14 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
             m.build.commands.clone()
         }
     } else if is_subdirectory {
-        // For standalone projects in subdirectories, prepend directory context
+        // For standalone projects in subdirectories, delegate to build system profile
+        let transform = profile
+            .map(|p| p.transform_subdirectory_command)
+            .unwrap_or(default_subdirectory_command);
         m.build
             .commands
             .iter()
-            .map(|cmd| {
-                if m.build_system == MAVEN {
-                    // Maven: use -f flag
-                    if cmd.starts_with("mvn ") {
-                        let mut result =
-                            cmd.replacen("mvn ", &format!("mvn -f {}/pom.xml ", subdir), 1);
-                        // For dependency:copy-dependencies, ensure the target dir exists
-                        if cmd.contains("dependency:copy-dependencies") {
-                            result = format!("{}; mkdir -p {}/target/lib", result, subdir);
-                        }
-                        result
-                    } else {
-                        format!("cd {} && {}", subdir, cmd)
-                    }
-                } else if m.build_system == CARGO {
-                    // Cargo: use --manifest-path flag
-                    if cmd.starts_with("cargo ") {
-                        format!(
-                            "{} --manifest-path {}/Cargo.toml --target-dir target",
-                            cmd, subdir
-                        )
-                    } else {
-                        format!("cd {} && {}", subdir, cmd)
-                    }
-                } else {
-                    // npm, pnpm, yarn, bun, and others: use cd prefix
-                    format!("cd {} && {}", subdir, cmd)
-                }
-            })
+            .map(|cmd| transform(cmd, &subdir))
             .collect()
     } else {
         m.build.commands.clone()
@@ -833,8 +843,8 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
         }
     } else if is_subdirectory {
         // For standalone subdirectory projects, prepend directory to artifact paths
-        // Exception: Cargo projects use --target-dir target, so artifacts are at repo root
-        let uses_shared_target = m.build_system == CARGO;
+        // Exception: build systems with shared_target_dir (e.g., Cargo uses --target-dir target)
+        let uses_shared_target = profile.is_some_and(|p| p.shared_target_dir);
         m.build
             .artifacts
             .iter()
@@ -858,18 +868,9 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
             .collect()
     };
 
-    // Gradle-specific: replace glob artifacts with specific jar name when package has name+version
-    if m.build_system == GRADLE {
-        if let Some(pkg) = &m.package {
-            if let Some(version) = &pkg.version {
-                let specific_jar = format!("{}-{}.jar", pkg.name, version);
-                for artifact in &mut artifacts {
-                    if artifact.from.contains("*.jar") {
-                        artifact.from = artifact.from.replace("*.jar", &specific_jar);
-                    }
-                }
-            }
-        }
+    // Delegate artifact post-processing to build system profile (e.g., Gradle JAR name resolution)
+    if let Some(p) = profile {
+        (p.resolve_artifacts)(&mut artifacts, m.package.as_ref());
     }
 
     // Merge config contributions into runtime spec
@@ -941,9 +942,9 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     // Determine project name
     let is_root_project = bucket.path.as_os_str().is_empty() || bucket.path == Path::new(".");
     let project_name = if is_root_project {
-        // For root-level projects: use package name only from strong naming sources
-        // (npm, cargo, zig), not from settings.gradle or pyproject.toml
-        if m.build_system == GRADLE || m.build_system == POETRY || m.build_system == PIP {
+        // For root-level projects: use package name only from strong naming sources,
+        // unless the build system profile opts out (e.g., Gradle, Poetry, Pip)
+        if profile.is_some_and(|p| !p.use_package_name_for_root) {
             Some("app".into())
         } else {
             m.package
@@ -971,23 +972,14 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     let entrypoint_cmd = if let Some(fw_cmd) = framework_runtime_command {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
-        // For non-root Node.js projects, use pkg_manager start instead of direct command
-        if !is_root_project
-            && (m.build_system == NPM
-                || m.build_system == PNPM
-                || m.build_system == YARN
-                || m.build_system == BUN)
-        {
-            let pkg_manager = if m.build_system == YARN {
-                "yarn"
-            } else if m.build_system == PNPM {
-                "pnpm"
-            } else if m.build_system == BUN {
-                "bun"
+        // For non-root projects, build system profile may override the entrypoint
+        // (e.g., Node.js uses `npm start` instead of direct command)
+        if !is_root_project {
+            if let Some(override_cmd) = profile.and_then(|p| p.non_root_entrypoint_override) {
+                override_cmd.iter().map(|s| s.to_string()).collect()
             } else {
-                "npm"
-            };
-            vec![pkg_manager.into(), "start".into()]
+                entrypoint.split_whitespace().map(String::from).collect()
+            }
         } else {
             entrypoint.split_whitespace().map(String::from).collect()
         }
@@ -996,13 +988,10 @@ fn reduce(bucket: ServiceBucket) -> Result<UniversalBuild> {
     };
 
     // Workdir: framework override > manifest workdir
-    // For Node.js workspace members, set workdir to the member's directory
-    // so that `npm start` finds the member's package.json
+    // For workspace members with adjusts_workspace_member_workdir, set workdir to the
+    // member's directory so that the entrypoint command runs in the correct context
     let workdir = if bucket.is_workspace_member
-        && (m.build_system == NPM
-            || m.build_system == PNPM
-            || m.build_system == YARN
-            || m.build_system == BUN)
+        && profile.is_some_and(|p| p.adjusts_workspace_member_workdir)
     {
         let base = framework_workdir
             .or_else(|| m.runtime_config.workdir.clone())
@@ -1503,6 +1492,11 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["java", "kt", "kts"],
         &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
     ),
+    (
+        "Elixir",
+        &["ex", "exs"],
+        &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
 ];
 
 /// Built-in environment variables to skip.
@@ -1598,6 +1592,14 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 let versioned_pkg = format!("python-{}", version);
                 replace_package(&mut build.build.packages, "python", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
+            }
+        }
+        "Rust" => {
+            // Only build packages need the rust compiler; runtime uses the compiled binary
+            if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
+            {
+                let versioned_pkg = format!("rust-{}", version);
+                replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }
         }
         _ => {}
@@ -1745,11 +1747,13 @@ fn extract_project_dir(repo_root: &Path, reasoning: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::{FrameworkId, LanguageId, RuntimeId};
+    use crate::ids::{BuildSystemId, FrameworkId, LanguageId, RuntimeId};
     use std::collections::BTreeMap;
 
     const RUST: LanguageId = LanguageId::new("rust");
     const JAVA: LanguageId = LanguageId::new("java");
+    const CARGO: BuildSystemId = BuildSystemId::new("cargo");
+    const MAVEN: BuildSystemId = BuildSystemId::new("maven");
     const NATIVE: RuntimeId = RuntimeId::new("native");
     const JVM: RuntimeId = RuntimeId::new("jvm");
     const SPRING_BOOT: FrameworkId = FrameworkId::new("spring-boot");
@@ -1793,7 +1797,8 @@ mod tests {
             workspace_root: None,
         };
 
-        let build = reduce(bucket).unwrap();
+        let registry = Registry::with_defaults();
+        let build = reduce(bucket, &registry).unwrap();
         assert_eq!(build.metadata.language, "Rust");
         assert_eq!(build.metadata.build_system, "Cargo");
         assert_eq!(build.build.commands, vec!["cargo build --release"]);
@@ -1856,7 +1861,8 @@ mod tests {
             workspace_root: Some(PathBuf::new()),
         };
 
-        let build = reduce(bucket).unwrap();
+        let registry = Registry::with_defaults();
+        let build = reduce(bucket, &registry).unwrap();
         assert_eq!(
             build.build.commands,
             vec!["mvn -pl api-service -am install -DskipTests"]
@@ -2060,5 +2066,105 @@ const home = process.env.HOME;
         // Should not replace already-versioned packages
         replace_package(&mut packages, "nodejs", "nodejs-18");
         assert_eq!(packages[0], "nodejs-20");
+    }
+
+    #[test]
+    fn test_cross_language_build_merge() {
+        // Test that PHP + Node.js manifests in the same directory get merged,
+        // with PHP as primary and Node.js build specs appended.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // Create .git directory so the walker treats it as a repo
+        std::fs::create_dir_all(root.join(".git")).unwrap();
+
+        // Create composer.json (PHP/Laravel)
+        std::fs::write(
+            root.join("composer.json"),
+            r#"{
+                "name": "laravel/laravel",
+                "require": {
+                    "php": "^8.2",
+                    "laravel/framework": "^11.0"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        // Create package.json (Node.js/Vite for frontend assets)
+        std::fs::write(
+            root.join("package.json"),
+            r#"{
+                "private": true,
+                "scripts": { "build": "vite build" },
+                "dependencies": { "react": "^18.2.0" },
+                "devDependencies": { "vite": "^5.0.0" }
+            }"#,
+        )
+        .unwrap();
+
+        let results = detect_without_wolfi(root).unwrap();
+
+        // Should produce exactly one service (merged)
+        assert_eq!(results.len(), 1);
+        let build = &results[0];
+
+        // Primary should be PHP/Composer (alphabetically first, server-side language)
+        assert_eq!(build.metadata.language, "PHP");
+        assert_eq!(build.metadata.build_system, "Composer");
+        assert_eq!(build.metadata.framework.as_deref(), Some("Laravel"));
+
+        // Build commands should include both Composer and npm commands
+        assert!(
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("composer install")),
+            "Should have composer command"
+        );
+        assert!(
+            build.build.commands.iter().any(|c| c.contains("npm ci")),
+            "Should have npm ci command"
+        );
+        assert!(
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("npm run build")),
+            "Should have npm run build command"
+        );
+
+        // Build packages should include both PHP and Node.js packages
+        assert!(
+            build.build.packages.iter().any(|p| p.starts_with("php")),
+            "Should have PHP build packages"
+        );
+        assert!(
+            build.build.packages.iter().any(|p| p.starts_with("nodejs")),
+            "Should have Node.js build packages"
+        );
+
+        // Build cache should include both .composer/cache and .npm
+        assert!(
+            build.build.cache.contains(&".composer/cache".to_string()),
+            "Should have composer cache"
+        );
+        assert!(
+            build.build.cache.contains(&".npm".to_string()),
+            "Should have npm cache"
+        );
+
+        // Runtime should be PHP-only (no Node.js packages)
+        assert!(
+            !build
+                .runtime
+                .packages
+                .iter()
+                .any(|p| p.starts_with("nodejs")),
+            "Runtime should not have Node.js packages"
+        );
+        assert_eq!(build.runtime.ports, vec![8000]);
     }
 }

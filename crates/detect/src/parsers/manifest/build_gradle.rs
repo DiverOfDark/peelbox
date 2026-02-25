@@ -171,3 +171,29 @@ fn parse_gradle_deps(content: &str) -> Vec<Dependency> {
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(BuildGradleParser))
 }
+
+// ── Build System Profile ────────────────────────────────────────────────────
+
+fn gradle_resolve_artifacts(
+    artifacts: &mut [peelbox_core::output::schema::CopySpec],
+    package: Option<&Package>,
+) {
+    if let Some(pkg) = package {
+        if let Some(version) = &pkg.version {
+            let specific_jar = format!("{}-{}.jar", pkg.name, version);
+            for artifact in artifacts.iter_mut() {
+                if artifact.from.contains("*.jar") {
+                    artifact.from = artifact.from.replace("*.jar", &specific_jar);
+                }
+            }
+        }
+    }
+}
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        use_package_name_for_root: false,
+        resolve_artifacts: gradle_resolve_artifacts,
+        ..BuildSystemConfig::new(GRADLE)
+    })
+}

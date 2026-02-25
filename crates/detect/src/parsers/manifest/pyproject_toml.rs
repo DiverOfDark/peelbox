@@ -286,3 +286,20 @@ fn extract_python_version(
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PyProjectTomlParser))
 }
+
+// ── Build System Profiles ───────────────────────────────────────────────────
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        use_package_name_for_root: false,
+        preferred_framework_env_keys: &["VIRTUAL_ENV"],
+        ..BuildSystemConfig::new(POETRY)
+    })
+}
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        use_package_name_for_root: false,
+        ..BuildSystemConfig::new(PIP)
+    })
+}

@@ -1,0 +1,19 @@
+{
+  "name": "moon-workspace-example",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "start": "node apps/api/dist/index.js",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

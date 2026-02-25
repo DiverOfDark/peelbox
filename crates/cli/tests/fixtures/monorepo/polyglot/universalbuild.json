@@ -6,7 +6,7 @@
       ],
       "commands": [
         "mvn -f backend/pom.xml package -DskipTests",
-        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib; mkdir -p backend/target/lib"
+        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib && mkdir -p backend/target/lib"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
@@ -96,6 +96,7 @@
       "env": {},
       "packages": [
         "glibc",
+        "libssl3",
         "ca-certificates"
       ],
       "ports": [

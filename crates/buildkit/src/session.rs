@@ -616,7 +616,8 @@ impl BuildSession {
         let mut llb_builder = LLBBuilder::new("context")
             .with_context_path(self.context_path.clone())
             .with_project_name(project_name)
-            .with_session_id(self.session_id.clone());
+            .with_session_id(self.session_id.clone())
+            .with_cache_namespace(self.shared_key.clone());
 
         PeelboxStrategy.build_graph(&mut llb_builder, spec)?;
 
