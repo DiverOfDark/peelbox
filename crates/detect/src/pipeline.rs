@@ -926,16 +926,22 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
 
     // When a config provides a runtime command (e.g., Procfile), its ports should
     // take priority over framework defaults since it represents an explicit user declaration.
+    // Insert config ports at the front so they are used for health checks (which use the first port).
     if config_runtime_command.is_some() {
+        let mut config_ports = Vec::new();
         for config in &bucket.configs {
             if config.runtime_command.is_some() {
                 for &port in &config.ports {
-                    if !runtime_ports.contains(&port) {
-                        runtime_ports.push(port);
+                    if !config_ports.contains(&port) {
+                        config_ports.push(port);
                     }
                 }
             }
         }
+        // Remove any config ports already in runtime_ports, then prepend them
+        runtime_ports.retain(|p| !config_ports.contains(p));
+        config_ports.extend(runtime_ports);
+        runtime_ports = config_ports;
     }
 
     // When framework sets workdir, update artifact copy targets from /app to framework workdir
@@ -949,9 +955,11 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         }
     }
 
-    // Deduplicate (preserve order, remove later duplicates)
-    runtime_ports.sort();
-    runtime_ports.dedup();
+    // Deduplicate (preserve insertion order, remove later duplicates)
+    {
+        let mut seen = std::collections::HashSet::new();
+        runtime_ports.retain(|p| seen.insert(*p));
+    }
     {
         let mut seen = std::collections::HashSet::new();
         runtime_packages.retain(|p| seen.insert(p.clone()));

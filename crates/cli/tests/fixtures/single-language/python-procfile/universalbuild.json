@@ -56,8 +56,8 @@
         "ca-certificates"
       ],
       "ports": [
-        5000,
-        8000
+        8000,
+        5000
       ],
       "workdir": "/build"
     },
