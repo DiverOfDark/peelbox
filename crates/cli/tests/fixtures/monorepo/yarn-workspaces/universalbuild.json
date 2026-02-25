@@ -2,29 +2,30 @@
   {
     "build": {
       "cache": [
-        ".npm"
+        ".yarn-cache"
       ],
       "commands": [
-        "npm ci"
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "cd apps/web && yarn run build"
       ],
       "env": {},
       "packages": [
-        "nodejs-22",
-        "npm",
+        "nodejs-25",
+        "yarn",
         "ca-certificates"
       ]
     },
     "metadata": {
-      "build_system": "npm",
+      "build_system": "Yarn",
       "framework": "Express",
       "language": "JavaScript",
-      "project_name": "puppeteer-app",
-      "reasoning": "Detected from package.json"
+      "project_name": "@monorepo/web",
+      "reasoning": "Detected from package.json in apps/web"
     },
     "runtime": {
       "command": [
-        "node",
-        "src/screenshot.js"
+        "yarn",
+        "start"
       ],
       "copy": [
         {
@@ -37,16 +38,17 @@
         "endpoint": "/health"
       },
       "packages": [
-        "nodejs-22",
+        "nodejs-25",
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "yarn"
       ],
       "ports": [
         3000
       ],
-      "workdir": "/app"
+      "workdir": "/app/apps/web"
     },
     "version": "1.0"
   }
