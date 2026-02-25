@@ -166,7 +166,9 @@ fn parse_pip_dep(dep_str: &str) -> (String, Option<String>) {
         .trim()
         .to_string();
 
-    let version = dep_str.find(&['>', '<', '=', '~', '!'][..]).map(|idx| dep_str[idx..].trim().to_string());
+    let version = dep_str
+        .find(&['>', '<', '=', '~', '!'][..])
+        .map(|idx| dep_str[idx..].trim().to_string());
 
     (name, version)
 }
