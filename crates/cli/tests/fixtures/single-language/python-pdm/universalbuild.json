@@ -6,9 +6,9 @@
         "/root/.cache/pdm/"
       ],
       "commands": [
-        "pip install --user pdm",
-        "/root/.local/bin/pdm config venv.in-project true",
-        "/root/.local/bin/pdm install --no-self --prod"
+        "pip install pdm",
+        "pdm config venv.in-project true",
+        "pdm install --no-self --prod"
       ],
       "env": {
         "PDM_PYTHON": "/usr/bin/python3"

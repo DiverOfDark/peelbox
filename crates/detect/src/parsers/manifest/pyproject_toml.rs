@@ -107,8 +107,8 @@ impl ManifestParser for PyProjectTomlParser {
                         "ca-certificates".into(),
                     ],
                     commands: vec![
-                        "pip install --user poetry".into(),
-                        "/root/.local/bin/poetry install --no-root --only main".into(),
+                        "pip install poetry".into(),
+                        "poetry install --no-root --only main".into(),
                     ],
                     member_transform: None,
                     env: btree(&[
@@ -154,9 +154,9 @@ impl ManifestParser for PyProjectTomlParser {
                         "ca-certificates".into(),
                     ],
                     commands: vec![
-                        "pip install --user pdm".into(),
-                        "/root/.local/bin/pdm config venv.in-project true".into(),
-                        "/root/.local/bin/pdm install --no-self --prod".into(),
+                        "pip install pdm".into(),
+                        "pdm config venv.in-project true".into(),
+                        "pdm install --no-self --prod".into(),
                     ],
                     member_transform: None,
                     env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
