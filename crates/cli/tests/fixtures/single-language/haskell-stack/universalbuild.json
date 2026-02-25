@@ -6,8 +6,9 @@
         ".stack-work"
       ],
       "commands": [
-        "curl -sSL https://get.haskellstack.org/ | sh",
-        "stack build --copy-bins --local-bin-path .stack-bin"
+        "curl -sSL https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=0 bash",
+        "export PATH=\"$HOME/.ghcup/bin:$PATH\"",
+        "stack build --system-ghc --allow-different-user --copy-bins --local-bin-path .stack-bin"
       ],
       "env": {},
       "packages": [
@@ -16,7 +17,8 @@
         "gmp-dev",
         "zlib-dev",
         "ca-certificates",
-        "curl"
+        "curl",
+        "bash"
       ]
     },
     "metadata": {

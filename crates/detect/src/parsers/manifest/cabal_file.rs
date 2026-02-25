@@ -64,9 +64,11 @@ impl ManifestParser for CabalFileParser {
                     "zlib-dev".into(),
                     "ca-certificates".into(),
                     "curl".into(),
+                    "bash".into(),
                 ],
                 commands: vec![
-                    "curl -sSL https://get-ghcup.haskell.org | sh".into(),
+                    "curl -sSL https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 bash".into(),
+                    "export PATH=\"$HOME/.ghcup/bin:$PATH\"".into(),
                     "cabal update".into(),
                     "cabal build".into(),
                 ],
