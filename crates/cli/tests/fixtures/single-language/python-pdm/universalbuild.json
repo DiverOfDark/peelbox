@@ -7,7 +7,7 @@
       ],
       "commands": [
         "pip install pdm",
-        "pdm config venv.in-project true",
+        "pdm config venv.in_project true",
         "pdm install --no-self --prod"
       ],
       "env": {
