@@ -155,6 +155,7 @@ impl ManifestParser for PyProjectTomlParser {
                     ],
                     commands: vec![
                         "pip install --user pdm".into(),
+                        "/root/.local/bin/pdm config venv.in-project true".into(),
                         "/root/.local/bin/pdm install --no-self --prod".into(),
                     ],
                     member_transform: None,
