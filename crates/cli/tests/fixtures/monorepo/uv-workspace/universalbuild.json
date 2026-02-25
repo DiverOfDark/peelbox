@@ -13,8 +13,8 @@
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.12",
+        "py3.12-pip",
         "build-base",
         "ca-certificates"
       ]
@@ -48,7 +48,7 @@
         "endpoint": "/health"
       },
       "packages": [
-        "python-3.14",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"
@@ -74,8 +74,8 @@
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.12",
+        "py3.12-pip",
         "build-base",
         "ca-certificates"
       ]
@@ -100,7 +100,7 @@
       ],
       "env": {},
       "packages": [
-        "python-3.14",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"
