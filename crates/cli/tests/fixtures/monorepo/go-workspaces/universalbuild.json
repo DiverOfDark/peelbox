@@ -47,54 +47,5 @@
       "workdir": "/app"
     },
     "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        ".cache/go-build",
-        ".cache/go-mod"
-      ],
-      "commands": [
-        "go build -o shared ./pkg/shared"
-      ],
-      "env": {
-        "CGO_ENABLED": "0",
-        "GOCACHE": "/build/.cache/go-build",
-        "GOMODCACHE": "/build/.cache/go-mod",
-        "GOSUMDB": "off"
-      },
-      "packages": [
-        "go-1.21",
-        "git",
-        "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "go mod",
-      "language": "Go",
-      "project_name": "shared",
-      "reasoning": "Detected from go.mod in pkg/shared"
-    },
-    "runtime": {
-      "command": [
-        "/app/shared"
-      ],
-      "copy": [
-        {
-          "from": "shared",
-          "to": "/app/shared"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "glibc",
-        "ca-certificates"
-      ],
-      "ports": [
-        8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
   }
 ]

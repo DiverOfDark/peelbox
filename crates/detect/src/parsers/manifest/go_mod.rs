@@ -16,6 +16,34 @@ inventory::submit! {
     BuildSystemMeta { slug: "go-mod", display_name: "go mod", aliases: &["go-mod"] }
 }
 
+/// Check if any `.go` file in the given directory declares `package main`.
+/// This determines whether the Go module is an executable (application) or a library.
+fn has_go_main_package(dir: &Path) -> bool {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return false,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("go") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed == "package main" {
+                        return true;
+                    }
+                    // Stop after the package declaration line
+                    if trimmed.starts_with("package ") {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
 pub struct GoModParser;
 
 impl ManifestParser for GoModParser {
@@ -51,6 +79,28 @@ impl ManifestParser for GoModParser {
 
         let dependencies = parse_go_deps(content);
 
+        // Determine if this module is an executable or a library
+        let dir = path.parent().unwrap_or(Path::new("."));
+        let is_application = has_go_main_package(dir);
+
+        let (commands, member_transform, artifacts, entrypoint, ports) = if is_application {
+            (
+                vec![
+                    "go mod download".into(),
+                    format!("go build -o {} .", short_name),
+                ],
+                Some(MemberBuildTransform {
+                    member_commands: vec![format!("go build -o {} ./{{module}}", short_name)],
+                    member_artifacts: None,
+                }),
+                vec![(short_name.to_string(), format!("/app/{}", short_name))],
+                Some(format!("/app/{}", short_name)),
+                vec![8080],
+            )
+        } else {
+            (vec![], None, vec![], None, vec![])
+        };
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: GO,
@@ -59,20 +109,14 @@ impl ManifestParser for GoModParser {
             package: Some(Package {
                 name: short_name.to_string(),
                 version: None,
-                is_application: true,
+                is_application,
             }),
             workspace: None,
             dependencies,
             build: BuildSpec {
                 packages: vec![go_pkg, "git".into(), "ca-certificates".into()],
-                commands: vec![
-                    "go mod download".into(),
-                    format!("go build -o {} .", short_name),
-                ],
-                member_transform: Some(MemberBuildTransform {
-                    member_commands: vec![format!("go build -o {} ./{{module}}", short_name)],
-                    member_artifacts: None,
-                }),
+                commands,
+                member_transform,
                 env: btree(&[
                     ("CGO_ENABLED", "0"),
                     ("GOCACHE", "/build/.cache/go-build"),
@@ -80,14 +124,14 @@ impl ManifestParser for GoModParser {
                     ("GOSUMDB", "off"),
                 ]),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
-                artifacts: vec![(short_name.to_string(), format!("/app/{}", short_name))],
+                artifacts,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
-                entrypoint: Some(format!("/app/{}", short_name)),
+                entrypoint,
                 workdir: Some("/app".into()),
-                ports: vec![8080],
+                ports,
                 health_endpoint: None,
             },
         })
