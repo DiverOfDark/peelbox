@@ -69,14 +69,13 @@ impl ManifestParser for MakefileParser {
             vec!["make".into()]
         };
 
-        // Build packages: gcc for C, g++ for C++
-        let mut build_packages = vec!["make".into(), "build-base".into()];
-        if is_cpp {
-            build_packages.push("gcc".into());
-        } else {
-            build_packages.push("gcc".into());
-        }
-        build_packages.push("ca-certificates".into());
+        // Build packages: gcc provides both C and C++ compilers in Wolfi
+        let build_packages = vec![
+            "make".into(),
+            "build-base".into(),
+            "gcc".into(),
+            "ca-certificates".into(),
+        ];
 
         // Runtime packages for native binaries
         let mut runtime_packages = vec!["glibc".into(), "ca-certificates".into()];
