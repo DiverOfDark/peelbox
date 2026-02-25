@@ -2,7 +2,8 @@
   {
     "build": {
       "cache": [
-        "deps"
+        "deps",
+        "_build"
       ],
       "commands": [
         "mix local.hex --force && mix local.rebar --force",

@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 const JAVA: LanguageId = LanguageId::new("java");
 const KOTLIN: LanguageId = LanguageId::new("kotlin");
+const CLOJURE: LanguageId = LanguageId::new("clojure");
 
 // ── Spring Boot ─────────────────────────────────────────────────────────────
 
@@ -118,4 +119,26 @@ super::simple_detector!(
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(KtorDetector))
+}
+
+// ── Ring (Clojure) ─────────────────────────────────────────────────────────
+
+const RING: FrameworkId = FrameworkId::new("ring");
+inventory::submit! { FrameworkMeta { slug: "ring", display_name: "Ring", aliases: &[] } }
+
+super::simple_detector!(
+    RingDetector,
+    RING,
+    &[CLOJURE],
+    |deps: &[Dependency]| deps
+        .iter()
+        .any(|d| d.name == "ring/ring-core" || d.name == "ring/ring-jetty-adapter"),
+    vec![3000],
+    vec!["/health".into()],
+    BTreeMap::new(),
+    vec![]
+);
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(RingDetector))
 }
