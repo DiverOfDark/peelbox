@@ -71,10 +71,12 @@ impl ManifestParser for BuildSbtParser {
             None
         };
 
+        let install_sbt = r#"curl -fL "https://github.com/sbt/sbt/releases/download/v1.10.11/sbt-1.10.11.tgz" | tar xz -C /usr/local && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt"#.to_string();
+
         let build_commands = if has_assembly {
-            vec!["sbt assembly".into()]
+            vec![install_sbt, "sbt assembly".into()]
         } else {
-            vec!["sbt compile".into()]
+            vec![install_sbt, "sbt compile".into()]
         };
 
         let artifacts = if has_assembly {
@@ -121,7 +123,12 @@ impl ManifestParser for BuildSbtParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![java_pkg.clone(), "sbt".into(), "ca-certificates".into()],
+                packages: vec![
+                    java_pkg.clone(),
+                    "bash".into(),
+                    "curl".into(),
+                    "ca-certificates".into(),
+                ],
                 commands: build_commands,
                 member_transform,
                 env: btree(&[
@@ -292,7 +299,9 @@ libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.5.3"
             .unwrap();
         let pkg = manifest.package.unwrap();
         assert!(pkg.is_application);
-        assert_eq!(manifest.build.commands, vec!["sbt assembly"]);
+        assert_eq!(manifest.build.commands.len(), 2);
+        assert!(manifest.build.commands[0].contains("sbt-1.10.11.tgz"));
+        assert_eq!(manifest.build.commands[1], "sbt assembly");
         assert!(manifest.runtime_config.entrypoint.is_some());
     }
 
