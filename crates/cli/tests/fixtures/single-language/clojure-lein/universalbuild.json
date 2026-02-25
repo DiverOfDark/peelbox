@@ -3,16 +3,16 @@
     "build": {
       "cache": [
         ".lein",
-        ".m2",
-        "target"
+        ".m2"
       ],
       "commands": [
-        "curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && lein version",
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version",
         "lein uberjar"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "LEIN_HOME": "/root/.lein"
+        "LEIN_HOME": "/build/.lein",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "packages": [
         "openjdk-17",
@@ -32,12 +32,12 @@
       "command": [
         "java",
         "-jar",
-        "/app/my-app-standalone.jar"
+        "/app/my-app-0.1.0-standalone.jar"
       ],
       "copy": [
         {
-          "from": "target/uberjar/my-app-standalone.jar",
-          "to": "/app/my-app-standalone.jar"
+          "from": "target/my-app-0.1.0-standalone.jar",
+          "to": "/app/my-app-0.1.0-standalone.jar"
         }
       ],
       "env": {

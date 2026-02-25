@@ -33,9 +33,9 @@ impl ManifestParser for ProjectCljParser {
 
         let java_home = "/usr/lib/jvm/java-17-openjdk";
 
-        // Build the uberjar filename based on project name
-        let jar_name = format!("{}-standalone.jar", project_name);
-        let jar_path = format!("target/uberjar/{}", jar_name);
+        // Build the uberjar filename based on project name and version
+        let jar_name = format!("{}-{}-standalone.jar", project_name, version);
+        let jar_path = format!("target/{}", jar_name);
 
         let entrypoint = Some(format!("java -jar /app/{}", jar_name));
 
@@ -70,15 +70,22 @@ impl ManifestParser for ProjectCljParser {
                     "ca-certificates".into(),
                 ],
                 commands: vec![
-                    "curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && lein version".into(),
+                    "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version".into(),
                     "lein uberjar".into(),
                 ],
                 member_transform: None,
                 env: btree(&[
                     ("JAVA_HOME", java_home),
-                    ("LEIN_HOME", "/root/.lein"),
+                    ("LEIN_HOME", "/build/.lein"),
+                    (
+                        "PATH",
+                        &format!(
+                            "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                            java_home
+                        ),
+                    ),
                 ]),
-                cache_dirs: vec![".lein".into(), ".m2".into(), "target".into()],
+                cache_dirs: vec![".lein".into(), ".m2".into()],
                 artifacts: vec![(jar_path, format!("/app/{}", jar_name))],
             },
             runtime_config: RuntimeSpec {
@@ -268,7 +275,7 @@ mod tests {
             .runtime_config
             .entrypoint
             .unwrap()
-            .contains("my-app-standalone.jar"));
+            .contains("my-app-0.1.0-standalone.jar"));
     }
 
     #[test]
