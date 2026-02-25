@@ -6,8 +6,7 @@
         ".cache/go-mod"
       ],
       "commands": [
-        "go mod download",
-        "go build -o api ."
+        "go build -o api ./cmd/api"
       ],
       "env": {
         "CGO_ENABLED": "0",
@@ -56,8 +55,7 @@
         ".cache/go-mod"
       ],
       "commands": [
-        "go mod download",
-        "go build -o shared ."
+        "go build -o shared ./pkg/shared"
       ],
       "env": {
         "CGO_ENABLED": "0",

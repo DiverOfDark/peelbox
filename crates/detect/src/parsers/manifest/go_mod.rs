@@ -69,7 +69,10 @@ impl ManifestParser for GoModParser {
                     "go mod download".into(),
                     format!("go build -o {} .", short_name),
                 ],
-                member_transform: None,
+                member_transform: Some(MemberBuildTransform {
+                    member_commands: vec![format!("go build -o {} ./{{module}}", short_name)],
+                    member_artifacts: None,
+                }),
                 env: btree(&[
                     ("CGO_ENABLED", "0"),
                     ("GOCACHE", "/build/.cache/go-build"),
