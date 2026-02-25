@@ -34,15 +34,10 @@ impl ManifestParser for BuildSbtParser {
         let dependencies = parse_sbt_deps(content);
 
         let java_version = crate::version::java::detect_java_version(content);
-        let java_pkg = java_version
-            .as_ref()
-            .map(|v| format!("openjdk-{}", v))
-            .unwrap_or_else(|| "openjdk".into());
+        let effective_java_version = java_version.as_deref().unwrap_or("21");
+        let java_pkg = format!("openjdk-{}", effective_java_version);
 
-        let java_home = format!(
-            "/usr/lib/jvm/java-{}-openjdk",
-            java_version.as_deref().unwrap_or("21")
-        );
+        let java_home = format!("/usr/lib/jvm/java-{}-openjdk", effective_java_version);
 
         // Detect if this is an application (has mainClass setting or a plugin like sbt-assembly)
         let has_main_class =
@@ -124,7 +119,7 @@ impl ManifestParser for BuildSbtParser {
             dependencies,
             build: BuildSpec {
                 packages: vec![
-                    java_pkg.clone(),
+                    java_pkg,
                     "bash".into(),
                     "curl".into(),
                     "ca-certificates".into(),
@@ -143,10 +138,7 @@ impl ManifestParser for BuildSbtParser {
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
-                    java_version
-                        .as_ref()
-                        .map(|v| format!("openjdk-{}-jre", v))
-                        .unwrap_or_else(|| "openjdk".into()),
+                    format!("openjdk-{}-jre", effective_java_version),
                     "ca-certificates".into(),
                 ],
                 env: runtime_env,

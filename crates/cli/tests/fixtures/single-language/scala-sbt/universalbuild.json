@@ -15,7 +15,7 @@
         "SBT_OPTS": "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"
       },
       "packages": [
-        "openjdk-25",
+        "openjdk-21",
         "bash",
         "curl",
         "ca-certificates"
@@ -48,7 +48,7 @@
         "endpoint": "/health"
       },
       "packages": [
-        "openjdk-25",
+        "openjdk-21-jre",
         "ca-certificates"
       ],
       "ports": [
