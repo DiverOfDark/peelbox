@@ -334,11 +334,22 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_default_configuration() {
         let _guards = [
             EnvGuard::set("PEELBOX_PROVIDER", "ollama"),
             EnvGuard::set("PEELBOX_LOG_LEVEL", DEFAULT_LOG_LEVEL),
         ];
+        // Remove env vars that other tests may have set
+        env::remove_var("PEELBOX_MODEL");
+        env::remove_var("PEELBOX_CACHE_ENABLED");
+        env::remove_var("PEELBOX_REQUEST_TIMEOUT");
+        env::remove_var("PEELBOX_MAX_CONTEXT_SIZE");
+        env::remove_var("PEELBOX_MAX_TOKENS");
+        env::remove_var("PEELBOX_MAX_TOOL_ITERATIONS");
+        env::remove_var("PEELBOX_TOOL_TIMEOUT");
+        env::remove_var("PEELBOX_MAX_FILE_SIZE");
+        env::remove_var("PEELBOX_CACHE_DIR");
 
         let config = PeelboxConfig::default();
 
@@ -355,6 +366,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_environment_variable_parsing() {
         let _guards = [
             EnvGuard::set("PEELBOX_PROVIDER", "claude"),
