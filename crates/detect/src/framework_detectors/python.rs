@@ -119,6 +119,47 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FlaskPoetryDetector))
 }
 
+// ── Flask (PDM) ────────────────────────────────────────────────────────────
+
+/// Flask detector for PDM projects (uses .venv instead of --user install)
+pub struct FlaskPdmDetector;
+
+impl FrameworkDetector for FlaskPdmDetector {
+    fn id(&self) -> FrameworkId {
+        FLASK
+    }
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[PYTHON]
+    }
+    fn detect(&self, _deps: &[Dependency]) -> bool {
+        // This is used specifically for PDM projects; detection is handled externally
+        false
+    }
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: FLASK,
+            default_ports: vec![5000],
+            health_endpoints: vec!["/health".into()],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: Some(vec!["flask".into(), "run".into()]),
+            runtime_env: btree(&[
+                ("FLASK_APP", "/build/app.py"),
+                ("FLASK_RUN_HOST", "0.0.0.0"),
+                ("FLASK_RUN_PORT", "5000"),
+                ("VIRTUAL_ENV", "/build/.venv"),
+                ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+            ]),
+            workdir: Some("/build".into()),
+            extra_copy: vec![],
+        }
+    }
+}
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(FlaskPdmDetector))
+}
+
 // ── FastAPI ─────────────────────────────────────────────────────────────────
 
 const FAST_API: FrameworkId = FrameworkId::new("fastapi");

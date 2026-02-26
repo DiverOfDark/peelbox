@@ -3,15 +3,16 @@
     "build": {
       "cache": [
         "/root/.cache/pip/",
-        "/root/.cache/pypoetry/"
+        "/root/.cache/pdm/"
       ],
       "commands": [
-        "pip install poetry",
-        "poetry install --no-root --only main"
+        "pip install pdm",
+        "pdm export --no-hashes --prod -o requirements.txt",
+        "python3 -m venv .venv",
+        ".venv/bin/pip install -r requirements.txt"
       ],
       "env": {
-        "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
-        "POETRY_VIRTUALENVS_IN_PROJECT": "true"
+        "PDM_PYTHON": "/usr/bin/python3"
       },
       "packages": [
         "python-3.14",
@@ -21,7 +22,7 @@
       ]
     },
     "metadata": {
-      "build_system": "Poetry",
+      "build_system": "PDM",
       "framework": "Flask",
       "language": "Python",
       "project_name": "app",
