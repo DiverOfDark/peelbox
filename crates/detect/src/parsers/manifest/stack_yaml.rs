@@ -86,19 +86,29 @@ impl ManifestParser for StackYamlParser {
                 packages: vec![
                     "build-base".into(),
                     "gcc".into(),
+                    "glibc-dev".into(),
                     "gmp-dev".into(),
                     "zlib-dev".into(),
+                    "ncurses-dev".into(),
+                    "libffi-dev".into(),
+                    "posix-libc-utils".into(),
+                    "xz".into(),
                     "ca-certificates".into(),
                     "curl".into(),
                     "bash".into(),
                 ],
                 commands: vec![
-                    "curl -sSL https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_STACK=1 BOOTSTRAP_HASKELL_INSTALL_HLS=0 bash".into(),
-                    "export PATH=\"$HOME/.ghcup/bin:$PATH\"".into(),
+                    "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup".into(),
+                    "ghcup install ghc --set && ghcup install stack --set".into(),
                     "stack build --system-ghc --allow-different-user --copy-bins --local-bin-path .stack-bin".into(),
                 ],
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: BTreeMap::from([
+                    (
+                        "PATH".to_string(),
+                        "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+                    ),
+                ]),
                 cache_dirs: vec![".stack".into(), ".stack-work".into()],
                 artifacts: vec![(
                     format!(".stack-bin/{}", project_name),

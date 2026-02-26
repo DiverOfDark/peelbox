@@ -6,17 +6,23 @@
         "dist-newstyle"
       ],
       "commands": [
-        "curl -sSL https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 bash",
-        "export PATH=\"$HOME/.ghcup/bin:$PATH\"",
-        "cabal update",
-        "cabal build"
+        "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup",
+        "ghcup install ghc --set && ghcup install cabal --set",
+        "cabal update && cabal install --install-method=copy --installdir=.cabal-bin"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "packages": [
         "build-base",
         "gcc",
+        "glibc-dev",
         "gmp-dev",
         "zlib-dev",
+        "ncurses-dev",
+        "libffi-dev",
+        "posix-libc-utils",
+        "xz",
         "ca-certificates",
         "curl",
         "bash"
@@ -34,7 +40,7 @@
       ],
       "copy": [
         {
-          "from": "dist-newstyle/build/**/build/my-cabal-app/my-cabal-app",
+          "from": ".cabal-bin/my-cabal-app",
           "to": "/app/my-cabal-app"
         }
       ],

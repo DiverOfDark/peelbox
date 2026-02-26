@@ -60,24 +60,33 @@ impl ManifestParser for CabalFileParser {
                 packages: vec![
                     "build-base".into(),
                     "gcc".into(),
+                    "glibc-dev".into(),
                     "gmp-dev".into(),
                     "zlib-dev".into(),
+                    "ncurses-dev".into(),
+                    "libffi-dev".into(),
+                    "posix-libc-utils".into(),
+                    "xz".into(),
                     "ca-certificates".into(),
                     "curl".into(),
                     "bash".into(),
                 ],
                 commands: vec![
-                    "curl -sSL https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 bash".into(),
-                    "export PATH=\"$HOME/.ghcup/bin:$PATH\"".into(),
-                    "cabal update".into(),
-                    "cabal build".into(),
+                    "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup".into(),
+                    "ghcup install ghc --set && ghcup install cabal --set".into(),
+                    "cabal update && cabal install --install-method=copy --installdir=.cabal-bin".into(),
                 ],
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: BTreeMap::from([
+                    (
+                        "PATH".to_string(),
+                        "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+                    ),
+                ]),
                 cache_dirs: vec![".cabal".into(), "dist-newstyle".into()],
                 artifacts: if is_application {
                     vec![(
-                        format!("dist-newstyle/build/**/build/{name}/{name}"),
+                        format!(".cabal-bin/{name}"),
                         format!("/app/{name}"),
                     )]
                 } else {
