@@ -7,7 +7,7 @@
         "target"
       ],
       "commands": [
-        "curl -fL \"https://github.com/sbt/sbt/releases/download/v1.9.7/sbt-1.9.7.tgz\" | tar xz -C /usr/local && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt",
+        "curl -fL \"https://github.com/sbt/sbt/releases/download/v1.9.7/sbt-1.9.7.tgz\" | tar xz -C /usr/local && mkdir -p /usr/local/bin && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt",
         "sbt assembly"
       ],
       "env": {

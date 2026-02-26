@@ -68,7 +68,7 @@ impl ManifestParser for BuildSbtParser {
 
         let sbt_version = detect_sbt_version(path).unwrap_or_else(|| "1.10.7".to_string());
         let install_sbt = format!(
-            r#"curl -fL "https://github.com/sbt/sbt/releases/download/v{version}/sbt-{version}.tgz" | tar xz -C /usr/local && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt"#,
+            r#"curl -fL "https://github.com/sbt/sbt/releases/download/v{version}/sbt-{version}.tgz" | tar xz -C /usr/local && mkdir -p /usr/local/bin && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt"#,
             version = sbt_version
         );
 
