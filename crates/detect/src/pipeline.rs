@@ -591,9 +591,9 @@ fn partition(
             // These are used to ensure workspace members (e.g., UV member pyproject.toml
             // without [tool.uv]) inherit the workspace root's build system and commands.
             let (
-                ws_root_build_system,
+                _ws_root_build_system,
                 ws_root_member_transform,
-                ws_root_cache_dirs,
+                _ws_root_cache_dirs,
                 ws_root_artifacts,
                 ws_root_runtime_workdir,
                 ws_root_language,
@@ -724,7 +724,7 @@ fn partition(
                     // same language but a less specific build system (e.g., pip -> uv).
                     // This ensures UV workspace members detected as plain pip projects
                     // inherit the workspace root's UV build system and commands.
-                    if let Some(ws_bs) = ws_root_build_system {
+                    if let Some(ws_bs) = _ws_root_build_system {
                         if mwf.manifest.language
                             == ws_root_language.unwrap_or(mwf.manifest.language)
                             && mwf.manifest.build_system != ws_bs
@@ -733,7 +733,7 @@ fn partition(
                             if let Some(ref transform) = ws_root_member_transform {
                                 mwf.manifest.build.member_transform = Some(transform.clone());
                             }
-                            if let Some(ref cache_dirs) = ws_root_cache_dirs {
+                            if let Some(ref cache_dirs) = _ws_root_cache_dirs {
                                 mwf.manifest.build.cache_dirs = cache_dirs.clone();
                             }
                             if let Some(ref artifacts) = ws_root_artifacts {
