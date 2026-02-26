@@ -166,7 +166,7 @@ impl ManifestParser for PyProjectTomlParser {
                     member_transform: Some(MemberBuildTransform {
                         member_commands: vec![
                             "pip install --user uv".into(),
-                            "/root/.local/bin/uv sync --frozen --no-dev".into(),
+                            "/root/.local/bin/uv sync --frozen --no-dev --package {package}".into(),
                         ],
                         member_artifacts: None,
                     }),

@@ -94,6 +94,11 @@ pub fn detect_with_registry_and_wolfi(
         scan_python_entrypoints(repo_path, build);
     }
 
+    // Step 4g: Fix FLASK_APP for workspace members where hardcoded path is wrong
+    for build in &mut builds {
+        fix_flask_app_path(repo_path, build);
+    }
+
     // Step 5: Resolve Wolfi package versions
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
@@ -878,6 +883,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
                 .iter()
                 .map(|cmd| {
                     cmd.replace("{module}", &bucket.module_name())
+                        .replace("{package}", &bucket.package_name())
                         .replace("{root}", &bucket.workspace_root_display())
                 })
                 .collect()
@@ -905,8 +911,12 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
                 member_artifacts
                     .iter()
                     .map(|(from, to)| CopySpec {
-                        from: from.replace("{module}", &bucket.module_name()),
-                        to: to.replace("{module}", &bucket.module_name()),
+                        from: from
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
+                        to: to
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
                     })
                     .collect()
             } else {
@@ -914,8 +924,12 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
                     .artifacts
                     .iter()
                     .map(|(from, to)| CopySpec {
-                        from: from.replace("{module}", &bucket.module_name()),
-                        to: to.replace("{module}", &bucket.module_name()),
+                        from: from
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
+                        to: to
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
                     })
                     .collect()
             }
@@ -1929,6 +1943,58 @@ fn scan_python_entrypoints(repo_root: &Path, build: &mut UniversalBuild) {
             debug!(entrypoint = %entrypoint_path, "Found Python entrypoint");
             build.runtime.command = vec!["python".into(), entrypoint_path];
             return;
+        }
+    }
+}
+
+// ── Flask app path fix ────────────────────────────────────────────────────
+
+/// Fix FLASK_APP for workspace members where the hardcoded `/build/app.py` doesn't exist.
+/// Searches the project directory for `app.py` and updates FLASK_APP to the correct path.
+fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
+    if build.metadata.language != "Python" {
+        return;
+    }
+
+    // Only fix if FLASK_APP is set to the default hardcoded value
+    let flask_app = match build.runtime.env.get("FLASK_APP") {
+        Some(v) if v == "/build/app.py" => v.clone(),
+        _ => return,
+    };
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+
+    // If app.py exists at project root, the default FLASK_APP is correct
+    if project_dir.join("app.py").exists() && project_dir == repo_root {
+        return;
+    }
+
+    // For workspace members in subdirectories, search for app.py in the project dir
+    if project_dir != repo_root {
+        // Check for app.py directly in the project directory
+        if project_dir.join("app.py").exists() {
+            let rel_path = project_dir
+                .strip_prefix(repo_root)
+                .unwrap_or(project_dir.as_path());
+            let new_flask_app = format!("/build/{}/app.py", rel_path.display());
+            debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
+            build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+            return;
+        }
+
+        // Search recursively for app.py in the project directory (e.g., src/api/app.py)
+        for entry in WalkBuilder::new(&project_dir)
+            .max_depth(Some(4))
+            .build()
+            .filter_map(|e| e.ok())
+        {
+            if entry.file_name() == "app.py" && entry.file_type().is_some_and(|t| t.is_file()) {
+                let rel_path = entry.path().strip_prefix(repo_root).unwrap_or(entry.path());
+                let new_flask_app = format!("/build/{}", rel_path.display());
+                debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
+                build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+                return;
+            }
         }
     }
 }
