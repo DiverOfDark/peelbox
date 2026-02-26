@@ -1490,6 +1490,7 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[
             r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
             r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
     ),
     (
         "PHP",
