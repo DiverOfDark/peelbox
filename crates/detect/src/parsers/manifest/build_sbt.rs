@@ -66,7 +66,11 @@ impl ManifestParser for BuildSbtParser {
             None
         };
 
-        let install_sbt = r#"curl -fL "https://github.com/sbt/sbt/releases/download/v1.10.11/sbt-1.10.11.tgz" | tar xz -C /usr/local && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt"#.to_string();
+        let sbt_version = detect_sbt_version(path).unwrap_or_else(|| "1.10.7".to_string());
+        let install_sbt = format!(
+            r#"curl -fL "https://github.com/sbt/sbt/releases/download/v{version}/sbt-{version}.tgz" | tar xz -C /usr/local && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt"#,
+            version = sbt_version
+        );
 
         let build_commands = if has_assembly {
             vec![install_sbt, "sbt assembly".into()]
@@ -149,6 +153,26 @@ impl ManifestParser for BuildSbtParser {
             },
         })
     }
+}
+
+/// Read sbt version from `project/build.properties` relative to the `build.sbt` path.
+/// The file typically contains `sbt.version=X.Y.Z`.
+fn detect_sbt_version(build_sbt_path: &Path) -> Option<String> {
+    let project_dir = build_sbt_path
+        .parent()?
+        .join("project")
+        .join("build.properties");
+    let content = std::fs::read_to_string(project_dir).ok()?;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(version) = trimmed.strip_prefix("sbt.version=") {
+            let version = version.trim();
+            if !version.is_empty() {
+                return Some(version.to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Extract Scala version from `scalaVersion := "X.Y.Z"`.
@@ -292,7 +316,8 @@ libraryDependencies += "com.typesafe.akka" %% "akka-http" % "10.5.3"
         let pkg = manifest.package.unwrap();
         assert!(pkg.is_application);
         assert_eq!(manifest.build.commands.len(), 2);
-        assert!(manifest.build.commands[0].contains("sbt-1.10.11.tgz"));
+        // When no project/build.properties exists, defaults to 1.10.7
+        assert!(manifest.build.commands[0].contains("sbt-1.10.7.tgz"));
         assert_eq!(manifest.build.commands[1], "sbt assembly");
         assert!(manifest.runtime_config.entrypoint.is_some());
     }
