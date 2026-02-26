@@ -15,7 +15,7 @@ tokio-stream = "0.1"
 tower = "0.5"
 hyper-util = { version = "0.1", features = ["tokio"] }
 bytes = "1.5"
-bollard = "0.18"
+bollard = "0.20"
 futures-util = "0.3"
 tracing = "0.1"
 anyhow = "1.0"
