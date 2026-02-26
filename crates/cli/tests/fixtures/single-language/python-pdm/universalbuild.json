@@ -7,8 +7,9 @@
       ],
       "commands": [
         "pip install pdm",
-        "pdm config venv.in_project true",
-        "pdm install --no-self --prod"
+        "pdm export --no-hashes --prod -o requirements.txt",
+        "python3 -m venv .venv",
+        ".venv/bin/pip install -r requirements.txt"
       ],
       "env": {
         "PDM_PYTHON": "/usr/bin/python3"

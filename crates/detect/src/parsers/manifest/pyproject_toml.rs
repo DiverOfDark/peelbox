@@ -155,8 +155,9 @@ impl ManifestParser for PyProjectTomlParser {
                     ],
                     commands: vec![
                         "pip install pdm".into(),
-                        "pdm config venv.in_project true".into(),
-                        "pdm install --no-self --prod".into(),
+                        "pdm export --no-hashes --prod -o requirements.txt".into(),
+                        "python3 -m venv .venv".into(),
+                        ".venv/bin/pip install -r requirements.txt".into(),
                     ],
                     member_transform: None,
                     env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
@@ -424,7 +425,17 @@ build-backend = "pdm.backend"
             .build
             .commands
             .iter()
-            .any(|c| c.contains("pdm install")));
+            .any(|c| c.contains("pdm export")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("python3 -m venv .venv")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains(".venv/bin/pip install")));
 
         // Check env vars
         assert!(manifest.build.env.contains_key("PDM_PYTHON"));
