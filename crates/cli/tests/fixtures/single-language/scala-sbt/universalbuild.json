@@ -37,7 +37,7 @@
       ],
       "copy": [
         {
-          "from": "target/scala-*/my-scala-app*-assembly.jar",
+          "from": "target/scala-*/my-scala-app*assembly*.jar",
           "to": "/app/app.jar"
         }
       ],

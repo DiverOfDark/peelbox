@@ -81,7 +81,7 @@ impl ManifestParser for BuildSbtParser {
         let artifacts = if has_assembly {
             vec![(
                 format!(
-                    "target/scala-*/{}*-assembly.jar",
+                    "target/scala-*/{}*assembly*.jar",
                     project_name.as_deref().unwrap_or("app")
                 ),
                 "/app/app.jar".into(),
