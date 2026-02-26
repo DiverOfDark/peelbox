@@ -1,34 +1,32 @@
 [
   {
     "build": {
-      "cache": [
-        "build/"
-      ],
+      "cache": [],
       "commands": [
-        "meson setup build --buildtype=release",
-        "meson compile -C build"
+        "make"
       ],
       "env": {},
       "packages": [
-        "meson",
+        "make",
         "build-base",
+        "gcc",
         "ca-certificates"
       ]
     },
     "metadata": {
-      "build_system": "Meson",
+      "build_system": "Make",
       "language": "C++",
-      "project_name": "myapp",
-      "reasoning": "Detected from meson.build"
+      "project_name": "app",
+      "reasoning": "Detected from Makefile"
     },
     "runtime": {
       "command": [
-        "/app/myapp"
+        "/app/app"
       ],
       "copy": [
         {
-          "from": "build/myapp",
-          "to": "/app/myapp"
+          "from": "app",
+          "to": "/app/app"
         }
       ],
       "env": {},
@@ -36,7 +34,9 @@
         "endpoint": "/health"
       },
       "packages": [
-        "ca-certificates"
+        "glibc",
+        "ca-certificates",
+        "libstdc++"
       ],
       "ports": [
         8080

@@ -1367,6 +1367,16 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
     ),
     (
+        "C",
+        &["c", "h"],
+        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
+    ),
+    (
         "Clojure",
         &["clj", "cljc", "cljs"],
         &[
@@ -1495,6 +1505,22 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
+        "C",
+        &["c", "h"],
+        &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+    ),
+    (
         "PHP",
         &["php"],
         &[
@@ -1609,6 +1635,16 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         "Elixir",
         &["ex", "exs"],
         &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+    (
+        "C",
+        &["c", "h"],
+        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
     ),
     (
         "Clojure",
