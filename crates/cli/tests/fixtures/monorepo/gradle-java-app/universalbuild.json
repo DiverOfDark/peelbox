@@ -15,7 +15,7 @@
       },
       "packages": [
         "openjdk-25",
-        "gradle-9",
+        "gradle-8",
         "ca-certificates"
       ]
     },
