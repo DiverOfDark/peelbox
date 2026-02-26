@@ -6,8 +6,7 @@
         ".cache/go-mod"
       ],
       "commands": [
-        "go mod download",
-        "go build -o app ."
+        "go build -o api ./cmd/api"
       ],
       "env": {
         "CGO_ENABLED": "0",
@@ -23,25 +22,21 @@
     },
     "metadata": {
       "build_system": "go mod",
-      "framework": "Gin",
       "language": "Go",
-      "project_name": "app",
-      "reasoning": "Detected from go.mod"
+      "project_name": "api",
+      "reasoning": "Detected from go.mod in cmd/api"
     },
     "runtime": {
       "command": [
-        "/app/app"
+        "/app/api"
       ],
       "copy": [
         {
-          "from": "app",
-          "to": "/app/app"
+          "from": "api",
+          "to": "/app/api"
         }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
         "glibc",
         "ca-certificates"
