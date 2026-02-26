@@ -99,7 +99,11 @@ impl ManifestParser for BuildGradleParser {
             workspace: None, // Workspace comes from SettingsGradleParser
             dependencies,
             build: BuildSpec {
-                packages: vec![java_pkg.clone(), "gradle".into(), "ca-certificates".into()],
+                packages: vec![
+                    java_pkg.clone(),
+                    "gradle-8".into(),
+                    "ca-certificates".into(),
+                ],
                 commands: vec!["gradle assemble -x test --no-daemon --console=plain".into()],
                 member_transform: Some(MemberBuildTransform {
                     member_commands: vec![
