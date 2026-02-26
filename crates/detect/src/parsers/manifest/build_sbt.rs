@@ -133,6 +133,13 @@ impl ManifestParser for BuildSbtParser {
                 env: btree(&[
                     ("JAVA_HOME", &java_home),
                     (
+                        "PATH",
+                        &format!(
+                            "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                            java_home
+                        ),
+                    ),
+                    (
                         "SBT_OPTS",
                         "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2",
                     ),
