@@ -103,7 +103,8 @@
         "python-3.12",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "uv"
       ],
       "ports": [
         8000
