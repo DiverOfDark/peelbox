@@ -1,0 +1,59 @@
+[
+  {
+    "build": {
+      "cache": [
+        ".cabal",
+        "dist-newstyle"
+      ],
+      "commands": [
+        "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup",
+        "ghcup install ghc --set && ghcup install cabal --set",
+        "cabal update && cabal install --install-method=copy --installdir=.cabal-bin"
+      ],
+      "env": {
+        "PATH": "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "packages": [
+        "build-base",
+        "gcc",
+        "glibc-dev",
+        "gmp-dev",
+        "zlib-dev",
+        "ncurses-dev",
+        "libffi-dev",
+        "posix-libc-utils",
+        "xz",
+        "ca-certificates",
+        "curl",
+        "bash"
+      ]
+    },
+    "metadata": {
+      "build_system": "Cabal",
+      "language": "Haskell",
+      "project_name": "my-cabal-app",
+      "reasoning": "Detected from my-cabal-app.cabal"
+    },
+    "runtime": {
+      "command": [
+        "/app/my-cabal-app"
+      ],
+      "copy": [
+        {
+          "from": ".cabal-bin/my-cabal-app",
+          "to": "/app/my-cabal-app"
+        }
+      ],
+      "env": {},
+      "packages": [
+        "glibc",
+        "gmp",
+        "zlib",
+        "ca-certificates"
+      ],
+      "ports": [],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

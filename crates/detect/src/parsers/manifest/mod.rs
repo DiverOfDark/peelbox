@@ -4,7 +4,9 @@
 
 mod bazel_build;
 mod build_gradle;
+mod build_sbt;
 mod build_zig_zon;
+mod cabal_file;
 mod cargo_toml;
 mod cmake_lists;
 mod composer_json;
@@ -27,13 +29,16 @@ mod pyproject_toml;
 mod requirements_txt;
 mod settings_gradle;
 mod setup_py;
+mod stack_yaml;
 mod uv_lock;
 mod yarn_lock;
 mod zig_build;
 
 pub use bazel_build::BazelBuildParser;
 pub use build_gradle::BuildGradleParser;
+pub use build_sbt::BuildSbtParser;
 pub use build_zig_zon::BuildZigZonParser;
+pub use cabal_file::CabalFileParser;
 pub use cargo_toml::CargoTomlParser;
 pub use cmake_lists::CMakeListsParser;
 pub use composer_json::ComposerJsonParser;
@@ -56,6 +61,7 @@ pub use pyproject_toml::PyProjectTomlParser;
 pub use requirements_txt::RequirementsTxtParser;
 pub use settings_gradle::SettingsGradleParser;
 pub use setup_py::SetupPyParser;
+pub use stack_yaml::StackYamlParser;
 pub use uv_lock::UvLockParser;
 pub use yarn_lock::YarnLockParser;
 pub use zig_build::ZigBuildParser;

@@ -230,6 +230,18 @@ fn classify_file(
         }
     }
 
+    // Try .cabal files (special case: extension-based matching)
+    if filename.ends_with(".cabal") {
+        let cabal_parser = crate::parsers::manifest::CabalFileParser;
+        if let Ok(content) = std::fs::read_to_string(abs_path) {
+            if let Some(mut manifest) = ManifestParser::parse(&cabal_parser, abs_path, &content) {
+                manifest.path = rel_path.to_path_buf();
+                debug!(file = %rel_path.display(), "Parsed Haskell .cabal file");
+                return FileKind::Manifest(Box::new(manifest));
+            }
+        }
+    }
+
     // Try config parsers
     if let Some(parser) = config_lookup.get(filename) {
         if let Ok(content) = std::fs::read_to_string(abs_path) {
@@ -1373,6 +1385,15 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
             r#"server\.port\s*=\s*(\d{4,5})"#,
         ],
     ),
+    (
+        "Scala",
+        &["scala", "java"],
+        &[
+            r"\.setPort\(\s*(\d{4,5})\s*\)",
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+    ),
     ("Elixir", &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
     (
         "Ruby",
@@ -1525,6 +1546,14 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
+        "Scala",
+        &["scala", "java"],
+        &[
+            r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+    ),
+    (
         "Python",
         &["py"],
         &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
@@ -1665,6 +1694,14 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         "Kotlin",
         &["java", "kt", "kts"],
         &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+    (
+        "Scala",
+        &["scala", "java"],
+        &[
+            r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
+            r#"sys\.env\.get(?:OrElse)?\(["']([A-Z_][A-Z0-9_]*)"#,
+        ],
     ),
     (
         "Elixir",
