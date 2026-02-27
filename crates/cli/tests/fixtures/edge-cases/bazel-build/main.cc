@@ -55,7 +55,7 @@ int main() {
     signal(SIGCHLD, SIG_IGN);
 
     const char* port_env = getenv("PORT");
-    int port = port_env ? atoi(port_env) : 8080;
+    int port = (port_env && port_env[0] != '\0') ? atoi(port_env) : 8080;
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {

@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
-use bollard::container::{
-    Config, LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
+use bollard::models::{ContainerCreateBody, HostConfig, PortBinding};
+use bollard::query_parameters::{
+    LogsOptions, RemoveContainerOptions, StartContainerOptions, WaitContainerOptions,
 };
-use bollard::service::{HostConfig, PortBinding};
 use bollard::Docker;
 use futures_util::stream::StreamExt;
 use std::collections::HashMap;
@@ -90,10 +90,10 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
         let image_name = "moby/buildkit:v0.12.5";
         if docker.inspect_image(image_name).await.is_err() {
             eprintln!("Pulling BuildKit image {}...", image_name);
-            use bollard::image::CreateImageOptions;
+            use bollard::query_parameters::CreateImageOptions;
             let mut pull_stream = docker.create_image(
                 Some(CreateImageOptions {
-                    from_image: image_name,
+                    from_image: Some(image_name.to_string()),
                     ..Default::default()
                 }),
                 None,
@@ -116,10 +116,9 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
             }]),
         );
 
-        let mut exposed_ports = HashMap::new();
-        exposed_ports.insert("1234/tcp".to_string(), HashMap::new());
+        let exposed_ports = vec!["1234/tcp".to_string()];
 
-        let config = Config {
+        let config = ContainerCreateBody {
             image: Some(image_name.to_string()),
             cmd: Some(vec!["--addr".to_string(), "tcp://0.0.0.0:1234".to_string()]),
             exposed_ports: Some(exposed_ports),
@@ -134,10 +133,11 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
 
         let create_result = docker
             .create_container(
-                Some(bollard::container::CreateContainerOptions {
-                    name: BUILDKIT_CONTAINER_NAME,
-                    ..Default::default()
-                }),
+                Some(
+                    bollard::query_parameters::CreateContainerOptionsBuilder::default()
+                        .name(BUILDKIT_CONTAINER_NAME)
+                        .build(),
+                ),
                 config,
             )
             .await;
@@ -147,7 +147,7 @@ pub async fn get_buildkit_container() -> Result<(u16, String)> {
                 let container_id = container_response.id;
 
                 docker
-                    .start_container(&container_id, None::<StartContainerOptions<String>>)
+                    .start_container(&container_id, None::<StartContainerOptions>)
                     .await
                     .context("Failed to start BuildKit container")?;
 
@@ -428,19 +428,18 @@ impl ContainerTestHarness {
         env: Option<Vec<String>>,
     ) -> Result<String> {
         let (exposed_ports, host_config) = if let Some(port) = container_port {
-            let mut ep = std::collections::HashMap::new();
-            ep.insert(format!("{}/tcp", port), std::collections::HashMap::new());
+            let ep = vec![format!("{}/tcp", port)];
             let mut pb = std::collections::HashMap::new();
             pb.insert(
                 format!("{}/tcp", port),
-                Some(vec![bollard::service::PortBinding {
+                Some(vec![PortBinding {
                     host_ip: Some("127.0.0.1".to_string()),
                     host_port: Some("0".to_string()),
                 }]),
             );
             (
                 Some(ep),
-                Some(bollard::service::HostConfig {
+                Some(HostConfig {
                     port_bindings: Some(pb),
                     ..Default::default()
                 }),
@@ -449,7 +448,7 @@ impl ContainerTestHarness {
             (None, None)
         };
 
-        let container_config = Config {
+        let container_config = ContainerCreateBody {
             image: Some(image_name.to_string()),
             cmd,
             env,
@@ -460,12 +459,15 @@ impl ContainerTestHarness {
 
         let container = self
             .docker
-            .create_container::<String, String>(None, container_config)
+            .create_container(
+                None::<bollard::query_parameters::CreateContainerOptions>,
+                container_config,
+            )
             .await
             .context("Failed to create container")?;
 
         self.docker
-            .start_container(&container.id, None::<StartContainerOptions<String>>)
+            .start_container(&container.id, None::<StartContainerOptions>)
             .await
             .context("Failed to start container")?;
 
@@ -475,7 +477,7 @@ impl ContainerTestHarness {
     pub async fn wait_for_exit(&self, container_id: &str, timeout: Duration) -> Result<i64> {
         let wait_fut = async {
             let options = WaitContainerOptions {
-                condition: "not-running",
+                condition: "not-running".to_string(),
             };
             let mut stream = self.docker.wait_container(container_id, Some(options));
             if let Some(result) = stream.next().await {
@@ -601,12 +603,19 @@ impl ContainerTestHarness {
     }
 
     pub async fn cleanup_image(&self, image_name: &str) -> Result<()> {
-        let _ = self.docker.remove_image(image_name, None, None).await;
+        let _ = self
+            .docker
+            .remove_image(
+                image_name,
+                None::<bollard::query_parameters::RemoveImageOptions>,
+                None,
+            )
+            .await;
         Ok(())
     }
 
     pub async fn get_container_logs(&self, container_id: &str) -> Result<String> {
-        let logs_options = LogsOptions::<String> {
+        let logs_options = LogsOptions {
             stdout: true,
             stderr: true,
             ..Default::default()

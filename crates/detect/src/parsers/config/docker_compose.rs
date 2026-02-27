@@ -54,6 +54,7 @@ impl ConfigParser for DockerComposeParser {
             env_vars,
             ports,
             health_endpoint: None,
+            runtime_command: None,
         })
     }
 }

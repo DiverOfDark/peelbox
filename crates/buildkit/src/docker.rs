@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bollard::container::ListContainersOptions;
+use bollard::query_parameters::ListContainersOptionsBuilder;
 use bollard::Docker;
 use std::collections::HashMap;
 use std::path::Path;
@@ -45,11 +45,12 @@ pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
     let mut filters = HashMap::new();
     filters.insert("status", vec!["running"]);
 
-    let options = Some(ListContainersOptions {
-        all: true,
-        filters,
-        ..Default::default()
-    });
+    let options = Some(
+        ListContainersOptionsBuilder::default()
+            .all(true)
+            .filters(&filters)
+            .build(),
+    );
 
     match docker.list_containers(options).await {
         Ok(containers) => {

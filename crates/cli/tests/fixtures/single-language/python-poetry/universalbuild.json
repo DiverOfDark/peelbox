@@ -6,8 +6,8 @@
         "/root/.cache/pypoetry/"
       ],
       "commands": [
-        "pip install --user poetry",
-        "/root/.local/bin/poetry install --no-root --only main"
+        "pip install poetry",
+        "poetry install --no-root --only main"
       ],
       "env": {
         "POETRY_CACHE_DIR": "/root/.cache/pypoetry",

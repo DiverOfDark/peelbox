@@ -15,7 +15,7 @@
       },
       "packages": [
         "openjdk-17",
-        "gradle-9",
+        "gradle-8",
         "ca-certificates"
       ]
     },
@@ -72,7 +72,7 @@
       },
       "packages": [
         "openjdk-17",
-        "gradle-9",
+        "gradle-8",
         "ca-certificates"
       ]
     },

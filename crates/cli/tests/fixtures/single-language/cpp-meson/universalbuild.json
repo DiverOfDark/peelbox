@@ -32,6 +32,9 @@
         }
       ],
       "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
       "packages": [
         "ca-certificates"
       ],

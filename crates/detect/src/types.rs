@@ -167,6 +167,8 @@ pub struct ConfigContribution {
     pub ports: Vec<u16>,
     /// Health endpoint discovered.
     pub health_endpoint: Option<String>,
+    /// Runtime command override (e.g., from Procfile `web:` process type).
+    pub runtime_command: Option<String>,
 }
 
 // ── Framework contribution ──────────────────────────────────────────────────

@@ -116,6 +116,7 @@ mod tests {
 
     const RUST: LanguageId = LanguageId::new("rust");
     const CSHARP: LanguageId = LanguageId::new("csharp");
+    const C: LanguageId = LanguageId::new("c");
     const CPP: LanguageId = LanguageId::new("c++");
 
     // ── LanguageId tests ────────────────────────────────────────────────
@@ -124,6 +125,7 @@ mod tests {
     fn test_language_id_serialization() {
         assert_eq!(serde_json::to_string(&RUST).unwrap(), "\"rust\"");
         assert_eq!(serde_json::to_string(&CSHARP).unwrap(), "\"csharp\"");
+        assert_eq!(serde_json::to_string(&C).unwrap(), "\"c\"");
         assert_eq!(serde_json::to_string(&CPP).unwrap(), "\"c++\"");
     }
 
@@ -144,6 +146,7 @@ mod tests {
         assert_eq!(RUST.name(), "Rust");
         assert_eq!(CSHARP.name(), "C#");
         assert_eq!(LanguageId::new("fsharp").name(), "F#");
+        assert_eq!(C.name(), "C");
         assert_eq!(CPP.name(), "C++");
     }
 
@@ -260,6 +263,7 @@ mod tests {
             Some(RuntimeId::new("native"))
         );
         assert_eq!(RuntimeId::from_name("rust"), Some(RuntimeId::new("native")));
+        assert_eq!(RuntimeId::from_name("c"), Some(RuntimeId::new("native")));
         assert_eq!(RuntimeId::from_name("c++"), Some(RuntimeId::new("native")));
         assert_eq!(RuntimeId::from_name("go"), Some(RuntimeId::new("native")));
         assert_eq!(RuntimeId::from_name(".NET"), Some(RuntimeId::new("dotnet")));

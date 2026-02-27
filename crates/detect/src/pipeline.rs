@@ -600,6 +600,12 @@ fn partition(
             let ws_root_runtime_packages =
                 ws_root_manifest.map(|m| m.manifest.runtime_config.packages.clone());
 
+            // Extract build system info for lock-file-based propagation
+            let ws_root_build_system = ws_root_manifest.map(|m| m.manifest.build_system);
+            let ws_root_build_commands =
+                ws_root_manifest.map(|m| m.manifest.build.commands.clone());
+            let ws_root_cache_dirs = ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
+
             for member_dir in expanded_members {
                 if let Some(mut mwf) = merged.remove(&member_dir) {
                     let configs = collect_configs_for_service(&member_dir, ws_root, &dir_configs);
@@ -615,6 +621,67 @@ fn partition(
                             1.min(mwf.manifest.build.cache_dirs.len()),
                             ".turbo".to_string(),
                         );
+                    }
+
+                    // Propagate build system from workspace root to members when
+                    // the root's build system was determined by a lock file (merge_priority).
+                    // This ensures workspace members use the correct package manager
+                    // (e.g., yarn/pnpm instead of defaulting to npm).
+                    if let Some(ws_bs) = ws_root_build_system {
+                        if registry
+                            .get_profile(&ws_bs)
+                            .is_some_and(|p| p.merge_priority)
+                            && mwf.manifest.build_system != ws_bs
+                        {
+                            let old_pm = mwf.manifest.build_system.slug();
+                            let new_pm = ws_bs.slug();
+
+                            mwf.manifest.build_system = ws_bs;
+
+                            // Replace build packages with root's (e.g., yarn instead of npm)
+                            if let Some(ref pkgs) = ws_root_build_packages {
+                                mwf.manifest.build.packages = pkgs.clone();
+                            }
+
+                            // Replace cache dirs with root's (e.g., .yarn-cache instead of .npm)
+                            if let Some(ref cache) = ws_root_cache_dirs {
+                                mwf.manifest.build.cache_dirs = cache.clone();
+                            }
+
+                            // Replace install command with root's, and update package manager
+                            // name in build commands
+                            if let Some(ref root_cmds) = ws_root_build_commands {
+                                if !root_cmds.is_empty() {
+                                    if !mwf.manifest.build.commands.is_empty() {
+                                        mwf.manifest.build.commands[0] = root_cmds[0].clone();
+                                    }
+                                    for cmd in mwf.manifest.build.commands.iter_mut().skip(1) {
+                                        *cmd = cmd.replace(old_pm, new_pm);
+                                    }
+                                }
+                            }
+
+                            // Ensure the new package manager is in runtime packages
+                            // since the entrypoint override will use it (e.g., "yarn start")
+                            let new_pm_pkg = new_pm.to_string();
+                            if !mwf.manifest.runtime_config.packages.contains(&new_pm_pkg) {
+                                mwf.manifest.runtime_config.packages.push(new_pm_pkg);
+                            }
+
+                            // Update member_transform commands similarly
+                            if let Some(ref mut transform) = mwf.manifest.build.member_transform {
+                                if let Some(ref root_cmds) = ws_root_build_commands {
+                                    if !root_cmds.is_empty()
+                                        && !transform.member_commands.is_empty()
+                                    {
+                                        transform.member_commands[0] = root_cmds[0].clone();
+                                        for cmd in transform.member_commands.iter_mut().skip(1) {
+                                            *cmd = cmd.replace(old_pm, new_pm);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // Propagate versioned packages from workspace root to members
@@ -890,12 +957,16 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     let mut runtime_ports = m.runtime_config.ports.clone();
     let mut runtime_packages = m.runtime_config.packages.clone();
     let mut health_endpoint = m.runtime_config.health_endpoint.clone();
+    let mut config_runtime_command: Option<String> = None;
 
     for config in &bucket.configs {
         runtime_env.extend(config.env_vars.clone());
         runtime_ports.extend(config.ports.clone());
         if health_endpoint.is_none() {
             health_endpoint.clone_from(&config.health_endpoint);
+        }
+        if config_runtime_command.is_none() {
+            config_runtime_command.clone_from(&config.runtime_command);
         }
     }
 
@@ -932,6 +1003,26 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         None
     };
 
+    // When a config provides a runtime command (e.g., Procfile), its ports should
+    // take priority over framework defaults since it represents an explicit user declaration.
+    // Insert config ports at the front so they are used for health checks (which use the first port).
+    if config_runtime_command.is_some() {
+        let mut config_ports = Vec::new();
+        for config in &bucket.configs {
+            if config.runtime_command.is_some() {
+                for &port in &config.ports {
+                    if !config_ports.contains(&port) {
+                        config_ports.push(port);
+                    }
+                }
+            }
+        }
+        // Remove any config ports already in runtime_ports, then prepend them
+        runtime_ports.retain(|p| !config_ports.contains(p));
+        config_ports.extend(runtime_ports);
+        runtime_ports = config_ports;
+    }
+
     // When framework sets workdir, update artifact copy targets from /app to framework workdir
     if let Some(ref fw_workdir) = framework_workdir {
         if fw_workdir != "/app" {
@@ -943,9 +1034,11 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         }
     }
 
-    // Deduplicate (preserve order, remove later duplicates)
-    runtime_ports.sort();
-    runtime_ports.dedup();
+    // Deduplicate (preserve insertion order, remove later duplicates)
+    {
+        let mut seen = std::collections::HashSet::new();
+        runtime_ports.retain(|p| seen.insert(*p));
+    }
     {
         let mut seen = std::collections::HashSet::new();
         runtime_packages.retain(|p| seen.insert(p.clone()));
@@ -980,8 +1073,10 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             })
     };
 
-    // Build entrypoint command: framework override > manifest entrypoint
-    let entrypoint_cmd = if let Some(fw_cmd) = framework_runtime_command {
+    // Build entrypoint command: config (Procfile) > framework override > manifest entrypoint
+    let entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
+        config_cmd.split_whitespace().map(String::from).collect()
+    } else if let Some(fw_cmd) = framework_runtime_command {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root projects, build system profile may override the entrypoint
@@ -1283,6 +1378,25 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["php"],
         &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
     ),
+    (
+        "C",
+        &["c", "h"],
+        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
+    ),
+    (
+        "Clojure",
+        &["clj", "cljc", "cljs"],
+        &[
+            r#":port\s+(\d{4,5})"#,
+            r#"\{:port\s+(\d{4,5})\}"#,
+            r#"run-jetty\s+[^\{]*\{[^}]*:port\s+(\d{4,5})"#,
+        ],
+    ),
 ];
 
 /// Scan source files in a project directory for port patterns.
@@ -1402,6 +1516,31 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["rs"],
         &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
+    (
+        "C",
+        &["c", "h"],
+        &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+    ),
+    (
+        "PHP",
+        &["php"],
+        &[
+            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"case\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+    ),
 ];
 
 /// Scan source files for health endpoint patterns.
@@ -1509,6 +1648,21 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &["ex", "exs"],
         &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
     ),
+    (
+        "C",
+        &["c", "h"],
+        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    ),
+    (
+        "C++",
+        &["cpp", "cxx", "cc", "hpp", "h"],
+        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    ),
+    (
+        "Clojure",
+        &["clj", "cljc", "cljs"],
+        &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
+    ),
 ];
 
 /// Built-in environment variables to skip.
@@ -1606,6 +1760,13 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
             }
         }
+        "PHP" => {
+            if let Some(version) = read_php_version(&project_dir, repo_root) {
+                let versioned_pkg = format!("php-{}", version);
+                replace_package(&mut build.build.packages, "php", &versioned_pkg);
+                replace_package(&mut build.runtime.packages, "php", &versioned_pkg);
+            }
+        }
         "Rust" => {
             // Only build packages need the rust compiler; runtime uses the compiled binary
             if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
@@ -1694,6 +1855,25 @@ fn parse_pipfile_python_version(content: &str) -> Option<String> {
     let re = regex::Regex::new(r#"(?m)^\s*python_version\s*=\s*["'](\d+\.\d+)["']"#).ok()?;
     re.captures(content)
         .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+}
+
+/// Read PHP version from .php-version file.
+fn read_php_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join(".php-version");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            // Extract major.minor (e.g., "8.2.15" → "8.2", "8.2" → "8.2")
+            let parts: Vec<&str> = trimmed.split('.').collect();
+            if parts.len() >= 2
+                && parts[0].chars().all(|c| c.is_ascii_digit())
+                && parts[1].chars().all(|c| c.is_ascii_digit())
+            {
+                return Some(format!("{}.{}", parts[0], parts[1]));
+            }
+        }
+    }
+    None
 }
 
 /// Replace an unversioned package with a versioned one.

@@ -1,0 +1,47 @@
+[
+  {
+    "build": {
+      "cache": [],
+      "commands": [
+        "make"
+      ],
+      "env": {},
+      "packages": [
+        "make",
+        "build-base",
+        "gcc",
+        "ca-certificates"
+      ]
+    },
+    "metadata": {
+      "build_system": "Make",
+      "language": "C",
+      "project_name": "server",
+      "reasoning": "Detected from Makefile"
+    },
+    "runtime": {
+      "command": [
+        "/app/server"
+      ],
+      "copy": [
+        {
+          "from": "server",
+          "to": "/app/server"
+        }
+      ],
+      "env": {},
+      "health": {
+        "endpoint": "/health"
+      },
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "ports": [
+        8080
+      ],
+      "workdir": "/app"
+    },
+    "version": "1.0"
+  }
+]

@@ -42,6 +42,7 @@ impl ConfigParser for EnvFileParser {
             env_vars,
             ports,
             health_endpoint: None,
+            runtime_command: None,
         })
     }
 }

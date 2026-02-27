@@ -18,7 +18,7 @@ inventory::submit! {
     BuildSystemMeta { slug: "cargo", display_name: "Cargo", aliases: &["cargo"] }
 }
 inventory::submit! {
-    RuntimeMeta { slug: "native", display_name: "Native", aliases: &["rust", "c++", "go", "haskell"] }
+    RuntimeMeta { slug: "native", display_name: "Native", aliases: &["rust", "c", "c++", "go", "haskell"] }
 }
 
 pub struct CargoTomlParser;

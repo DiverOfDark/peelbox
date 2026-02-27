@@ -130,7 +130,7 @@ impl ManifestParser for MixExsParser {
                     ("MIX_ENV", "prod"),
                     ("MIX_HOME", "/build/.mix"),
                 ]),
-                cache_dirs: vec!["deps".into()],
+                cache_dirs: vec!["deps".into(), "_build".into()],
                 artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {
