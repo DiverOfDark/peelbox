@@ -28,7 +28,7 @@ impl ManifestParser for BuildSbtParser {
             return None;
         }
 
-        let scala_version = extract_scala_version(content);
+        let _scala_version = extract_scala_version(content);
         let project_name = extract_project_name(content);
         let project_version = extract_project_version(content);
         let dependencies = parse_sbt_deps(content);
@@ -48,20 +48,8 @@ impl ManifestParser for BuildSbtParser {
             || content.contains("DockerPlugin");
         let is_application = has_main_class || has_assembly || has_native_packager;
 
-        let jar_name = match (&project_name, &project_version, &scala_version) {
-            (Some(name), Some(ver), Some(sv)) => {
-                let scala_major = scala_binary_version(sv);
-                format!("{}_{}_{}", name, scala_major, ver)
-            }
-            (Some(name), Some(ver), None) => format!("{}-{}", name, ver),
-            (Some(name), None, _) => name.clone(),
-            _ => "app".to_string(),
-        };
-
-        let assembly_jar = format!("{}-assembly.jar", jar_name);
-
         let entrypoint = if is_application {
-            Some(format!("java -jar /app/{}", assembly_jar))
+            Some("java -jar /app/app.jar".to_string())
         } else {
             None
         };
@@ -204,6 +192,7 @@ fn extract_project_version(content: &str) -> Option<String> {
 }
 
 /// Compute the Scala binary version (e.g., "3.3.1" -> "3", "2.13.12" -> "2.13").
+#[cfg(test)]
 fn scala_binary_version(full_version: &str) -> String {
     let parts: Vec<&str> = full_version.splitn(3, '.').collect();
     match parts.first() {

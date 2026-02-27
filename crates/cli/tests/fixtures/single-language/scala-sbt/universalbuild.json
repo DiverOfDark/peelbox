@@ -33,7 +33,7 @@
       "command": [
         "java",
         "-jar",
-        "/app/my-scala-app_3_0.1.0-assembly.jar"
+        "/app/app.jar"
       ],
       "copy": [
         {
