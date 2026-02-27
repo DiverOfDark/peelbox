@@ -9,6 +9,7 @@ use std::path::Path;
 
 const PYTHON: LanguageId = LanguageId::new("python");
 const POETRY: BuildSystemId = BuildSystemId::new("poetry");
+const PDM: BuildSystemId = BuildSystemId::new("pdm");
 const PIP: BuildSystemId = BuildSystemId::new("pip");
 pub(crate) const UV: BuildSystemId = BuildSystemId::new("uv");
 const PYTHON_RT: RuntimeId = RuntimeId::new("python");
@@ -18,6 +19,9 @@ inventory::submit! {
 }
 inventory::submit! {
     BuildSystemMeta { slug: "poetry", display_name: "Poetry", aliases: &["poetry"] }
+}
+inventory::submit! {
+    BuildSystemMeta { slug: "pdm", display_name: "PDM", aliases: &["pdm"] }
 }
 inventory::submit! {
     BuildSystemMeta { slug: "pip", display_name: "pip", aliases: &[] }
@@ -41,6 +45,7 @@ impl ManifestParser for PyProjectTomlParser {
 
         let is_poetry = toml_val.get("tool").and_then(|t| t.get("poetry")).is_some();
         let is_uv = toml_val.get("tool").and_then(|t| t.get("uv")).is_some();
+        let is_pdm = toml_val.get("tool").and_then(|t| t.get("pdm")).is_some();
 
         // Detect UV workspace members
         let uv_workspace = if is_uv {
@@ -69,6 +74,7 @@ impl ManifestParser for PyProjectTomlParser {
                 .map(String::from);
             (name, version)
         } else {
+            // PDM and pip both use PEP 621 [project] metadata
             let project = toml_val.get("project");
             let name = project
                 .and_then(|p| p.get("name"))
@@ -85,6 +91,8 @@ impl ManifestParser for PyProjectTomlParser {
             POETRY
         } else if is_uv {
             UV
+        } else if is_pdm {
+            PDM
         } else {
             PIP
         };
@@ -113,8 +121,8 @@ impl ManifestParser for PyProjectTomlParser {
                         "ca-certificates".into(),
                     ],
                     commands: vec![
-                        "pip install --user poetry".into(),
-                        "/root/.local/bin/poetry install --no-root --only main".into(),
+                        "pip install poetry".into(),
+                        "poetry install --no-root --only main".into(),
                     ],
                     member_transform: None,
                     env: btree(&[
@@ -185,6 +193,52 @@ impl ManifestParser for PyProjectTomlParser {
                     entrypoint: name
                         .as_ref()
                         .map(|n| format!("python -m {}", n.replace('-', "_"))),
+                    workdir: Some("/build".into()),
+                    ports: vec![8000],
+                    health_endpoint: None,
+                },
+            })
+        } else if is_pdm {
+            // PDM-specific build
+            Some(Manifest {
+                path: path.to_path_buf(),
+                language: PYTHON,
+                build_system: build_system_id,
+                runtime: PYTHON_RT,
+                package: Some(Package {
+                    name: "app".to_string(),
+                    version,
+                    is_application: true,
+                }),
+                workspace: None,
+                dependencies,
+                build: BuildSpec {
+                    packages: vec![
+                        python_build_pkg.clone(),
+                        "pip".into(),
+                        "build-base".into(),
+                        "ca-certificates".into(),
+                    ],
+                    commands: vec![
+                        "pip install pdm".into(),
+                        "pdm export --no-hashes --prod -o requirements.txt".into(),
+                        "python3 -m venv .venv".into(),
+                        ".venv/bin/pip install -r requirements.txt".into(),
+                    ],
+                    member_transform: None,
+                    env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
+                    cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
+                    artifacts: vec![(".".into(), "/build".into())],
+                },
+                runtime_config: RuntimeSpec {
+                    packages: vec![
+                        python_runtime_pkg,
+                        "libgcc".into(),
+                        "libstdc++".into(),
+                        "ca-certificates".into(),
+                    ],
+                    env: BTreeMap::new(),
+                    entrypoint: None, // Will be set by framework detector (Flask)
                     workdir: Some("/build".into()),
                     ports: vec![8000],
                     health_endpoint: None,
@@ -396,8 +450,176 @@ inventory::submit! {
 inventory::submit! {
     crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
         use_package_name_for_root: false,
+        preferred_framework_env_keys: &["VIRTUAL_ENV"],
+        ..BuildSystemConfig::new(PDM)
+    })
+}
+
+inventory::submit! {
+    crate::registry::BuildSystemProfileEntry(|| BuildSystemConfig {
+        use_package_name_for_root: false,
         ..BuildSystemConfig::new(PIP)
     })
 }
 
 // Note: UV build system profile is defined in uv_lock.rs
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ManifestParser;
+
+    #[test]
+    fn test_pyproject_pdm_basic() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "my-pdm-app"
+version = "0.1.0"
+description = "A PDM project"
+dependencies = [
+    "flask>=3.0.0",
+    "requests>=2.31.0",
+]
+requires-python = ">=3.9"
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.dev-dependencies]
+dev = ["pytest>=7.0"]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+"#;
+        let manifest = parser.parse(Path::new("pyproject.toml"), content).unwrap();
+        assert_eq!(manifest.language, PYTHON);
+        assert_eq!(manifest.build_system, PDM);
+        assert_eq!(manifest.runtime, PYTHON_RT);
+
+        let pkg = manifest.package.unwrap();
+        assert_eq!(pkg.name, "app");
+        assert!(pkg.is_application);
+
+        // Should have 2 runtime deps (flask, requests)
+        assert_eq!(manifest.dependencies.len(), 2);
+        assert!(manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name == "flask" && d.scope == DepScope::Runtime));
+        assert!(manifest
+            .dependencies
+            .iter()
+            .any(|d| d.name == "requests" && d.scope == DepScope::Runtime));
+
+        // Check PDM build commands
+        assert!(manifest.build.commands.iter().any(|c| c.contains("pdm")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("pdm export")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("python3 -m venv .venv")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains(".venv/bin/pip install")));
+
+        // Check env vars
+        assert!(manifest.build.env.contains_key("PDM_PYTHON"));
+
+        // Check cache dirs include pdm cache
+        assert!(manifest.build.cache_dirs.iter().any(|c| c.contains("pdm")));
+
+        // Check artifacts
+        assert_eq!(
+            manifest.build.artifacts,
+            vec![(".".into(), "/build".into())]
+        );
+    }
+
+    #[test]
+    fn test_pyproject_pdm_takes_priority_over_pip() {
+        let parser = PyProjectTomlParser;
+        // A pyproject.toml with both [project] and [tool.pdm] should be detected as PDM
+        let content = r#"
+[project]
+name = "my-app"
+version = "1.0.0"
+dependencies = ["flask>=3.0"]
+
+[tool.pdm]
+distribution = false
+"#;
+        let manifest = parser.parse(Path::new("pyproject.toml"), content).unwrap();
+        assert_eq!(
+            manifest.build_system, PDM,
+            "PDM should take priority over pip when [tool.pdm] is present"
+        );
+    }
+
+    #[test]
+    fn test_pyproject_poetry_still_detected() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[tool.poetry]
+name = "my-app"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+flask = "^3.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+"#;
+        let manifest = parser.parse(Path::new("pyproject.toml"), content).unwrap();
+        assert_eq!(
+            manifest.build_system, POETRY,
+            "Poetry should still be detected correctly"
+        );
+    }
+
+    #[test]
+    fn test_pyproject_plain_pip_still_detected() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "my-app"
+version = "1.0.0"
+dependencies = ["flask>=3.0"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+"#;
+        let manifest = parser.parse(Path::new("pyproject.toml"), content).unwrap();
+        assert_eq!(
+            manifest.build_system, PIP,
+            "Plain pyproject.toml without [tool.pdm] or [tool.poetry] should be pip"
+        );
+    }
+
+    #[test]
+    fn test_pyproject_pdm_workdir_is_build() {
+        let parser = PyProjectTomlParser;
+        let content = r#"
+[project]
+name = "my-app"
+version = "1.0.0"
+dependencies = ["flask>=3.0"]
+
+[tool.pdm]
+distribution = false
+"#;
+        let manifest = parser.parse(Path::new("pyproject.toml"), content).unwrap();
+        assert_eq!(manifest.runtime_config.workdir, Some("/build".into()));
+    }
+}
