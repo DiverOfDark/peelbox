@@ -225,6 +225,18 @@ fn classify_file(
         }
     }
 
+    // Try .cabal files (special case: extension-based matching)
+    if filename.ends_with(".cabal") {
+        let cabal_parser = crate::parsers::manifest::CabalFileParser;
+        if let Ok(content) = std::fs::read_to_string(abs_path) {
+            if let Some(mut manifest) = ManifestParser::parse(&cabal_parser, abs_path, &content) {
+                manifest.path = rel_path.to_path_buf();
+                debug!(file = %rel_path.display(), "Parsed Haskell .cabal file");
+                return FileKind::Manifest(Box::new(manifest));
+            }
+        }
+    }
+
     // Try config parsers
     if let Some(parser) = config_lookup.get(filename) {
         if let Ok(content) = std::fs::read_to_string(abs_path) {
