@@ -1350,6 +1350,15 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
             r#"server\.port\s*=\s*(\d{4,5})"#,
         ],
     ),
+    (
+        "Scala",
+        &["scala", "java"],
+        &[
+            r"\.setPort\(\s*(\d{4,5})\s*\)",
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+    ),
     ("Elixir", &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
     (
         "Ruby",
@@ -1502,6 +1511,14 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
+        "Scala",
+        &["scala", "java"],
+        &[
+            r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+    ),
+    (
         "Python",
         &["py"],
         &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
@@ -1642,6 +1659,14 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         "Kotlin",
         &["java", "kt", "kts"],
         &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    ),
+    (
+        "Scala",
+        &["scala", "java"],
+        &[
+            r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
+            r#"sys\.env\.get(?:OrElse)?\(["']([A-Z_][A-Z0-9_]*)"#,
+        ],
     ),
     (
         "Elixir",

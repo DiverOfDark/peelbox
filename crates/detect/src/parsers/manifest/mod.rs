@@ -4,6 +4,7 @@
 
 mod bazel_build;
 mod build_gradle;
+mod build_sbt;
 mod build_zig_zon;
 mod cabal_file;
 mod cargo_toml;
@@ -34,6 +35,7 @@ mod zig_build;
 
 pub use bazel_build::BazelBuildParser;
 pub use build_gradle::BuildGradleParser;
+pub use build_sbt::BuildSbtParser;
 pub use build_zig_zon::BuildZigZonParser;
 pub use cabal_file::CabalFileParser;
 pub use cargo_toml::CargoTomlParser;

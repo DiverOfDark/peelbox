@@ -217,6 +217,10 @@ mod tests {
             BuildSystemId::from_name("dotnet"),
             Some(BuildSystemId::new("dotnet"))
         );
+        assert_eq!(
+            BuildSystemId::from_name("sbt"),
+            Some(BuildSystemId::new("sbt"))
+        );
         assert_eq!(BuildSystemId::from_name("unknown"), None);
     }
 
@@ -258,6 +262,7 @@ mod tests {
         assert_eq!(RuntimeId::from_name("JVM"), Some(RuntimeId::new("jvm")));
         assert_eq!(RuntimeId::from_name("java"), Some(RuntimeId::new("jvm")));
         assert_eq!(RuntimeId::from_name("kotlin"), Some(RuntimeId::new("jvm")));
+        assert_eq!(RuntimeId::from_name("scala"), Some(RuntimeId::new("jvm")));
         assert_eq!(
             RuntimeId::from_name("Native"),
             Some(RuntimeId::new("native"))
