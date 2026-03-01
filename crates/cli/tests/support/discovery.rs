@@ -34,6 +34,8 @@ pub struct Fixture {
     pub category: String,
     pub path: PathBuf,
     pub has_snapshot: bool,
+    /// When true, the test is registered as ignored (e.g. empty compat snapshot).
+    pub ignore: bool,
 }
 
 #[allow(dead_code)]
@@ -77,6 +79,7 @@ pub fn find_fixtures() -> Vec<Fixture> {
                     category: category.to_string(),
                     path,
                     has_snapshot,
+                    ignore: false,
                 });
             }
         }

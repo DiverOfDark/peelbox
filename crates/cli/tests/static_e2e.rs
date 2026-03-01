@@ -24,11 +24,15 @@ fn main() {
         }
 
         let expect_fail = !fixture.has_snapshot;
+        let ignored = fixture.ignore;
         let test_name = format!("{}::{}::static", fixture.category, fixture.name);
 
-        tests.push(Trial::test(test_name, move || {
+        let trial = Trial::test(test_name, move || {
             run_test(&fixture.clone(), expect_fail)
-        }));
+        })
+        .with_ignored_flag(ignored);
+
+        tests.push(trial);
     }
 
     libtest_mimic::run(&args, tests).exit();

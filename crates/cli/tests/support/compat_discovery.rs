@@ -106,6 +106,9 @@ pub fn find_compat_fixtures() -> Vec<Fixture> {
                 continue;
             }
 
+            // Check if the snapshot is empty (detection produced no results)
+            let snapshot_empty = is_empty_snapshot(&snapshot_file);
+
             // Assemble working directory
             let category = format!("compat-{}", source);
             let work_dir = work_root.join(&category).join(&example_name);
@@ -127,12 +130,24 @@ pub fn find_compat_fixtures() -> Vec<Fixture> {
                 category,
                 path: work_dir,
                 has_snapshot: true,
+                ignore: snapshot_empty,
             });
         }
     }
 
     fixtures.sort_by(|a, b| a.category.cmp(&b.category).then(a.name.cmp(&b.name)));
     fixtures
+}
+
+/// Returns true if the snapshot file contains an empty JSON array (`[]`).
+fn is_empty_snapshot(path: &Path) -> bool {
+    match std::fs::read_to_string(path) {
+        Ok(content) => {
+            let trimmed = content.trim();
+            trimmed == "[]"
+        }
+        Err(_) => false,
+    }
 }
 
 /// Copies external project files + snapshot into a working directory that looks
@@ -289,6 +304,7 @@ pub fn find_all_external_examples() -> Vec<Fixture> {
                 // In update mode, treat as having a snapshot so the test runs
                 // detection and writes the snapshot via assert_detection_with_mode.
                 has_snapshot: true,
+                ignore: false,
             });
         }
     }
