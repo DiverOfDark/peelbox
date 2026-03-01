@@ -25,10 +25,13 @@ fn main() {
             continue;
         }
 
+        let ignored = fixture.ignore;
         let fixture_clone = fixture.clone();
         let test_name = format!("{}::{}", fixture.category, fixture.name);
 
-        tests.push(Trial::test(test_name, move || run_test(&fixture_clone)));
+        let trial = Trial::test(test_name, move || run_test(&fixture_clone))
+            .with_ignored_flag(ignored);
+        tests.push(trial);
     }
 
     libtest_mimic::run(&args, tests).exit();
