@@ -94,6 +94,11 @@ pub fn detect_with_registry_and_wolfi(
         scan_python_entrypoints(repo_path, build);
     }
 
+    // Step 4g: Fix FLASK_APP for workspace members where hardcoded path is wrong
+    for build in &mut builds {
+        fix_flask_app_path(repo_path, build);
+    }
+
     // Step 5: Resolve Wolfi package versions
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
@@ -599,12 +604,16 @@ fn partition(
                 ws_root_manifest.map(|m| m.manifest.runtime_config.env.clone());
             let ws_root_runtime_packages =
                 ws_root_manifest.map(|m| m.manifest.runtime_config.packages.clone());
-
-            // Extract build system info for lock-file-based propagation
+            // Extract build system info for workspace member propagation
             let ws_root_build_system = ws_root_manifest.map(|m| m.manifest.build_system);
             let ws_root_build_commands =
                 ws_root_manifest.map(|m| m.manifest.build.commands.clone());
             let ws_root_cache_dirs = ws_root_manifest.map(|m| m.manifest.build.cache_dirs.clone());
+            let ws_root_member_transform =
+                ws_root_manifest.and_then(|m| m.manifest.build.member_transform.clone());
+            let ws_root_artifacts = ws_root_manifest.map(|m| m.manifest.build.artifacts.clone());
+            let ws_root_runtime_workdir =
+                ws_root_manifest.and_then(|m| m.manifest.runtime_config.workdir.clone());
 
             for member_dir in expanded_members {
                 if let Some(mut mwf) = merged.remove(&member_dir) {
@@ -626,7 +635,7 @@ fn partition(
                     // Propagate build system from workspace root to members when
                     // the root's build system was determined by a lock file (merge_priority).
                     // This ensures workspace members use the correct package manager
-                    // (e.g., yarn/pnpm instead of defaulting to npm).
+                    // (e.g., yarn/pnpm instead of defaulting to npm, or UV instead of pip).
                     if let Some(ws_bs) = ws_root_build_system {
                         if registry
                             .get_profile(&ws_bs)
@@ -646,6 +655,23 @@ fn partition(
                             // Replace cache dirs with root's (e.g., .yarn-cache instead of .npm)
                             if let Some(ref cache) = ws_root_cache_dirs {
                                 mwf.manifest.build.cache_dirs = cache.clone();
+                            }
+
+                            // Propagate member_transform, artifacts, and workdir from
+                            // root when the member doesn't have its own member_transform.
+                            // This handles cases like UV workspace members detected as
+                            // plain pip projects that need the root's build commands,
+                            // artifact paths (/build vs /app), and workdir.
+                            if mwf.manifest.build.member_transform.is_none() {
+                                if let Some(ref transform) = ws_root_member_transform {
+                                    mwf.manifest.build.member_transform = Some(transform.clone());
+                                }
+                                if let Some(ref artifacts) = ws_root_artifacts {
+                                    mwf.manifest.build.artifacts = artifacts.clone();
+                                }
+                                if let Some(ref workdir) = ws_root_runtime_workdir {
+                                    mwf.manifest.runtime_config.workdir = Some(workdir.clone());
+                                }
                             }
 
                             // Replace install command with root's, and update package manager
@@ -869,6 +895,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
                 .iter()
                 .map(|cmd| {
                     cmd.replace("{module}", &bucket.module_name())
+                        .replace("{package}", &bucket.package_name())
                         .replace("{root}", &bucket.workspace_root_display())
                 })
                 .collect()
@@ -896,8 +923,12 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
                 member_artifacts
                     .iter()
                     .map(|(from, to)| CopySpec {
-                        from: from.replace("{module}", &bucket.module_name()),
-                        to: to.replace("{module}", &bucket.module_name()),
+                        from: from
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
+                        to: to
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
                     })
                     .collect()
             } else {
@@ -905,8 +936,12 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
                     .artifacts
                     .iter()
                     .map(|(from, to)| CopySpec {
-                        from: from.replace("{module}", &bucket.module_name()),
-                        to: to.replace("{module}", &bucket.module_name()),
+                        from: from
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
+                        to: to
+                            .replace("{module}", &bucket.module_name())
+                            .replace("{package}", &bucket.package_name()),
                     })
                     .collect()
             }
@@ -1945,6 +1980,58 @@ fn scan_python_entrypoints(repo_root: &Path, build: &mut UniversalBuild) {
             debug!(entrypoint = %entrypoint_path, "Found Python entrypoint");
             build.runtime.command = vec!["python".into(), entrypoint_path];
             return;
+        }
+    }
+}
+
+// ── Flask app path fix ────────────────────────────────────────────────────
+
+/// Fix FLASK_APP for workspace members where the hardcoded `/build/app.py` doesn't exist.
+/// Searches the project directory for `app.py` and updates FLASK_APP to the correct path.
+fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
+    if build.metadata.language != "Python" {
+        return;
+    }
+
+    // Only fix if FLASK_APP is set to the default hardcoded value
+    let flask_app = match build.runtime.env.get("FLASK_APP") {
+        Some(v) if v == "/build/app.py" => v.clone(),
+        _ => return,
+    };
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+
+    // If app.py exists at project root, the default FLASK_APP is correct
+    if project_dir.join("app.py").exists() && project_dir == repo_root {
+        return;
+    }
+
+    // For workspace members in subdirectories, search for app.py in the project dir
+    if project_dir != repo_root {
+        // Check for app.py directly in the project directory
+        if project_dir.join("app.py").exists() {
+            let rel_path = project_dir
+                .strip_prefix(repo_root)
+                .unwrap_or(project_dir.as_path());
+            let new_flask_app = format!("/build/{}/app.py", rel_path.display());
+            debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
+            build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+            return;
+        }
+
+        // Search recursively for app.py in the project directory (e.g., src/api/app.py)
+        for entry in WalkBuilder::new(&project_dir)
+            .max_depth(Some(4))
+            .build()
+            .filter_map(|e| e.ok())
+        {
+            if entry.file_name() == "app.py" && entry.file_type().is_some_and(|t| t.is_file()) {
+                let rel_path = entry.path().strip_prefix(repo_root).unwrap_or(entry.path());
+                let new_flask_app = format!("/build/{}", rel_path.display());
+                debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
+                build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+                return;
+            }
         }
     }
 }

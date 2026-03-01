@@ -216,6 +216,23 @@ impl ServiceBucket {
         self.path.to_string_lossy().to_string()
     }
 
+    /// Get the package name for workspace-aware command templates.
+    /// Falls back to the last component of the path if no package name is set.
+    pub fn package_name(&self) -> String {
+        self.manifest
+            .package
+            .as_ref()
+            .filter(|p| !p.name.is_empty())
+            .map(|p| p.name.clone())
+            .unwrap_or_else(|| {
+                self.path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| self.module_name())
+            })
+    }
+
     /// Get the workspace root display path for command templates.
     pub fn workspace_root_display(&self) -> String {
         self.workspace_root
