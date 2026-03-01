@@ -43,7 +43,12 @@ pub fn find_fixtures() -> Vec<Fixture> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let base_path = Path::new(&manifest_dir).join("tests/fixtures");
 
-    let categories = vec!["single-language", "monorepo", "edge-cases"];
+    let categories = vec![
+        "single-language",
+        "monorepo",
+        "edge-cases",
+        "compat-nixpacks",
+    ];
     let mut fixtures = Vec::new();
 
     for category in categories {

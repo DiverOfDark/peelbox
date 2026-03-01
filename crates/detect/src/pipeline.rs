@@ -114,6 +114,13 @@ pub fn detect_with_registry_and_wolfi(
         }
     }
 
+    // Step 7: Handle pinned Node.js versions not available in Wolfi (use n)
+    if let Some(wolfi) = wolfi_index {
+        for build in &mut builds {
+            crate::version::node::resolve_node_version(build, wolfi);
+        }
+    }
+
     // Filter out non-application builds (e.g., library crates, utility packages)
     builds.retain(|b| !b.runtime.command.is_empty());
 
