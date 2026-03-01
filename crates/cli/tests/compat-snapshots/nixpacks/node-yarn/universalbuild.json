@@ -1,0 +1,50 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "fastify",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "./node_modules/.bin/tsc"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "node",
+        "index.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "scala-sbt",
+      "language": "Scala",
+      "build_system": "sbt",
+      "reasoning": "Detected from build.sbt"
+    },
+    "build": {
+      "packages": [
+        "openjdk-21",
+        "bash",
+        "curl",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "SBT_OPTS": "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"
+      },
+      "commands": [
+        "curl -fL \"https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.tgz\" | tar xz -C /usr/local && mkdir -p /usr/local/bin && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt",
+        "sbt compile"
+      ],
+      "cache": [
+        ".ivy2",
+        ".sbt",
+        "target"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-21-jre",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "copy": [
+        {
+          "from": "target/scala-*/*.jar",
+          "to": "/app/app.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

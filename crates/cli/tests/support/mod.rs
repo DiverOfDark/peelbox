@@ -1,3 +1,4 @@
+pub mod compat_discovery;
 pub mod container_harness;
 pub mod discovery;
 pub mod e2e;

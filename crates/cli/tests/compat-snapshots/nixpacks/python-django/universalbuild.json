@@ -1,0 +1,55 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "framework": "Django",
+      "reasoning": "Detected from requirements.txt"
+    },
+    "build": {
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pip install --user --no-cache-dir -r requirements.txt"
+      ],
+      "cache": [
+        ".cache/pip"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "config.settings.production"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "python",
+        "/app/manage.py"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/health/"
+      }
+    }
+  }
+]

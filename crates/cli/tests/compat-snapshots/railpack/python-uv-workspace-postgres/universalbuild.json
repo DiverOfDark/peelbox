@@ -1,0 +1,55 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "db-package",
+      "language": "Python",
+      "build_system": "uv",
+      "reasoning": "Detected from pyproject.toml in db-package"
+    },
+    "build": {
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev --package db-package"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates",
+        "uv"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        }
+      ],
+      "command": [
+        "python",
+        "-m",
+        "db_package"
+      ],
+      "workdir": "/build",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

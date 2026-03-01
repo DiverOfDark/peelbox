@@ -1,0 +1,64 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Ruby",
+      "build_system": "Bundler",
+      "framework": "Sinatra",
+      "reasoning": "Detected from Gemfile"
+    },
+    "build": {
+      "packages": [
+        "ruby-3.4",
+        "ruby-3.4-dev",
+        "ruby3.4-bundler",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
+      },
+      "commands": [
+        "bundle install"
+      ],
+      "cache": [
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "ruby-3.4",
+        "ruby3.4-bundler",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUNDLE_GEMFILE": "/app/Gemfile",
+        "BUNDLE_PATH": "/app/vendor/bundle"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "bundle",
+        "exec",
+        "ruby",
+        "/app/app.rb"
+      ],
+      "workdir": "/app",
+      "ports": [
+        4567
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

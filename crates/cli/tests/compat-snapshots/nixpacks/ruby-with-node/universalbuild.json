@@ -1,0 +1,59 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "ruby-with-node",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates",
+        "ruby-3.4",
+        "ruby-3.4-dev",
+        "ruby3.4-bundler",
+        "build-base"
+      ],
+      "env": {
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
+      },
+      "commands": [
+        "npm ci",
+        "bundle install"
+      ],
+      "cache": [
+        ".npm",
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "ruby",
+        "app.rb"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

@@ -1,0 +1,55 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "Gradle",
+      "reasoning": "Detected from build.gradle.kts"
+    },
+    "build": {
+      "packages": [
+        "openjdk-25",
+        "gradle-8",
+        "ca-certificates"
+      ],
+      "env": {
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/root/.gradle",
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
+      },
+      "commands": [
+        "gradle assemble -x test --no-daemon --console=plain"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-25",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/app/app.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

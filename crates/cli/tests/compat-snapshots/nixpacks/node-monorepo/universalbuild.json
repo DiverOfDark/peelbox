@@ -1,0 +1,52 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "server",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock in packages/server"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "./node_modules/.bin/tsc"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": ""
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app/packages/server",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

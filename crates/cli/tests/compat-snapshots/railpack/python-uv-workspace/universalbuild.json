@@ -1,0 +1,55 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "workspace-package",
+      "language": "Python",
+      "build_system": "uv",
+      "reasoning": "Detected from pyproject.toml in workspace-package"
+    },
+    "build": {
+      "packages": [
+        "python-3.13",
+        "py3.13-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev --package workspace-package"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.13",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates",
+        "uv"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        }
+      ],
+      "command": [
+        "python",
+        "-m",
+        "workspace_package"
+      ],
+      "workdir": "/build",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

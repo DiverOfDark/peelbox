@@ -1,0 +1,53 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "C#",
+      "build_system": ".NET",
+      "reasoning": "Detected from csharp-api.csproj"
+    },
+    "build": {
+      "packages": [
+        "dotnet-8-sdk",
+        "ca-certificates"
+      ],
+      "env": {
+        "DOTNET_CLI_HOME": "/root",
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
+      },
+      "commands": [
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
+      ],
+      "cache": [
+        ".nuget/packages",
+        "bin",
+        "obj"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "aspnet-8-runtime",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "out/",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "dotnet",
+        "/app/csharp-api.dll"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5000
+      ]
+    }
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Ruby",
+      "build_system": "Bundler",
+      "reasoning": "Detected from Gemfile"
+    },
+    "build": {
+      "packages": [
+        "ruby-3.4",
+        "ruby-3.4-dev",
+        "ruby3.4-bundler",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
+      },
+      "commands": [
+        "bundle install"
+      ],
+      "cache": [
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "ruby-3.4",
+        "ruby3.4-bundler",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "ruby",
+        "--enable-yjit",
+        "app.rb"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

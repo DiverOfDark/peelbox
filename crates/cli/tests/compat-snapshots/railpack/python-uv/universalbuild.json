@@ -1,0 +1,53 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "uv",
+      "reasoning": "Detected from uv.lock"
+    },
+    "build": {
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.11",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        }
+      ],
+      "command": [
+        "python",
+        "/build/main.py"
+      ],
+      "workdir": "/build",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

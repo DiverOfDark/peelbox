@@ -1,0 +1,70 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Ruby",
+      "build_system": "Bundler",
+      "framework": "Rails",
+      "reasoning": "Detected from Gemfile"
+    },
+    "build": {
+      "packages": [
+        "ruby-3.4",
+        "ruby-3.4-dev",
+        "ruby3.4-bundler",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
+      },
+      "commands": [
+        "bundle install"
+      ],
+      "cache": [
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "ruby-3.4",
+        "ruby3.4-bundler",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "RAILS_ENV": "production"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "rake",
+        "db:migrate",
+        "&&",
+        "bundle",
+        "exec",
+        "bin/rails",
+        "server",
+        "-b",
+        "0.0.0.0",
+        "-p",
+        "${PORT:-3000}"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

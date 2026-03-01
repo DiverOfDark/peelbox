@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 /// Check if a directory contains any files (recursively).
-fn has_any_file(path: &Path) -> bool {
+pub fn has_any_file(path: &Path) -> bool {
     let entries = match std::fs::read_dir(path) {
         Ok(e) => e,
         Err(_) => return false,
@@ -83,6 +83,17 @@ pub fn find_fixtures() -> Vec<Fixture> {
     }
 
     fixtures.sort_by(|a, b| a.category.cmp(&b.category).then(a.name.cmp(&b.name)));
+
+    // Append compat fixtures from external repos (railpack, nixpacks).
+    // Returns empty if ./scripts/fetch-compat-fixtures.sh hasn't been run.
+    if super::compat_discovery::should_update_snapshots() {
+        // In update mode, include ALL external examples (even without snapshots)
+        // so we can generate snapshots for them.
+        fixtures.extend(super::compat_discovery::find_all_external_examples());
+    } else {
+        // Normal mode: only include fixtures with committed snapshots.
+        fixtures.extend(super::compat_discovery::find_compat_fixtures());
+    }
 
     fixtures
 }

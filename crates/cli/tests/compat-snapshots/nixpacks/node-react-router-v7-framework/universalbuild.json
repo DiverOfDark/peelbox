@@ -1,0 +1,51 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-react-router-v7-framework",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "React Router",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

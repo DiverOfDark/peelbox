@@ -1,10 +1,30 @@
 use super::ContainerTestHarness;
 use peelbox_core::output::schema::UniversalBuild;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
 use std::time::Duration;
+
+/// Finds the workspace root (where Cargo.lock lives) by walking up from CWD.
+fn find_workspace_root() -> PathBuf {
+    let mut dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    loop {
+        if dir.join("Cargo.lock").exists() {
+            return dir;
+        }
+        if !dir.pop() {
+            // Fallback: use CARGO_MANIFEST_DIR and walk up
+            let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
+            let p = Path::new(&manifest_dir);
+            return p
+                .parent()
+                .and_then(|p| p.parent())
+                .unwrap_or(p)
+                .to_path_buf();
+        }
+    }
+}
 
 /// Returns a shared Wolfi cache directory that persists across all E2E tests.
 ///
@@ -80,7 +100,15 @@ pub fn peelbox_bin() -> PathBuf {
 
 #[allow(dead_code)]
 pub fn fixture_path(category: &str, name: &str) -> PathBuf {
-    PathBuf::from("tests/fixtures").join(category).join(name)
+    if category.starts_with("compat-") {
+        find_workspace_root()
+            .join("target")
+            .join("compat-work")
+            .join(category)
+            .join(name)
+    } else {
+        PathBuf::from("tests/fixtures").join(category).join(name)
+    }
 }
 
 #[allow(dead_code)]
@@ -89,17 +117,34 @@ pub fn load_expected(
     fixture_name: &str,
     _mode: Option<&str>,
 ) -> Option<Vec<UniversalBuild>> {
+    // Standard fixture path (relative to crate root)
     let expected_path = PathBuf::from("tests/fixtures")
         .join(category)
         .join(fixture_name)
         .join("universalbuild.json");
 
-    if !expected_path.exists() {
+    // For compat fixtures (category like "compat-railpack"), the snapshot lives
+    // in the assembled work directory under target/compat-work/.
+    let resolved_path = if expected_path.exists() {
+        expected_path
+    } else if category.starts_with("compat-") {
+        let compat_path = find_workspace_root()
+            .join("target")
+            .join("compat-work")
+            .join(category)
+            .join(fixture_name)
+            .join("universalbuild.json");
+        if compat_path.exists() {
+            compat_path
+        } else {
+            return None;
+        }
+    } else {
         return None;
-    }
+    };
 
-    let content = std::fs::read_to_string(&expected_path)
-        .unwrap_or_else(|_| panic!("Failed to read expected JSON: {}", expected_path.display()));
+    let content = std::fs::read_to_string(&resolved_path)
+        .unwrap_or_else(|_| panic!("Failed to read expected JSON: {}", resolved_path.display()));
 
     match serde_json::from_str::<Vec<UniversalBuild>>(&content) {
         Ok(multi) => Some(multi),
@@ -108,7 +153,7 @@ pub fn load_expected(
             Err(e2) => {
                 panic!(
                         "Failed to parse expected JSON: {}\nAs Vec<UniversalBuild>: {}\nAs UniversalBuild: {}",
-                        expected_path.display(),
+                        resolved_path.display(),
                         e1,
                         e2
                     );
@@ -192,6 +237,21 @@ pub fn assert_detection_with_mode(
         return;
     }
 
+    // Snapshot update mode for compat fixtures: write output as the new snapshot
+    if super::compat_discovery::should_update_snapshots() {
+        if let Some(source) = super::compat_discovery::parse_compat_category(category) {
+            let json = serde_json::to_string_pretty(results)
+                .expect("Failed to serialize results");
+            super::compat_discovery::write_compat_snapshot(source, fixture_name, &json)
+                .unwrap_or_else(|e| panic!("Failed to write compat snapshot: {}", e));
+            eprintln!(
+                "Updated compat snapshot for {}/{}",
+                source, fixture_name
+            );
+            return;
+        }
+    }
+
     let mut expected = load_expected(category, fixture_name, mode).unwrap_or_else(|| {
         panic!(
             "Expected JSON file not found for fixture '{}'. Expected file: tests/fixtures/{}/{}/universalbuild.json",
@@ -261,9 +321,7 @@ pub fn get_fixture_container_test_infos(
     category: &str,
     fixture_name: &str,
 ) -> Option<Vec<ContainerTestInfo>> {
-    let fixture_dir = PathBuf::from("tests/fixtures")
-        .join(category)
-        .join(fixture_name);
+    let fixture_dir = fixture_path(category, fixture_name);
     let spec_path = fixture_dir.join("universalbuild.json");
 
     if !spec_path.exists() {

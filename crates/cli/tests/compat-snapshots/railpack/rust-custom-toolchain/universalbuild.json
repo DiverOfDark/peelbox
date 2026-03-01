@@ -1,0 +1,51 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "rust-custom-toolchain",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml"
+    },
+    "build": {
+      "packages": [
+        "curl",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": "/root/.cargo",
+        "PATH": "/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.59",
+        "cargo build --release"
+      ],
+      "cache": [
+        "/root/.cargo",
+        "target"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/release/rust-custom-toolchain",
+          "to": "/app/rust-custom-toolchain"
+        }
+      ],
+      "command": [
+        "/app/rust-custom-toolchain"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

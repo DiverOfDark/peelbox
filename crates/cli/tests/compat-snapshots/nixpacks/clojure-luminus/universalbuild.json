@@ -1,0 +1,61 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "clojure-luminus",
+      "language": "Clojure",
+      "build_system": "Leiningen",
+      "framework": "Ring",
+      "reasoning": "Detected from project.clj"
+    },
+    "build": {
+      "packages": [
+        "openjdk-17",
+        "bash",
+        "curl",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "LEIN_HOME": "/build/.lein",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version",
+        "lein uberjar"
+      ],
+      "cache": [
+        ".lein",
+        ".m2"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "copy": [
+        {
+          "from": "target/clojure-luminus-0.1.0-SNAPSHOT-standalone.jar",
+          "to": "/app/clojure-luminus-0.1.0-SNAPSHOT-standalone.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/clojure-luminus-0.1.0-SNAPSHOT-standalone.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

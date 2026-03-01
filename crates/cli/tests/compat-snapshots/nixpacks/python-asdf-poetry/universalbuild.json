@@ -1,0 +1,54 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "Poetry",
+      "reasoning": "Detected from pyproject.toml"
+    },
+    "build": {
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
+        "POETRY_VIRTUALENVS_IN_PROJECT": "true"
+      },
+      "commands": [
+        "pip install poetry",
+        "poetry install --no-root --only main"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/pypoetry/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        }
+      ],
+      "command": [
+        "python",
+        "/build/main.py"
+      ],
+      "workdir": "/build",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

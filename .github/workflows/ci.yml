@@ -75,6 +75,10 @@ jobs:
         with:
           tool: nextest,cargo-llvm-cov
 
+      - name: Fetch external compat fixtures
+        if: matrix.os == 'ubuntu-latest'
+        run: ./scripts/fetch-compat-fixtures.sh
+
       - name: Extract BuildKit cache
         if: matrix.os == 'ubuntu-latest' && steps.cache-buildkit.outputs.cache-hit == 'true'
         run: |

@@ -1,0 +1,73 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "friends",
+      "language": "Elixir",
+      "build_system": "Mix",
+      "reasoning": "Detected from mix.exs"
+    },
+    "build": {
+      "packages": [
+        "elixir-1.18",
+        "erlang-28",
+        "erlang-28-dev",
+        "git",
+        "build-base",
+        "openssl",
+        "ca-certificates"
+      ],
+      "env": {
+        "ELIXIR_ERL_OPTIONS": "+fnu",
+        "LC_ALL": "C.UTF-8",
+        "MIX_ENV": "prod",
+        "MIX_HOME": "/build/.mix"
+      },
+      "commands": [
+        "mix local.hex --force && mix local.rebar --force",
+        "mix deps.get",
+        "mix compile"
+      ],
+      "cache": [
+        "deps",
+        "_build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "elixir-1.18",
+        "erlang-28",
+        "busybox",
+        "openssl",
+        "ca-certificates"
+      ],
+      "env": {
+        "DATABASE_URL": "",
+        "ELIXIR_ERL_OPTIONS": "+fnu",
+        "LC_ALL": "C.UTF-8",
+        "MIX_ENV": "prod",
+        "MIX_HOME": "/app/.mix",
+        "POOL_SIZE": "",
+        "PORT": "4000"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "mix",
+        "run",
+        "--no-halt"
+      ],
+      "workdir": "/app",
+      "ports": [
+        4000
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

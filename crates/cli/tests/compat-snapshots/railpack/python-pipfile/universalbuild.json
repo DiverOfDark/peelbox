@@ -1,0 +1,50 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "Pipenv",
+      "reasoning": "Detected from Pipfile"
+    },
+    "build": {
+      "packages": [
+        "python-3.13",
+        "py3.13-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pip install --user pipenv",
+        "/root/.local/bin/pipenv lock && /root/.local/bin/pipenv requirements > /tmp/requirements.txt && pip install --user --no-cache-dir -r /tmp/requirements.txt"
+      ],
+      "cache": [
+        "/root/.cache/pip/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.13",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "python",
+        "/app/main.py"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

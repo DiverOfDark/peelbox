@@ -1,0 +1,66 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "Composer",
+      "reasoning": "Detected from composer.json"
+    },
+    "build": {
+      "packages": [
+        "php-8.2",
+        "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
+        "php-8.2-ctype",
+        "php-8.2-phar",
+        "php-8.2-openssl",
+        "php-8.2-mbstring",
+        "php-8.2-xml",
+        "php-8.2-dom",
+        "php-8.2-curl"
+      ],
+      "env": {},
+      "commands": [
+        "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
+      ],
+      "cache": [
+        ".composer/cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "php-8.2",
+        "php-8.2-ctype",
+        "php-8.2-phar",
+        "php-8.2-openssl",
+        "php-8.2-mbstring",
+        "php-8.2-xml",
+        "php-8.2-dom",
+        "php-8.2-curl",
+        "php-8.2-fileinfo",
+        "php-8.2-iconv",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "php",
+        "-S",
+        "0.0.0.0:8000",
+        "index.php"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

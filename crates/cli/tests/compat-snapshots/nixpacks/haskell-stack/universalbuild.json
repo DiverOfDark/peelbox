@@ -1,0 +1,59 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "haskell-stack",
+      "language": "Haskell",
+      "build_system": "Cabal",
+      "reasoning": "Detected from haskell-stack.cabal"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "gcc",
+        "glibc-dev",
+        "gmp-dev",
+        "zlib-dev",
+        "ncurses-dev",
+        "libffi-dev",
+        "posix-libc-utils",
+        "xz",
+        "ca-certificates",
+        "curl",
+        "bash"
+      ],
+      "env": {
+        "PATH": "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup",
+        "ghcup install ghc --set && ghcup install cabal --set",
+        "cabal update && cabal install --install-method=copy --installdir=.cabal-bin"
+      ],
+      "cache": [
+        ".cabal",
+        "dist-newstyle"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "gmp",
+        "zlib",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".cabal-bin/haskell-stack",
+          "to": "/app/haskell-stack"
+        }
+      ],
+      "command": [
+        "/app/haskell-stack"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

@@ -1,0 +1,53 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-pnpm-workspaces",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "reasoning": "Detected from pnpm-lock.yaml"
+    },
+    "build": {
+      "packages": [
+        "nodejs-22",
+        "pnpm",
+        "build-base",
+        "python-3.14",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pnpm install",
+        "pnpm build"
+      ],
+      "cache": [
+        ".pnpm-store"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "node",
+        "index.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

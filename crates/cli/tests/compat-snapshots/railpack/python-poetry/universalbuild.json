@@ -1,0 +1,64 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "Poetry",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml"
+    },
+    "build": {
+      "packages": [
+        "python-3.14",
+        "py3.14-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
+        "POETRY_VIRTUALENVS_IN_PROJECT": "true"
+      },
+      "commands": [
+        "pip install poetry",
+        "poetry install --no-root --only main"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/pypoetry/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.14",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "FLASK_APP": "/build/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/build/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        }
+      ],
+      "command": [
+        "flask",
+        "run"
+      ],
+      "workdir": "/build",
+      "ports": [
+        8080
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]
