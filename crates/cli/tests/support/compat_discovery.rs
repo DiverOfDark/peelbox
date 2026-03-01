@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 
 /// Root of the workspace (where Cargo.lock lives).
 fn workspace_root() -> PathBuf {
-    let manifest_dir =
-        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     let manifest_path = Path::new(&manifest_dir);
     // peelbox-cli is at crates/cli — workspace root is two levels up
     manifest_path
@@ -26,8 +25,7 @@ fn compat_work_dir() -> PathBuf {
 
 /// Directory containing committed snapshots.
 fn snapshot_dir() -> PathBuf {
-    let manifest_dir =
-        std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
     Path::new(&manifest_dir)
         .join("tests")
         .join("compat-snapshots")
@@ -113,11 +111,7 @@ pub fn find_compat_fixtures() -> Vec<Fixture> {
             let category = format!("compat-{}", source);
             let work_dir = work_root.join(&category).join(&example_name);
 
-            if let Err(e) = assemble_compat_work_dir(
-                &external_example,
-                &snapshot_file,
-                &work_dir,
-            ) {
+            if let Err(e) = assemble_compat_work_dir(&external_example, &snapshot_file, &work_dir) {
                 eprintln!(
                     "warning: failed to assemble compat work dir for {}/{}: {}",
                     source, example_name, e
@@ -230,7 +224,7 @@ pub fn should_update_snapshots() -> bool {
 /// Writes a snapshot file for a compat fixture.
 #[allow(dead_code)]
 pub fn write_compat_snapshot(
-    source: &str,   // "railpack" or "nixpacks"
+    source: &str, // "railpack" or "nixpacks"
     example: &str,
     content: &str,
 ) -> std::io::Result<()> {

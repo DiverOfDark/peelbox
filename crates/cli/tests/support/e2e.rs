@@ -240,14 +240,10 @@ pub fn assert_detection_with_mode(
     // Snapshot update mode for compat fixtures: write output as the new snapshot
     if super::compat_discovery::should_update_snapshots() {
         if let Some(source) = super::compat_discovery::parse_compat_category(category) {
-            let json = serde_json::to_string_pretty(results)
-                .expect("Failed to serialize results");
+            let json = serde_json::to_string_pretty(results).expect("Failed to serialize results");
             super::compat_discovery::write_compat_snapshot(source, fixture_name, &json)
                 .unwrap_or_else(|e| panic!("Failed to write compat snapshot: {}", e));
-            eprintln!(
-                "Updated compat snapshot for {}/{}",
-                source, fixture_name
-            );
+            eprintln!("Updated compat snapshot for {}/{}", source, fixture_name);
             return;
         }
     }

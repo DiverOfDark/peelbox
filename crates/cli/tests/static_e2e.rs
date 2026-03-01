@@ -27,10 +27,8 @@ fn main() {
         let ignored = fixture.ignore;
         let test_name = format!("{}::{}::static", fixture.category, fixture.name);
 
-        let trial = Trial::test(test_name, move || {
-            run_test(&fixture.clone(), expect_fail)
-        })
-        .with_ignored_flag(ignored);
+        let trial = Trial::test(test_name, move || run_test(&fixture.clone(), expect_fail))
+            .with_ignored_flag(ignored);
 
         tests.push(trial);
     }

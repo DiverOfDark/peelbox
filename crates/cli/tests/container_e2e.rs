@@ -29,8 +29,8 @@ fn main() {
         let fixture_clone = fixture.clone();
         let test_name = format!("{}::{}", fixture.category, fixture.name);
 
-        let trial = Trial::test(test_name, move || run_test(&fixture_clone))
-            .with_ignored_flag(ignored);
+        let trial =
+            Trial::test(test_name, move || run_test(&fixture_clone)).with_ignored_flag(ignored);
         tests.push(trial);
     }
 
