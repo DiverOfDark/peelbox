@@ -16,9 +16,10 @@ use peelbox_wolfi::WolfiPackageIndex;
 use regex::Regex;
 use tracing::debug;
 
-/// Minimum Java version available as a Wolfi `openjdk-*` package.
-/// Versions below this require Adoptium/Temurin download instead.
-pub const MIN_WOLFI_JAVA_VERSION: u32 = 11;
+/// Minimum Java version that is expected to always be in Wolfi.
+/// Used only as a fast-path heuristic -- the actual check queries the Wolfi index.
+/// Wolfi currently has openjdk-7 through openjdk-25, but this may change.
+const MIN_GUARANTEED_WOLFI_JAVA_VERSION: u32 = 7;
 
 /// Normalize old-style Java 1.x version strings to their modern equivalent.
 ///
@@ -198,14 +199,17 @@ pub fn detect_java_version_wolfi(manifest_content: &str) -> Option<String> {
 }
 
 /// Returns true if the given Java major version is too old for Wolfi packages.
+///
+/// Note: This is a heuristic check without access to the actual Wolfi index.
+/// For accurate checks, use `find_legacy_openjdk_version` which queries the index.
 pub fn is_legacy_java_version(version: &str) -> bool {
     version
         .parse::<u32>()
-        .map(|v| v < MIN_WOLFI_JAVA_VERSION)
+        .map(|v| v < MIN_GUARANTEED_WOLFI_JAVA_VERSION)
         .unwrap_or(false)
 }
 
-/// When a Java version is too old for Wolfi (< 11), replace openjdk packages
+/// When a Java version is not available in Wolfi, replace openjdk packages
 /// with an Adoptium/Temurin JDK download and set up JAVA_HOME/PATH.
 ///
 /// This follows the same pattern as `resolve_rust_toolchain` for Rust versions
@@ -218,11 +222,11 @@ pub fn is_legacy_java_version(version: &str) -> bool {
 /// from the build stage into the runtime image, updates JAVA_HOME and PATH.
 pub fn resolve_java_toolchain(build: &mut UniversalBuild, wolfi: &WolfiPackageIndex) {
     let lang = &build.metadata.language;
-    if lang != "Java" && lang != "Kotlin" && lang != "Scala" {
+    if lang != "Java" && lang != "Kotlin" && lang != "Scala" && lang != "Clojure" {
         return;
     }
 
-    // Find an openjdk-N package where N < MIN_WOLFI_JAVA_VERSION
+    // Find an openjdk-N package that doesn't exist in the Wolfi index
     let legacy_version = find_legacy_openjdk_version(&build.build.packages, wolfi)
         .or_else(|| find_legacy_openjdk_version(&build.runtime.packages, wolfi));
 
@@ -233,8 +237,7 @@ pub fn resolve_java_toolchain(build: &mut UniversalBuild, wolfi: &WolfiPackageIn
 
     debug!(
         version = %version,
-        "Java version too old for Wolfi (minimum {}), switching to Adoptium Temurin",
-        MIN_WOLFI_JAVA_VERSION
+        "Java version not available in Wolfi, switching to Adoptium Temurin",
     );
 
     let java_home = format!("/usr/lib/jvm/java-{}", version);
@@ -292,13 +295,13 @@ pub fn resolve_java_toolchain(build: &mut UniversalBuild, wolfi: &WolfiPackageIn
     );
 }
 
-/// Find a legacy (pre-Wolfi) openjdk version in a package list.
-/// Returns the version number (e.g., "8") if found.
+/// Find an openjdk version in a package list that is NOT available in Wolfi.
+/// Returns the version number (e.g., "6") if found.
 ///
-/// A version is considered legacy if it is below `MIN_WOLFI_JAVA_VERSION` (11).
-/// These versions are never available in Wolfi, so we check the version number
-/// directly rather than querying the package index.
-fn find_legacy_openjdk_version(packages: &[String], _wolfi: &WolfiPackageIndex) -> Option<String> {
+/// Checks the Wolfi package index to determine if `openjdk-{version}` exists.
+/// Versions at or above `MIN_GUARANTEED_WOLFI_JAVA_VERSION` are assumed to be
+/// available without querying the index (fast path).
+fn find_legacy_openjdk_version(packages: &[String], wolfi: &WolfiPackageIndex) -> Option<String> {
     for pkg in packages {
         let version_str = if let Some(v) = pkg.strip_prefix("openjdk-") {
             // Handle both openjdk-8 and openjdk-8-jre
@@ -308,7 +311,13 @@ fn find_legacy_openjdk_version(packages: &[String], _wolfi: &WolfiPackageIndex) 
         };
 
         if let Ok(ver) = version_str.parse::<u32>() {
-            if ver < MIN_WOLFI_JAVA_VERSION {
+            // Fast path: versions known to be in Wolfi
+            if ver >= MIN_GUARANTEED_WOLFI_JAVA_VERSION {
+                continue;
+            }
+            // Slow path: check the actual Wolfi index
+            let base_pkg = format!("openjdk-{}", version_str);
+            if !wolfi.has_package(&base_pkg) {
                 return Some(version_str.to_string());
             }
         }
@@ -491,15 +500,25 @@ mod tests {
     }
 
     // ── is_legacy_java_version tests ──────────────────────────────────────
+    // Note: is_legacy_java_version is a heuristic check without the Wolfi index.
+    // Wolfi currently has openjdk-7 through openjdk-25, so only Java 6 and below
+    // are considered legacy by the heuristic.
 
     #[test]
-    fn test_is_legacy_java_8() {
-        assert!(is_legacy_java_version("8"));
+    fn test_is_legacy_java_6() {
+        assert!(is_legacy_java_version("6"));
     }
 
     #[test]
-    fn test_is_legacy_java_7() {
-        assert!(is_legacy_java_version("7"));
+    fn test_is_not_legacy_java_7() {
+        // Wolfi has openjdk-7
+        assert!(!is_legacy_java_version("7"));
+    }
+
+    #[test]
+    fn test_is_not_legacy_java_8() {
+        // Wolfi has openjdk-8
+        assert!(!is_legacy_java_version("8"));
     }
 
     #[test]
@@ -552,7 +571,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_java_toolchain_legacy_version() {
+    fn test_resolve_java_toolchain_java_8_available_in_wolfi() {
         use std::collections::BTreeMap;
 
         let wolfi = WolfiPackageIndex::for_tests();
@@ -593,7 +612,78 @@ mod tests {
 
         resolve_java_toolchain(&mut build, &wolfi);
 
-        // openjdk-8 doesn't exist in Wolfi — should switch to Adoptium
+        // openjdk-8 exists in Wolfi — no Adoptium fallback, packages unchanged
+        assert!(
+            build.build.packages.iter().any(|p| p == "openjdk-8"),
+            "openjdk-8 should remain in build packages: {:?}",
+            build.build.packages
+        );
+        assert!(
+            !build.build.packages.contains(&"curl".to_string()),
+            "curl should NOT be added when openjdk-8 is in Wolfi"
+        );
+        assert_eq!(
+            build.build.commands.len(),
+            1,
+            "No Adoptium download command should be prepended"
+        );
+        assert_eq!(
+            build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-8-openjdk",
+            "JAVA_HOME should remain unchanged"
+        );
+
+        // Runtime should also be unchanged
+        assert!(
+            build.runtime.packages.iter().any(|p| p == "openjdk-8-jre"),
+            "openjdk-8-jre should remain in runtime packages: {:?}",
+            build.runtime.packages
+        );
+    }
+
+    #[test]
+    fn test_resolve_java_toolchain_legacy_version_not_in_wolfi() {
+        use std::collections::BTreeMap;
+
+        let wolfi = WolfiPackageIndex::for_tests();
+        // Use Java 6 which is NOT in the Wolfi index
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Java".into(),
+                build_system: "Maven".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec![
+                    "openjdk-6".into(),
+                    "maven".into(),
+                    "ca-certificates".into(),
+                ],
+                commands: vec!["mvn package -DskipTests".into()],
+                env: BTreeMap::from([(
+                    "JAVA_HOME".into(),
+                    "/usr/lib/jvm/java-6-openjdk".into(),
+                )]),
+                cache: vec!["/root/.m2/repository".into()],
+            },
+            runtime: peelbox_core::output::schema::RuntimeStage {
+                packages: vec!["openjdk-6-jre".into(), "ca-certificates".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-6-openjdk".into()),
+                    (
+                        "PATH".into(),
+                        "/usr/lib/jvm/java-6-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()
+                    ),
+                ]),
+                ..Default::default()
+            },
+        };
+
+        resolve_java_toolchain(&mut build, &wolfi);
+
+        // openjdk-6 doesn't exist in Wolfi — should switch to Adoptium
         assert!(
             !build
                 .build
@@ -612,10 +702,10 @@ mod tests {
             "First command should be Adoptium download"
         );
         assert!(
-            build.build.commands[0].contains("/8/"),
-            "Download URL should reference Java 8"
+            build.build.commands[0].contains("/6/"),
+            "Download URL should reference Java 6"
         );
-        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-8");
+        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-6");
 
         // Runtime should also be updated
         assert!(
@@ -627,11 +717,11 @@ mod tests {
             "runtime openjdk packages should be removed: {:?}",
             build.runtime.packages
         );
-        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-8");
+        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-6");
 
         // Should have a copy spec for the JDK
         assert!(
-            build.runtime.copy.iter().any(|c| c.from.contains("java-8")),
+            build.runtime.copy.iter().any(|c| c.from.contains("java-6")),
             "Should copy JDK from build to runtime: {:?}",
             build.runtime.copy
         );
