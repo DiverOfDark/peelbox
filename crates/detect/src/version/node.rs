@@ -181,7 +181,10 @@ mod tests {
         // nodejs-14 doesn't exist in Wolfi -- should switch to n
         assert_eq!(build.build.packages[0], "curl");
         assert!(!build.build.packages.contains(&"npm".to_string()));
-        assert!(build.build.packages.contains(&"ca-certificates".to_string()));
+        assert!(build
+            .build
+            .packages
+            .contains(&"ca-certificates".to_string()));
         assert!(build.build.packages.contains(&"build-base".to_string()));
         assert!(build.build.packages.contains(&"bash".to_string()));
         assert!(build.build.packages.contains(&"libstdc++".to_string()));
@@ -206,7 +209,10 @@ mod tests {
         // Runtime packages should also be fixed
         assert!(build.runtime.packages.contains(&"curl".to_string()));
         assert!(!build.runtime.packages.contains(&"npm".to_string()));
-        assert!(build.runtime.packages.contains(&"ca-certificates".to_string()));
+        assert!(build
+            .runtime
+            .packages
+            .contains(&"ca-certificates".to_string()));
 
         // Runtime command should be wrapped with sh -c
         assert_eq!(build.runtime.command[0], "sh");

@@ -111,7 +111,10 @@ fn parse_dotnet_version(content: &str) -> Option<DotnetVersion> {
 }
 
 /// Build specs for .NET versions available as Wolfi packages (>= MIN_WOLFI_DOTNET_VERSION).
-fn build_wolfi_dotnet_specs(ver: &DotnetVersion, file_stem: &Option<String>) -> (BuildSpec, RuntimeSpec) {
+fn build_wolfi_dotnet_specs(
+    ver: &DotnetVersion,
+    file_stem: &Option<String>,
+) -> (BuildSpec, RuntimeSpec) {
     let sdk_pkg = format!("dotnet-{}-sdk", ver.major);
     let runtime_pkg = format!("aspnet-{}-runtime", ver.major);
 
@@ -140,7 +143,10 @@ fn build_wolfi_dotnet_specs(ver: &DotnetVersion, file_stem: &Option<String>) -> 
 
 /// Build specs for old .NET versions not available in Wolfi (< MIN_WOLFI_DOTNET_VERSION).
 /// Uses Microsoft's dotnet-install.sh script to download and install the SDK/runtime.
-fn build_legacy_dotnet_specs(ver: &DotnetVersion, file_stem: &Option<String>) -> (BuildSpec, RuntimeSpec) {
+fn build_legacy_dotnet_specs(
+    ver: &DotnetVersion,
+    file_stem: &Option<String>,
+) -> (BuildSpec, RuntimeSpec) {
     let install_cmd = format!(
         "curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel {} --install-dir {}",
         ver.channel, DOTNET_INSTALL_DIR
@@ -174,10 +180,7 @@ fn build_legacy_dotnet_specs(ver: &DotnetVersion, file_stem: &Option<String>) ->
             artifacts: vec![("out/".into(), "/app".into())],
         },
         RuntimeSpec {
-            packages: vec![
-                "icu".into(),
-                "ca-certificates".into(),
-            ],
+            packages: vec!["icu".into(), "ca-certificates".into()],
             env: runtime_env,
             entrypoint: file_stem.as_ref().map(|n| format!("dotnet /app/{}.dll", n)),
             workdir: Some("/app".into()),
@@ -380,7 +383,10 @@ mod tests {
         assert!(manifest.build.commands[0].contains("--channel 6.0"));
         assert!(manifest.build.commands[0].contains("--install-dir /usr/share/dotnet"));
         assert_eq!(manifest.build.commands[1], "dotnet restore");
-        assert_eq!(manifest.build.commands[2], "dotnet publish -c Release -o out");
+        assert_eq!(
+            manifest.build.commands[2],
+            "dotnet publish -c Release -o out"
+        );
 
         // Build env should include DOTNET_ROOT and PATH
         assert_eq!(

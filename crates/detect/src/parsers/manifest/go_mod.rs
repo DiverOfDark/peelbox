@@ -39,7 +39,9 @@ pub(crate) fn is_go_version_below_wolfi_min(version: &str) -> bool {
 /// Build the packages, extra commands, and extra env vars needed when the
 /// requested Go version is too old for Wolfi.  The SDK is downloaded from
 /// go.dev and unpacked into `/usr/local/go`.
-pub(crate) fn legacy_go_sdk_setup(version: &str) -> (Vec<String>, Vec<String>, Vec<(&'static str, &'static str)>) {
+pub(crate) fn legacy_go_sdk_setup(
+    version: &str,
+) -> (Vec<String>, Vec<String>, Vec<(&'static str, &'static str)>) {
     let install_cmd = format!(
         "curl -fsSL https://go.dev/dl/go{}.linux-amd64.tar.gz | tar -C /usr/local -xzf -",
         version
@@ -301,8 +303,12 @@ mod tests {
         assert!(commands[0].contains("go.dev/dl/go1.18.linux-amd64.tar.gz"));
         assert!(commands[0].contains("tar -C /usr/local"));
 
-        assert!(env.iter().any(|(k, v)| *k == "GOROOT" && *v == "/usr/local/go"));
-        assert!(env.iter().any(|(k, v)| *k == "PATH" && v.contains("/usr/local/go/bin")));
+        assert!(env
+            .iter()
+            .any(|(k, v)| *k == "GOROOT" && *v == "/usr/local/go"));
+        assert!(env
+            .iter()
+            .any(|(k, v)| *k == "PATH" && v.contains("/usr/local/go/bin")));
     }
 
     #[test]
@@ -316,7 +322,11 @@ mod tests {
         assert!(!manifest.build.packages.contains(&"curl".to_string()));
         assert!(!manifest.build.packages.contains(&"build-base".to_string()));
         // Should NOT have SDK install command
-        assert!(!manifest.build.commands.iter().any(|c| c.contains("go.dev/dl")));
+        assert!(!manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go.dev/dl")));
         // Should NOT have GOROOT env
         assert!(!manifest.build.env.contains_key("GOROOT"));
     }
@@ -333,10 +343,18 @@ mod tests {
         assert!(manifest.build.packages.contains(&"build-base".to_string()));
         assert!(manifest.build.packages.contains(&"curl".to_string()));
         assert!(manifest.build.packages.contains(&"git".to_string()));
-        assert!(manifest.build.packages.contains(&"ca-certificates".to_string()));
+        assert!(manifest
+            .build
+            .packages
+            .contains(&"ca-certificates".to_string()));
         // Should have GOROOT and PATH env
         assert_eq!(manifest.build.env.get("GOROOT").unwrap(), "/usr/local/go");
-        assert!(manifest.build.env.get("PATH").unwrap().contains("/usr/local/go/bin"));
+        assert!(manifest
+            .build
+            .env
+            .get("PATH")
+            .unwrap()
+            .contains("/usr/local/go/bin"));
         // Standard Go env should still be present
         assert_eq!(manifest.build.env.get("CGO_ENABLED").unwrap(), "0");
     }
@@ -348,7 +366,11 @@ mod tests {
         let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
 
         // Should use legacy SDK with exact version
-        assert!(manifest.build.commands.iter().any(|c| c.contains("go1.17.5.linux-amd64")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go1.17.5.linux-amd64")));
         assert!(!manifest.build.packages.iter().any(|p| p.starts_with("go-")));
     }
 }

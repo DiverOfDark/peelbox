@@ -101,10 +101,9 @@ pub fn parse_pom_version(content: &str) -> Option<String> {
     // Fallback to regex for cases where XML parsing fails
     // Match both modern (17) and legacy (1.8) version formats
     // <maven.compiler.source>17</maven.compiler.source> or <maven.compiler.source>1.8</maven.compiler.source>
-    if let Some(caps) =
-        Regex::new(r"<maven\.compiler\.source>([\d.]+)</maven\.compiler\.source>")
-            .ok()
-            .and_then(|re| re.captures(content))
+    if let Some(caps) = Regex::new(r"<maven\.compiler\.source>([\d.]+)</maven\.compiler\.source>")
+        .ok()
+        .and_then(|re| re.captures(content))
     {
         return caps.get(1).map(|m| m.as_str().to_string());
     }
@@ -407,7 +406,8 @@ mod tests {
 
     #[test]
     fn test_pom_legacy_java_7() {
-        let content = r#"<project><properties><java.version>1.7</java.version></properties></project>"#;
+        let content =
+            r#"<project><properties><java.version>1.7</java.version></properties></project>"#;
         assert_eq!(detect_java_version(content), Some("7".to_string()));
     }
 
@@ -631,11 +631,7 @@ mod tests {
 
         // Should have a copy spec for the JDK
         assert!(
-            build
-                .runtime
-                .copy
-                .iter()
-                .any(|c| c.from.contains("java-8")),
+            build.runtime.copy.iter().any(|c| c.from.contains("java-8")),
             "Should copy JDK from build to runtime: {:?}",
             build.runtime.copy
         );
