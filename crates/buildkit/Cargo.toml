@@ -6,7 +6,7 @@ edition.workspace = true
 [dependencies]
 peelbox-core = { path = "../core" }
 tonic = "0.14.2"
-tonic-prost = "0.14.2"
+tonic-prost = "0.14.5"
 tonic-health = "0.14.5"
 prost = "0.14.3"
 prost-types = "0.14.3"
