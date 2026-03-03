@@ -13,7 +13,8 @@
         "python-3.14",
         "py3.14-pip",
         "build-base",
-        "ca-certificates"
+        "ca-certificates",
+        "mariadb-connector-c-dev"
       ],
       "env": {},
       "commands": [
@@ -28,7 +29,8 @@
         "python-3.14",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "mariadb-connector-c"
       ],
       "env": {
         "DJANGO_SETTINGS_MODULE": "config.settings.production"

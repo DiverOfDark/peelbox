@@ -12,7 +12,9 @@
         "python-3.12",
         "py3.12-pip",
         "build-base",
-        "ca-certificates"
+        "ca-certificates",
+        "poppler-utils",
+        "ffmpeg"
       ],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
@@ -31,7 +33,9 @@
         "python-3.12",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "poppler-utils",
+        "ffmpeg"
       ],
       "env": {},
       "copy": [
