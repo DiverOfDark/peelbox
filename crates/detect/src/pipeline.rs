@@ -320,16 +320,34 @@ fn collect_manifests_with_frameworks(
 
     for file in &node.files {
         if let FileKind::Manifest(manifest) = &file.kind {
-            let mut framework = detectors.iter().find_map(|detector| {
+            // Collect all matching frameworks, then pick the best one.
+            // Prefer frameworks whose trigger dependency is a runtime (production)
+            // dependency over those that only match on devDependencies.
+            let mut candidates: Vec<(FrameworkContribution, bool)> = Vec::new();
+            for detector in detectors.iter() {
                 if !detector.compatible_languages().contains(&manifest.language) {
-                    return None;
+                    continue;
                 }
-                if detector.detect(&manifest.dependencies) {
-                    Some(detector.contribution(&manifest.dependencies))
-                } else {
-                    None
+                // Check detection against all deps
+                if !detector.detect(&manifest.dependencies) {
+                    continue;
                 }
-            });
+                let contrib = detector.contribution(&manifest.dependencies);
+                // Check if this framework also matches when restricted to runtime deps only
+                let runtime_deps: Vec<_> = manifest
+                    .dependencies
+                    .iter()
+                    .filter(|d| d.scope == DepScope::Runtime)
+                    .cloned()
+                    .collect();
+                let matches_runtime = detector.detect(&runtime_deps);
+                candidates.push((contrib, matches_runtime));
+            }
+
+            // Sort: runtime matches first, then by order (stable sort preserves insertion order)
+            candidates.sort_by_key(|&(_, matches_runtime)| if matches_runtime { 0 } else { 1 });
+
+            let mut framework = candidates.into_iter().next().map(|(contrib, _)| contrib);
 
             // If the build system profile prefers framework variants with specific env keys,
             // look for a matching variant (e.g., Poetry prefers FlaskPoetry with VIRTUAL_ENV)
