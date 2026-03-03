@@ -1,7 +1,8 @@
+use super::go_mod::{is_go_version_below_wolfi_min, legacy_go_sdk_setup};
+use crate::helpers::btree;
 use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use std::collections::BTreeMap;
 use std::path::Path;
 
 const GO: LanguageId = LanguageId::new("go");
@@ -34,10 +35,27 @@ impl ManifestParser for GoWorkParser {
                 }
             });
 
-        let go_pkg = go_version
+        let needs_legacy_sdk = go_version
             .as_ref()
-            .map(|v| format!("go-{}", v))
-            .unwrap_or_else(|| "go".into());
+            .is_some_and(|v| is_go_version_below_wolfi_min(v));
+
+        let (build_packages, sdk_install_commands, extra_env) = if needs_legacy_sdk {
+            let version = go_version.as_ref().unwrap();
+            legacy_go_sdk_setup(version)
+        } else {
+            let go_pkg = go_version
+                .as_ref()
+                .map(|v| format!("go-{}", v))
+                .unwrap_or_else(|| "go".into());
+            (
+                vec![go_pkg, "git".into(), "ca-certificates".into()],
+                Vec::new(),
+                Vec::new(),
+            )
+        };
+
+        let mut env_pairs: Vec<(&str, &str)> = Vec::new();
+        env_pairs.extend_from_slice(&extra_env);
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -51,10 +69,10 @@ impl ManifestParser for GoWorkParser {
             }),
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: vec![go_pkg, "git".into(), "ca-certificates".into()],
-                commands: vec![],
+                packages: build_packages,
+                commands: sdk_install_commands,
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts: vec![],
             },
