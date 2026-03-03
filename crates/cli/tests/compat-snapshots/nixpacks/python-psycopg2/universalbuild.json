@@ -27,7 +27,8 @@
         "python-3.14",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "libpq-18"
       ],
       "env": {
         "PGDATABASE": "",

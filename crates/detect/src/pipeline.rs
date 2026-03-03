@@ -99,6 +99,11 @@ pub fn detect_with_registry_and_wolfi(
         fix_flask_app_path(repo_path, build);
     }
 
+    // Step 4h: Detect Python native dependency system packages
+    for build in &mut builds {
+        scan_python_native_deps(repo_path, build);
+    }
+
     // Step 5: Resolve Wolfi package versions
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
@@ -1216,6 +1221,8 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
     ("gradle", "gradle"),
     ("zig", "zig"),
     ("bazel", "bazel"),
+    ("postgresql", "postgresql"),
+    ("libpq", "libpq"),
 ];
 
 /// Resolve generic package names to versioned Wolfi package names.
@@ -1999,6 +2006,185 @@ fn scan_python_entrypoints(repo_root: &Path, build: &mut UniversalBuild) {
     }
 }
 
+// ── Python native dependency detection ──────────────────────────────────
+
+/// Maps well-known Python packages to their required system build/runtime packages.
+/// Each entry: (python_package_pattern, build_packages, runtime_packages).
+const PYTHON_NATIVE_DEPS: &[(&str, &[&str], &[&str])] = &[
+    // PostgreSQL adapters (C compilation needs headers; binary variant only needs runtime lib)
+    ("psycopg2", &["postgresql-dev"], &["libpq"]),
+    ("psycopg2-binary", &[], &["libpq"]),
+    // psycopg[c] or psycopg with C backend
+    ("psycopg", &["postgresql-dev"], &["libpq"]),
+    // MySQL adapter
+    (
+        "mysqlclient",
+        &["mariadb-connector-c-dev"],
+        &["mariadb-connector-c"],
+    ),
+    // Cairo graphics
+    ("pycairo", &["cairo-dev"], &["cairo"]),
+    // PDF processing (poppler)
+    ("pdf2image", &["poppler-utils"], &["poppler-utils"]),
+    // Audio processing
+    ("pydub", &["ffmpeg"], &["ffmpeg"]),
+    // Pillow (image processing)
+    (
+        "Pillow",
+        &["freetype-dev", "libjpeg-turbo-dev", "zlib-dev"],
+        &["freetype", "libjpeg-turbo", "zlib"],
+    ),
+    (
+        "pillow",
+        &["freetype-dev", "libjpeg-turbo-dev", "zlib-dev"],
+        &["freetype", "libjpeg-turbo", "zlib"],
+    ),
+    // Cryptography
+    (
+        "cryptography",
+        &["openssl-dev", "libffi-dev"],
+        &["openssl", "libffi"],
+    ),
+    // lxml
+    (
+        "lxml",
+        &["libxml2-dev", "libxslt-dev"],
+        &["libxml2", "libxslt"],
+    ),
+    // cffi
+    ("cffi", &["libffi-dev"], &["libffi"]),
+];
+
+/// Scan Python dependencies and add required system packages for native extensions.
+fn scan_python_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
+    if build.metadata.language != "Python" {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+
+    // Collect Python dependency names from all supported manifest files
+    let dep_names = collect_python_dep_names(&project_dir);
+    if dep_names.is_empty() {
+        return;
+    }
+
+    let mut build_pkgs_to_add: Vec<String> = Vec::new();
+    let mut runtime_pkgs_to_add: Vec<String> = Vec::new();
+
+    for (pattern, build_deps, runtime_deps) in PYTHON_NATIVE_DEPS {
+        if dep_names.iter().any(|d| dep_matches(d, pattern)) {
+            for pkg in *build_deps {
+                let pkg_str = pkg.to_string();
+                if !build.build.packages.contains(&pkg_str) && !build_pkgs_to_add.contains(&pkg_str)
+                {
+                    build_pkgs_to_add.push(pkg_str);
+                }
+            }
+            for pkg in *runtime_deps {
+                let pkg_str = pkg.to_string();
+                if !build.runtime.packages.contains(&pkg_str)
+                    && !runtime_pkgs_to_add.contains(&pkg_str)
+                {
+                    runtime_pkgs_to_add.push(pkg_str);
+                }
+            }
+        }
+    }
+
+    if !build_pkgs_to_add.is_empty() || !runtime_pkgs_to_add.is_empty() {
+        debug!(
+            build_pkgs = ?build_pkgs_to_add,
+            runtime_pkgs = ?runtime_pkgs_to_add,
+            "Adding system packages for Python native dependencies"
+        );
+        build.build.packages.extend(build_pkgs_to_add);
+        build.runtime.packages.extend(runtime_pkgs_to_add);
+    }
+}
+
+/// Check if a dependency name matches a pattern (case-insensitive, handles extras like `psycopg[c]`).
+fn dep_matches(dep_name: &str, pattern: &str) -> bool {
+    let normalized = dep_name.to_lowercase().replace('-', "_");
+    let pat_normalized = pattern.to_lowercase().replace('-', "_");
+    normalized == pat_normalized || normalized.starts_with(&format!("{}[", pat_normalized))
+}
+
+/// Collect Python dependency names from requirements.txt, pyproject.toml, Pipfile, and uv.lock.
+fn collect_python_dep_names(project_dir: &Path) -> Vec<String> {
+    let mut deps = Vec::new();
+
+    // requirements.txt
+    if let Ok(content) = std::fs::read_to_string(project_dir.join("requirements.txt")) {
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('-') {
+                continue;
+            }
+            let name = trimmed
+                .split(&['>', '<', '=', '~', '!', ';'][..])
+                .next()
+                .unwrap_or(trimmed)
+                .trim();
+            if !name.is_empty() {
+                deps.push(name.to_string());
+            }
+        }
+    }
+
+    // pyproject.toml
+    if let Ok(content) = std::fs::read_to_string(project_dir.join("pyproject.toml")) {
+        if let Ok(toml_val) = toml::from_str::<toml::Value>(content.trim()) {
+            // [project] dependencies
+            if let Some(project_deps) = toml_val
+                .get("project")
+                .and_then(|p| p.get("dependencies"))
+                .and_then(|d| d.as_array())
+            {
+                for dep in project_deps {
+                    if let Some(dep_str) = dep.as_str() {
+                        let name = dep_str
+                            .split(&['>', '<', '=', '~', '!', ';', ' '][..])
+                            .next()
+                            .unwrap_or(dep_str)
+                            .trim();
+                        if !name.is_empty() {
+                            deps.push(name.to_string());
+                        }
+                    }
+                }
+            }
+
+            // [tool.poetry.dependencies]
+            if let Some(poetry_deps) = toml_val
+                .get("tool")
+                .and_then(|t| t.get("poetry"))
+                .and_then(|p| p.get("dependencies"))
+                .and_then(|d| d.as_table())
+            {
+                for name in poetry_deps.keys() {
+                    if name != "python" {
+                        deps.push(name.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // Pipfile
+    if let Ok(content) = std::fs::read_to_string(project_dir.join("Pipfile")) {
+        if let Ok(toml_val) = toml::from_str::<toml::Value>(content.trim()) {
+            if let Some(packages) = toml_val.get("packages").and_then(|v| v.as_table()) {
+                for name in packages.keys() {
+                    deps.push(name.clone());
+                }
+            }
+        }
+    }
+
+    deps
+}
+
 // ── Flask app path fix ────────────────────────────────────────────────────
 
 /// Fix FLASK_APP for workspace members where the hardcoded `/build/app.py` doesn't exist.
@@ -2485,5 +2671,220 @@ const home = process.env.HOME;
             "Runtime should not have Node.js packages"
         );
         assert_eq!(build.runtime.ports, vec![8000]);
+    }
+
+    #[test]
+    fn test_dep_matches_exact() {
+        assert!(dep_matches("psycopg2", "psycopg2"));
+        assert!(dep_matches("psycopg2-binary", "psycopg2-binary"));
+        assert!(!dep_matches("psycopg2-binary", "psycopg2"));
+        assert!(!dep_matches("psycopg2", "psycopg"));
+    }
+
+    #[test]
+    fn test_dep_matches_extras() {
+        assert!(dep_matches("psycopg[c]", "psycopg"));
+        assert!(dep_matches("psycopg[binary]", "psycopg"));
+        assert!(!dep_matches("psycopg2[binary]", "psycopg"));
+    }
+
+    #[test]
+    fn test_dep_matches_case_insensitive() {
+        assert!(dep_matches("Pillow", "pillow"));
+        assert!(dep_matches("pillow", "Pillow"));
+        assert!(dep_matches("Django", "django"));
+    }
+
+    #[test]
+    fn test_dep_matches_underscore_hyphen() {
+        assert!(dep_matches("psycopg2-binary", "psycopg2_binary"));
+        assert!(dep_matches("psycopg2_binary", "psycopg2-binary"));
+    }
+
+    #[test]
+    fn test_scan_python_native_deps_with_requirements() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("requirements.txt"),
+            "psycopg2==2.9.3\nflask==3.0\n",
+        )
+        .unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("app".into()),
+                language: "Python".into(),
+                build_system: "pip".into(),
+                framework: None,
+                reasoning: "Detected from requirements.txt".into(),
+            },
+            build: BuildStage {
+                packages: vec!["python-3.12".into(), "pip".into(), "build-base".into()],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec!["python-3.12".into(), "libgcc".into()],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec!["python".into(), "app.py".into()],
+                workdir: "/app".into(),
+                ports: vec![],
+                health: None,
+            },
+        };
+
+        scan_python_native_deps(dir.path(), &mut build);
+
+        assert!(
+            build.build.packages.contains(&"postgresql-dev".to_string()),
+            "Should add postgresql-dev for psycopg2"
+        );
+        assert!(
+            build.runtime.packages.contains(&"libpq".to_string()),
+            "Should add libpq for psycopg2 runtime"
+        );
+    }
+
+    #[test]
+    fn test_scan_python_native_deps_skips_non_python() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("requirements.txt"), "psycopg2==2.9.3\n").unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("app".into()),
+                language: "Rust".into(),
+                build_system: "cargo".into(),
+                framework: None,
+                reasoning: "Detected from Cargo.toml".into(),
+            },
+            build: BuildStage {
+                packages: vec!["rust".into()],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec![],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec!["./app".into()],
+                workdir: "/app".into(),
+                ports: vec![],
+                health: None,
+            },
+        };
+
+        scan_python_native_deps(dir.path(), &mut build);
+
+        assert!(
+            !build.build.packages.contains(&"postgresql-dev".to_string()),
+            "Should not add postgresql-dev for non-Python project"
+        );
+    }
+
+    #[test]
+    fn test_scan_python_native_deps_pyproject() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("pyproject.toml"),
+            r#"[project]
+name = "myapp"
+dependencies = [
+    "mysqlclient>=2.1",
+    "flask",
+]
+"#,
+        )
+        .unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("app".into()),
+                language: "Python".into(),
+                build_system: "pip".into(),
+                framework: None,
+                reasoning: "Detected from pyproject.toml".into(),
+            },
+            build: BuildStage {
+                packages: vec!["python-3.12".into()],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec!["python-3.12".into()],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec!["python".into(), "app.py".into()],
+                workdir: "/app".into(),
+                ports: vec![],
+                health: None,
+            },
+        };
+
+        scan_python_native_deps(dir.path(), &mut build);
+
+        assert!(
+            build
+                .build
+                .packages
+                .contains(&"mariadb-connector-c-dev".to_string()),
+            "Should add mariadb-connector-c-dev for mysqlclient"
+        );
+        assert!(
+            build
+                .runtime
+                .packages
+                .contains(&"mariadb-connector-c".to_string()),
+            "Should add mariadb-connector-c for mysqlclient runtime"
+        );
+    }
+
+    #[test]
+    fn test_scan_python_native_deps_no_duplicates() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("requirements.txt"), "psycopg2==2.9.3\n").unwrap();
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: BuildMetadata {
+                project_name: Some("app".into()),
+                language: "Python".into(),
+                build_system: "pip".into(),
+                framework: None,
+                reasoning: "Detected from requirements.txt".into(),
+            },
+            build: BuildStage {
+                packages: vec!["python-3.12".into(), "postgresql-dev".into()],
+                env: BTreeMap::new(),
+                commands: vec![],
+                cache: vec![],
+            },
+            runtime: RuntimeStage {
+                packages: vec!["python-3.12".into(), "libpq".into()],
+                env: BTreeMap::new(),
+                copy: vec![],
+                command: vec!["python".into(), "app.py".into()],
+                workdir: "/app".into(),
+                ports: vec![],
+                health: None,
+            },
+        };
+
+        scan_python_native_deps(dir.path(), &mut build);
+
+        let pg_count = build
+            .build
+            .packages
+            .iter()
+            .filter(|p| *p == "postgresql-dev")
+            .count();
+        assert_eq!(pg_count, 1, "Should not duplicate postgresql-dev");
     }
 }

@@ -12,7 +12,8 @@
         "python-3.11",
         "py3.11-pip",
         "build-base",
-        "ca-certificates"
+        "ca-certificates",
+        "postgresql-18-dev"
       ],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
@@ -31,7 +32,8 @@
         "python-3.11",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "libpq-18"
       ],
       "env": {
         "DATABASE_URL": "",

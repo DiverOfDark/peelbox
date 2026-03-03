@@ -28,7 +28,8 @@
         "python-3.14",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "libpq-18"
       ],
       "env": {
         "DJANGO_SETTINGS_MODULE": "config.settings.production"
