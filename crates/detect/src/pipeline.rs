@@ -1271,6 +1271,13 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
                 let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
                 *pkg = format!("dotnet-{}-runtime", ver);
             }
+        } else if pkg.starts_with("aspnet-") && pkg.ends_with("-runtime") && !wolfi.has_package(pkg)
+        {
+            // aspnet-6-runtime → aspnet-X-runtime (resolve to latest available)
+            if let Some(latest) = wolfi.get_latest_version("dotnet") {
+                let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
+                *pkg = format!("aspnet-{}-runtime", ver);
+            }
         }
     }
 
