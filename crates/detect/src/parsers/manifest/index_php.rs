@@ -41,6 +41,22 @@ impl ManifestParser for IndexPhpParser {
             }
         }
 
+        // If a parent directory also has an index.php, defer to that one.
+        // This prevents duplicate "app" service names when a PHP project has
+        // index.php in both the root and subdirectories (e.g., stuff/index.php).
+        if let Some(current_dir) = path.parent() {
+            let mut parent = current_dir.parent();
+            while let Some(p) = parent {
+                if p.join("index.php").exists() {
+                    return None;
+                }
+                parent = p.parent();
+                if parent == Some(Path::new("")) || parent == Some(Path::new("/")) {
+                    break;
+                }
+            }
+        }
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: PHP,
@@ -110,5 +126,33 @@ mod tests {
 
         let result = crate::traits::ManifestParser::parse(&parser, &index_path, content);
         assert!(result.is_none(), "Should skip when composer.json exists");
+    }
+
+    #[test]
+    fn test_index_php_skipped_when_parent_has_index_php() {
+        let parser = IndexPhpParser;
+        let content = r#"<?php echo "Hello!"; ?>"#;
+        let tmp = tempfile::tempdir().unwrap();
+
+        // Create root index.php
+        std::fs::write(tmp.path().join("index.php"), content).unwrap();
+
+        // Create subdirectory with its own index.php
+        let subdir = tmp.path().join("stuff");
+        std::fs::create_dir(&subdir).unwrap();
+        let sub_index_path = subdir.join("index.php");
+        std::fs::write(&sub_index_path, content).unwrap();
+
+        // Root index.php should be detected
+        let root_path = tmp.path().join("index.php");
+        let result = crate::traits::ManifestParser::parse(&parser, &root_path, content);
+        assert!(result.is_some(), "Root index.php should be detected");
+
+        // Subdirectory index.php should be skipped (parent has index.php)
+        let result = crate::traits::ManifestParser::parse(&parser, &sub_index_path, content);
+        assert!(
+            result.is_none(),
+            "Should skip subdirectory index.php when parent has one"
+        );
     }
 }
