@@ -151,17 +151,30 @@ fn assemble_compat_work_dir(
     snapshot_file: &Path,
     work_dir: &Path,
 ) -> std::io::Result<()> {
-    // If the work dir already exists and the snapshot is up to date, skip
+    // If the work dir already exists and both the snapshot AND external source
+    // files are up to date, skip. We check the external directory's mtime too,
+    // because re-fetching external fixtures can add/change files without
+    // touching the snapshot.
     let dest_snapshot = work_dir.join("universalbuild.json");
     if work_dir.exists() && dest_snapshot.exists() {
-        let src_mtime = std::fs::metadata(snapshot_file)
-            .and_then(|m| m.modified())
-            .ok();
+        let snapshot_src_mtime = snapshot_file
+            .parent()
+            .and_then(|dir| newest_mtime_recursive(dir))
+            .or_else(|| {
+                std::fs::metadata(snapshot_file)
+                    .and_then(|m| m.modified())
+                    .ok()
+            });
+        let external_src_mtime = newest_mtime_recursive(external_example);
         let dest_mtime = std::fs::metadata(&dest_snapshot)
             .and_then(|m| m.modified())
             .ok();
-        if let (Some(s), Some(d)) = (src_mtime, dest_mtime) {
-            if d >= s {
+        if let (Some(d), Some(ss)) = (dest_mtime, snapshot_src_mtime) {
+            let snapshot_fresh = d >= ss;
+            let external_fresh = external_src_mtime
+                .map(|em| d >= em)
+                .unwrap_or(true);
+            if snapshot_fresh && external_fresh {
                 return Ok(());
             }
         }
@@ -175,13 +188,47 @@ fn assemble_compat_work_dir(
     // Copy project files
     copy_dir_recursive(external_example, work_dir)?;
 
-    // Overlay the snapshot
-    std::fs::copy(snapshot_file, work_dir.join("universalbuild.json"))?;
+    // Overlay all files from the snapshot directory (universalbuild.json,
+    // expected_output.txt, etc.)
+    if let Some(snapshot_dir) = snapshot_file.parent() {
+        for entry in std::fs::read_dir(snapshot_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file() {
+                std::fs::copy(entry.path(), work_dir.join(entry.file_name()))?;
+            }
+        }
+    }
 
     // Create a .git marker (peelbox expects it)
     std::fs::create_dir_all(work_dir.join(".git"))?;
 
     Ok(())
+}
+
+/// Returns the newest modification time found recursively in a directory.
+fn newest_mtime_recursive(dir: &Path) -> Option<std::time::SystemTime> {
+    let mut newest: Option<std::time::SystemTime> = None;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str == ".git" {
+                continue;
+            }
+            if let Ok(meta) = entry.metadata() {
+                if let Ok(mtime) = meta.modified() {
+                    newest = Some(newest.map_or(mtime, |n: std::time::SystemTime| n.max(mtime)));
+                }
+                if meta.is_dir() {
+                    if let Some(child_newest) = newest_mtime_recursive(&entry.path()) {
+                        newest =
+                            Some(newest.map_or(child_newest, |n: std::time::SystemTime| n.max(child_newest)));
+                    }
+                }
+            }
+        }
+    }
+    newest
 }
 
 /// Recursively copy a directory, skipping .git directories.
