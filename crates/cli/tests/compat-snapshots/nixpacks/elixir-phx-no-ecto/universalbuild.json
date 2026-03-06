@@ -16,17 +16,24 @@
         "git",
         "build-base",
         "openssl",
-        "ca-certificates"
+        "ca-certificates",
+        "nodejs-25",
+        "npm"
       ],
       "env": {
+        "DATABASE_URL": "",
         "ELIXIR_ERL_OPTIONS": "+fnu",
         "LC_ALL": "C.UTF-8",
         "MIX_ENV": "prod",
-        "MIX_HOME": "/build/.mix"
+        "MIX_HOME": "/build/.mix",
+        "POOL_SIZE": "",
+        "SECRET_KEY_BASE": ""
       },
       "commands": [
         "mix local.hex --force && mix local.rebar --force",
         "mix deps.get",
+        "mix deps.compile",
+        "mix assets.deploy",
         "mix compile"
       ],
       "cache": [
@@ -39,6 +46,7 @@
         "elixir-1.18",
         "erlang-28",
         "busybox",
+        "git",
         "openssl",
         "ca-certificates"
       ],
@@ -52,7 +60,7 @@
         "PHX_HOST": "",
         "PHX_SERVER": "",
         "PORT": "4000",
-        "SECRET_KEY_BASE": "",
+        "SECRET_KEY_BASE": "please-change-me-in-production-this-is-a-placeholder-key-that-is-at-least-64-bytes-long",
         "SOME_APP_SSL_CERT_PATH": "",
         "SOME_APP_SSL_KEY_PATH": ""
       },
@@ -74,7 +82,7 @@
         4002
       ],
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/"
       }
     }
   }

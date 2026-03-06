@@ -16,7 +16,7 @@
       ],
       "env": {},
       "commands": [
-        "npm ci",
+        "npm install",
         "cd apps/web && npm run build"
       ],
       "cache": [

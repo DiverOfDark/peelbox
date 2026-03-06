@@ -13,7 +13,9 @@
         "python-3.14",
         "py3.14-pip",
         "build-base",
-        "ca-certificates"
+        "ca-certificates",
+        "postgresql-18-dev",
+        "python-3.14-dev"
       ],
       "env": {},
       "commands": [
@@ -32,7 +34,7 @@
         "libpq-18"
       ],
       "env": {
-        "DJANGO_SETTINGS_MODULE": "config.settings.production"
+        "DJANGO_SETTINGS_MODULE": "python_django.settings"
       },
       "copy": [
         {
@@ -42,7 +44,9 @@
       ],
       "command": [
         "python",
-        "/app/manage.py"
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000"
       ],
       "workdir": "/app",
       "ports": [

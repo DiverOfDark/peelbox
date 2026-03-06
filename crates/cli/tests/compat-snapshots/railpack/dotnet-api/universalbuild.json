@@ -19,6 +19,7 @@
         "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
       },
       "commands": [
+        "rm -f global.json",
         "dotnet restore",
         "dotnet publish -c Release -o out"
       ],

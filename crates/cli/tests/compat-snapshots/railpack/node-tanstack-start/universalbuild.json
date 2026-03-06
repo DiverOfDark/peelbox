@@ -4,20 +4,20 @@
     "metadata": {
       "project_name": "tanstack-start-example-basic",
       "language": "JavaScript",
-      "build_system": "npm",
+      "build_system": "Bun",
       "framework": "Vite",
       "reasoning": "Detected from package.json"
     },
     "build": {
       "packages": [
         "nodejs-25",
-        "npm",
+        "bun",
         "ca-certificates"
       ],
       "env": {},
       "commands": [
-        "npm ci",
-        "npm run build"
+        "bun install",
+        "bun run build"
       ],
       "cache": [
         ".npm"
@@ -26,7 +26,7 @@
     "runtime": {
       "packages": [
         "nodejs-25",
-        "npm",
+        "bun",
         "busybox",
         "dumb-init",
         "ca-certificates"
@@ -44,6 +44,7 @@
       ],
       "workdir": "/app",
       "ports": [
+        5173,
         3000
       ]
     }

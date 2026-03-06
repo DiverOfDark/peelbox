@@ -1,0 +1,63 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "C#",
+      "build_system": ".NET",
+      "reasoning": "Detected from csharp-cli.csproj"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "bash",
+        "curl",
+        "icu",
+        "ca-certificates"
+      ],
+      "env": {
+        "DOTNET_CLI_HOME": "/root",
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_ROOT": "/usr/share/dotnet",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+        "PATH": "/usr/share/dotnet:${PATH}"
+      },
+      "commands": [
+        "curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 6.0 --install-dir /usr/share/dotnet",
+        "rm -f global.json",
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
+      ],
+      "cache": [
+        ".nuget/packages",
+        "bin",
+        "obj"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "icu",
+        "ca-certificates"
+      ],
+      "env": {
+        "DOTNET_ROOT": "/usr/share/dotnet",
+        "PATH": "/usr/share/dotnet:${PATH}"
+      },
+      "copy": [
+        {
+          "from": "out/",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "dotnet",
+        "/app/csharp-cli.dll"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5000
+      ]
+    }
+  }
+]

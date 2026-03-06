@@ -18,8 +18,7 @@
       ],
       "env": {},
       "commands": [
-        "pnpm install",
-        "pnpm build"
+        "pnpm install"
       ],
       "cache": [
         ".pnpm-store"
@@ -28,7 +27,7 @@
     "runtime": {
       "packages": [
         "nodejs-25",
-        "npm",
+        "pnpm",
         "busybox",
         "dumb-init",
         "ca-certificates"

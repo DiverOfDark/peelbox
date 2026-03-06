@@ -13,7 +13,8 @@
         "py3.14-pip",
         "build-base",
         "ca-certificates",
-        "postgresql-18-dev"
+        "postgresql-18-dev",
+        "python-3.14-dev"
       ],
       "env": {},
       "commands": [

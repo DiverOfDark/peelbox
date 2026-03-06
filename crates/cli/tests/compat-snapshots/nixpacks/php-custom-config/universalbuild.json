@@ -1,23 +1,35 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "None",
+      "reasoning": "Detected from index.php"
+    },
     "build": {
-      "cache": [],
-      "commands": [
-        "echo 'No build step required'"
-      ],
-      "env": {},
       "packages": [
         "php-8.5",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "None",
-      "language": "PHP",
-      "project_name": "app",
-      "reasoning": "Detected from index.php"
+      ],
+      "env": {},
+      "commands": [
+        "echo 'No build step required'"
+      ],
+      "cache": []
     },
     "runtime": {
+      "packages": [
+        "php-8.5",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
       "command": [
         "php",
         "-S",
@@ -25,22 +37,10 @@
         "-t",
         "/app"
       ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "php-8.5",
-        "ca-certificates"
-      ],
+      "workdir": "/app",
       "ports": [
         8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

@@ -9,10 +9,13 @@
     },
     "build": {
       "packages": [
-        "ruby-3.4",
-        "ruby-3.4-dev",
-        "ruby3.4-bundler",
+        "ruby-3.2",
+        "ruby-3.2-dev",
+        "ruby3.2-bundler",
         "build-base",
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev",
         "ca-certificates"
       ],
       "env": {
@@ -20,7 +23,7 @@
         "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
-        "bundle install"
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
       ],
       "cache": [
         ".bundle",
@@ -29,10 +32,12 @@
     },
     "runtime": {
       "packages": [
-        "ruby-3.4",
-        "ruby3.4-bundler",
+        "ruby-3.2",
+        "ruby3.2-bundler",
         "libgcc",
         "libstdc++",
+        "busybox",
+        "tzdata",
         "ca-certificates"
       ],
       "env": {},
@@ -43,6 +48,8 @@
         }
       ],
       "command": [
+        "bundle",
+        "exec",
         "ruby",
         "--enable-yjit",
         "app.rb"

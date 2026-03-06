@@ -28,7 +28,8 @@
       "env": {},
       "commands": [
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
-        "npm ci",
+        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true",
+        "npm install",
         "npm run build"
       ],
       "cache": [
@@ -48,10 +49,14 @@
         "php-8.4-curl",
         "php-8.4-fileinfo",
         "php-8.4-iconv",
+        "php-8.4-pdo_sqlite",
+        "busybox",
         "ca-certificates"
       ],
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "CACHE_STORE": "file",
+        "SESSION_DRIVER": "file"
       },
       "copy": [
         {
@@ -71,7 +76,7 @@
         8000
       ],
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/"
       }
     }
   }

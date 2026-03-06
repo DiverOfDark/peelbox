@@ -45,10 +45,7 @@
       "workdir": "/app",
       "ports": [
         3000
-      ],
-      "health": {
-        "endpoint": "/healthcheck"
-      }
+      ]
     }
   }
 ]

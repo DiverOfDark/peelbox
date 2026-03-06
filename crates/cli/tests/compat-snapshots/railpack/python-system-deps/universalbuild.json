@@ -13,9 +13,11 @@
         "py3.11-pip",
         "build-base",
         "ca-certificates",
+        "postgresql-18-dev",
         "cairo-dev",
         "poppler-utils",
-        "ffmpeg"
+        "ffmpeg",
+        "python-3.11-dev"
       ],
       "env": {},
       "commands": [

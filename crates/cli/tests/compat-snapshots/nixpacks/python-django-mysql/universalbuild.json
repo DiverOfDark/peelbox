@@ -14,7 +14,8 @@
         "py3.14-pip",
         "build-base",
         "ca-certificates",
-        "mariadb-connector-c-dev"
+        "mariadb-connector-c-dev",
+        "python-3.14-dev"
       ],
       "env": {},
       "commands": [
@@ -33,7 +34,7 @@
         "mariadb-connector-c"
       ],
       "env": {
-        "DJANGO_SETTINGS_MODULE": "config.settings.production"
+        "DJANGO_SETTINGS_MODULE": "python_django.settings"
       },
       "copy": [
         {
@@ -43,7 +44,9 @@
       ],
       "command": [
         "python",
-        "/app/manage.py"
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000"
       ],
       "workdir": "/app",
       "ports": [

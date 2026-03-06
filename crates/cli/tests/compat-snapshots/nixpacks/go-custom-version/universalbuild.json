@@ -1,0 +1,56 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "versiontest",
+      "language": "Go",
+      "build_system": "go mod",
+      "reasoning": "Detected from go.mod"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "curl",
+        "git",
+        "ca-certificates"
+      ],
+      "env": {
+        "CGO_ENABLED": "0",
+        "GOCACHE": "/build/.cache/go-build",
+        "GOMODCACHE": "/build/.cache/go-mod",
+        "GOROOT": "/usr/local/go",
+        "GOSUMDB": "off",
+        "PATH": "/usr/local/go/bin:${PATH}"
+      },
+      "commands": [
+        "curl -fsSL https://go.dev/dl/go1.18.linux-amd64.tar.gz | tar -C /usr/local -xzf -",
+        "go mod download",
+        "go build -o versiontest ."
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "versiontest",
+          "to": "/app/versiontest"
+        }
+      ],
+      "command": [
+        "/app/versiontest"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

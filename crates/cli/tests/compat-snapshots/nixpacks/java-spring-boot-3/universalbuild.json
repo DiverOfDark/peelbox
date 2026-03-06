@@ -50,7 +50,8 @@
       ],
       "workdir": "/app",
       "ports": [
-        8080
+        8080,
+        3030
       ],
       "health": {
         "endpoint": "/actuator/health"

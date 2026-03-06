@@ -24,7 +24,7 @@
     "runtime": {
       "packages": [
         "nodejs-25",
-        "npm",
+        "yarn",
         "busybox",
         "dumb-init",
         "ca-certificates"
@@ -37,8 +37,8 @@
         }
       ],
       "command": [
-        "node",
-        "index.js"
+        "yarn",
+        "start"
       ],
       "workdir": "/app",
       "ports": [

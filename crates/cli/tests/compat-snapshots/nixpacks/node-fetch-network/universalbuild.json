@@ -28,7 +28,7 @@
     "runtime": {
       "packages": [
         "nodejs-25",
-        "npm",
+        "pnpm",
         "busybox",
         "dumb-init",
         "ca-certificates"
@@ -44,7 +44,7 @@
       ],
       "command": [
         "node",
-        "index.js"
+        "fetchData.js"
       ],
       "workdir": "/app",
       "ports": [

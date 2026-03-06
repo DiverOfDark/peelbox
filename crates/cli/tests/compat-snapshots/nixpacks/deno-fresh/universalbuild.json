@@ -16,8 +16,7 @@
         "DENO_DIR": "/deno-dir"
       },
       "commands": [
-        "deno install",
-        "deno task build"
+        "deno install"
       ],
       "cache": [
         "/deno-dir"

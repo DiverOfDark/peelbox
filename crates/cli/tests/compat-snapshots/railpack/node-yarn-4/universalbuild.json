@@ -14,11 +14,13 @@
         "ca-certificates",
         "corepack"
       ],
-      "env": {},
+      "env": {
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
       "commands": [
         "corepack enable",
         "yarn install",
-        "./node_modules/.bin/tsc"
+        "yarn run build"
       ],
       "cache": [
         ".yarn-cache"
@@ -27,10 +29,11 @@
     "runtime": {
       "packages": [
         "nodejs-25",
-        "npm",
+        "yarn",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "corepack"
       ],
       "env": {},
       "copy": [
@@ -40,8 +43,9 @@
         }
       ],
       "command": [
-        "node",
-        "index.js"
+        "sh",
+        "-c",
+        "corepack enable && exec yarn start"
       ],
       "workdir": "/app",
       "ports": [

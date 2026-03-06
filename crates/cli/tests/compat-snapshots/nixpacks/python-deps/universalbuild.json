@@ -14,7 +14,8 @@
         "build-base",
         "ca-certificates",
         "poppler-utils",
-        "ffmpeg"
+        "ffmpeg",
+        "python-3.12-dev"
       ],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"

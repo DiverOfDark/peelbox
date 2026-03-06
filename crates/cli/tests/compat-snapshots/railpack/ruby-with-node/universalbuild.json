@@ -15,7 +15,10 @@
         "ruby-3.4",
         "ruby-3.4-dev",
         "ruby3.4-bundler",
-        "build-base"
+        "build-base",
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev"
       ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",
@@ -23,7 +26,7 @@
       },
       "commands": [
         "npm ci",
-        "bundle install"
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
       ],
       "cache": [
         ".npm",
@@ -37,7 +40,9 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "ruby-3.4",
+        "ruby3.4-bundler"
       ],
       "env": {},
       "copy": [

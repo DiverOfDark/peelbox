@@ -4,18 +4,18 @@
     "metadata": {
       "project_name": "node-bun",
       "language": "JavaScript",
-      "build_system": "npm",
+      "build_system": "Bun",
       "reasoning": "Detected from package.json"
     },
     "build": {
       "packages": [
         "nodejs-22",
-        "npm",
+        "bun",
         "ca-certificates"
       ],
       "env": {},
       "commands": [
-        "npm ci"
+        "bun install"
       ],
       "cache": [
         ".npm"
@@ -24,7 +24,7 @@
     "runtime": {
       "packages": [
         "nodejs-22",
-        "npm",
+        "bun",
         "busybox",
         "dumb-init",
         "ca-certificates"
@@ -37,11 +37,12 @@
         }
       ],
       "command": [
-        "npm",
+        "bun",
         "start"
       ],
       "workdir": "/app",
       "ports": [
+        3000,
         5005
       ]
     }

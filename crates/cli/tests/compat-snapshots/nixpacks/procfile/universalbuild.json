@@ -15,7 +15,7 @@
       ],
       "env": {},
       "commands": [
-        "npm ci",
+        "npm install",
         "npm run build"
       ],
       "cache": [

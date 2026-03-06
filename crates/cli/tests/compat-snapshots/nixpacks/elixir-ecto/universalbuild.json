@@ -18,14 +18,18 @@
         "ca-certificates"
       ],
       "env": {
+        "DATABASE_URL": "",
         "ELIXIR_ERL_OPTIONS": "+fnu",
         "LC_ALL": "C.UTF-8",
         "MIX_ENV": "prod",
-        "MIX_HOME": "/build/.mix"
+        "MIX_HOME": "/build/.mix",
+        "POOL_SIZE": "",
+        "SECRET_KEY_BASE": ""
       },
       "commands": [
         "mix local.hex --force && mix local.rebar --force",
         "mix deps.get",
+        "mix deps.compile",
         "mix compile"
       ],
       "cache": [
@@ -38,6 +42,7 @@
         "elixir-1.18",
         "erlang-28",
         "busybox",
+        "git",
         "openssl",
         "ca-certificates"
       ],
@@ -62,12 +67,7 @@
         "--no-halt"
       ],
       "workdir": "/app",
-      "ports": [
-        4000
-      ],
-      "health": {
-        "endpoint": "/health"
-      }
+      "ports": []
     }
   }
 ]

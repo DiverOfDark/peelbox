@@ -5,6 +5,7 @@
       "project_name": "rocket",
       "language": "Rust",
       "build_system": "Cargo",
+      "framework": "Rocket",
       "reasoning": "Detected from Cargo.toml"
     },
     "build": {
@@ -32,7 +33,9 @@
         "libssl3",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "ROCKET_ADDRESS": "0.0.0.0"
+      },
       "copy": [
         {
           "from": "target/release/rocket",
@@ -43,7 +46,12 @@
         "/app/rocket"
       ],
       "workdir": "/app",
-      "ports": []
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
     }
   }
 ]

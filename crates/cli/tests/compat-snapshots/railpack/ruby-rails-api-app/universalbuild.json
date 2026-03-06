@@ -10,18 +10,22 @@
     },
     "build": {
       "packages": [
-        "ruby-3.4",
-        "ruby-3.4-dev",
-        "ruby3.4-bundler",
+        "ruby-3.1",
+        "ruby-3.1-dev",
+        "ruby3.1-bundler",
         "build-base",
-        "ca-certificates"
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev",
+        "ca-certificates",
+        "sqlite-dev"
       ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",
         "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
-        "bundle install"
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
       ],
       "cache": [
         ".bundle",
@@ -30,14 +34,22 @@
     },
     "runtime": {
       "packages": [
-        "ruby-3.4",
-        "ruby3.4-bundler",
+        "ruby-3.1",
+        "ruby3.1-bundler",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "busybox",
+        "tzdata",
+        "ca-certificates",
+        "sqlite-libs"
       ],
       "env": {
-        "RAILS_ENV": "production"
+        "BUNDLE_GEMFILE": "/app/Gemfile",
+        "BUNDLE_PATH": "/app/vendor/bundle",
+        "RAILS_ENV": "production",
+        "RAILS_LOG_TO_STDOUT": "true",
+        "RAILS_SERVE_STATIC_FILES": "true",
+        "SECRET_KEY_BASE": "please-change-me-in-production-this-is-a-placeholder-key-that-is-at-least-64-bytes-long"
       },
       "copy": [
         {
@@ -46,24 +58,16 @@
         }
       ],
       "command": [
-        "rake",
-        "db:migrate",
-        "&&",
-        "bundle",
-        "exec",
-        "bin/rails",
-        "server",
-        "-b",
-        "0.0.0.0",
-        "-p",
-        "${PORT:-3000}"
+        "/bin/sh",
+        "-c",
+        "rake db:migrate && bundle exec bin/rails server -b 0.0.0.0 -p ${PORT:-3000}"
       ],
       "workdir": "/app",
       "ports": [
         3000
       ],
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/"
       }
     }
   }

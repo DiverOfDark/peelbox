@@ -5,6 +5,7 @@
       "project_name": "app",
       "language": "Python",
       "build_system": "pip",
+      "framework": "FastHTML",
       "reasoning": "Detected from requirements.txt"
     },
     "build": {
@@ -29,19 +30,35 @@
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
       "copy": [
         {
           "from": ".",
-          "to": "/app/"
+          "to": "/build"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local"
         }
       ],
       "command": [
-        "python",
-        "/app/main.py"
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
       ],
-      "workdir": "/app",
-      "ports": []
+      "workdir": "/build",
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
     }
   }
 ]

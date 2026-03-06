@@ -1,45 +1,32 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
-        "npm ci"
-      ],
-      "env": {
-        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
       "packages": [
         "curl",
         "ca-certificates",
         "build-base",
         "bash",
         "libstdc++"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "language": "JavaScript",
-      "project_name": "node",
-      "reasoning": "Detected from package.json"
-    },
-    "runtime": {
-      "command": [
-        "sh",
-        "-c",
-        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && node index.js"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {
         "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
+      "commands": [
+        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
+        "npm ci"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
       "packages": [
         "curl",
         "busybox",
@@ -48,11 +35,24 @@
         "bash",
         "libstdc++"
       ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "sh",
+        "-c",
+        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && node index.js"
+      ],
+      "workdir": "/app",
       "ports": [
         3000
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

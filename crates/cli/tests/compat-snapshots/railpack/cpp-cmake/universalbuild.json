@@ -2,7 +2,7 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "cpp",
+      "project_name": "cpp-cmake",
       "language": "C++",
       "build_system": "CMake",
       "reasoning": "Detected from CMakeLists.txt"
@@ -33,12 +33,12 @@
       "env": {},
       "copy": [
         {
-          "from": "build/cpp",
-          "to": "/app/cpp"
+          "from": "build/cpp-cmake",
+          "to": "/app/cpp-cmake"
         }
       ],
       "command": [
-        "/app/cpp"
+        "/app/cpp-cmake"
       ],
       "workdir": "/app",
       "ports": [
