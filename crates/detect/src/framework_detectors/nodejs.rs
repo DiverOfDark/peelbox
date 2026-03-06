@@ -212,7 +212,7 @@ super::simple_detector!(
     &[JS, TS],
     |deps: &[Dependency]| deps.iter().any(|d| d.name == "@remix-run/dev"),
     vec![3000],
-    vec!["/healthcheck".into()],
+    vec![],
     BTreeMap::new(),
     vec![]
 );

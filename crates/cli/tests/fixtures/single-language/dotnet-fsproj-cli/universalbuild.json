@@ -7,6 +7,7 @@
         "obj"
       ],
       "commands": [
+        "rm -f global.json",
         "dotnet restore",
         "dotnet publish -c Release -o out"
       ],

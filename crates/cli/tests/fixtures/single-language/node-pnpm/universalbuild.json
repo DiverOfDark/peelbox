@@ -41,7 +41,7 @@
       },
       "packages": [
         "nodejs-22",
-        "npm",
+        "pnpm",
         "busybox",
         "dumb-init",
         "ca-certificates"

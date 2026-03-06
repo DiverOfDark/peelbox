@@ -47,7 +47,7 @@
         "PYTHONUSERBASE": "/root/.local"
       },
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/"
       },
       "packages": [
         "python-3.14",

@@ -99,7 +99,12 @@ pub fn detect_with_registry_and_wolfi(
         fix_flask_app_path(repo_path, build);
     }
 
-    // Step 4h: Detect Python native dependency system packages
+    // Step 4h: Detect Django settings module from manage.py
+    for build in &mut builds {
+        fix_django_settings(repo_path, build);
+    }
+
+    // Step 4i: Detect Python native dependency system packages
     for build in &mut builds {
         scan_python_native_deps(repo_path, build);
     }
@@ -125,6 +130,11 @@ pub fn detect_with_registry_and_wolfi(
         for build in &mut builds {
             crate::version::java::resolve_java_toolchain(build, wolfi);
         }
+    }
+
+    // Step 8: Wrap Yarn Berry entrypoints with corepack enable
+    for build in &mut builds {
+        wrap_yarn_corepack_entrypoint(build);
     }
 
     // Filter out non-application builds (e.g., library crates, utility packages)
@@ -1140,8 +1150,39 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     };
 
     // Build entrypoint command: config (Procfile) > framework override > manifest entrypoint
-    let entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
-        config_cmd.split_whitespace().map(String::from).collect()
+    let mut entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
+        // Extract leading KEY=VALUE tokens as environment variables so they don't
+        // end up as the executable in the command array.
+        let parts: Vec<&str> = config_cmd.split_whitespace().collect();
+        let env_prefix_end = parts
+            .iter()
+            .position(|p| !p.contains('=') || p.starts_with('/') || p.starts_with('.'))
+            .unwrap_or(parts.len());
+        for kv in &parts[..env_prefix_end] {
+            if let Some((k, v)) = kv.split_once('=') {
+                runtime_env.entry(k.to_string()).or_insert_with(|| v.to_string());
+            }
+        }
+        let remaining: &str = &config_cmd[config_cmd
+            .find(parts.get(env_prefix_end).copied().unwrap_or(""))
+            .unwrap_or(0)..];
+        let remaining = remaining.trim();
+        // If the command contains shell operators, wrap with sh -c to preserve semantics.
+        let has_shell_ops = remaining.contains("&&")
+            || remaining.contains("||")
+            || remaining.contains('|')
+            || remaining.contains(';')
+            || remaining.contains("$(")
+            || remaining.contains("${");
+        if has_shell_ops {
+            vec![
+                "/bin/sh".to_string(),
+                "-c".to_string(),
+                remaining.to_string(),
+            ]
+        } else {
+            remaining.split_whitespace().map(String::from).collect()
+        }
     } else if let Some(fw_cmd) = framework_runtime_command {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
@@ -1159,6 +1200,35 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     } else {
         vec![]
     };
+
+    // For Ruby/Bundler projects, ensure `bundle exec` wraps the entrypoint
+    // so gems installed in vendor/bundle are on the load path.
+    if m.build_system.slug() == "bundler"
+        && !entrypoint_cmd.is_empty()
+        && entrypoint_cmd.first().map(|s| s.as_str()) != Some("bundle")
+        && entrypoint_cmd.iter().any(|s| s == "ruby" || s.ends_with(".rb"))
+    {
+        let mut wrapped = vec!["bundle".to_string(), "exec".to_string()];
+        wrapped.extend(entrypoint_cmd);
+        entrypoint_cmd = wrapped;
+    }
+
+    // For polyglot projects where the entrypoint uses a language not in the primary
+    // runtime packages: add the required runtime binaries (e.g., Node+Ruby project
+    // where Procfile runs `ruby app.rb` but primary language is JavaScript).
+    let cmd_uses_ruby = entrypoint_cmd
+        .iter()
+        .any(|s| s == "ruby" || s == "bundle" || s.ends_with(".rb"));
+    if cmd_uses_ruby && !runtime_packages.iter().any(|p| p.starts_with("ruby")) {
+        // Find ruby packages from build packages
+        for pkg in &m.build.packages {
+            if (pkg.starts_with("ruby") && !pkg.contains("-dev")) || pkg == "bundler" {
+                if !runtime_packages.contains(pkg) {
+                    runtime_packages.push(pkg.clone());
+                }
+            }
+        }
+    }
 
     // Workdir: framework override > manifest workdir
     // For workspace members with adjusts_workspace_member_workdir, set workdir to the
@@ -1411,7 +1481,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
     ),
     (
         "Java",
-        &["java", "kt", "kts"],
+        &["java", "kt", "kts", "properties", "yml", "yaml"],
         &[
             r"\.setPort\(\s*(\d{4,5})\s*\)",
             r#"server\.port\s*=\s*(\d{4,5})"#,
@@ -1419,7 +1489,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
     ),
     (
         "Kotlin",
-        &["java", "kt", "kts"],
+        &["java", "kt", "kts", "properties", "yml", "yaml"],
         &[
             r"\.setPort\(\s*(\d{4,5})\s*\)",
             r#"server\.port\s*=\s*(\d{4,5})"#,
@@ -1427,7 +1497,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
     ),
     (
         "Scala",
-        &["scala", "java"],
+        &["scala", "java", "properties", "yml", "yaml"],
         &[
             r"\.setPort\(\s*(\d{4,5})\s*\)",
             r#"server\.port\s*=\s*(\d{4,5})"#,
@@ -1553,11 +1623,36 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         }
     }
 
-    // Source-code ports override framework defaults when found
+    // Source-code ports supplement existing ports (from framework/config detection).
+    // Existing ports are preserved at the front to keep the primary port first.
     if !source_ports.is_empty() {
         source_ports.sort();
         source_ports.dedup();
-        build.runtime.ports = source_ports;
+
+        // Sync FLASK_RUN_PORT if source code declares a different port
+        if let Some(flask_port) = build.runtime.env.get("FLASK_RUN_PORT").cloned() {
+            if let Some(&first_port) = source_ports.first() {
+                let flask_port_num = flask_port.parse::<u16>().unwrap_or(0);
+                if flask_port_num != first_port {
+                    debug!(old_port = flask_port_num, new_port = first_port, "Syncing FLASK_RUN_PORT with source-detected port");
+                    build
+                        .runtime
+                        .env
+                        .insert("FLASK_RUN_PORT".into(), first_port.to_string());
+                }
+            }
+        }
+
+        if build.runtime.ports.is_empty() {
+            build.runtime.ports = source_ports;
+        } else {
+            // Merge: keep existing ports, add new source-detected ones
+            for port in source_ports {
+                if !build.runtime.ports.contains(&port) {
+                    build.runtime.ports.push(port);
+                }
+            }
+        }
     }
 }
 
@@ -1867,6 +1962,15 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.runtime.packages, "php", &versioned_pkg);
             }
         }
+        "Ruby" => {
+            if let Some(version) = read_ruby_version(&project_dir, repo_root) {
+                let versioned_pkg = format!("ruby-{}", version);
+                let versioned_dev = format!("ruby-{}-dev", version);
+                replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
+                replace_package(&mut build.build.packages, "ruby-dev", &versioned_dev);
+                replace_package(&mut build.runtime.packages, "ruby", &versioned_pkg);
+            }
+        }
         "Rust" => {
             // Only build packages need the rust compiler; runtime uses the compiled binary
             if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
@@ -1877,6 +1981,81 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
         }
         _ => {}
     }
+}
+
+/// Read Ruby version from .ruby-version file, Gemfile `ruby` directive, or Gemfile.lock.
+fn read_ruby_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    // 1. .ruby-version file (highest priority)
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join(".ruby-version");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            let parts: Vec<&str> = trimmed.split('.').collect();
+            if parts.len() >= 2
+                && parts[0].chars().all(|c| c.is_ascii_digit())
+                && parts[1].chars().all(|c| c.is_ascii_digit())
+            {
+                return Some(format!("{}.{}", parts[0], parts[1]));
+            }
+        }
+    }
+
+    // 2. Gemfile `ruby 'X.Y.Z'` directive
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join("Gemfile");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Some(version) = parse_gemfile_ruby_version(&content) {
+                return Some(version);
+            }
+        }
+    }
+
+    // 3. Gemfile.lock RUBY VERSION section
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join("Gemfile.lock");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Some(version) = parse_gemfile_lock_ruby_version(&content) {
+                return Some(version);
+            }
+        }
+    }
+
+    None
+}
+
+/// Parse `ruby 'X.Y.Z'` or `ruby "X.Y.Z"` from Gemfile content.
+fn parse_gemfile_ruby_version(content: &str) -> Option<String> {
+    let re = regex::Regex::new(r#"(?m)^\s*ruby\s+['"](\d+\.\d+)(?:\.\d+)?['"]\s*$"#).ok()?;
+    re.captures(content)
+        .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+}
+
+/// Parse Ruby version from Gemfile.lock's RUBY VERSION section.
+fn parse_gemfile_lock_ruby_version(content: &str) -> Option<String> {
+    let mut in_ruby_section = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == "RUBY VERSION" {
+            in_ruby_section = true;
+            continue;
+        }
+        if in_ruby_section {
+            if trimmed.is_empty() || (!trimmed.starts_with(' ') && !trimmed.starts_with("ruby ")) {
+                break;
+            }
+            // Match "ruby X.Y.Zp..." pattern
+            if let Some(ver) = trimmed.strip_prefix("ruby ") {
+                let parts: Vec<&str> = ver.split('.').collect();
+                if parts.len() >= 2
+                    && parts[0].chars().all(|c| c.is_ascii_digit())
+                    && parts[1].chars().all(|c| c.is_ascii_digit())
+                {
+                    return Some(format!("{}.{}", parts[0], parts[1]));
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Read Node.js version from .nvmrc or .node-version file.
@@ -1986,6 +2165,35 @@ fn replace_package(packages: &mut [String], unversioned: &str, versioned: &str) 
     }
 }
 
+// ── Yarn Berry corepack entrypoint wrapping ─────────────────────────────
+
+/// For Yarn >= 2 (Berry) projects, the runtime entrypoint needs `corepack enable`
+/// before `yarn start` because the Wolfi `yarn` package provides Yarn 1.x.
+/// Corepack reads the `packageManager` field from package.json and uses the
+/// correct Yarn version.
+fn wrap_yarn_corepack_entrypoint(build: &mut UniversalBuild) {
+    if build.metadata.build_system != "Yarn" {
+        return;
+    }
+    // Yarn Berry is identified by having corepack in runtime packages
+    if !build.runtime.packages.iter().any(|p| p == "corepack") {
+        return;
+    }
+    if build.runtime.command.is_empty() {
+        return;
+    }
+    // Already wrapped
+    if build.runtime.command.first().map(|s| s.as_str()) == Some("sh") {
+        return;
+    }
+    let original_cmd = build.runtime.command.join(" ");
+    build.runtime.command = vec![
+        "sh".to_string(),
+        "-c".to_string(),
+        format!("corepack enable && exec {}", original_cmd),
+    ];
+}
+
 // ── Python entrypoint scanning ───────────────────────────────────────────
 
 /// Common Python entrypoint filenames, ordered by priority.
@@ -2029,9 +2237,10 @@ fn scan_python_entrypoints(repo_root: &Path, build: &mut UniversalBuild) {
 /// Maps well-known Python packages to their required system build/runtime packages.
 /// Each entry: (python_package_pattern, build_packages, runtime_packages).
 const PYTHON_NATIVE_DEPS: &[(&str, &[&str], &[&str])] = &[
-    // PostgreSQL adapters (C compilation needs headers; binary variant only needs runtime lib)
+    // PostgreSQL adapters (C compilation needs headers; binary variant also needs headers
+    // as a fallback when no pre-built wheel is available for the target Python version)
     ("psycopg2", &["postgresql-dev"], &["libpq"]),
-    ("psycopg2-binary", &[], &["libpq"]),
+    ("psycopg2-binary", &["postgresql-dev"], &["libpq"]),
     // psycopg[c] or psycopg with C backend
     ("psycopg", &["postgresql-dev"], &["libpq"]),
     // MySQL adapter
@@ -2073,6 +2282,38 @@ const PYTHON_NATIVE_DEPS: &[(&str, &[&str], &[&str])] = &[
     ("cffi", &["libffi-dev"], &["libffi"]),
 ];
 
+/// Detect Django DJANGO_SETTINGS_MODULE from manage.py.
+fn fix_django_settings(repo_root: &Path, build: &mut UniversalBuild) {
+    if build.metadata.language != "Python" {
+        return;
+    }
+    if build.metadata.framework.as_deref() != Some("Django") {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    let manage_py = project_dir.join("manage.py");
+    if !manage_py.exists() {
+        return;
+    }
+
+    if let Ok(content) = std::fs::read_to_string(&manage_py) {
+        // Look for: os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'some.module')
+        // or: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "some.module")
+        let re = regex::Regex::new(
+            r#"DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]"#,
+        )
+        .unwrap();
+        if let Some(caps) = re.captures(&content) {
+            let settings_module = caps.get(1).unwrap().as_str();
+            build
+                .runtime
+                .env
+                .insert("DJANGO_SETTINGS_MODULE".into(), settings_module.into());
+        }
+    }
+}
+
 /// Scan Python dependencies and add required system packages for native extensions.
 fn scan_python_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
     if build.metadata.language != "Python" {
@@ -2111,6 +2352,32 @@ fn scan_python_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
     }
 
     if !build_pkgs_to_add.is_empty() || !runtime_pkgs_to_add.is_empty() {
+        // Native deps that compile C extensions need Python dev headers (Python.h).
+        // Before Wolfi resolution, the package may be "python" (unversioned) or "python-3.X" (versioned).
+        // Add the corresponding dev package so headers are available during build.
+        if !build_pkgs_to_add.is_empty() {
+            let dev_pkg = if let Some(py_pkg) = build
+                .build
+                .packages
+                .iter()
+                .find(|p| p.starts_with("python-3."))
+            {
+                Some(format!("{}-dev", py_pkg))
+            } else if build.build.packages.iter().any(|p| p == "python") {
+                // Unversioned — will be resolved by Wolfi; add unversioned dev placeholder
+                Some("python-dev".to_string())
+            } else {
+                None
+            };
+            if let Some(dev) = dev_pkg {
+                if !build.build.packages.contains(&dev)
+                    && !build_pkgs_to_add.contains(&dev)
+                {
+                    build_pkgs_to_add.push(dev);
+                }
+            }
+        }
+
         debug!(
             build_pkgs = ?build_pkgs_to_add,
             runtime_pkgs = ?runtime_pkgs_to_add,
@@ -2205,8 +2472,9 @@ fn collect_python_dep_names(project_dir: &Path) -> Vec<String> {
 
 // ── Flask app path fix ────────────────────────────────────────────────────
 
-/// Fix FLASK_APP for workspace members where the hardcoded `/build/app.py` doesn't exist.
-/// Searches the project directory for `app.py` and updates FLASK_APP to the correct path.
+/// Fix FLASK_APP for projects where the hardcoded `/build/app.py` doesn't exist.
+/// Searches the project directory for `app.py` or `main.py` and updates accordingly.
+/// If no Flask app file is found, falls back to a Python entrypoint command.
 fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
     if build.metadata.language != "Python" {
         return;
@@ -2251,6 +2519,79 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
                 build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
                 return;
             }
+        }
+    }
+
+    // No app.py found anywhere — check for main.py with Flask imports
+    if project_dir.join("main.py").exists() {
+        if let Ok(content) = std::fs::read_to_string(project_dir.join("main.py")) {
+            if content.contains("from flask") || content.contains("import flask") || content.contains("import Flask") || content.contains("from Flask") {
+                let workdir = &build.runtime.workdir;
+                let new_flask_app = format!("{}/main.py", workdir);
+                debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP to main.py (contains Flask imports)");
+                build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+                return;
+            }
+        }
+    }
+
+    // Search recursively for any Python file with Flask imports (e.g., package/__main__.py)
+    for entry in WalkBuilder::new(&project_dir)
+        .max_depth(Some(4))
+        .build()
+        .filter_map(|e| e.ok())
+    {
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|n| n.ends_with(".py"))
+            && entry.file_type().is_some_and(|t| t.is_file())
+        {
+            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                if content.contains("from flask") || content.contains("import flask") {
+                    let rel_path = entry
+                        .path()
+                        .strip_prefix(&project_dir)
+                        .unwrap_or(entry.path());
+                    let workdir = &build.runtime.workdir;
+                    // If it's a __main__.py inside a package, use the package as FLASK_APP
+                    if rel_path.file_name().is_some_and(|n| n == "__main__.py") {
+                        if let Some(parent) = rel_path.parent() {
+                            let pkg_name =
+                                parent.to_string_lossy().replace(std::path::MAIN_SEPARATOR, ".");
+                            if !pkg_name.is_empty() {
+                                let new_flask_app = format!("{}/{}", workdir, pkg_name);
+                                build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+                                return;
+                            }
+                        }
+                    }
+                    let new_flask_app =
+                        format!("{}/{}", workdir, rel_path.display());
+                    build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+                    return;
+                }
+            }
+        }
+    }
+
+    // No Flask app file found at all — fall back to Python entrypoint
+    // Remove Flask-specific runtime config and use a generic Python entrypoint
+    debug!("No Flask app file found, falling back to Python entrypoint");
+    build.runtime.env.remove("FLASK_APP");
+    build.runtime.env.remove("FLASK_RUN_HOST");
+    build.runtime.env.remove("FLASK_RUN_PORT");
+    build.runtime.ports.clear();
+    build.runtime.health = None;
+
+    // Find a suitable Python entrypoint
+    for filename in PYTHON_ENTRYPOINTS {
+        if project_dir.join(filename).exists() {
+            let workdir = &build.runtime.workdir;
+            let entrypoint_path = format!("{}/{}", workdir, filename);
+            debug!(entrypoint = %entrypoint_path, "Using Python entrypoint as Flask fallback");
+            build.runtime.command = vec!["python".into(), entrypoint_path];
+            return;
         }
     }
 }
@@ -2647,8 +2988,12 @@ const home = process.env.HOME;
             "Should have composer command"
         );
         assert!(
-            build.build.commands.iter().any(|c| c.contains("npm ci")),
-            "Should have npm ci command"
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("npm install") || c.contains("npm ci")),
+            "Should have npm install or npm ci command"
         );
         assert!(
             build

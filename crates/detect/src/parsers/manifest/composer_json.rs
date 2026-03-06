@@ -98,6 +98,10 @@ impl ManifestParser for ComposerJsonParser {
         }
         build_commands
             .push("composer install --no-dev --optimize-autoloader --ignore-platform-reqs".into());
+        // Create .env from .env.example if missing (or minimal fallback), then generate APP_KEY
+        build_commands.push(
+            "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true".into(),
+        );
 
         // Runtime PHP extensions (base + extras)
         let mut runtime_packages = vec![php_pkg.clone()];
@@ -105,11 +109,13 @@ impl ManifestParser for ComposerJsonParser {
         if let Some(v) = &php_version {
             runtime_packages.push(format!("php-{}-fileinfo", v));
             runtime_packages.push(format!("php-{}-iconv", v));
+            runtime_packages.push(format!("php-{}-pdo_sqlite", v));
             if is_symfony {
                 runtime_packages.push(format!("php-{}-intl", v));
                 runtime_packages.push(format!("php-{}-pdo", v));
             }
         }
+        runtime_packages.push("busybox".into());
         runtime_packages.push("ca-certificates".into());
 
         Some(Manifest {

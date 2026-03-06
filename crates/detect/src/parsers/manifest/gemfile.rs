@@ -58,6 +58,42 @@ impl ManifestParser for GemfileParser {
             })
             .collect();
 
+        let has_sqlite = deps.iter().any(|d| d.name == "sqlite3");
+        let has_pg = deps.iter().any(|d| d.name == "pg");
+
+        let mut build_packages = vec![
+            "ruby".into(),
+            "ruby-dev".into(),
+            "ruby-bundler".into(),
+            "build-base".into(),
+            "glibc-dev".into(),
+            "linux-headers".into(),
+            "libffi-dev".into(),
+            "ca-certificates".into(),
+        ];
+        if has_sqlite {
+            build_packages.push("sqlite-dev".into());
+        }
+        if has_pg {
+            build_packages.push("postgresql-dev".into());
+        }
+
+        let mut runtime_packages: Vec<String> = vec![
+            "ruby".into(),
+            "ruby-bundler".into(),
+            "libgcc".into(),
+            "libstdc++".into(),
+            "busybox".into(),
+            "tzdata".into(),
+            "ca-certificates".into(),
+        ];
+        if has_sqlite {
+            runtime_packages.push("sqlite-libs".into());
+        }
+        if has_pg {
+            runtime_packages.push("libpq".into());
+        }
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: RUBY,
@@ -71,14 +107,14 @@ impl ManifestParser for GemfileParser {
             workspace: None,
             dependencies: deps,
             build: BuildSpec {
-                packages: vec![
-                    "ruby".into(),
-                    "ruby-dev".into(),
-                    "ruby-bundler".into(),
-                    "build-base".into(),
-                    "ca-certificates".into(),
+                packages: build_packages,
+                commands: vec![
+                    // Remove exact ruby version constraint from Gemfile.
+                    // Add base64 gem (removed from Ruby 3.4 stdlib, needed by older rack/etc).
+                    // If bundle install fails (e.g., native gem incompatible with current
+                    // Ruby), extract failing gem name and update just that gem.
+                    "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }".into(),
                 ],
-                commands: vec!["bundle install".into()],
                 member_transform: None,
                 env: btree(&[
                     ("BUNDLE_DEPLOYMENT", "false"),
@@ -88,13 +124,7 @@ impl ManifestParser for GemfileParser {
                 artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    "ruby".into(),
-                    "ruby-bundler".into(),
-                    "libgcc".into(),
-                    "libstdc++".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: runtime_packages,
                 env: BTreeMap::new(),
                 entrypoint: None, // Set by framework detector (Sinatra/Rails)
                 workdir: Some("/app".into()),

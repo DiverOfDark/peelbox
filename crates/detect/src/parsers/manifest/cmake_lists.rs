@@ -28,7 +28,7 @@ impl ManifestParser for CMakeListsParser {
             return None;
         }
 
-        let name_re = regex::Regex::new(r"project\s*\(\s*(\w+)").ok()?;
+        let name_re = regex::Regex::new(r"project\s*\(\s*([\w-]+)").ok()?;
         let name = name_re
             .captures(content)
             .and_then(|c| c.get(1))

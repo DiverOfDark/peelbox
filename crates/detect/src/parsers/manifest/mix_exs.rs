@@ -96,6 +96,42 @@ impl ManifestParser for MixExsParser {
 
         let dependencies = parse_mix_deps(content);
 
+        let has_phoenix = dependencies.iter().any(|d| d.name == "phoenix");
+        let has_web = dependencies.iter().any(|d| {
+            matches!(
+                d.name.as_str(),
+                "phoenix" | "plug" | "plug_cowboy" | "bandit"
+            )
+        });
+        let has_assets_dir = path
+            .parent()
+            .map(|d| d.join("assets").is_dir())
+            .unwrap_or(false);
+
+        let mut build_commands = vec![
+            "mix local.hex --force && mix local.rebar --force".into(),
+            "mix deps.get".into(),
+            "mix deps.compile".into(),
+        ];
+        if has_phoenix && has_assets_dir {
+            build_commands.push("mix assets.deploy".into());
+        }
+        build_commands.push("mix compile".into());
+
+        let mut build_packages = vec![
+            "elixir".into(),
+            "erlang".into(),
+            "erlang-dev".into(),
+            "git".into(),
+            "build-base".into(),
+            "openssl".into(),
+            "ca-certificates".into(),
+        ];
+        if has_phoenix && has_assets_dir {
+            build_packages.push("nodejs".into());
+            build_packages.push("npm".into());
+        }
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: ELIXIR,
@@ -109,26 +145,17 @@ impl ManifestParser for MixExsParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![
-                    "elixir".into(),
-                    "erlang".into(),
-                    "erlang-dev".into(),
-                    "git".into(),
-                    "build-base".into(),
-                    "openssl".into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec![
-                    "mix local.hex --force && mix local.rebar --force".into(),
-                    "mix deps.get".into(),
-                    "mix compile".into(),
-                ],
+                packages: build_packages,
+                commands: build_commands,
                 member_transform: None,
                 env: btree(&[
+                    ("DATABASE_URL", ""),
                     ("ELIXIR_ERL_OPTIONS", "+fnu"),
                     ("LC_ALL", "C.UTF-8"),
                     ("MIX_ENV", "prod"),
                     ("MIX_HOME", "/build/.mix"),
+                    ("POOL_SIZE", ""),
+                    ("SECRET_KEY_BASE", ""),
                 ]),
                 cache_dirs: vec!["deps".into(), "_build".into()],
                 artifacts: vec![(".".into(), "/app".into())],
@@ -138,6 +165,7 @@ impl ManifestParser for MixExsParser {
                     "elixir".into(),
                     "erlang".into(),
                     "busybox".into(),
+                    "git".into(),
                     "openssl".into(),
                     "ca-certificates".into(),
                 ],
@@ -150,8 +178,8 @@ impl ManifestParser for MixExsParser {
                 ]),
                 entrypoint: Some("mix run --no-halt".into()),
                 workdir: Some("/app".into()),
-                ports: vec![4000],
-                health_endpoint: Some("/health".into()),
+                ports: if has_web { vec![4000] } else { vec![] },
+                health_endpoint: None,
             },
         })
     }

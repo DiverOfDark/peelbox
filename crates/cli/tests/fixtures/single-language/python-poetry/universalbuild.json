@@ -46,7 +46,7 @@
         "VIRTUAL_ENV": "/build/.venv"
       },
       "health": {
-        "endpoint": "/health"
+        "endpoint": "/"
       },
       "packages": [
         "python-3.14",

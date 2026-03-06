@@ -41,7 +41,17 @@ impl ManifestParser for DenoJsonParser {
             .collect::<Vec<_>>()
             .join("\n");
 
-        let _json: serde_json::Value = serde_json::from_str(&clean).ok()?;
+        let json: serde_json::Value = serde_json::from_str(&clean).ok()?;
+
+        let has_build = json
+            .get("tasks")
+            .and_then(|t| t.get("build"))
+            .is_some();
+
+        let mut build_commands = vec!["deno install".into()];
+        if has_build {
+            build_commands.push("deno task build".into());
+        }
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -57,7 +67,7 @@ impl ManifestParser for DenoJsonParser {
             dependencies: Vec::new(),
             build: BuildSpec {
                 packages: vec!["deno".into(), "ca-certificates".into()],
-                commands: vec!["deno install".into(), "deno task build".into()],
+                commands: build_commands,
                 member_transform: None,
                 env: btree(&[("DENO_DIR", "/deno-dir")]),
                 cache_dirs: vec!["/deno-dir".into()],

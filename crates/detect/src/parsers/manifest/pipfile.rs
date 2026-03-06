@@ -86,7 +86,7 @@ impl ManifestParser for PipfileParser {
                 ],
                 commands: vec![
                     "pip install --user pipenv".into(),
-                    "/root/.local/bin/pipenv lock && /root/.local/bin/pipenv requirements > /tmp/requirements.txt && pip install --user --no-cache-dir -r /tmp/requirements.txt".into(),
+                    "/root/.local/bin/pipenv lock --python $(which python3) && /root/.local/bin/pipenv requirements > /tmp/requirements.txt && pip install --user --no-cache-dir -r /tmp/requirements.txt".into(),
                 ],
                 member_transform: None,
                 env: BTreeMap::new(),

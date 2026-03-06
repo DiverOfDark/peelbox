@@ -40,10 +40,22 @@ impl ManifestParser for PnpmLockParser {
 
         let language = JAVASCRIPT;
 
-        let entrypoint = json
-            .get("main")
-            .and_then(|v| v.as_str())
-            .map(|m| format!("node {}", m));
+        let start_script = json
+            .get("scripts")
+            .and_then(|s| s.get("start"))
+            .and_then(|v| v.as_str());
+
+        let entrypoint = if let Some(script) = start_script {
+            if script.starts_with("node ") {
+                Some(script.to_string())
+            } else {
+                Some("pnpm start".to_string())
+            }
+        } else {
+            json.get("main")
+                .and_then(|v| v.as_str())
+                .map(|m| format!("node {}", m))
+        };
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -66,7 +78,14 @@ impl ManifestParser for PnpmLockParser {
                     "npm".into(),
                     "ca-certificates".into(),
                 ],
-                commands: vec!["pnpm install".into(), "pnpm build".into()],
+                commands: {
+                    let has_build = json.get("scripts").and_then(|s| s.get("build")).is_some();
+                    let mut cmds = vec!["pnpm install".into()];
+                    if has_build {
+                        cmds.push("pnpm build".into());
+                    }
+                    cmds
+                },
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec![".pnpm-store".into()],
@@ -75,7 +94,7 @@ impl ManifestParser for PnpmLockParser {
             runtime_config: RuntimeSpec {
                 packages: vec![
                     "nodejs".into(),
-                    "npm".into(),
+                    "pnpm".into(),
                     "busybox".into(),
                     "dumb-init".into(),
                     "ca-certificates".into(),

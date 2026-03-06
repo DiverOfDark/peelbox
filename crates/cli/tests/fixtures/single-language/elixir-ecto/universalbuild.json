@@ -1,72 +1,74 @@
 [
-  {
-    "build": {
-      "cache": [
-        "deps",
-        "_build"
-      ],
-      "commands": [
-        "mix local.hex --force && mix local.rebar --force",
-        "mix deps.get",
-        "mix compile"
-      ],
-      "env": {
-        "ELIXIR_ERL_OPTIONS": "+fnu",
-        "LC_ALL": "C.UTF-8",
-        "MIX_ENV": "prod",
-        "MIX_HOME": "/build/.mix"
-      },
-      "packages": [
-        "elixir-1.18",
-        "erlang-28",
-        "erlang-28-dev",
-        "git",
-        "build-base",
-        "openssl",
-        "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Mix",
-      "language": "Elixir",
-      "project_name": "ecto_worker",
-      "reasoning": "Detected from mix.exs"
-    },
-    "runtime": {
-      "command": [
-        "mix",
-        "run",
-        "--no-halt"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
-      ],
-      "env": {
-        "DATABASE_URL": "",
-        "ELIXIR_ERL_OPTIONS": "+fnu",
-        "LC_ALL": "C.UTF-8",
-        "MIX_ENV": "prod",
-        "MIX_HOME": "/app/.mix",
-        "PORT": "4000"
-      },
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "elixir-1.18",
-        "erlang-28",
-        "busybox",
-        "openssl",
-        "ca-certificates"
-      ],
-      "ports": [
-        4000
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
-  }
+    {
+        "build": {
+            "cache": [
+                "deps",
+                "_build"
+            ],
+            "commands": [
+                "mix local.hex --force && mix local.rebar --force",
+                "mix deps.get",
+                "mix deps.compile",
+                "mix compile"
+            ],
+            "env": {
+                "DATABASE_URL": "",
+                "ELIXIR_ERL_OPTIONS": "+fnu",
+                "LC_ALL": "C.UTF-8",
+                "MIX_ENV": "prod",
+                "MIX_HOME": "/build/.mix",
+                "POOL_SIZE": "",
+                "SECRET_KEY_BASE": ""
+            },
+            "packages": [
+                "elixir-1.18",
+                "erlang-28",
+                "erlang-28-dev",
+                "git",
+                "build-base",
+                "openssl",
+                "ca-certificates"
+            ]
+        },
+        "metadata": {
+            "build_system": "Mix",
+            "language": "Elixir",
+            "project_name": "ecto_worker",
+            "reasoning": "Detected from mix.exs"
+        },
+        "runtime": {
+            "command": [
+                "mix",
+                "run",
+                "--no-halt"
+            ],
+            "copy": [
+                {
+                    "from": ".",
+                    "to": "/app"
+                }
+            ],
+            "env": {
+                "DATABASE_URL": "",
+                "ELIXIR_ERL_OPTIONS": "+fnu",
+                "LC_ALL": "C.UTF-8",
+                "MIX_ENV": "prod",
+                "MIX_HOME": "/app/.mix",
+                "PORT": "4000"
+            },
+            "packages": [
+                "elixir-1.18",
+                "erlang-28",
+                "busybox",
+                "git",
+                "openssl",
+                "ca-certificates"
+            ],
+            "ports": [
+                4000
+            ],
+            "workdir": "/app"
+        },
+        "version": "1.0"
+    }
 ]

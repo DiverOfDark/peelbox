@@ -8,7 +8,9 @@
         "corepack enable",
         "yarn install"
       ],
-      "env": {},
+      "env": {
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
       "packages": [
         "nodejs-25",
         "yarn",
@@ -24,8 +26,9 @@
     },
     "runtime": {
       "command": [
-        "node",
-        "src/index.js"
+        "sh",
+        "-c",
+        "corepack enable && exec yarn start"
       ],
       "copy": [
         {
@@ -39,10 +42,11 @@
       },
       "packages": [
         "nodejs-25",
-        "npm",
+        "yarn",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "corepack"
       ],
       "ports": [
         3000

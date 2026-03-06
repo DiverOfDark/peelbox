@@ -572,8 +572,11 @@ impl ContainerTestHarness {
             loop {
                 match client.get(&url).send().await {
                     Ok(response) if response.status().is_success() => return Ok(true),
+                    // 404 means the server is running but the route doesn't exist —
+                    // still a valid health signal for apps with no root route.
+                    Ok(response) if response.status().as_u16() == 404 => return Ok(true),
                     Ok(_) => {
-                        // Retry on non-success status (e.g., 503 during startup)
+                        // Retry on other non-success status (e.g., 503 during startup)
                         tokio::time::sleep(Duration::from_millis(200)).await;
                     }
                     Err(_) => {

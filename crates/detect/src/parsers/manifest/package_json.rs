@@ -58,7 +58,25 @@ impl ManifestParser for PackageJsonParser {
             Some(pm) if pm.starts_with("yarn") => YARN,
             Some(pm) if pm.starts_with("pnpm") => PNPM,
             Some(pm) if pm.starts_with("bun") => BUN,
-            _ => NPM,
+            _ => {
+                // Detect Bun from lockfile when packageManager is not set
+                let has_bun_lock = path.is_absolute()
+                    && path
+                        .parent()
+                        .map(|dir| {
+                            dir.join("bun.lockb").exists() || dir.join("bun.lock").exists()
+                        })
+                        .unwrap_or(false);
+                let has_engines_bun = json
+                    .get("engines")
+                    .and_then(|e| e.get("bun"))
+                    .is_some();
+                if has_bun_lock || has_engines_bun {
+                    BUN
+                } else {
+                    NPM
+                }
+            }
         };
 
         let pkg_manager = match build_system {
@@ -143,7 +161,18 @@ impl ManifestParser for PackageJsonParser {
             PNPM => "pnpm install".to_string(),
             YARN => "yarn install".to_string(),
             BUN => "bun install".to_string(),
-            _ => "npm ci".to_string(),
+            _ => {
+                // Use npm ci if package-lock.json exists, npm install otherwise
+                let has_lockfile = path
+                    .parent()
+                    .map(|d| d.join("package-lock.json").exists())
+                    .unwrap_or(false);
+                if has_lockfile {
+                    "npm ci".to_string()
+                } else {
+                    "npm install".to_string()
+                }
+            }
         };
 
         let mut build_commands = vec![install_cmd.clone()];

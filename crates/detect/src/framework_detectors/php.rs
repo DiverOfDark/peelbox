@@ -27,7 +27,7 @@ impl FrameworkDetector for LaravelDetector {
         FrameworkContribution {
             framework: LARAVEL,
             default_ports: vec![8000],
-            health_endpoints: vec!["/health".into(), "/_health".into()],
+            health_endpoints: vec!["/".into()],
             env_vars: btree(&[("APP_ENV", "production")]),
             runtime_packages: vec![],
             runtime_command: Some(vec![
@@ -37,7 +37,10 @@ impl FrameworkDetector for LaravelDetector {
                 "--host=0.0.0.0".into(),
                 "--port=8000".into(),
             ]),
-            runtime_env: BTreeMap::new(),
+            runtime_env: btree(&[
+                ("SESSION_DRIVER", "file"),
+                ("CACHE_STORE", "file"),
+            ]),
             workdir: None,
             extra_copy: vec![],
         }

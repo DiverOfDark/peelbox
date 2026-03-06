@@ -11,18 +11,38 @@ const PYTHON: LanguageId = LanguageId::new("python");
 const DJANGO: FrameworkId = FrameworkId::new("django");
 inventory::submit! { FrameworkMeta { slug: "django", display_name: "Django", aliases: &[] } }
 
-super::simple_detector!(
-    DjangoDetector,
-    DJANGO,
-    &[PYTHON],
-    |deps: &[Dependency]| deps
-        .iter()
-        .any(|d| d.name == "django" || d.name == "Django"),
-    vec![8000],
-    vec!["/health/".into()],
-    btree(&[("DJANGO_SETTINGS_MODULE", "config.settings.production")]),
-    vec![]
-);
+pub struct DjangoDetector;
+
+impl FrameworkDetector for DjangoDetector {
+    fn id(&self) -> FrameworkId {
+        DJANGO
+    }
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[PYTHON]
+    }
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        deps.iter()
+            .any(|d| d.name == "django" || d.name == "Django")
+    }
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: DJANGO,
+            default_ports: vec![8000],
+            health_endpoints: vec!["/health/".into()],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: Some(vec![
+                "python".into(),
+                "manage.py".into(),
+                "runserver".into(),
+                "0.0.0.0:8000".into(),
+            ]),
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(DjangoDetector))
@@ -54,7 +74,7 @@ impl FrameworkDetector for FlaskDetector {
         FrameworkContribution {
             framework: FLASK,
             default_ports: vec![5000],
-            health_endpoints: vec!["/health".into()],
+            health_endpoints: vec!["/".into()],
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
             runtime_command: Some(vec!["flask".into(), "run".into()]),
@@ -98,7 +118,7 @@ impl FrameworkDetector for FlaskPoetryDetector {
         FrameworkContribution {
             framework: FLASK,
             default_ports: vec![5000],
-            health_endpoints: vec!["/health".into()],
+            health_endpoints: vec!["/".into()],
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
             runtime_command: Some(vec!["flask".into(), "run".into()]),
@@ -139,7 +159,7 @@ impl FrameworkDetector for FlaskPdmDetector {
         FrameworkContribution {
             framework: FLASK,
             default_ports: vec![5000],
-            health_endpoints: vec!["/health".into()],
+            health_endpoints: vec!["/".into()],
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
             runtime_command: Some(vec!["flask".into(), "run".into()]),
@@ -180,4 +200,54 @@ super::simple_detector!(
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FastApiDetector))
+}
+
+// ── FastHTML ────────────────────────────────────────────────────────────────
+
+const FAST_HTML: FrameworkId = FrameworkId::new("fasthtml");
+inventory::submit! { FrameworkMeta { slug: "fasthtml", display_name: "FastHTML", aliases: &[] } }
+
+pub struct FastHtmlDetector;
+
+impl FrameworkDetector for FastHtmlDetector {
+    fn id(&self) -> FrameworkId {
+        FAST_HTML
+    }
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[PYTHON]
+    }
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        deps.iter()
+            .any(|d| d.name == "python-fasthtml" || d.name == "fasthtml")
+    }
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: FAST_HTML,
+            default_ports: vec![8000],
+            health_endpoints: vec!["/".into()],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: Some(vec![
+                "uvicorn".into(),
+                "main:app".into(),
+                "--host".into(),
+                "0.0.0.0".into(),
+                "--port".into(),
+                "8000".into(),
+            ]),
+            runtime_env: btree(&[
+                ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
+                ("PYTHONUSERBASE", "/root/.local"),
+            ]),
+            workdir: Some("/build".into()),
+            extra_copy: vec![
+                (".".into(), "/build".into()),
+                ("/root/.local/".into(), "/root/.local".into()),
+            ],
+        }
+    }
+}
+
+inventory::submit! {
+    crate::registry::FrameworkDetectorEntry(|| Box::new(FastHtmlDetector))
 }

@@ -6,7 +6,7 @@
       ],
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
-        "./node_modules/.bin/tsc"
+        "yarn run build"
       ],
       "env": {},
       "packages": [
@@ -23,8 +23,8 @@
     },
     "runtime": {
       "command": [
-        "node",
-        "dist/index.js"
+        "yarn",
+        "start"
       ],
       "copy": [
         {
@@ -38,7 +38,7 @@
       },
       "packages": [
         "nodejs-25",
-        "npm",
+        "yarn",
         "busybox",
         "dumb-init",
         "ca-certificates"

@@ -121,10 +121,7 @@ fn build_wolfi_dotnet_specs(
     (
         BuildSpec {
             packages: vec![sdk_pkg, "ca-certificates".into()],
-            commands: vec![
-                "dotnet restore".into(),
-                "dotnet publish -c Release -o out".into(),
-            ],
+            commands: dotnet_build_commands(),
             member_transform: None,
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
@@ -169,11 +166,11 @@ fn build_legacy_dotnet_specs(
                 "icu".into(),
                 "ca-certificates".into(),
             ],
-            commands: vec![
-                install_cmd,
-                "dotnet restore".into(),
-                "dotnet publish -c Release -o out".into(),
-            ],
+            commands: {
+                let mut cmds = vec![install_cmd];
+                cmds.extend(dotnet_build_commands());
+                cmds
+            },
             member_transform: None,
             env: build_env,
             cache_dirs: dotnet_cache_dirs(),
@@ -195,10 +192,7 @@ fn build_fallback_dotnet_specs(file_stem: &Option<String>) -> (BuildSpec, Runtim
     (
         BuildSpec {
             packages: vec!["dotnet-sdk".into(), "ca-certificates".into()],
-            commands: vec![
-                "dotnet restore".into(),
-                "dotnet publish -c Release -o out".into(),
-            ],
+            commands: dotnet_build_commands(),
             member_transform: None,
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
@@ -213,6 +207,17 @@ fn build_fallback_dotnet_specs(file_stem: &Option<String>) -> (BuildSpec, Runtim
             health_endpoint: None,
         },
     )
+}
+
+/// Common .NET build commands.
+/// Removes global.json (if present) to avoid SDK version pinning conflicts,
+/// then restores and publishes.
+fn dotnet_build_commands() -> Vec<String> {
+    vec![
+        "rm -f global.json".into(),
+        "dotnet restore".into(),
+        "dotnet publish -c Release -o out".into(),
+    ]
 }
 
 /// Common .NET build environment variables.
@@ -378,13 +383,14 @@ mod tests {
             manifest.build.packages,
             vec!["build-base", "bash", "curl", "icu", "ca-certificates"]
         );
-        assert_eq!(manifest.build.commands.len(), 3);
+        assert_eq!(manifest.build.commands.len(), 4);
         assert!(manifest.build.commands[0].contains("dotnet-install.sh"));
         assert!(manifest.build.commands[0].contains("--channel 6.0"));
         assert!(manifest.build.commands[0].contains("--install-dir /usr/share/dotnet"));
-        assert_eq!(manifest.build.commands[1], "dotnet restore");
+        assert_eq!(manifest.build.commands[1], "rm -f global.json");
+        assert_eq!(manifest.build.commands[2], "dotnet restore");
         assert_eq!(
-            manifest.build.commands[2],
+            manifest.build.commands[3],
             "dotnet publish -c Release -o out"
         );
 
@@ -429,6 +435,7 @@ mod tests {
 
         // Should use legacy install for .NET 7 (below MIN_WOLFI_DOTNET_VERSION)
         assert!(manifest.build.commands[0].contains("--channel 7.0"));
+        assert_eq!(manifest.build.commands[1], "rm -f global.json");
         assert_eq!(
             manifest.runtime_config.packages,
             vec!["icu", "ca-certificates"]

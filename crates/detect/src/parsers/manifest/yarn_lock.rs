@@ -47,10 +47,19 @@ impl ManifestParser for YarnLockParser {
 
         let language = JAVASCRIPT;
 
-        let entrypoint = json
-            .get("main")
-            .and_then(|v| v.as_str())
-            .map(|m| format!("node {}", m));
+        let start_script = json
+            .get("scripts")
+            .and_then(|s| s.get("start"))
+            .and_then(|v| v.as_str());
+
+        let entrypoint = if start_script.is_some() {
+            // Always use `yarn start` to ensure Yarn PnP resolution works
+            Some("yarn start".to_string())
+        } else {
+            json.get("main")
+                .and_then(|v| v.as_str())
+                .map(|m| format!("node {}", m))
+        };
 
         // Detect build script
         let build_script = json
@@ -58,18 +67,17 @@ impl ManifestParser for YarnLockParser {
             .and_then(|s| s.get("build"))
             .and_then(|v| v.as_str());
 
-        let has_tsc = build_script.map(|s| s.contains("tsc")).unwrap_or(false);
-
-        let build_cmd = if has_tsc {
-            Some("./node_modules/.bin/tsc".to_string())
-        } else if build_script.is_some() {
+        let build_cmd = if build_script.is_some() {
             Some("yarn run build".to_string())
         } else {
             None
         };
 
-        // Check if packageManager specifies Yarn >= 2 (needs corepack)
-        let needs_corepack = json
+        // Detect Yarn Berry (>= 2) via multiple signals:
+        // 1. packageManager field in package.json (e.g., "yarn@4.9.2")
+        // 2. __metadata: header in yarn.lock (Berry lock format)
+        // 3. yarnPath in sibling .yarnrc.yml (bundled Berry binary)
+        let has_package_manager_berry = json
             .get("packageManager")
             .and_then(|v| v.as_str())
             .filter(|pm| pm.starts_with("yarn@"))
@@ -77,10 +85,18 @@ impl ManifestParser for YarnLockParser {
             .and_then(|ver| ver.split('.').next())
             .and_then(|major| major.parse::<u32>().ok())
             .is_some_and(|major| major >= 2);
+        let has_berry_lockfile = _content.contains("__metadata:");
+        let has_yarnrc_path = dir.join(".yarnrc.yml").exists();
+        let is_berry = has_package_manager_berry || has_berry_lockfile || has_yarnrc_path;
+        // corepack is only needed when packageManager is set (corepack reads it)
+        // For yarnPath-based Berry, the bundled binary is used directly
+        let needs_corepack = has_package_manager_berry;
 
         let mut commands = Vec::new();
         if needs_corepack {
             commands.push("corepack enable".to_string());
+        }
+        if is_berry {
             // Yarn >= 2 (Berry) does not support --network-timeout/--network-concurrency
             commands.push("yarn install".into());
         } else {
@@ -111,18 +127,31 @@ impl ManifestParser for YarnLockParser {
                 packages: build_packages,
                 commands,
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: {
+                    let mut env = BTreeMap::new();
+                    if is_berry {
+                        // Force project-local cache so packages are copied with artifacts
+                        env.insert("YARN_ENABLE_GLOBAL_CACHE".into(), "false".into());
+                    }
+                    env
+                },
                 cache_dirs: vec![".yarn-cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    "nodejs".into(),
-                    "npm".into(),
-                    "busybox".into(),
-                    "dumb-init".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: {
+                    let mut pkgs = vec![
+                        "nodejs".into(),
+                        "yarn".into(),
+                        "busybox".into(),
+                        "dumb-init".into(),
+                        "ca-certificates".into(),
+                    ];
+                    if needs_corepack {
+                        pkgs.push("corepack".into());
+                    }
+                    pkgs
+                },
                 env: BTreeMap::new(),
                 entrypoint,
                 workdir: Some("/app".into()),
