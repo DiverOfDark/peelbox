@@ -225,6 +225,7 @@ Summary [1440.954s] 899 tests run: 738 passed (5 slow), 161 failed, 180 skipped
 Summary [1439.741s] 910 tests run: 744 passed (4 slow), 166 failed, 180 skipped
 Summary [2365.828s] 948 tests run: 895 passed (11 slow), 53 failed, 164 skipped
 Summary [2653.454s] 949 tests run: 914 passed (18 slow), 35 failed, 164 skipped
+Summary [1372.206s] 891 tests run: 806 passed (2 slow), 85 failed, 135 skipped
 
 TODO:
  - fix strange ruby sed thingy, instead install ruby of correct versino from Gemfile.

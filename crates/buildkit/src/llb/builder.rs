@@ -396,6 +396,10 @@ impl LLBBuilder {
 /// Calculate a stable content hash for the build context directory.
 /// Uses the same exclude-pattern logic as `FileSync::scan_files` so the hash
 /// covers exactly the files that BuildKit will receive via DiffCopy.
+///
+/// Only regular files contribute to the hash (directories are excluded to
+/// avoid mtime-induced drift). The hash is purely content-based: path +
+/// file size + file contents — no timestamps.
 pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Result<String> {
     let mut hasher = Sha256::new();
 
@@ -422,11 +426,15 @@ pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Resul
         .build()
         .filter_map(|e| match e {
             Ok(entry) => {
-                // Skip root directory
+                // Skip root directory and all directories — only hash regular files
                 if entry.path() == path {
-                    None
-                } else {
+                    return None;
+                }
+                let is_file = entry.file_type().map(|ft| ft.is_file()).unwrap_or(false);
+                if is_file {
                     Some(entry)
+                } else {
+                    None
                 }
             }
             Err(err) => {
@@ -443,25 +451,21 @@ pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Resul
         let rel_path = entry_path.strip_prefix(path).unwrap_or(entry_path);
         hasher.update(rel_path.to_string_lossy().as_bytes());
 
-        if let Some(file_type) = entry.file_type() {
-            if file_type.is_file() {
-                match entry.metadata() {
-                    Ok(metadata) => {
-                        hasher.update(metadata.len().to_le_bytes());
+        match entry.metadata() {
+            Ok(metadata) => {
+                hasher.update(metadata.len().to_le_bytes());
 
-                        if let Ok(content) = fs::read(entry_path) {
-                            hasher.update(&content);
-                        } else {
-                            tracing::warn!(
-                                "Failed to read file content for hashing: {:?}",
-                                entry_path
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
-                    }
+                if let Ok(content) = fs::read(entry_path) {
+                    hasher.update(&content);
+                } else {
+                    tracing::warn!(
+                        "Failed to read file content for hashing: {:?}",
+                        entry_path
+                    );
                 }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
             }
         }
     }

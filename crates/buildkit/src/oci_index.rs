@@ -344,6 +344,12 @@ impl OciIndex {
         info!("Starting OCI cache garbage collection...");
         let mut deleted_count = 0;
         let mut deleted_size = 0;
+        let mut skipped_recent = 0;
+
+        let now = std::time::SystemTime::now();
+        // Never delete blobs written in the last 10 minutes — they may belong
+        // to a concurrent build that hasn't updated the index yet.
+        let gc_grace_period = Duration::from_secs(10 * 60);
 
         for entry in fs::read_dir(&blobs_dir).context("Failed to read blobs directory")? {
             let entry = entry?;
@@ -360,7 +366,22 @@ impl OciIndex {
             let digest = format!("sha256:{}", file_name);
 
             if !keep_digests.contains(&digest) {
+                // Skip recently-written blobs to avoid deleting data from
+                // concurrent builds that haven't committed their index yet.
                 if let Ok(metadata) = entry.metadata() {
+                    if let Ok(modified) = metadata.modified() {
+                        if let Ok(age) = now.duration_since(modified) {
+                            if age < gc_grace_period {
+                                skipped_recent += 1;
+                                debug!(
+                                    "Skipping recent blob {} (age: {}s)",
+                                    digest,
+                                    age.as_secs()
+                                );
+                                continue;
+                            }
+                        }
+                    }
                     deleted_size += metadata.len();
                 }
                 if let Err(e) = fs::remove_file(&path) {
@@ -401,10 +422,10 @@ impl OciIndex {
             }
         }
 
-        if deleted_count > 0 {
+        if deleted_count > 0 || skipped_recent > 0 {
             info!(
-                "OCI GC complete: deleted {} blobs, reclaimed {} bytes",
-                deleted_count, deleted_size
+                "OCI GC complete: deleted {} blobs ({} bytes reclaimed), skipped {} recent blobs",
+                deleted_count, deleted_size, skipped_recent
             );
         } else {
             debug!("OCI GC complete: no unreferenced blobs found");
@@ -491,6 +512,15 @@ mod tests {
         fs::write(blobs_dir.join("layer2hash"), "layer2 data").unwrap();
         fs::write(blobs_dir.join("confighash"), "config data").unwrap();
         fs::write(blobs_dir.join("unreferencedhash"), "unreferenced data").unwrap();
+        // Backdate the unreferenced blob past the 10-minute GC grace period
+        // so that it's eligible for deletion.
+        let old_time = std::time::SystemTime::UNIX_EPOCH;
+        let unreferenced_path = blobs_dir.join("unreferencedhash");
+        let file = fs::OpenOptions::new()
+            .write(true)
+            .open(&unreferenced_path)
+            .unwrap();
+        file.set_modified(old_time).unwrap();
 
         let manifest_content = serde_json::json!({
             "config": { "digest": config_digest },
