@@ -224,9 +224,12 @@ Summary [1347.700s] 866 tests run: 758 passed (4 slow), 108 failed, 131 skipped
 Summary [1440.954s] 899 tests run: 738 passed (5 slow), 161 failed, 180 skipped
 Summary [1439.741s] 910 tests run: 744 passed (4 slow), 166 failed, 180 skipped
 Summary [2365.828s] 948 tests run: 895 passed (11 slow), 53 failed, 164 skipped
+Summary [2653.454s] 949 tests run: 914 passed (18 slow), 35 failed, 164 skipped
 
 TODO:
  - fix strange ruby sed thingy, instead install ruby of correct versino from Gemfile.
  - cleanup pipeline.rs from language-specific stuff.
  - fix health endpoint test - we should pass healthcheck, 404 is not good enough. health endpoint should be guessed or detected correctly (although it can be / if no other page is available)
+ - for some reason cache is not fully used
+ - strange python venv handling with sed
  - 
