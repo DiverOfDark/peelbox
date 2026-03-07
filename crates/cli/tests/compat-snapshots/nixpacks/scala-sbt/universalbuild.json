@@ -9,19 +9,19 @@
     },
     "build": {
       "packages": [
-        "openjdk-21",
+        "openjdk-19",
         "bash",
         "curl",
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk",
+        "PATH": "/usr/lib/jvm/java-19-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "SBT_OPTS": "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"
       },
       "commands": [
         "curl -fL \"https://github.com/sbt/sbt/releases/download/v1.8.2/sbt-1.8.2.tgz\" | tar xz -C /usr/local && mkdir -p /usr/local/bin && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt",
-        "sbt compile"
+        "sbt stage"
       ],
       "cache": [
         ".ivy2",
@@ -31,23 +31,24 @@
     },
     "runtime": {
       "packages": [
-        "openjdk-21-jre",
-        "ca-certificates"
+        "openjdk-19-jre",
+        "ca-certificates",
+        "bash",
+        "busybox"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk",
+        "PATH": "/usr/lib/jvm/java-19-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
       },
       "copy": [
         {
-          "from": "target/scala-*/*.jar",
-          "to": "/app/app.jar"
+          "from": "target/universal/stage/",
+          "to": "/app/"
         }
       ],
       "command": [
-        "java",
-        "-jar",
-        "/app/app.jar"
+        "/app/bin/main"
       ],
       "workdir": "/app",
       "ports": [

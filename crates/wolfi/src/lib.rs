@@ -293,6 +293,20 @@ impl WolfiPackageIndex {
             .map(|version| format!("{}-{}", package_prefix, version))
     }
 
+    /// Get the preferred stable version for a package prefix.
+    ///
+    /// For ecosystems where the very latest version often lacks broad package
+    /// compatibility (Python, Elixir), this returns the second-latest minor
+    /// version — matching how PaaS providers like Heroku and Railway default
+    /// to a well-established stable release rather than bleeding edge.
+    ///
+    /// Falls back to `get_latest_version` if fewer than 2 versions are available.
+    pub fn get_preferred_stable_version(&self, package_prefix: &str) -> Option<String> {
+        let versions = self.get_versions(package_prefix);
+        let pick = if versions.len() >= 2 { &versions[1] } else { versions.first()? };
+        Some(format!("{}-{}", package_prefix, pick))
+    }
+
     /// Check if exact package name exists (e.g., "build-base", "nodejs-22").
     pub fn has_package(&self, package_name: &str) -> bool {
         self.packages.contains(package_name)

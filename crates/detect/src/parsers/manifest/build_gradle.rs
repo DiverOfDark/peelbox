@@ -27,7 +27,14 @@ impl ManifestParser for BuildGradleParser {
             return None;
         }
 
-        let java_version = crate::version::java::detect_java_version(content);
+        let java_version = crate::version::java::detect_java_version(content).or_else(|| {
+            // When no explicit Java version is specified, derive a compatible
+            // version from the Gradle wrapper (if present). Newer JDKs are not
+            // supported by older Gradle versions.
+            path.parent()
+                .and_then(max_jdk_for_gradle_wrapper)
+                .map(|v: u32| v.to_string())
+        });
         let java_pkg = java_version
             .as_ref()
             .map(|v| format!("openjdk-{}", v))
@@ -66,6 +73,13 @@ impl ManifestParser for BuildGradleParser {
             java_version.as_deref().unwrap_or("21")
         );
 
+        // Check if the project has a Gradle wrapper (gradlew) for version-specific builds
+        let has_gradlew = path
+            .parent()
+            .map(|dir| dir.join("gradlew").exists())
+            .unwrap_or(false);
+        let gradle_cmd = if has_gradlew { "./gradlew" } else { "gradle" };
+
         let entrypoint = if is_application {
             match (&project_name, &gradle_version) {
                 (Some(name), Some(ver)) => Some(format!("java -jar /app/{}-{}.jar", name, ver)),
@@ -99,16 +113,25 @@ impl ManifestParser for BuildGradleParser {
             workspace: None, // Workspace comes from SettingsGradleParser
             dependencies,
             build: BuildSpec {
-                packages: vec![
-                    java_pkg.clone(),
-                    "gradle-8".into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec!["gradle assemble -x test --no-daemon --console=plain".into()],
+                packages: {
+                    let mut pkgs = vec![java_pkg.clone()];
+                    if has_gradlew {
+                        pkgs.push("bash".into());
+                    } else {
+                        pkgs.push("gradle-8".into());
+                    }
+                    pkgs.push("ca-certificates".into());
+                    pkgs
+                },
+                commands: vec![format!(
+                    "{} assemble -x test --no-daemon --console=plain",
+                    gradle_cmd
+                )],
                 member_transform: Some(MemberBuildTransform {
-                    member_commands: vec![
-                        "gradle :{module}:assemble -x test --no-daemon --console=plain".into(),
-                    ],
+                    member_commands: vec![format!(
+                        "{} :{{module}}:assemble -x test --no-daemon --console=plain",
+                        gradle_cmd
+                    )],
                     member_artifacts: Some(vec![(
                         "{module}/build/libs/*.jar".into(),
                         "/app/app.jar".into(),
@@ -138,6 +161,33 @@ impl ManifestParser for BuildGradleParser {
             },
         })
     }
+}
+
+/// Parse the Gradle version from `gradle/wrapper/gradle-wrapper.properties`
+/// and return the maximum JDK version that Gradle version supports.
+fn max_jdk_for_gradle_wrapper(project_dir: &Path) -> Option<u32> {
+    let props_path = project_dir.join("gradle/wrapper/gradle-wrapper.properties");
+    let content = std::fs::read_to_string(props_path).ok()?;
+    let re = regex::Regex::new(r"gradle-(\d+)\.(\d+)").ok()?;
+    let caps = re.captures(&content)?;
+    let major: u32 = caps.get(1)?.as_str().parse().ok()?;
+    let minor: u32 = caps.get(2)?.as_str().parse().ok()?;
+
+    let max_jdk = match (major, minor) {
+        (5, _) => 12,
+        (6, _) => 15,
+        (7, 0..=2) => 16,
+        (7, 3..=4) => 17,
+        (7, 5) => 18,
+        (7, _) => 19,
+        (8, 0..=3) => 20,
+        (8, 4..=5) => 21,
+        (8, 6..=8) => 22,
+        (8, 9..=11) => 23,
+        (8, _) => 24,
+        _ => return None,
+    };
+    Some(max_jdk)
 }
 
 fn parse_gradle_deps(content: &str) -> Vec<Dependency> {

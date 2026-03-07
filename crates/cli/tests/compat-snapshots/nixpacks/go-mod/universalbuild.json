@@ -10,8 +10,7 @@
     },
     "build": {
       "packages": [
-        "build-base",
-        "curl",
+        "go-1.25",
         "git",
         "ca-certificates"
       ],
@@ -19,12 +18,9 @@
         "CGO_ENABLED": "0",
         "GOCACHE": "/build/.cache/go-build",
         "GOMODCACHE": "/build/.cache/go-mod",
-        "GOROOT": "/usr/local/go",
-        "GOSUMDB": "off",
-        "PATH": "/usr/local/go/bin:${PATH}"
+        "GOSUMDB": "off"
       },
       "commands": [
-        "curl -fsSL https://go.dev/dl/go1.17.linux-amd64.tar.gz | tar -C /usr/local -xzf -",
         "go mod download",
         "go build -o gin ."
       ],
@@ -41,7 +37,7 @@
       "env": {},
       "copy": [
         {
-          "from": "gin",
+          "from": "bin/gin",
           "to": "/app/gin"
         }
       ],

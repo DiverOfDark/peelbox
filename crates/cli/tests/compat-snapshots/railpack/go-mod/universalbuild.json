@@ -36,7 +36,7 @@
       "env": {},
       "copy": [
         {
-          "from": "railpack",
+          "from": "bin/railpack",
           "to": "/app/railpack"
         }
       ],

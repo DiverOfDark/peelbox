@@ -9,17 +9,17 @@
     },
     "build": {
       "packages": [
-        "openjdk-25",
-        "gradle-8",
+        "openjdk-20",
+        "bash",
         "ca-certificates"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
+        "JAVA_HOME": "/usr/lib/jvm/java-20-openjdk"
       },
       "commands": [
-        "gradle assemble -x test --no-daemon --console=plain"
+        "./gradlew assemble -x test --no-daemon --console=plain"
       ],
       "cache": [
         ".gradle",
@@ -28,12 +28,13 @@
     },
     "runtime": {
       "packages": [
-        "openjdk-25",
+        "openjdk-20-jre",
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-20-openjdk",
+        "PATH": "/usr/lib/jvm/java-20-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
       },
       "copy": [
         {

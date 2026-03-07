@@ -4,27 +4,31 @@
     "metadata": {
       "project_name": "app",
       "language": "Python",
-      "build_system": "pip",
-      "reasoning": "Detected from pyproject.toml"
+      "build_system": "PDM",
+      "reasoning": "Detected from pdm.lock"
     },
     "build": {
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PDM_PYTHON": "/usr/bin/python3"
+      },
       "commands": [
-        "pip install --user --no-cache-dir ."
+        "pip install pdm",
+        "pdm install --prod --no-self"
       ],
       "cache": [
-        ".cache/pip"
+        "/root/.cache/pip/",
+        "/root/.cache/pdm/"
       ]
     },
     "runtime": {
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates"
@@ -33,7 +37,7 @@
       "copy": [
         {
           "from": ".",
-          "to": "/app/"
+          "to": "/app"
         }
       ],
       "command": [

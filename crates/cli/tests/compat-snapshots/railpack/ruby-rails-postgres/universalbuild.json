@@ -18,7 +18,9 @@
         "linux-headers",
         "libffi-dev",
         "ca-certificates",
-        "postgresql-18-dev"
+        "postgresql-18-dev",
+        "mariadb-connector-c-dev",
+        "icu-dev"
       ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",
@@ -41,7 +43,9 @@
         "busybox",
         "tzdata",
         "ca-certificates",
-        "libpq-18"
+        "libpq-18",
+        "mariadb-connector-c",
+        "icu"
       ],
       "env": {
         "BUNDLE_GEMFILE": "/app/Gemfile",

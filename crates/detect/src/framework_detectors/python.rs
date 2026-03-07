@@ -123,13 +123,13 @@ impl FrameworkDetector for FlaskPoetryDetector {
             runtime_packages: vec![],
             runtime_command: Some(vec!["flask".into(), "run".into()]),
             runtime_env: btree(&[
-                ("FLASK_APP", "/build/app.py"),
+                ("FLASK_APP", "/app/app.py"),
                 ("FLASK_RUN_HOST", "0.0.0.0"),
                 ("FLASK_RUN_PORT", "5000"),
-                ("VIRTUAL_ENV", "/build/.venv"),
-                ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                ("VIRTUAL_ENV", "/app/.venv"),
+                ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
             ]),
-            workdir: Some("/build".into()),
+            workdir: Some("/app".into()),
             extra_copy: vec![],
         }
     }
@@ -164,13 +164,13 @@ impl FrameworkDetector for FlaskPdmDetector {
             runtime_packages: vec![],
             runtime_command: Some(vec!["flask".into(), "run".into()]),
             runtime_env: btree(&[
-                ("FLASK_APP", "/build/app.py"),
+                ("FLASK_APP", "/app/app.py"),
                 ("FLASK_RUN_HOST", "0.0.0.0"),
                 ("FLASK_RUN_PORT", "5000"),
-                ("VIRTUAL_ENV", "/build/.venv"),
-                ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                ("VIRTUAL_ENV", "/app/.venv"),
+                ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
             ]),
-            workdir: Some("/build".into()),
+            workdir: Some("/app".into()),
             extra_copy: vec![],
         }
     }

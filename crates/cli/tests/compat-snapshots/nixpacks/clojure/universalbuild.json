@@ -39,7 +39,7 @@
       },
       "copy": [
         {
-          "from": "target/clojure-example-0.1.0-SNAPSHOT-standalone.jar",
+          "from": "target/uberjar/clojure-example-0.1.0-SNAPSHOT-standalone.jar",
           "to": "/app/clojure-example-0.1.0-SNAPSHOT-standalone.jar"
         }
       ],

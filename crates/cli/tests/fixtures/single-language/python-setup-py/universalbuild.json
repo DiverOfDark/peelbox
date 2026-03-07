@@ -9,8 +9,8 @@
       ],
       "env": {},
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates"
       ]
@@ -48,7 +48,7 @@
         "endpoint": "/"
       },
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates"

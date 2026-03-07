@@ -492,7 +492,6 @@ pub fn load_exclude_patterns(context_root: &Path) -> Vec<String> {
     patterns.extend(vec![
         ".git/".to_string(),
         ".gitignore".to_string(),
-        "*.md".to_string(),
         "LICENSE".to_string(),
         ".vscode/".to_string(),
         ".idea/".to_string(),
@@ -569,7 +568,6 @@ mod tests {
     fn test_load_exclude_patterns_includes_hardcoded() {
         let temp_dir = TempDir::new().unwrap();
         let patterns = load_exclude_patterns(temp_dir.path());
-        assert!(patterns.contains(&"*.md".to_string()));
         assert!(patterns.contains(&".vscode/".to_string()));
         assert!(patterns.contains(&".idea/".to_string()));
         assert!(patterns.contains(&"*.tar".to_string()));

@@ -198,6 +198,92 @@ pub fn detect_java_version_wolfi(manifest_content: &str) -> Option<String> {
     detect_java_version(manifest_content).map(|v| format!("openjdk-{}", v))
 }
 
+/// Returns the JAVA_HOME path for a given Java major version as installed by Wolfi.
+///
+/// Wolfi uses legacy-style paths for Java 7-9:
+/// - Java 7:  `/usr/lib/jvm/java-1.7-openjdk`
+/// - Java 8:  `/usr/lib/jvm/java-1.8-openjdk`
+/// - Java 9:  `/usr/lib/jvm/java-1.9-openjdk`
+/// - Java 10+: `/usr/lib/jvm/java-{version}-openjdk`
+pub fn wolfi_java_home_path(major_version: &str) -> String {
+    match major_version.parse::<u32>() {
+        Ok(v) if v <= 9 => format!("/usr/lib/jvm/java-1.{}-openjdk", v),
+        _ => format!("/usr/lib/jvm/java-{}-openjdk", major_version),
+    }
+}
+
+/// After Wolfi package resolution, synchronize JAVA_HOME and PATH env vars
+/// with the actual resolved openjdk package version.
+///
+/// This handles two cases:
+/// 1. Unversioned `openjdk` was resolved to `openjdk-25` but JAVA_HOME still says `java-21-openjdk`
+/// 2. Java 7/8/9 where Wolfi uses legacy paths (`java-1.8-openjdk` not `java-8-openjdk`)
+pub fn sync_java_home_with_packages(build: &mut UniversalBuild) {
+    let lang = &build.metadata.language;
+    if lang != "Java" && lang != "Kotlin" && lang != "Scala" && lang != "Clojure" {
+        return;
+    }
+
+    // Find the openjdk version from build packages
+    let java_version = build
+        .build
+        .packages
+        .iter()
+        .chain(build.runtime.packages.iter())
+        .find_map(|pkg| {
+            pkg.strip_prefix("openjdk-").and_then(|rest| {
+                // Extract just the version number (handle openjdk-17-jre etc.)
+                let version = rest.split('-').next().unwrap_or(rest);
+                if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                    Some(version.to_string())
+                } else {
+                    None
+                }
+            })
+        });
+
+    let version = match java_version {
+        Some(v) => v,
+        None => return,
+    };
+
+    let correct_java_home = wolfi_java_home_path(&version);
+    let correct_path = format!(
+        "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        correct_java_home
+    );
+
+    // Update build env if JAVA_HOME is present but wrong
+    if let Some(current) = build.build.env.get("JAVA_HOME") {
+        if *current != correct_java_home {
+            debug!(
+                from = %current,
+                to = %correct_java_home,
+                "Correcting build JAVA_HOME to match resolved package"
+            );
+            build.build.env.insert("JAVA_HOME".to_string(), correct_java_home.clone());
+            if build.build.env.contains_key("PATH") {
+                build.build.env.insert("PATH".to_string(), correct_path.clone());
+            }
+        }
+    }
+
+    // Update runtime env if JAVA_HOME is present but wrong
+    if let Some(current) = build.runtime.env.get("JAVA_HOME") {
+        if *current != correct_java_home {
+            debug!(
+                from = %current,
+                to = %correct_java_home,
+                "Correcting runtime JAVA_HOME to match resolved package"
+            );
+            build.runtime.env.insert("JAVA_HOME".to_string(), correct_java_home.clone());
+            if build.runtime.env.contains_key("PATH") {
+                build.runtime.env.insert("PATH".to_string(), correct_path);
+            }
+        }
+    }
+}
+
 /// Returns true if the given Java major version is too old for Wolfi packages.
 ///
 /// Note: This is a heuristic check without access to the actual Wolfi index.
@@ -755,5 +841,141 @@ mod tests {
         // Non-Java project — no changes
         assert_eq!(build.build.packages[0], "python-3.11");
         assert_eq!(build.build.commands.len(), 1);
+    }
+
+    // ── wolfi_java_home_path tests ───────────────────────────────────────
+
+    #[test]
+    fn test_wolfi_java_home_path_legacy_versions() {
+        assert_eq!(wolfi_java_home_path("7"), "/usr/lib/jvm/java-1.7-openjdk");
+        assert_eq!(wolfi_java_home_path("8"), "/usr/lib/jvm/java-1.8-openjdk");
+        assert_eq!(wolfi_java_home_path("9"), "/usr/lib/jvm/java-1.9-openjdk");
+    }
+
+    #[test]
+    fn test_wolfi_java_home_path_modern_versions() {
+        assert_eq!(wolfi_java_home_path("10"), "/usr/lib/jvm/java-10-openjdk");
+        assert_eq!(wolfi_java_home_path("11"), "/usr/lib/jvm/java-11-openjdk");
+        assert_eq!(wolfi_java_home_path("17"), "/usr/lib/jvm/java-17-openjdk");
+        assert_eq!(wolfi_java_home_path("21"), "/usr/lib/jvm/java-21-openjdk");
+        assert_eq!(wolfi_java_home_path("25"), "/usr/lib/jvm/java-25-openjdk");
+    }
+
+    // ── sync_java_home_with_packages tests ───────────────────────────────
+
+    #[test]
+    fn test_sync_java_home_corrects_mismatched_version() {
+        use std::collections::BTreeMap;
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Java".into(),
+                build_system: "Gradle".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["openjdk-25".into(), "gradle-8".into()],
+                commands: vec!["gradle assemble".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-21-openjdk".into()),
+                    ("PATH".into(), "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()),
+                ]),
+                cache: vec![],
+            },
+            runtime: peelbox_core::output::schema::RuntimeStage {
+                packages: vec!["openjdk-25".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-21-openjdk".into()),
+                    ("PATH".into(), "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()),
+                ]),
+                ..Default::default()
+            },
+        };
+
+        sync_java_home_with_packages(&mut build);
+
+        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-25-openjdk");
+        assert!(build.build.env["PATH"].starts_with("/usr/lib/jvm/java-25-openjdk/bin"));
+        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-25-openjdk");
+        assert!(build.runtime.env["PATH"].starts_with("/usr/lib/jvm/java-25-openjdk/bin"));
+    }
+
+    #[test]
+    fn test_sync_java_home_corrects_legacy_java8_path() {
+        use std::collections::BTreeMap;
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Java".into(),
+                build_system: "Maven".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["openjdk-8".into(), "maven-3.9".into()],
+                commands: vec!["mvn package -DskipTests".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-8-openjdk".into()),
+                ]),
+                cache: vec![],
+            },
+            runtime: peelbox_core::output::schema::RuntimeStage {
+                packages: vec!["openjdk-8-jre".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-8-openjdk".into()),
+                    ("PATH".into(), "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()),
+                ]),
+                ..Default::default()
+            },
+        };
+
+        sync_java_home_with_packages(&mut build);
+
+        // Wolfi installs openjdk-8 at /usr/lib/jvm/java-1.8-openjdk
+        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-1.8-openjdk");
+        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-1.8-openjdk");
+        assert!(build.runtime.env["PATH"].starts_with("/usr/lib/jvm/java-1.8-openjdk/bin"));
+    }
+
+    #[test]
+    fn test_sync_java_home_no_change_when_correct() {
+        use std::collections::BTreeMap;
+
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Java".into(),
+                build_system: "Maven".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["openjdk-17".into(), "maven-3.9".into()],
+                commands: vec!["mvn package -DskipTests".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-17-openjdk".into()),
+                ]),
+                cache: vec![],
+            },
+            runtime: peelbox_core::output::schema::RuntimeStage {
+                packages: vec!["openjdk-17-jre".into()],
+                env: BTreeMap::from([
+                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-17-openjdk".into()),
+                ]),
+                ..Default::default()
+            },
+        };
+
+        sync_java_home_with_packages(&mut build);
+
+        // Already correct — no change
+        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-17-openjdk");
+        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-17-openjdk");
     }
 }

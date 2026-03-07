@@ -9,55 +9,14 @@ const GO: LanguageId = LanguageId::new("go");
 const GOMOD: BuildSystemId = BuildSystemId::new("go-mod");
 const NATIVE: RuntimeId = RuntimeId::new("native");
 
-/// Minimum Go minor version available as a Wolfi package (go-1.20, go-1.21, etc.).
-/// Go versions older than 1.{MIN_WOLFI_GO_MINOR} must be installed from source via go.dev.
-pub(crate) const MIN_WOLFI_GO_MINOR: u32 = 20;
-
-/// Check whether a Go version string (e.g. "1.18", "1.21.3") is below the
-/// minimum version available in Wolfi. Returns `true` when the version is old
-/// and must be fetched from go.dev instead.
-pub(crate) fn is_go_version_below_wolfi_min(version: &str) -> bool {
-    let parts: Vec<&str> = version.split('.').collect();
-    if parts.len() < 2 {
-        return false;
-    }
-    let major: u32 = match parts[0].parse() {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-    let minor: u32 = match parts[1].parse() {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-    // Go 2.x+ would never be below the threshold
-    if major != 1 {
-        return false;
-    }
-    minor < MIN_WOLFI_GO_MINOR
-}
-
-/// Build the packages, extra commands, and extra env vars needed when the
-/// requested Go version is too old for Wolfi.  The SDK is downloaded from
-/// go.dev and unpacked into `/usr/local/go`.
-pub(crate) fn legacy_go_sdk_setup(
-    version: &str,
-) -> (Vec<String>, Vec<String>, Vec<(&'static str, &'static str)>) {
-    let install_cmd = format!(
-        "curl -fsSL https://go.dev/dl/go{}.linux-amd64.tar.gz | tar -C /usr/local -xzf -",
-        version
-    );
-    let packages = vec![
-        "build-base".into(),
-        "curl".into(),
-        "git".into(),
-        "ca-certificates".into(),
-    ];
-    let extra_commands = vec![install_cmd];
-    let extra_env = vec![
-        ("GOROOT", "/usr/local/go"),
-        ("PATH", "/usr/local/go/bin:${PATH}"),
-    ];
-    (packages, extra_commands, extra_env)
+/// Return the Wolfi package name for a Go version string.
+/// Old versions (below Wolfi availability) use the generic "go" package,
+/// which Wolfi resolution upgrades to the latest available version.
+/// Go is backward-compatible, so building old code with a newer compiler is safe.
+pub(crate) fn go_wolfi_package(version: Option<&str>) -> String {
+    version
+        .map(|v| format!("go-{}", v))
+        .unwrap_or_else(|| "go".into())
 }
 
 inventory::submit! {
@@ -123,26 +82,11 @@ impl ManifestParser for GoModParser {
                 }
             });
 
-        // Determine whether the Go version is available in Wolfi or needs
-        // a manual SDK download from go.dev.
-        let needs_legacy_sdk = go_version
-            .as_ref()
-            .is_some_and(|v| is_go_version_below_wolfi_min(v));
-
-        let (build_packages, sdk_install_commands, extra_env) = if needs_legacy_sdk {
-            let version = go_version.as_ref().unwrap();
-            legacy_go_sdk_setup(version)
-        } else {
-            let go_pkg = go_version
-                .as_ref()
-                .map(|v| format!("go-{}", v))
-                .unwrap_or_else(|| "go".into());
-            (
-                vec![go_pkg, "git".into(), "ca-certificates".into()],
-                Vec::new(),
-                Vec::new(),
-            )
-        };
+        // Always use Wolfi packages. Go is backward-compatible, so a newer
+        // compiler can build code written for an older version. For old versions
+        // not in Wolfi, the generic "go" name is resolved to the latest available.
+        let go_pkg = go_wolfi_package(go_version.as_deref());
+        let build_packages = vec![go_pkg, "git".into(), "ca-certificates".into()];
 
         let dependencies = parse_go_deps(content);
 
@@ -150,17 +94,23 @@ impl ManifestParser for GoModParser {
         let dir = path.parent().unwrap_or(Path::new("."));
         let is_application = has_go_main_package(dir);
 
-        let (mut commands, member_transform, artifacts, entrypoint, ports) = if is_application {
+        let (commands, member_transform, artifacts, entrypoint, ports) = if is_application {
             (
                 vec![
                     "go mod download".into(),
                     format!("go build -o {} .", short_name),
                 ],
                 Some(MemberBuildTransform {
-                    member_commands: vec![format!("go build -o {} ./{{module}}", short_name)],
+                    member_commands: vec![
+                        "mkdir -p bin".into(),
+                        format!("go build -o bin/{} ./{{module}}", short_name),
+                    ],
                     member_artifacts: None,
                 }),
-                vec![(short_name.to_string(), format!("/app/{}", short_name))],
+                vec![(
+                    format!("bin/{}", short_name),
+                    format!("/app/{}", short_name),
+                )],
                 Some(format!("/app/{}", short_name)),
                 vec![8080],
             )
@@ -168,21 +118,13 @@ impl ManifestParser for GoModParser {
             (vec![], None, vec![], None, vec![])
         };
 
-        // Prepend SDK install commands (if needed) before build commands
-        if !sdk_install_commands.is_empty() {
-            let mut all_commands = sdk_install_commands;
-            all_commands.append(&mut commands);
-            commands = all_commands;
-        }
-
-        // Build environment: standard Go env + any extra env for legacy SDK
-        let mut env_pairs: Vec<(&str, &str)> = vec![
+        // Build environment
+        let env_pairs: Vec<(&str, &str)> = vec![
             ("CGO_ENABLED", "0"),
             ("GOCACHE", "/build/.cache/go-build"),
             ("GOMODCACHE", "/build/.cache/go-mod"),
             ("GOSUMDB", "off"),
         ];
-        env_pairs.extend_from_slice(&extra_env);
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -269,46 +211,13 @@ mod tests {
     use crate::traits::ManifestParser;
 
     #[test]
-    fn test_is_go_version_below_wolfi_min() {
-        // Old versions should trigger legacy SDK download
-        assert!(is_go_version_below_wolfi_min("1.17"));
-        assert!(is_go_version_below_wolfi_min("1.18"));
-        assert!(is_go_version_below_wolfi_min("1.19"));
-        assert!(is_go_version_below_wolfi_min("1.18.10"));
-        assert!(is_go_version_below_wolfi_min("1.16.5"));
-
-        // Versions at or above threshold should use Wolfi packages
-        assert!(!is_go_version_below_wolfi_min("1.20"));
-        assert!(!is_go_version_below_wolfi_min("1.21"));
-        assert!(!is_go_version_below_wolfi_min("1.22"));
-        assert!(!is_go_version_below_wolfi_min("1.23.4"));
-
-        // Edge cases
-        assert!(!is_go_version_below_wolfi_min("2.0"));
-        assert!(!is_go_version_below_wolfi_min("invalid"));
-        assert!(!is_go_version_below_wolfi_min("1"));
-    }
-
-    #[test]
-    fn test_legacy_go_sdk_setup() {
-        let (packages, commands, env) = legacy_go_sdk_setup("1.18");
-
-        assert!(packages.contains(&"build-base".to_string()));
-        assert!(packages.contains(&"curl".to_string()));
-        assert!(packages.contains(&"git".to_string()));
-        assert!(packages.contains(&"ca-certificates".to_string()));
-        assert!(!packages.iter().any(|p| p.starts_with("go-")));
-
-        assert_eq!(commands.len(), 1);
-        assert!(commands[0].contains("go.dev/dl/go1.18.linux-amd64.tar.gz"));
-        assert!(commands[0].contains("tar -C /usr/local"));
-
-        assert!(env
-            .iter()
-            .any(|(k, v)| *k == "GOROOT" && *v == "/usr/local/go"));
-        assert!(env
-            .iter()
-            .any(|(k, v)| *k == "PATH" && v.contains("/usr/local/go/bin")));
+    fn test_go_wolfi_package() {
+        assert_eq!(go_wolfi_package(Some("1.21")), "go-1.21");
+        assert_eq!(go_wolfi_package(Some("1.23.4")), "go-1.23.4");
+        assert_eq!(go_wolfi_package(None), "go");
+        // Old versions still get a versioned package name; Wolfi resolution
+        // upgrades them to the latest available version.
+        assert_eq!(go_wolfi_package(Some("1.18")), "go-1.18");
     }
 
     #[test]
@@ -337,24 +246,13 @@ mod tests {
         let content = "module example.com/app\n\ngo 1.18\n";
         let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
 
-        // Should NOT contain go-1.18 package
-        assert!(!manifest.build.packages.iter().any(|p| p.starts_with("go-")));
-        // Should contain build-base and curl
-        assert!(manifest.build.packages.contains(&"build-base".to_string()));
-        assert!(manifest.build.packages.contains(&"curl".to_string()));
-        assert!(manifest.build.packages.contains(&"git".to_string()));
-        assert!(manifest
-            .build
-            .packages
-            .contains(&"ca-certificates".to_string()));
-        // Should have GOROOT and PATH env
-        assert_eq!(manifest.build.env.get("GOROOT").unwrap(), "/usr/local/go");
-        assert!(manifest
-            .build
-            .env
-            .get("PATH")
-            .unwrap()
-            .contains("/usr/local/go/bin"));
+        // Old versions now use Wolfi packages too (Go is backward-compatible).
+        // Wolfi resolution upgrades to latest available version.
+        assert!(manifest.build.packages.contains(&"go-1.18".to_string()));
+        assert!(!manifest.build.packages.contains(&"curl".to_string()));
+        assert!(!manifest.build.packages.contains(&"build-base".to_string()));
+        // Should NOT have GOROOT env
+        assert!(!manifest.build.env.contains_key("GOROOT"));
         // Standard Go env should still be present
         assert_eq!(manifest.build.env.get("CGO_ENABLED").unwrap(), "0");
     }
@@ -365,12 +263,12 @@ mod tests {
         let content = "module example.com/app\n\ngo 1.17.5\n";
         let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
 
-        // Should use legacy SDK with exact version
-        assert!(manifest
+        // Should use Wolfi package (not legacy SDK download)
+        assert!(manifest.build.packages.contains(&"go-1.17.5".to_string()));
+        assert!(!manifest
             .build
             .commands
             .iter()
-            .any(|c| c.contains("go1.17.5.linux-amd64")));
-        assert!(!manifest.build.packages.iter().any(|p| p.starts_with("go-")));
+            .any(|c| c.contains("go.dev/dl")));
     }
 }

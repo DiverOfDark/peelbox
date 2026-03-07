@@ -10,12 +10,12 @@
     },
     "build": {
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates",
         "postgresql-18-dev",
-        "python-3.14-dev"
+        "python-3.13-dev"
       ],
       "env": {},
       "commands": [
@@ -27,7 +27,7 @@
     },
     "runtime": {
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates",

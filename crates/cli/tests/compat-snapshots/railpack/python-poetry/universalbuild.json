@@ -10,8 +10,8 @@
     },
     "build": {
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates"
       ],
@@ -30,32 +30,32 @@
     },
     "runtime": {
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates"
       ],
       "env": {
-        "FLASK_APP": "/build/main.py",
+        "FLASK_APP": "/app/main.py",
         "FLASK_RUN_HOST": "0.0.0.0",
         "FLASK_RUN_PORT": "8080",
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-        "VIRTUAL_ENV": "/build/.venv"
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
       },
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "command": [
         "flask",
         "run"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
-        5000,
-        8080
+        8080,
+        5000
       ],
       "health": {
         "endpoint": "/"

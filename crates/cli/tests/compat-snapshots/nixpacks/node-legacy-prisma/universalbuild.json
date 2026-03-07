@@ -9,12 +9,18 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "curl",
         "yarn",
-        "ca-certificates"
+        "ca-certificates",
+        "build-base",
+        "bash",
+        "libstdc++"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
+        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
         "yarn install --network-timeout 100000 --network-concurrency 1",
         "yarn run build"
       ],
@@ -24,13 +30,17 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
+        "curl",
         "yarn",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "bash",
+        "libstdc++"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "copy": [
         {
           "from": ".",
@@ -38,8 +48,9 @@
         }
       ],
       "command": [
-        "yarn",
-        "start"
+        "sh",
+        "-c",
+        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && yarn start"
       ],
       "workdir": "/app",
       "ports": [

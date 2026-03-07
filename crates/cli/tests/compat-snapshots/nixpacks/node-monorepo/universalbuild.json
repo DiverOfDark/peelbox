@@ -93,6 +93,7 @@
       ],
       "workdir": "/app/packages/server",
       "ports": [
+        5555,
         3000
       ]
     }

@@ -11,16 +11,16 @@
     "build": {
       "packages": [
         "openjdk-8",
-        "gradle-8",
+        "bash",
         "ca-certificates"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk"
+        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk"
       },
       "commands": [
-        "gradle assemble -x test --no-daemon --console=plain"
+        "./gradlew assemble -x test --no-daemon --console=plain"
       ],
       "cache": [
         ".gradle",
@@ -34,8 +34,9 @@
       ],
       "env": {
         "BUILD_PROFILE": "",
-        "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk",
-        "PATH": "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk",
+        "PATH": "/usr/lib/jvm/java-1.8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "3030"
       },
       "copy": [
         {
@@ -50,8 +51,8 @@
       ],
       "workdir": "/app",
       "ports": [
-        8080,
-        3030
+        3030,
+        8080
       ],
       "health": {
         "endpoint": "/actuator/health"

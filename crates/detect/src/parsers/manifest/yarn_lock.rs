@@ -106,7 +106,22 @@ impl ManifestParser for YarnLockParser {
             commands.push(cmd);
         }
 
-        let mut build_packages = vec!["nodejs".into(), "yarn".into(), "ca-certificates".into()];
+        // Extract Node.js version from engines.node or volta.node
+        let node_pkg = json
+            .get("engines")
+            .and_then(|e| e.get("node"))
+            .and_then(|v| v.as_str())
+            .and_then(super::package_json::extract_node_major)
+            .or_else(|| {
+                json.get("volta")
+                    .and_then(|v| v.get("node"))
+                    .and_then(|v| v.as_str())
+                    .and_then(super::package_json::extract_node_major)
+            })
+            .map(|v| format!("nodejs-{}", v))
+            .unwrap_or_else(|| "nodejs".into());
+
+        let mut build_packages = vec![node_pkg.clone(), "yarn".into(), "ca-certificates".into()];
         if needs_corepack {
             build_packages.push("corepack".into());
         }
@@ -141,7 +156,7 @@ impl ManifestParser for YarnLockParser {
             runtime_config: RuntimeSpec {
                 packages: {
                     let mut pkgs = vec![
-                        "nodejs".into(),
+                        node_pkg,
                         "yarn".into(),
                         "busybox".into(),
                         "dumb-init".into(),

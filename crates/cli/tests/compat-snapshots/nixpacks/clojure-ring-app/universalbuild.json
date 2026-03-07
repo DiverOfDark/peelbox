@@ -36,11 +36,12 @@
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "3000"
       },
       "copy": [
         {
-          "from": "target/hello-ring-0.1.0-SNAPSHOT-standalone.jar",
+          "from": "target/uberjar/hello-ring-0.1.0-SNAPSHOT-standalone.jar",
           "to": "/app/hello-ring-0.1.0-SNAPSHOT-standalone.jar"
         }
       ],

@@ -9,7 +9,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs-16",
         "yarn",
         "ca-certificates",
         "corepack"
@@ -28,7 +28,7 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
+        "nodejs-16",
         "yarn",
         "busybox",
         "dumb-init",

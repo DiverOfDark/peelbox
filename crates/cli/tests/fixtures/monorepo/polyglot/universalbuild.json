@@ -28,7 +28,7 @@
       "command": [
         "java",
         "-cp",
-        "/app/*.jar",
+        "/app/*:/app/lib/*",
         "com.example.Backend"
       ],
       "copy": [
@@ -44,7 +44,8 @@
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
       },
       "packages": [
         "openjdk-17-jre",

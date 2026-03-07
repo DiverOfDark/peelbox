@@ -34,7 +34,7 @@
       ],
       "copy": [
         {
-          "from": "go-gin-app",
+          "from": "bin/go-gin-app",
           "to": "/app/go-gin-app"
         }
       ],

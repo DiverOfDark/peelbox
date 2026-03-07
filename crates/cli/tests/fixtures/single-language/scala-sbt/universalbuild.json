@@ -43,7 +43,8 @@
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
       },
       "health": {
         "endpoint": "/health"

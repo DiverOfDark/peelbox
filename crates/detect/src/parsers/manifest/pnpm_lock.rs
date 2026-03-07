@@ -57,6 +57,21 @@ impl ManifestParser for PnpmLockParser {
                 .map(|m| format!("node {}", m))
         };
 
+        // Extract Node.js version from engines.node or volta.node
+        let node_pkg = json
+            .get("engines")
+            .and_then(|e| e.get("node"))
+            .and_then(|v| v.as_str())
+            .and_then(super::package_json::extract_node_major)
+            .or_else(|| {
+                json.get("volta")
+                    .and_then(|v| v.get("node"))
+                    .and_then(|v| v.as_str())
+                    .and_then(super::package_json::extract_node_major)
+            })
+            .map(|v| format!("nodejs-{}", v))
+            .unwrap_or_else(|| "nodejs".into());
+
         Some(Manifest {
             path: path.to_path_buf(),
             language,
@@ -71,7 +86,7 @@ impl ManifestParser for PnpmLockParser {
             dependencies,
             build: BuildSpec {
                 packages: vec![
-                    "nodejs".into(),
+                    node_pkg.clone(),
                     "pnpm".into(),
                     "build-base".into(),
                     "python".into(),
@@ -93,7 +108,7 @@ impl ManifestParser for PnpmLockParser {
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
-                    "nodejs".into(),
+                    node_pkg,
                     "pnpm".into(),
                     "busybox".into(),
                     "dumb-init".into(),

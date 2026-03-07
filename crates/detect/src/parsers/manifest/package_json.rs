@@ -228,7 +228,7 @@ impl ManifestParser for PackageJsonParser {
 
 /// Extract major version number from a Node.js version constraint.
 /// Handles: ">=18", "^20.0.0", "~18.0", "20", "v18.12.0", "18.x"
-fn extract_node_major(constraint: &str) -> Option<String> {
+pub(crate) fn extract_node_major(constraint: &str) -> Option<String> {
     let cleaned = constraint
         .trim()
         .trim_start_matches(['>', '<', '=', '^', '~', 'v']);

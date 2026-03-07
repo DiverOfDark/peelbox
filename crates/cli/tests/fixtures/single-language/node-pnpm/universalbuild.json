@@ -13,7 +13,7 @@
         "nodejs-22",
         "pnpm",
         "build-base",
-        "python-3.14",
+        "python-3.13",
         "npm",
         "ca-certificates"
       ]

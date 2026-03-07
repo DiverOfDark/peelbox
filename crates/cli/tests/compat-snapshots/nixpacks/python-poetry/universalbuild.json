@@ -10,8 +10,8 @@
     },
     "build": {
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates"
       ],
@@ -30,26 +30,26 @@
     },
     "runtime": {
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates"
       ],
       "env": {
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-        "VIRTUAL_ENV": "/build/.venv"
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
       },
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "command": [
         "python",
-        "/build/main.py"
+        "/app/main.py"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": []
     }
   }

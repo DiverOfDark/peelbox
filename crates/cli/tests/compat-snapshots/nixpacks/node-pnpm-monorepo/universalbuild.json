@@ -10,7 +10,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs-18",
         "pnpm",
         "ca-certificates"
       ],
@@ -25,7 +25,7 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
+        "nodejs-18",
         "pnpm",
         "busybox",
         "dumb-init",
@@ -59,7 +59,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs-18",
         "pnpm",
         "ca-certificates"
       ],
@@ -74,7 +74,7 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
+        "nodejs-18",
         "pnpm",
         "busybox",
         "dumb-init",

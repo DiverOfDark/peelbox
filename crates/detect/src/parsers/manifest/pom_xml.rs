@@ -101,7 +101,7 @@ impl ManifestParser for PomXmlParser {
             };
             Some(format!("java -jar {}", jar_name))
         } else {
-            extract_main_class(&doc).map(|mc| format!("java -cp /app/*.jar {}", mc))
+            extract_main_class(&doc).map(|mc| format!("java -cp /app/*:/app/lib/* {}", mc))
         };
 
         let java_pkg = java_version

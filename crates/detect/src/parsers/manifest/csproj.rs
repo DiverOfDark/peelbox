@@ -12,12 +12,10 @@ const FSHARP: LanguageId = LanguageId::new("fsharp");
 const DOTNET_BS: BuildSystemId = BuildSystemId::new("dotnet");
 const DOTNET_RT: RuntimeId = RuntimeId::new("dotnet");
 
-/// Minimum .NET major version available as a Wolfi package.
-/// Versions below this threshold use Microsoft's dotnet-install.sh script instead.
-const MIN_WOLFI_DOTNET_VERSION: u32 = 8;
-
-/// Directory where the .NET SDK/runtime is installed when using dotnet-install.sh.
-const DOTNET_INSTALL_DIR: &str = "/usr/share/dotnet";
+/// Minimum .NET major version natively available as a Wolfi package.
+/// Older versions still use Wolfi packages (resolved to latest by Wolfi resolution)
+/// with DOTNET_ROLL_FORWARD=LatestMajor for runtime compatibility.
+const MIN_WOLFI_DOTNET_NATIVE: u32 = 8;
 
 inventory::submit! {
     LanguageMeta { slug: "csharp", display_name: "C#", aliases: &[] }
@@ -38,8 +36,6 @@ pub struct CsprojParser;
 struct DotnetVersion {
     /// Major version number (e.g., 6, 8, 9).
     major: u32,
-    /// Channel string for dotnet-install.sh (e.g., "6.0", "8.0").
-    channel: String,
 }
 
 impl ManifestParser for CsprojParser {
@@ -70,11 +66,7 @@ impl ManifestParser for CsprojParser {
         let dependencies = parse_csproj_deps(content);
 
         let (build, runtime_config) = if let Some(ref ver) = dotnet_version {
-            if ver.major < MIN_WOLFI_DOTNET_VERSION {
-                build_legacy_dotnet_specs(ver, &file_stem)
-            } else {
-                build_wolfi_dotnet_specs(ver, &file_stem)
-            }
+            build_wolfi_dotnet_specs(ver, &file_stem)
         } else {
             build_fallback_dotnet_specs(&file_stem)
         };
@@ -99,24 +91,36 @@ impl ManifestParser for CsprojParser {
 
 /// Parse the .NET version from a TargetFramework element.
 fn parse_dotnet_version(content: &str) -> Option<DotnetVersion> {
-    let re = regex::Regex::new(r"<TargetFramework>net(\d+)\.(\d+)</TargetFramework>").ok()?;
+    let re = regex::Regex::new(r"<TargetFramework>net(\d+)\.\d+</TargetFramework>").ok()?;
     let caps = re.captures(content)?;
-    let major_str = caps.get(1)?.as_str();
-    let minor_str = caps.get(2)?.as_str();
-    let major = major_str.parse::<u32>().ok()?;
-    Some(DotnetVersion {
-        major,
-        channel: format!("{}.{}", major_str, minor_str),
-    })
+    let major = caps.get(1)?.as_str().parse::<u32>().ok()?;
+    Some(DotnetVersion { major })
 }
 
-/// Build specs for .NET versions available as Wolfi packages (>= MIN_WOLFI_DOTNET_VERSION).
+/// Build specs using Wolfi packages.
+/// For old versions not natively available in Wolfi, the package names (e.g.,
+/// `dotnet-6-sdk`) are resolved to the latest available version by Wolfi
+/// resolution. `DOTNET_ROLL_FORWARD=LatestMajor` ensures the app runs on the
+/// newer runtime.
 fn build_wolfi_dotnet_specs(
     ver: &DotnetVersion,
     file_stem: &Option<String>,
 ) -> (BuildSpec, RuntimeSpec) {
     let sdk_pkg = format!("dotnet-{}-sdk", ver.major);
     let runtime_pkg = format!("aspnet-{}-runtime", ver.major);
+
+    // For old versions that will be upgraded by Wolfi resolution,
+    // enable roll-forward so the app runs on the newer runtime.
+    let runtime_env = if ver.major < MIN_WOLFI_DOTNET_NATIVE {
+        let mut env = BTreeMap::new();
+        env.insert(
+            "DOTNET_ROLL_FORWARD".into(),
+            "LatestMajor".into(),
+        );
+        env
+    } else {
+        BTreeMap::new() // ASPNETCORE_URLS set by framework detector
+    };
 
     (
         BuildSpec {
@@ -129,55 +133,6 @@ fn build_wolfi_dotnet_specs(
         },
         RuntimeSpec {
             packages: vec![runtime_pkg, "ca-certificates".into()],
-            env: BTreeMap::new(), // ASPNETCORE_URLS set by framework detector
-            entrypoint: file_stem.as_ref().map(|n| format!("dotnet /app/{}.dll", n)),
-            workdir: Some("/app".into()),
-            ports: vec![5000],
-            health_endpoint: None,
-        },
-    )
-}
-
-/// Build specs for old .NET versions not available in Wolfi (< MIN_WOLFI_DOTNET_VERSION).
-/// Uses Microsoft's dotnet-install.sh script to download and install the SDK/runtime.
-fn build_legacy_dotnet_specs(
-    ver: &DotnetVersion,
-    file_stem: &Option<String>,
-) -> (BuildSpec, RuntimeSpec) {
-    let install_cmd = format!(
-        "curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel {} --install-dir {}",
-        ver.channel, DOTNET_INSTALL_DIR
-    );
-
-    let mut build_env = dotnet_build_env();
-    build_env.insert("DOTNET_ROOT".into(), DOTNET_INSTALL_DIR.into());
-    build_env.insert("PATH".into(), format!("{}:${{PATH}}", DOTNET_INSTALL_DIR));
-
-    let mut runtime_env = BTreeMap::new();
-    runtime_env.insert("DOTNET_ROOT".into(), DOTNET_INSTALL_DIR.into());
-    runtime_env.insert("PATH".into(), format!("{}:${{PATH}}", DOTNET_INSTALL_DIR));
-
-    (
-        BuildSpec {
-            packages: vec![
-                "build-base".into(),
-                "bash".into(),
-                "curl".into(),
-                "icu".into(),
-                "ca-certificates".into(),
-            ],
-            commands: {
-                let mut cmds = vec![install_cmd];
-                cmds.extend(dotnet_build_commands());
-                cmds
-            },
-            member_transform: None,
-            env: build_env,
-            cache_dirs: dotnet_cache_dirs(),
-            artifacts: vec![("out/".into(), "/app".into())],
-        },
-        RuntimeSpec {
-            packages: vec!["icu".into(), "ca-certificates".into()],
             env: runtime_env,
             entrypoint: file_stem.as_ref().map(|n| format!("dotnet /app/{}.dll", n)),
             workdir: Some("/app".into()),
@@ -368,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn test_legacy_dotnet6_csproj() {
+    fn test_dotnet6_uses_wolfi_with_roll_forward() {
         let parser = CsprojParser;
         let content = r#"<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
@@ -378,51 +333,37 @@ mod tests {
 
         let manifest = parser.parse(Path::new("App.csproj"), content).unwrap();
 
-        // Build should use dotnet-install.sh instead of Wolfi packages
+        // Old .NET versions now use Wolfi packages (resolved to latest by Wolfi).
         assert_eq!(
             manifest.build.packages,
-            vec!["build-base", "bash", "curl", "icu", "ca-certificates"]
+            vec!["dotnet-6-sdk", "ca-certificates"]
         );
-        assert_eq!(manifest.build.commands.len(), 4);
-        assert!(manifest.build.commands[0].contains("dotnet-install.sh"));
-        assert!(manifest.build.commands[0].contains("--channel 6.0"));
-        assert!(manifest.build.commands[0].contains("--install-dir /usr/share/dotnet"));
-        assert_eq!(manifest.build.commands[1], "rm -f global.json");
-        assert_eq!(manifest.build.commands[2], "dotnet restore");
+        assert_eq!(manifest.build.commands.len(), 3);
+        assert_eq!(manifest.build.commands[0], "rm -f global.json");
+        assert_eq!(manifest.build.commands[1], "dotnet restore");
         assert_eq!(
-            manifest.build.commands[3],
+            manifest.build.commands[2],
             "dotnet publish -c Release -o out"
         );
 
-        // Build env should include DOTNET_ROOT and PATH
-        assert_eq!(
-            manifest.build.env.get("DOTNET_ROOT"),
-            Some(&"/usr/share/dotnet".to_string())
-        );
-        assert_eq!(
-            manifest.build.env.get("PATH"),
-            Some(&"/usr/share/dotnet:${PATH}".to_string())
-        );
+        // Build env should NOT have DOTNET_ROOT
+        assert!(!manifest.build.env.contains_key("DOTNET_ROOT"));
 
-        // Runtime should not have SDK/runtime Wolfi packages
+        // Runtime should use Wolfi packages
         assert_eq!(
             manifest.runtime_config.packages,
-            vec!["icu", "ca-certificates"]
+            vec!["aspnet-6-runtime", "ca-certificates"]
         );
 
-        // Runtime env should include DOTNET_ROOT and PATH
+        // Runtime env should have DOTNET_ROLL_FORWARD for old versions
         assert_eq!(
-            manifest.runtime_config.env.get("DOTNET_ROOT"),
-            Some(&"/usr/share/dotnet".to_string())
-        );
-        assert_eq!(
-            manifest.runtime_config.env.get("PATH"),
-            Some(&"/usr/share/dotnet:${PATH}".to_string())
+            manifest.runtime_config.env.get("DOTNET_ROLL_FORWARD"),
+            Some(&"LatestMajor".to_string())
         );
     }
 
     #[test]
-    fn test_legacy_dotnet7_fsproj() {
+    fn test_dotnet7_uses_wolfi_with_roll_forward() {
         let parser = CsprojParser;
         let content = r#"<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -433,12 +374,18 @@ mod tests {
 
         let manifest = parser.parse(Path::new("MyApp.fsproj"), content).unwrap();
 
-        // Should use legacy install for .NET 7 (below MIN_WOLFI_DOTNET_VERSION)
-        assert!(manifest.build.commands[0].contains("--channel 7.0"));
-        assert_eq!(manifest.build.commands[1], "rm -f global.json");
+        // .NET 7 should also use Wolfi packages
+        assert_eq!(
+            manifest.build.packages,
+            vec!["dotnet-7-sdk", "ca-certificates"]
+        );
         assert_eq!(
             manifest.runtime_config.packages,
-            vec!["icu", "ca-certificates"]
+            vec!["aspnet-7-runtime", "ca-certificates"]
+        );
+        assert_eq!(
+            manifest.runtime_config.env.get("DOTNET_ROLL_FORWARD"),
+            Some(&"LatestMajor".to_string())
         );
         assert_eq!(
             manifest.runtime_config.entrypoint,

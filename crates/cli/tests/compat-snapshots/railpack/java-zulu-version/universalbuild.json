@@ -14,7 +14,7 @@
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
       "commands": [
@@ -32,8 +32,9 @@
       ],
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk",
-        "PATH": "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk",
+        "PATH": "/usr/lib/jvm/java-1.8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
       },
       "copy": [
         {
@@ -48,7 +49,7 @@
       "command": [
         "java",
         "-cp",
-        "/app/*.jar",
+        "/app/*:/app/lib/*",
         "com.railpack.App"
       ],
       "workdir": "/app",

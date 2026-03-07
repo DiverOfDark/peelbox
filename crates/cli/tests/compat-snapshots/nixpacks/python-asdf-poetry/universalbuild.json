@@ -9,8 +9,8 @@
     },
     "build": {
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates"
       ],
@@ -29,7 +29,7 @@
     },
     "runtime": {
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates"
@@ -38,14 +38,14 @@
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "command": [
         "python",
-        "/build/main.py"
+        "/app/main.py"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         8000
       ]

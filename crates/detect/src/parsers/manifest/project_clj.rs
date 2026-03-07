@@ -33,9 +33,11 @@ impl ManifestParser for ProjectCljParser {
 
         let java_home = "/usr/lib/jvm/java-17-openjdk";
 
-        // Build the uberjar filename based on project name and version
+        // Build the uberjar filename based on project name and version.
+        // `lein uberjar` places output in target/uberjar/ when :target-path "target/%s" is set
+        // (which is the Leiningen default since 2.x).
         let jar_name = format!("{}-{}-standalone.jar", project_name, version);
-        let jar_path = format!("target/{}", jar_name);
+        let jar_path = format!("target/uberjar/{}", jar_name);
 
         let entrypoint = Some(format!("java -jar /app/{}", jar_name));
 

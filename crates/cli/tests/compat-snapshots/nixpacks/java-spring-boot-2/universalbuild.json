@@ -11,7 +11,7 @@
     "build": {
       "packages": [
         "openjdk-11",
-        "gradle-8",
+        "bash",
         "ca-certificates"
       ],
       "env": {
@@ -20,7 +20,7 @@
         "JAVA_HOME": "/usr/lib/jvm/java-11-openjdk"
       },
       "commands": [
-        "gradle assemble -x test --no-daemon --console=plain"
+        "./gradlew assemble -x test --no-daemon --console=plain"
       ],
       "cache": [
         ".gradle",
@@ -35,7 +35,8 @@
       "env": {
         "BUILD_PROFILE": "",
         "JAVA_HOME": "/usr/lib/jvm/java-11-openjdk",
-        "PATH": "/usr/lib/jvm/java-11-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/usr/lib/jvm/java-11-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "3030"
       },
       "copy": [
         {
@@ -50,8 +51,8 @@
       ],
       "workdir": "/app",
       "ports": [
-        8080,
-        3030
+        3030,
+        8080
       ],
       "health": {
         "endpoint": "/actuator/health"

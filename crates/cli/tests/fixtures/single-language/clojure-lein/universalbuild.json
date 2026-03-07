@@ -36,13 +36,14 @@
       ],
       "copy": [
         {
-          "from": "target/my-app-0.1.0-standalone.jar",
+          "from": "target/uberjar/my-app-0.1.0-standalone.jar",
           "to": "/app/my-app-0.1.0-standalone.jar"
         }
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "3000"
       },
       "health": {
         "endpoint": "/health"

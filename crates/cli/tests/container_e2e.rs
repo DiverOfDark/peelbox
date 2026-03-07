@@ -13,8 +13,12 @@ fn main() {
 
     let mut tests = Vec::new();
 
-    let skip_fixtures: std::collections::HashSet<&str> =
-        ["multiple-manifests"].into_iter().collect();
+    let skip_fixtures: std::collections::HashSet<&str> = [
+        "multiple-manifests",
+        "rust-custom-toolchain", // App calls `cargo version` at runtime — requires build tools in runtime image
+    ]
+    .into_iter()
+    .collect();
 
     for fixture in fixtures {
         if !fixture.has_snapshot {

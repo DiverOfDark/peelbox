@@ -6,7 +6,8 @@
         ".cache/go-mod"
       ],
       "commands": [
-        "go build -o api ./cmd/api"
+        "mkdir -p bin",
+        "go build -o bin/api ./cmd/api"
       ],
       "env": {
         "CGO_ENABLED": "0",
@@ -32,7 +33,7 @@
       ],
       "copy": [
         {
-          "from": "api",
+          "from": "bin/api",
           "to": "/app/api"
         }
       ],

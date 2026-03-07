@@ -34,7 +34,7 @@
       ],
       "copy": [
         {
-          "from": "app",
+          "from": "bin/app",
           "to": "/app/app"
         }
       ],

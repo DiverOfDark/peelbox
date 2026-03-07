@@ -60,6 +60,9 @@ impl ManifestParser for GemfileParser {
 
         let has_sqlite = deps.iter().any(|d| d.name == "sqlite3");
         let has_pg = deps.iter().any(|d| d.name == "pg");
+        let has_mysql = deps.iter().any(|d| d.name == "mysql2");
+        let has_charlock = deps.iter().any(|d| d.name == "charlock_holmes");
+        let has_nokogiri = deps.iter().any(|d| d.name == "nokogiri");
 
         let mut build_packages = vec![
             "ruby".into(),
@@ -77,6 +80,16 @@ impl ManifestParser for GemfileParser {
         if has_pg {
             build_packages.push("postgresql-dev".into());
         }
+        if has_mysql {
+            build_packages.push("mariadb-connector-c-dev".into());
+        }
+        if has_charlock {
+            build_packages.push("icu-dev".into());
+        }
+        if has_nokogiri {
+            build_packages.push("libxml2-dev".into());
+            build_packages.push("libxslt-dev".into());
+        }
 
         let mut runtime_packages: Vec<String> = vec![
             "ruby".into(),
@@ -92,6 +105,16 @@ impl ManifestParser for GemfileParser {
         }
         if has_pg {
             runtime_packages.push("libpq".into());
+        }
+        if has_mysql {
+            runtime_packages.push("mariadb-connector-c".into());
+        }
+        if has_charlock {
+            runtime_packages.push("icu".into());
+        }
+        if has_nokogiri {
+            runtime_packages.push("libxml2".into());
+            runtime_packages.push("libxslt".into());
         }
 
         Some(Manifest {

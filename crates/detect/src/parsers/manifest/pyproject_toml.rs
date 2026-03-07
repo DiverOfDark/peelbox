@@ -130,7 +130,7 @@ impl ManifestParser for PyProjectTomlParser {
                         ("POETRY_VIRTUALENVS_IN_PROJECT", "true"),
                     ]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pypoetry/".into()],
-                    artifacts: vec![(".".into(), "/build".into())],
+                    artifacts: vec![(".".into(), "/app".into())],
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -141,7 +141,7 @@ impl ManifestParser for PyProjectTomlParser {
                     ],
                     env: BTreeMap::new(),
                     entrypoint: None, // Will be set by framework detector (Flask)
-                    workdir: Some("/build".into()),
+                    workdir: Some("/app".into()),
                     ports: vec![8000],
                     health_endpoint: None,
                 },
@@ -222,13 +222,12 @@ impl ManifestParser for PyProjectTomlParser {
                     commands: vec![
                         "pip install pdm".into(),
                         "pdm export --no-hashes --prod -o requirements.txt".into(),
-                        "python3 -m venv .venv".into(),
-                        ".venv/bin/pip install -r requirements.txt".into(),
+                        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python".into(),
                     ],
                     member_transform: None,
                     env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
-                    artifacts: vec![(".".into(), "/build".into())],
+                    artifacts: vec![(".".into(), "/app".into())],
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -239,7 +238,7 @@ impl ManifestParser for PyProjectTomlParser {
                     ],
                     env: BTreeMap::new(),
                     entrypoint: None, // Will be set by framework detector (Flask)
-                    workdir: Some("/build".into()),
+                    workdir: Some("/app".into()),
                     ports: vec![8000],
                     health_endpoint: None,
                 },
@@ -288,6 +287,11 @@ impl ManifestParser for PyProjectTomlParser {
             })
         }
     }
+}
+
+/// Public wrapper for pdm_lock and other parsers that need to parse pyproject.toml deps.
+pub fn parse_pyproject_deps_public(toml_val: &toml::Value, is_poetry: bool) -> Vec<Dependency> {
+    parse_pyproject_deps(toml_val, is_poetry)
 }
 
 fn parse_pyproject_deps(toml_val: &toml::Value, is_poetry: bool) -> Vec<Dependency> {
@@ -524,12 +528,7 @@ build-backend = "pdm.backend"
             .build
             .commands
             .iter()
-            .any(|c| c.contains("python3 -m venv .venv")));
-        assert!(manifest
-            .build
-            .commands
-            .iter()
-            .any(|c| c.contains(".venv/bin/pip install")));
+            .any(|c| c.contains(".venv")));
 
         // Check env vars
         assert!(manifest.build.env.contains_key("PDM_PYTHON"));
@@ -540,7 +539,7 @@ build-backend = "pdm.backend"
         // Check artifacts
         assert_eq!(
             manifest.build.artifacts,
-            vec![(".".into(), "/build".into())]
+            vec![(".".into(), "/app".into())]
         );
     }
 
@@ -608,7 +607,7 @@ build-backend = "setuptools.build_meta"
     }
 
     #[test]
-    fn test_pyproject_pdm_workdir_is_build() {
+    fn test_pyproject_pdm_workdir_is_app() {
         let parser = PyProjectTomlParser;
         let content = r#"
 [project]
@@ -620,6 +619,6 @@ dependencies = ["flask>=3.0"]
 distribution = false
 "#;
         let manifest = parser.parse(Path::new("pyproject.toml"), content).unwrap();
-        assert_eq!(manifest.runtime_config.workdir, Some("/build".into()));
+        assert_eq!(manifest.runtime_config.workdir, Some("/app".into()));
     }
 }

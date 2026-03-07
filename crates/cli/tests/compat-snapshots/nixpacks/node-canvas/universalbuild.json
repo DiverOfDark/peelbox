@@ -11,7 +11,9 @@
       "packages": [
         "nodejs-20",
         "npm",
-        "ca-certificates"
+        "ca-certificates",
+        "build-base",
+        "python-3.13"
       ],
       "env": {},
       "commands": [

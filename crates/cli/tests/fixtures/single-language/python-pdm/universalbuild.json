@@ -8,15 +8,14 @@
       "commands": [
         "pip install pdm",
         "pdm export --no-hashes --prod -o requirements.txt",
-        "python3 -m venv .venv",
-        ".venv/bin/pip install -r requirements.txt"
+        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
       ],
       "env": {
         "PDM_PYTHON": "/usr/bin/python3"
       },
       "packages": [
-        "python-3.14",
-        "py3.14-pip",
+        "python-3.13",
+        "py3.13-pip",
         "build-base",
         "ca-certificates"
       ]
@@ -36,21 +35,21 @@
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "env": {
-        "FLASK_APP": "/build/app.py",
+        "FLASK_APP": "/app/app.py",
         "FLASK_RUN_HOST": "0.0.0.0",
         "FLASK_RUN_PORT": "5000",
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-        "VIRTUAL_ENV": "/build/.venv"
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
       },
       "health": {
         "endpoint": "/"
       },
       "packages": [
-        "python-3.14",
+        "python-3.13",
         "libgcc",
         "libstdc++",
         "ca-certificates"
@@ -58,7 +57,7 @@
       "ports": [
         5000
       ],
-      "workdir": "/build"
+      "workdir": "/app"
     },
     "version": "1.0"
   }

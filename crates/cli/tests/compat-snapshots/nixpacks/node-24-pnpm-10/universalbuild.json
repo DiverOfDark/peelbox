@@ -9,10 +9,10 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs-24",
         "pnpm",
         "build-base",
-        "python-3.14",
+        "python-3.13",
         "npm",
         "ca-certificates"
       ],
@@ -26,7 +26,7 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
+        "nodejs-24",
         "pnpm",
         "busybox",
         "dumb-init",

@@ -10,9 +10,9 @@
     },
     "build": {
       "packages": [
-        "elixir-1.18",
-        "erlang-28",
-        "erlang-28-dev",
+        "elixir-1.17",
+        "erlang-27",
+        "erlang-27-dev",
         "git",
         "build-base",
         "openssl",
@@ -43,8 +43,8 @@
     },
     "runtime": {
       "packages": [
-        "elixir-1.18",
-        "erlang-28",
+        "elixir-1.17",
+        "erlang-27",
         "busybox",
         "git",
         "openssl",
@@ -78,9 +78,9 @@
       ],
       "workdir": "/app",
       "ports": [
-        4000,
         4001,
-        4002
+        4002,
+        4000
       ],
       "health": {
         "endpoint": "/"

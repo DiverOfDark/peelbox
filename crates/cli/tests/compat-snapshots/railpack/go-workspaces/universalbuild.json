@@ -20,7 +20,8 @@
         "GOSUMDB": "off"
       },
       "commands": [
-        "go build -o api ./api"
+        "mkdir -p bin",
+        "go build -o bin/api ./api"
       ],
       "cache": [
         ".cache/go-build",
@@ -35,7 +36,7 @@
       "env": {},
       "copy": [
         {
-          "from": "api",
+          "from": "bin/api",
           "to": "/app/api"
         }
       ],
@@ -69,7 +70,8 @@
         "GOSUMDB": "off"
       },
       "commands": [
-        "go build -o shared ./shared"
+        "mkdir -p bin",
+        "go build -o bin/shared ./shared"
       ],
       "cache": [
         ".cache/go-build",
@@ -84,7 +86,7 @@
       "env": {},
       "copy": [
         {
-          "from": "shared",
+          "from": "bin/shared",
           "to": "/app/shared"
         }
       ],

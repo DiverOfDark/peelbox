@@ -109,12 +109,22 @@ pub fn detect_with_registry_and_wolfi(
         scan_python_native_deps(repo_path, build);
     }
 
+    // Step 4j: Detect Node.js native dependency system packages
+    for build in &mut builds {
+        scan_node_native_deps(repo_path, build);
+    }
+
     // Step 5: Resolve Wolfi package versions
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
             resolve_wolfi_packages(&mut build.build.packages, wolfi);
             resolve_wolfi_packages(&mut build.runtime.packages, wolfi);
         }
+    }
+
+    // Step 5b: Sync JAVA_HOME with resolved openjdk package version
+    for build in &mut builds {
+        crate::version::java::sync_java_home_with_packages(build);
     }
 
     // Step 6: Handle pinned versions not available in Wolfi (use alternative installers)
@@ -129,6 +139,21 @@ pub fn detect_with_registry_and_wolfi(
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
             crate::version::java::resolve_java_toolchain(build, wolfi);
+        }
+    }
+
+    // Step 7b: Set PORT env var for JVM apps when runtime has ports.
+    // Many Spring/JVM apps use ${PORT:default} in config; PaaS convention is to set PORT.
+    for build in &mut builds {
+        let lang = build.metadata.language.as_str();
+        if matches!(lang, "Java" | "Kotlin" | "Scala" | "Clojure") {
+            if let Some(&port) = build.runtime.ports.first() {
+                build
+                    .runtime
+                    .env
+                    .entry("PORT".to_string())
+                    .or_insert_with(|| port.to_string());
+            }
         }
     }
 
@@ -1313,6 +1338,12 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
     ("libpq", "libpq"),
 ];
 
+/// Packages where the very latest version often lacks broad ecosystem
+/// compatibility (many libraries don't publish wheels/packages for the
+/// bleeding-edge release). For these, prefer the second-latest minor version
+/// when no explicit version is pinned — matching PaaS defaults (Heroku, Railway).
+const PREFER_STABLE_PACKAGES: &[&str] = &["python", "elixir", "erlang"];
+
 /// Resolve generic package names to versioned Wolfi package names.
 fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
     for pkg in packages.iter_mut() {
@@ -1333,7 +1364,12 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             .iter()
             .find(|(name, _)| *name == pkg.as_str())
         {
-            if let Some(resolved) = wolfi.get_latest_version(prefix) {
+            let resolved = if PREFER_STABLE_PACKAGES.contains(prefix) {
+                wolfi.get_preferred_stable_version(prefix)
+            } else {
+                wolfi.get_latest_version(prefix)
+            };
+            if let Some(resolved) = resolved {
                 debug!(from = %pkg, to = %resolved, "Resolved Wolfi package version");
                 *pkg = resolved;
             }
@@ -1341,7 +1377,12 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             // Handle e.g. erlang-dev → erlang-28-dev
             let base = pkg.strip_suffix("-dev").unwrap();
             if let Some((_, prefix)) = VERSIONABLE_PACKAGES.iter().find(|(name, _)| *name == base) {
-                if let Some(resolved) = wolfi.get_latest_version(prefix) {
+                let resolved = if PREFER_STABLE_PACKAGES.contains(prefix) {
+                    wolfi.get_preferred_stable_version(prefix)
+                } else {
+                    wolfi.get_latest_version(prefix)
+                };
+                if let Some(resolved) = resolved {
                     let dev_pkg = format!("{}-dev", resolved);
                     if wolfi.has_package(&dev_pkg) {
                         debug!(from = %pkg, to = %dev_pkg, "Resolved Wolfi dev package version");
@@ -1380,6 +1421,13 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             if let Some(latest) = wolfi.get_latest_version("dotnet") {
                 let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
                 *pkg = format!("aspnet-{}-runtime", ver);
+            }
+        } else if pkg.starts_with("go-") && !wolfi.has_package(pkg) {
+            // go-1.18 → resolve to latest available Go version
+            // Go is backward-compatible, so old code builds fine with newer compilers.
+            if let Some(latest) = wolfi.get_latest_version("go") {
+                debug!(from = %pkg, to = %latest, "Resolved old Go version to latest Wolfi package");
+                *pkg = latest;
             }
         }
     }
@@ -1456,12 +1504,20 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
     (
         "JavaScript",
         &["js", "ts", "mjs", "cjs"],
-        &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
+        &[
+            r"\.listen\(\s*(\d{4,5})",
+            r#"port["\s:=]+(\d{4,5})"#,
+            r"\|\|\s*(\d{4,5})",
+        ],
     ),
     (
         "TypeScript",
         &["js", "ts", "mjs", "cjs"],
-        &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
+        &[
+            r"\.listen\(\s*(\d{4,5})",
+            r#"port["\s:=]+(\d{4,5})"#,
+            r"\|\|\s*(\d{4,5})",
+        ],
     ),
     (
         "Python",
@@ -1623,8 +1679,9 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         }
     }
 
-    // Source-code ports supplement existing ports (from framework/config detection).
-    // Existing ports are preserved at the front to keep the primary port first.
+    // Source-code ports are more specific than framework defaults (they come
+    // from explicit bind/listen calls in code), so they go first as the
+    // primary port for health checks and port mapping.
     if !source_ports.is_empty() {
         source_ports.sort();
         source_ports.dedup();
@@ -1646,12 +1703,14 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         if build.runtime.ports.is_empty() {
             build.runtime.ports = source_ports;
         } else {
-            // Merge: keep existing ports, add new source-detected ones
-            for port in source_ports {
-                if !build.runtime.ports.contains(&port) {
-                    build.runtime.ports.push(port);
+            // Source-detected ports go first, then existing framework/config ports
+            let mut merged = source_ports;
+            for port in &build.runtime.ports {
+                if !merged.contains(port) {
+                    merged.push(*port);
                 }
             }
+            build.runtime.ports = merged;
         }
     }
 }
@@ -2388,6 +2447,80 @@ fn scan_python_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
     }
 }
 
+// ── Node.js native dependency detection ──────────────────────────────────
+
+/// Known Node.js packages that require native compilation (node-gyp).
+/// When detected, build-base and python are added as build packages.
+const NODE_NATIVE_DEPS: &[&str] = &[
+    "better-sqlite3",
+    "sqlite3",
+    "canvas",
+    "sharp",
+    "bcrypt",
+    "node-sass",
+    "node-gyp",
+    "bufferutil",
+    "utf-8-validate",
+    "msgpackr-extract",
+    "cpu-features",
+    "unix-dgram",
+    "keytar",
+    "re2",
+    "farmhash",
+    "libxmljs",
+    "libxmljs2",
+    "node-expat",
+    "microtime",
+    "couchbase",
+    "zeromq",
+];
+
+/// Scan Node.js dependencies and add build-base + python when native deps are detected.
+fn scan_node_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    let pkg_json_path = project_dir.join("package.json");
+
+    let content = match std::fs::read_to_string(&pkg_json_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    // Collect all dependency names from dependencies, devDependencies, optionalDependencies
+    let dep_names: Vec<String> = ["dependencies", "devDependencies", "optionalDependencies"]
+        .iter()
+        .filter_map(|section| json.get(section)?.as_object())
+        .flat_map(|obj| obj.keys().cloned())
+        .collect();
+
+    let has_native = dep_names
+        .iter()
+        .any(|name| NODE_NATIVE_DEPS.iter().any(|pat| name == pat));
+
+    if !has_native {
+        return;
+    }
+
+    debug!("Adding build-base and python for Node.js native dependencies");
+
+    for pkg in &["build-base", "python"] {
+        let pkg_str = pkg.to_string();
+        if !build.build.packages.contains(&pkg_str) {
+            build.build.packages.push(pkg_str);
+        }
+    }
+}
+
 /// Check if a dependency name matches a pattern (case-insensitive, handles extras like `psycopg[c]`).
 fn dep_matches(dep_name: &str, pattern: &str) -> bool {
     let normalized = dep_name.to_lowercase().replace('-', "_");
@@ -2480,13 +2613,15 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
         return;
     }
 
-    // Only fix if FLASK_APP is set to the default hardcoded value
+    // Only fix if FLASK_APP is set to one of the default hardcoded values
     let flask_app = match build.runtime.env.get("FLASK_APP") {
-        Some(v) if v == "/build/app.py" => v.clone(),
+        Some(v) if v == "/app/app.py" || v == "/build/app.py" => v.clone(),
         _ => return,
     };
 
     let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+
+    let workdir = &build.runtime.workdir;
 
     // If app.py exists at project root, the default FLASK_APP is correct
     if project_dir.join("app.py").exists() && project_dir == repo_root {
@@ -2500,7 +2635,7 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
             let rel_path = project_dir
                 .strip_prefix(repo_root)
                 .unwrap_or(project_dir.as_path());
-            let new_flask_app = format!("/build/{}/app.py", rel_path.display());
+            let new_flask_app = format!("{}/{}/app.py", workdir, rel_path.display());
             debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
             build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
             return;
@@ -2514,7 +2649,7 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
         {
             if entry.file_name() == "app.py" && entry.file_type().is_some_and(|t| t.is_file()) {
                 let rel_path = entry.path().strip_prefix(repo_root).unwrap_or(entry.path());
-                let new_flask_app = format!("/build/{}", rel_path.display());
+                let new_flask_app = format!("{}/{}", workdir, rel_path.display());
                 debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
                 build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
                 return;
