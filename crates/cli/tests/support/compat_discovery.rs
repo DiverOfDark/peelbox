@@ -1,4 +1,5 @@
 use super::discovery::{has_any_file, Fixture};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Root of the workspace (where Cargo.lock lives).
@@ -146,6 +147,9 @@ fn is_empty_snapshot(path: &Path) -> bool {
 
 /// Copies external project files + snapshot into a working directory that looks
 /// like a normal peelbox fixture.
+///
+/// Uses an incremental copy approach (no delete-and-recreate) to be safe when
+/// multiple test binaries (static_e2e, container_e2e) run in parallel.
 fn assemble_compat_work_dir(
     external_example: &Path,
     snapshot_file: &Path,
@@ -161,12 +165,12 @@ fn assemble_compat_work_dir(
             .parent()
             .and_then(|dir| newest_mtime_recursive(dir))
             .or_else(|| {
-                std::fs::metadata(snapshot_file)
+                fs::metadata(snapshot_file)
                     .and_then(|m| m.modified())
                     .ok()
             });
         let external_src_mtime = newest_mtime_recursive(external_example);
-        let dest_mtime = std::fs::metadata(&dest_snapshot)
+        let dest_mtime = fs::metadata(&dest_snapshot)
             .and_then(|m| m.modified())
             .ok();
         if let (Some(d), Some(ss)) = (dest_mtime, snapshot_src_mtime) {
@@ -180,27 +184,22 @@ fn assemble_compat_work_dir(
         }
     }
 
-    // Clean and recreate
-    if work_dir.exists() {
-        std::fs::remove_dir_all(work_dir)?;
-    }
-
-    // Copy project files
+    // Copy project files (overwrites existing, never deletes the directory)
     copy_dir_recursive(external_example, work_dir)?;
 
     // Overlay all files from the snapshot directory (universalbuild.json,
     // expected_output.txt, etc.)
     if let Some(snapshot_dir) = snapshot_file.parent() {
-        for entry in std::fs::read_dir(snapshot_dir)? {
+        for entry in fs::read_dir(snapshot_dir)? {
             let entry = entry?;
             if entry.file_type()?.is_file() {
-                std::fs::copy(entry.path(), work_dir.join(entry.file_name()))?;
+                fs::copy(entry.path(), work_dir.join(entry.file_name()))?;
             }
         }
     }
 
     // Create a .git marker (peelbox expects it)
-    std::fs::create_dir_all(work_dir.join(".git"))?;
+    fs::create_dir_all(work_dir.join(".git"))?;
 
     Ok(())
 }
