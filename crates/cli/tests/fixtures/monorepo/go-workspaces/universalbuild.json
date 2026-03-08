@@ -1,13 +1,17 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api",
+      "language": "Go",
+      "build_system": "go mod",
+      "reasoning": "Detected from go.mod in cmd/api"
+    },
     "build": {
-      "cache": [
-        ".cache/go-build",
-        ".cache/go-mod"
-      ],
-      "commands": [
-        "mkdir -p bin",
-        "go build -o bin/api ./cmd/api"
+      "packages": [
+        "go-1.21",
+        "git",
+        "ca-certificates"
       ],
       "env": {
         "CGO_ENABLED": "0",
@@ -15,38 +19,34 @@
         "GOMODCACHE": "/build/.cache/go-mod",
         "GOSUMDB": "off"
       },
-      "packages": [
-        "go-1.21",
-        "git",
-        "ca-certificates"
+      "commands": [
+        "mkdir -p bin",
+        "go build -o bin/api ./cmd/api"
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
       ]
     },
-    "metadata": {
-      "build_system": "go mod",
-      "language": "Go",
-      "project_name": "api",
-      "reasoning": "Detected from go.mod in cmd/api"
-    },
     "runtime": {
-      "command": [
-        "/app/api"
+      "packages": [
+        "glibc",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "bin/api",
           "to": "/app/api"
         }
       ],
-      "env": {},
-      "packages": [
-        "glibc",
-        "ca-certificates"
+      "command": [
+        "/app/api"
       ],
+      "workdir": "/app",
       "ports": [
         8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

@@ -1,39 +1,29 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "vite-vanilla-app",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Vite",
+      "reasoning": "Detected from package.json"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "npm ci",
-        "npm run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "framework": "Vite",
-      "language": "JavaScript",
-      "project_name": "vite-vanilla-app",
-      "reasoning": "Detected from package.json"
-    },
-    "runtime": {
-      "command": [
-        "npm",
-        "start"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {},
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "npm",
@@ -41,11 +31,21 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app",
       "ports": [
         5173
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

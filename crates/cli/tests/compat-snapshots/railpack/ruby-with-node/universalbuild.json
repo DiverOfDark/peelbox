@@ -18,7 +18,9 @@
         "build-base",
         "glibc-dev",
         "linux-headers",
-        "libffi-dev"
+        "libffi-dev",
+        "yaml-dev",
+        "pkgconf"
       ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",

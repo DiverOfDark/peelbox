@@ -1,52 +1,52 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "C++",
+      "build_system": "CMake",
+      "reasoning": "Detected from CMakeLists.txt"
+    },
     "build": {
-      "cache": [
-        "CMakeCache.txt",
-        "build"
-      ],
-      "commands": [
-        "cmake -B build -DCMAKE_BUILD_TYPE=Release",
-        "cmake --build build --config Release"
-      ],
-      "env": {},
       "packages": [
         "build-base",
         "cmake",
         "gcc",
         "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "cmake -B build -DCMAKE_BUILD_TYPE=Release",
+        "cmake --build build --config Release"
+      ],
+      "cache": [
+        "CMakeCache.txt",
+        "build"
       ]
     },
-    "metadata": {
-      "build_system": "CMake",
-      "language": "C++",
-      "project_name": "app",
-      "reasoning": "Detected from CMakeLists.txt"
-    },
     "runtime": {
-      "command": [
-        "/app/app"
+      "packages": [
+        "glibc",
+        "ca-certificates",
+        "libstdc++"
       ],
+      "env": {},
       "copy": [
         {
           "from": "build/app",
           "to": "/app/app"
         }
       ],
-      "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "glibc",
-        "ca-certificates",
-        "libstdc++"
+      "command": [
+        "/app/app"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

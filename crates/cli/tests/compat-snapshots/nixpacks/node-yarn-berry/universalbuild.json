@@ -12,13 +12,13 @@
         "nodejs-16",
         "yarn",
         "ca-certificates",
-        "corepack"
+        "npm"
       ],
       "env": {
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "commands": [
-        "corepack enable",
+        "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /build/.yarn/releases/yarn-3.2.4.cjs  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
         "yarn install",
         "yarn run build"
       ],
@@ -32,8 +32,7 @@
         "yarn",
         "busybox",
         "dumb-init",
-        "ca-certificates",
-        "corepack"
+        "ca-certificates"
       ],
       "env": {},
       "copy": [
@@ -43,9 +42,9 @@
         }
       ],
       "command": [
-        "sh",
-        "-c",
-        "corepack enable && exec yarn start"
+        "node",
+        ".yarn/releases/yarn-3.2.4.cjs",
+        "start"
       ],
       "workdir": "/app",
       "ports": [

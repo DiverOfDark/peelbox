@@ -1,44 +1,29 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-prisma-app",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Express",
+      "reasoning": "Detected from package.json"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "npm ci",
-        "npm run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
         "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "cache": [
+        ".npm"
       ]
     },
-    "metadata": {
-      "build_system": "npm",
-      "framework": "Express",
-      "language": "JavaScript",
-      "project_name": "node-prisma-app",
-      "reasoning": "Detected from package.json"
-    },
     "runtime": {
-      "command": [
-        "node",
-        "dist/index.js"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
-      ],
-      "env": {
-        "PORT": ""
-      },
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
         "nodejs-25",
         "npm",
@@ -46,11 +31,26 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {
+        "PORT": ""
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "node",
+        "dist/index.js"
+      ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

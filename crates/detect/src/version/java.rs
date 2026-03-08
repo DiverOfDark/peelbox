@@ -261,9 +261,15 @@ pub fn sync_java_home_with_packages(build: &mut UniversalBuild) {
                 to = %correct_java_home,
                 "Correcting build JAVA_HOME to match resolved package"
             );
-            build.build.env.insert("JAVA_HOME".to_string(), correct_java_home.clone());
+            build
+                .build
+                .env
+                .insert("JAVA_HOME".to_string(), correct_java_home.clone());
             if build.build.env.contains_key("PATH") {
-                build.build.env.insert("PATH".to_string(), correct_path.clone());
+                build
+                    .build
+                    .env
+                    .insert("PATH".to_string(), correct_path.clone());
             }
         }
     }
@@ -276,9 +282,15 @@ pub fn sync_java_home_with_packages(build: &mut UniversalBuild) {
                 to = %correct_java_home,
                 "Correcting runtime JAVA_HOME to match resolved package"
             );
-            build.runtime.env.insert("JAVA_HOME".to_string(), correct_java_home.clone());
+            build
+                .runtime
+                .env
+                .insert("JAVA_HOME".to_string(), correct_java_home.clone());
             if build.runtime.env.contains_key("PATH") {
-                build.runtime.env.insert("PATH".to_string(), correct_path);
+                build
+                    .runtime
+                    .env
+                    .insert("PATH".to_string(), correct_path);
             }
         }
     }
@@ -435,45 +447,6 @@ fn ensure_package(packages: &mut Vec<String>, pkg: &str) {
 mod tests {
     use super::*;
 
-    // ── normalize_java_version tests ──────────────────────────────────────
-
-    #[test]
-    fn test_normalize_1_8() {
-        assert_eq!(normalize_java_version("1.8"), "8");
-    }
-
-    #[test]
-    fn test_normalize_1_7() {
-        assert_eq!(normalize_java_version("1.7"), "7");
-    }
-
-    #[test]
-    fn test_normalize_1_5() {
-        assert_eq!(normalize_java_version("1.5"), "5");
-    }
-
-    #[test]
-    fn test_normalize_1_8_0_292() {
-        assert_eq!(normalize_java_version("1.8.0_292"), "8");
-    }
-
-    #[test]
-    fn test_normalize_modern_11() {
-        assert_eq!(normalize_java_version("11"), "11");
-    }
-
-    #[test]
-    fn test_normalize_modern_17() {
-        assert_eq!(normalize_java_version("17"), "17");
-    }
-
-    #[test]
-    fn test_normalize_modern_21() {
-        assert_eq!(normalize_java_version("21"), "21");
-    }
-
-    // ── detect_java_version tests ─────────────────────────────────────────
-
     #[test]
     fn test_pom_maven_compiler_source() {
         let content = r#"<project><properties><maven.compiler.source>17</maven.compiler.source></properties></project>"#;
@@ -494,6 +467,30 @@ mod tests {
     }
 
     #[test]
+    fn test_gradle_source_compat() {
+        let content = r#"sourceCompatibility = "17""#;
+        assert_eq!(detect_java_version(content), Some("17".to_string()));
+    }
+
+    #[test]
+    fn test_gradle_toolchain() {
+        let content = r#"java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }"#;
+        assert_eq!(detect_java_version(content), Some("21".to_string()));
+    }
+
+    #[test]
+    fn test_java_version_file() {
+        assert_eq!(detect_java_version("17"), Some("17".to_string()));
+        assert_eq!(detect_java_version("17.0"), Some("17".to_string()));
+    }
+
+    #[test]
+    fn test_java_version_file_legacy() {
+        assert_eq!(detect_java_version("1.8"), Some("8".to_string()));
+        assert_eq!(detect_java_version("1.8.0"), Some("8".to_string()));
+    }
+
+    #[test]
     fn test_pom_legacy_java_8() {
         let content = r#"<project><properties><maven.compiler.source>1.8</maven.compiler.source></properties></project>"#;
         assert_eq!(detect_java_version(content), Some("8".to_string()));
@@ -507,33 +504,24 @@ mod tests {
     }
 
     #[test]
-    fn test_gradle_source_compat() {
-        let content = r#"sourceCompatibility = "17""#;
-        assert_eq!(detect_java_version(content), Some("17".to_string()));
-    }
-
-    #[test]
-    fn test_gradle_toolchain() {
-        let content = r#"java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }"#;
-        assert_eq!(detect_java_version(content), Some("21".to_string()));
-    }
-
-    #[test]
     fn test_gradle_legacy_version_1_8() {
         let content = r#"sourceCompatibility = JavaVersion.VERSION_1_8"#;
         assert_eq!(detect_java_version(content), Some("8".to_string()));
     }
 
     #[test]
-    fn test_java_version_file() {
-        assert_eq!(detect_java_version("17"), Some("17".to_string()));
-        assert_eq!(detect_java_version("17.0"), Some("17".to_string()));
+    fn test_normalize_1_8() {
+        assert_eq!(normalize_java_version("1.8"), "8");
     }
 
     #[test]
-    fn test_java_version_file_legacy() {
-        assert_eq!(detect_java_version("1.8"), Some("8".to_string()));
-        assert_eq!(detect_java_version("1.8.0"), Some("8".to_string()));
+    fn test_normalize_1_7() {
+        assert_eq!(normalize_java_version("1.7"), "7");
+    }
+
+    #[test]
+    fn test_normalize_modern_17() {
+        assert_eq!(normalize_java_version("17"), "17");
     }
 
     #[test]
@@ -552,25 +540,9 @@ mod tests {
     }
 
     #[test]
-    fn test_wolfi_format_legacy() {
-        let content =
-            r#"<project><properties><java.version>1.8</java.version></properties></project>"#;
-        assert_eq!(
-            detect_java_version_wolfi(content),
-            Some("openjdk-8".to_string())
-        );
-    }
-
-    #[test]
     fn test_pom_version_standalone() {
         let content = r#"<project><properties><maven.compiler.source>21</maven.compiler.source></properties></project>"#;
         assert_eq!(parse_pom_version(content), Some("21".to_string()));
-    }
-
-    #[test]
-    fn test_pom_version_standalone_legacy() {
-        let content = r#"<project><properties><maven.compiler.source>1.8</maven.compiler.source></properties></project>"#;
-        assert_eq!(parse_pom_version(content), Some("1.8".to_string()));
     }
 
     #[test]
@@ -583,399 +555,5 @@ mod tests {
     fn test_gradle_version_version_prefix() {
         let content = r#"sourceCompatibility = JavaVersion.VERSION_17"#;
         assert_eq!(parse_gradle_version(content), Some("17".to_string()));
-    }
-
-    // ── is_legacy_java_version tests ──────────────────────────────────────
-    // Note: is_legacy_java_version is a heuristic check without the Wolfi index.
-    // Wolfi currently has openjdk-7 through openjdk-25, so only Java 6 and below
-    // are considered legacy by the heuristic.
-
-    #[test]
-    fn test_is_legacy_java_6() {
-        assert!(is_legacy_java_version("6"));
-    }
-
-    #[test]
-    fn test_is_not_legacy_java_7() {
-        // Wolfi has openjdk-7
-        assert!(!is_legacy_java_version("7"));
-    }
-
-    #[test]
-    fn test_is_not_legacy_java_8() {
-        // Wolfi has openjdk-8
-        assert!(!is_legacy_java_version("8"));
-    }
-
-    #[test]
-    fn test_is_not_legacy_java_11() {
-        assert!(!is_legacy_java_version("11"));
-    }
-
-    #[test]
-    fn test_is_not_legacy_java_17() {
-        assert!(!is_legacy_java_version("17"));
-    }
-
-    // ── resolve_java_toolchain tests ──────────────────────────────────────
-
-    #[test]
-    fn test_resolve_java_toolchain_modern_version() {
-        use std::collections::BTreeMap;
-
-        let wolfi = WolfiPackageIndex::for_tests();
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Java".into(),
-                build_system: "Maven".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec!["openjdk-17".into(), "maven".into()],
-                commands: vec!["mvn package -DskipTests".into()],
-                env: BTreeMap::new(),
-                cache: vec![],
-            },
-            runtime: peelbox_core::output::schema::RuntimeStage {
-                packages: vec!["openjdk-17-jre".into()],
-                ..Default::default()
-            },
-        };
-
-        resolve_java_toolchain(&mut build, &wolfi);
-
-        // openjdk-17 exists in Wolfi — no changes
-        assert!(build
-            .build
-            .packages
-            .iter()
-            .any(|p| p.starts_with("openjdk-17")));
-        assert_eq!(build.build.commands.len(), 1);
-    }
-
-    #[test]
-    fn test_resolve_java_toolchain_java_8_available_in_wolfi() {
-        use std::collections::BTreeMap;
-
-        let wolfi = WolfiPackageIndex::for_tests();
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Java".into(),
-                build_system: "Maven".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec![
-                    "openjdk-8".into(),
-                    "maven".into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec!["mvn package -DskipTests".into()],
-                env: BTreeMap::from([(
-                    "JAVA_HOME".into(),
-                    "/usr/lib/jvm/java-8-openjdk".into(),
-                )]),
-                cache: vec!["/root/.m2/repository".into()],
-            },
-            runtime: peelbox_core::output::schema::RuntimeStage {
-                packages: vec!["openjdk-8-jre".into(), "ca-certificates".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-8-openjdk".into()),
-                    (
-                        "PATH".into(),
-                        "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()
-                    ),
-                ]),
-                ..Default::default()
-            },
-        };
-
-        resolve_java_toolchain(&mut build, &wolfi);
-
-        // openjdk-8 exists in Wolfi — no Adoptium fallback, packages unchanged
-        assert!(
-            build.build.packages.iter().any(|p| p == "openjdk-8"),
-            "openjdk-8 should remain in build packages: {:?}",
-            build.build.packages
-        );
-        assert!(
-            !build.build.packages.contains(&"curl".to_string()),
-            "curl should NOT be added when openjdk-8 is in Wolfi"
-        );
-        assert_eq!(
-            build.build.commands.len(),
-            1,
-            "No Adoptium download command should be prepended"
-        );
-        assert_eq!(
-            build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-8-openjdk",
-            "JAVA_HOME should remain unchanged"
-        );
-
-        // Runtime should also be unchanged
-        assert!(
-            build.runtime.packages.iter().any(|p| p == "openjdk-8-jre"),
-            "openjdk-8-jre should remain in runtime packages: {:?}",
-            build.runtime.packages
-        );
-    }
-
-    #[test]
-    fn test_resolve_java_toolchain_legacy_version_not_in_wolfi() {
-        use std::collections::BTreeMap;
-
-        let wolfi = WolfiPackageIndex::for_tests();
-        // Use Java 6 which is NOT in the Wolfi index
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Java".into(),
-                build_system: "Maven".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec![
-                    "openjdk-6".into(),
-                    "maven".into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec!["mvn package -DskipTests".into()],
-                env: BTreeMap::from([(
-                    "JAVA_HOME".into(),
-                    "/usr/lib/jvm/java-6-openjdk".into(),
-                )]),
-                cache: vec!["/root/.m2/repository".into()],
-            },
-            runtime: peelbox_core::output::schema::RuntimeStage {
-                packages: vec!["openjdk-6-jre".into(), "ca-certificates".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-6-openjdk".into()),
-                    (
-                        "PATH".into(),
-                        "/usr/lib/jvm/java-6-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()
-                    ),
-                ]),
-                ..Default::default()
-            },
-        };
-
-        resolve_java_toolchain(&mut build, &wolfi);
-
-        // openjdk-6 doesn't exist in Wolfi — should switch to Adoptium
-        assert!(
-            !build
-                .build
-                .packages
-                .iter()
-                .any(|p| p.starts_with("openjdk")),
-            "openjdk packages should be removed: {:?}",
-            build.build.packages
-        );
-        assert!(
-            build.build.packages.contains(&"curl".to_string()),
-            "curl should be added for Adoptium download"
-        );
-        assert!(
-            build.build.commands[0].contains("adoptium.net"),
-            "First command should be Adoptium download"
-        );
-        assert!(
-            build.build.commands[0].contains("/6/"),
-            "Download URL should reference Java 6"
-        );
-        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-6");
-
-        // Runtime should also be updated
-        assert!(
-            !build
-                .runtime
-                .packages
-                .iter()
-                .any(|p| p.starts_with("openjdk")),
-            "runtime openjdk packages should be removed: {:?}",
-            build.runtime.packages
-        );
-        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-6");
-
-        // Should have a copy spec for the JDK
-        assert!(
-            build.runtime.copy.iter().any(|c| c.from.contains("java-6")),
-            "Should copy JDK from build to runtime: {:?}",
-            build.runtime.copy
-        );
-    }
-
-    #[test]
-    fn test_resolve_java_toolchain_skips_non_java() {
-        use std::collections::BTreeMap;
-
-        let wolfi = WolfiPackageIndex::for_tests();
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Python".into(),
-                build_system: "pip".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec!["python-3.11".into()],
-                commands: vec!["pip install .".into()],
-                env: BTreeMap::new(),
-                cache: vec![],
-            },
-            runtime: Default::default(),
-        };
-
-        resolve_java_toolchain(&mut build, &wolfi);
-
-        // Non-Java project — no changes
-        assert_eq!(build.build.packages[0], "python-3.11");
-        assert_eq!(build.build.commands.len(), 1);
-    }
-
-    // ── wolfi_java_home_path tests ───────────────────────────────────────
-
-    #[test]
-    fn test_wolfi_java_home_path_legacy_versions() {
-        assert_eq!(wolfi_java_home_path("7"), "/usr/lib/jvm/java-1.7-openjdk");
-        assert_eq!(wolfi_java_home_path("8"), "/usr/lib/jvm/java-1.8-openjdk");
-        assert_eq!(wolfi_java_home_path("9"), "/usr/lib/jvm/java-1.9-openjdk");
-    }
-
-    #[test]
-    fn test_wolfi_java_home_path_modern_versions() {
-        assert_eq!(wolfi_java_home_path("10"), "/usr/lib/jvm/java-10-openjdk");
-        assert_eq!(wolfi_java_home_path("11"), "/usr/lib/jvm/java-11-openjdk");
-        assert_eq!(wolfi_java_home_path("17"), "/usr/lib/jvm/java-17-openjdk");
-        assert_eq!(wolfi_java_home_path("21"), "/usr/lib/jvm/java-21-openjdk");
-        assert_eq!(wolfi_java_home_path("25"), "/usr/lib/jvm/java-25-openjdk");
-    }
-
-    // ── sync_java_home_with_packages tests ───────────────────────────────
-
-    #[test]
-    fn test_sync_java_home_corrects_mismatched_version() {
-        use std::collections::BTreeMap;
-
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Java".into(),
-                build_system: "Gradle".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec!["openjdk-25".into(), "gradle-8".into()],
-                commands: vec!["gradle assemble".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-21-openjdk".into()),
-                    ("PATH".into(), "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()),
-                ]),
-                cache: vec![],
-            },
-            runtime: peelbox_core::output::schema::RuntimeStage {
-                packages: vec!["openjdk-25".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-21-openjdk".into()),
-                    ("PATH".into(), "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()),
-                ]),
-                ..Default::default()
-            },
-        };
-
-        sync_java_home_with_packages(&mut build);
-
-        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-25-openjdk");
-        assert!(build.build.env["PATH"].starts_with("/usr/lib/jvm/java-25-openjdk/bin"));
-        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-25-openjdk");
-        assert!(build.runtime.env["PATH"].starts_with("/usr/lib/jvm/java-25-openjdk/bin"));
-    }
-
-    #[test]
-    fn test_sync_java_home_corrects_legacy_java8_path() {
-        use std::collections::BTreeMap;
-
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Java".into(),
-                build_system: "Maven".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec!["openjdk-8".into(), "maven-3.9".into()],
-                commands: vec!["mvn package -DskipTests".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-8-openjdk".into()),
-                ]),
-                cache: vec![],
-            },
-            runtime: peelbox_core::output::schema::RuntimeStage {
-                packages: vec!["openjdk-8-jre".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-8-openjdk".into()),
-                    ("PATH".into(), "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into()),
-                ]),
-                ..Default::default()
-            },
-        };
-
-        sync_java_home_with_packages(&mut build);
-
-        // Wolfi installs openjdk-8 at /usr/lib/jvm/java-1.8-openjdk
-        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-1.8-openjdk");
-        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-1.8-openjdk");
-        assert!(build.runtime.env["PATH"].starts_with("/usr/lib/jvm/java-1.8-openjdk/bin"));
-    }
-
-    #[test]
-    fn test_sync_java_home_no_change_when_correct() {
-        use std::collections::BTreeMap;
-
-        let mut build = UniversalBuild {
-            version: "1.0".into(),
-            metadata: peelbox_core::output::schema::BuildMetadata {
-                project_name: Some("test".into()),
-                language: "Java".into(),
-                build_system: "Maven".into(),
-                framework: None,
-                reasoning: "test".into(),
-            },
-            build: peelbox_core::output::schema::BuildStage {
-                packages: vec!["openjdk-17".into(), "maven-3.9".into()],
-                commands: vec!["mvn package -DskipTests".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-17-openjdk".into()),
-                ]),
-                cache: vec![],
-            },
-            runtime: peelbox_core::output::schema::RuntimeStage {
-                packages: vec!["openjdk-17-jre".into()],
-                env: BTreeMap::from([
-                    ("JAVA_HOME".into(), "/usr/lib/jvm/java-17-openjdk".into()),
-                ]),
-                ..Default::default()
-            },
-        };
-
-        sync_java_home_with_packages(&mut build);
-
-        // Already correct — no change
-        assert_eq!(build.build.env["JAVA_HOME"], "/usr/lib/jvm/java-17-openjdk");
-        assert_eq!(build.runtime.env["JAVA_HOME"], "/usr/lib/jvm/java-17-openjdk");
     }
 }

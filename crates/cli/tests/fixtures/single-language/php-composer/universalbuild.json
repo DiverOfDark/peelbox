@@ -1,14 +1,13 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "Composer",
+      "reasoning": "Detected from composer.json"
+    },
     "build": {
-      "cache": [
-        ".composer/cache"
-      ],
-      "commands": [
-        "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
-        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true"
-      ],
-      "env": {},
       "packages": [
         "php-8.1",
         "composer",
@@ -22,31 +21,17 @@
         "php-8.1-xml",
         "php-8.1-dom",
         "php-8.1-curl"
-      ]
-    },
-    "metadata": {
-      "build_system": "Composer",
-      "language": "PHP",
-      "project_name": "app",
-      "reasoning": "Detected from composer.json"
-    },
-    "runtime": {
-      "command": [
-        "php",
-        "-S",
-        "0.0.0.0:8000",
-        "index.php"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
+      "commands": [
+        "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
+        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true"
+      ],
+      "cache": [
+        ".composer/cache"
+      ]
+    },
+    "runtime": {
       "packages": [
         "php-8.1",
         "php-8.1-ctype",
@@ -62,11 +47,26 @@
         "busybox",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "php",
+        "-S",
+        "0.0.0.0:8000",
+        "index.php"
+      ],
+      "workdir": "/app",
       "ports": [
         8000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

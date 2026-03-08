@@ -1,15 +1,17 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "F#",
+      "build_system": ".NET",
+      "framework": "ASP.NET Core",
+      "reasoning": "Detected from FSharpApi.fsproj"
+    },
     "build": {
-      "cache": [
-        ".nuget/packages",
-        "bin",
-        "obj"
-      ],
-      "commands": [
-        "rm -f global.json",
-        "dotnet restore",
-        "dotnet publish -c Release -o out"
+      "packages": [
+        "dotnet-8-sdk",
+        "ca-certificates"
       ],
       "env": {
         "DOTNET_CLI_HOME": "/root",
@@ -17,44 +19,42 @@
         "DOTNET_NOLOGO": "1",
         "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
       },
-      "packages": [
-        "dotnet-8-sdk",
-        "ca-certificates"
+      "commands": [
+        "rm -f global.json",
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
+      ],
+      "cache": [
+        ".nuget/packages",
+        "bin",
+        "obj"
       ]
     },
-    "metadata": {
-      "build_system": ".NET",
-      "framework": "ASP.NET Core",
-      "language": "F#",
-      "project_name": "app",
-      "reasoning": "Detected from FSharpApi.fsproj"
-    },
     "runtime": {
-      "command": [
-        "dotnet",
-        "/app/FSharpApi.dll"
+      "packages": [
+        "aspnet-8-runtime",
+        "ca-certificates"
       ],
+      "env": {
+        "ASPNETCORE_URLS": "http://0.0.0.0:5000"
+      },
       "copy": [
         {
           "from": "out/",
           "to": "/app"
         }
       ],
-      "env": {
-        "ASPNETCORE_URLS": "http://0.0.0.0:5000"
-      },
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "aspnet-8-runtime",
-        "ca-certificates"
+      "command": [
+        "dotnet",
+        "/app/FSharpApi.dll"
       ],
+      "workdir": "/app",
       "ports": [
         5000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

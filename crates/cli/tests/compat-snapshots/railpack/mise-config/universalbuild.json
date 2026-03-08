@@ -11,7 +11,8 @@
       "packages": [
         "nodejs-22",
         "npm",
-        "ca-certificates"
+        "ca-certificates",
+        "bun"
       ],
       "env": {},
       "commands": [
@@ -27,7 +28,10 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "bun",
+        "go-1.25",
+        "python-3.13"
       ],
       "env": {},
       "copy": [

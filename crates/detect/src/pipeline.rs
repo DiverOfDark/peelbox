@@ -89,6 +89,11 @@ pub fn detect_with_registry_and_wolfi(
         scan_version_files(repo_path, build);
     }
 
+    // Step 4e2: Scan mise.toml / .mise.toml / .tool-versions for tool version overrides
+    for build in &mut builds {
+        scan_mise_config(repo_path, build);
+    }
+
     // Step 4f: Scan Python entrypoints
     for build in &mut builds {
         scan_python_entrypoints(repo_path, build);
@@ -112,6 +117,16 @@ pub fn detect_with_registry_and_wolfi(
     // Step 4j: Detect Node.js native dependency system packages
     for build in &mut builds {
         scan_node_native_deps(repo_path, build);
+    }
+
+    // Step 4k: Detect Puppeteer and add Chromium dependencies
+    for build in &mut builds {
+        scan_node_puppeteer(repo_path, build);
+    }
+
+    // Step 4l: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
+    for build in &mut builds {
+        sanitize_node_build_commands(repo_path, build);
     }
 
     // Step 5: Resolve Wolfi package versions
@@ -501,6 +516,7 @@ fn partition(
                     primary_idx = dep_idx;
                 }
             }
+
 
             let mut primary = manifests_in_dir.remove(primary_idx);
 
@@ -1342,7 +1358,11 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
 /// compatibility (many libraries don't publish wheels/packages for the
 /// bleeding-edge release). For these, prefer the second-latest minor version
 /// when no explicit version is pinned — matching PaaS defaults (Heroku, Railway).
-const PREFER_STABLE_PACKAGES: &[&str] = &["python", "elixir", "erlang"];
+const PREFER_STABLE_PACKAGES: &[(&str, usize)] = &[
+    ("python", 2),  // Many libraries publish wheels late; N-2 has broadest support
+    ("elixir", 1),
+    ("erlang", 1),
+];
 
 /// Resolve generic package names to versioned Wolfi package names.
 fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
@@ -1364,8 +1384,8 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             .iter()
             .find(|(name, _)| *name == pkg.as_str())
         {
-            let resolved = if PREFER_STABLE_PACKAGES.contains(prefix) {
-                wolfi.get_preferred_stable_version(prefix)
+            let resolved = if let Some((_, offset)) = PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix) {
+                wolfi.get_stable_version_at_offset(prefix, *offset)
             } else {
                 wolfi.get_latest_version(prefix)
             };
@@ -1377,8 +1397,8 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             // Handle e.g. erlang-dev → erlang-28-dev
             let base = pkg.strip_suffix("-dev").unwrap();
             if let Some((_, prefix)) = VERSIONABLE_PACKAGES.iter().find(|(name, _)| *name == base) {
-                let resolved = if PREFER_STABLE_PACKAGES.contains(prefix) {
-                    wolfi.get_preferred_stable_version(prefix)
+                let resolved = if let Some((_, offset)) = PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix) {
+                    wolfi.get_stable_version_at_offset(prefix, *offset)
                 } else {
                     wolfi.get_latest_version(prefix)
                 };
@@ -1660,6 +1680,18 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
             continue;
         }
 
+        // Skip dev/test configuration files — they often declare
+        // different ports that are irrelevant for production.
+        if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+            let stem_lower = stem.to_ascii_lowercase();
+            if stem_lower.contains("dev")
+                || stem_lower.contains("test")
+                || stem_lower.contains("development")
+            {
+                continue;
+            }
+        }
+
         let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
             Err(_) => continue,
@@ -1875,6 +1907,7 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         &[
             r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
             r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+            r#"os\.environ\[['"]([A-Z_][A-Z0-9_]*)['"]\]"#,
         ],
     ),
     ("Rust", &["rs"], &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#]),
@@ -2039,6 +2072,172 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
             }
         }
         _ => {}
+    }
+}
+
+// ── Mise / .tool-versions scanning ──────────────────────────────────────
+
+/// Scan for mise.toml / .mise.toml / .tool-versions and add any additional
+/// tools that the project declares as build/runtime packages.
+///
+/// This handles the common pattern where a project uses mise (formerly rtx)
+/// to manage multiple language runtimes (Node, Python, Go, Bun, etc.).
+fn scan_mise_config(repo_root: &Path, build: &mut UniversalBuild) {
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+
+    // Try mise.toml / .mise.toml first, then .tool-versions
+    let tools = read_mise_tools(&project_dir, repo_root);
+    if tools.is_empty() {
+        return;
+    }
+
+    debug!(?tools, "Found mise/tool-versions config");
+
+    // Map mise tool names to Wolfi package names
+    for (tool, version) in &tools {
+        match tool.as_str() {
+            "node" | "nodejs" => {
+                // Node version override (mise takes priority over .nvmrc)
+                let major = extract_major_version(version);
+                if let Some(major) = major {
+                    let versioned_pkg = format!("nodejs-{}", major);
+                    replace_package(&mut build.build.packages, "nodejs", &versioned_pkg);
+                    replace_package(&mut build.runtime.packages, "nodejs", &versioned_pkg);
+                }
+            }
+            "bun" => {
+                // Add bun as both build and runtime package
+                if !build.build.packages.iter().any(|p| p.starts_with("bun")) {
+                    build.build.packages.push("bun".to_string());
+                }
+                if !build.runtime.packages.iter().any(|p| p.starts_with("bun")) {
+                    build.runtime.packages.push("bun".to_string());
+                }
+            }
+            "python" => {
+                // Add python as runtime package if not already present
+                let major_minor = extract_major_minor_version(version);
+                let pkg_name = if let Some(mm) = major_minor {
+                    format!("python-{}", mm)
+                } else {
+                    "python".to_string()
+                };
+                if !build.runtime.packages.iter().any(|p| p.starts_with("python")) {
+                    build.runtime.packages.push(pkg_name);
+                }
+            }
+            "go" | "golang" => {
+                // Add go as runtime package if not already present
+                if !build.runtime.packages.iter().any(|p| p.starts_with("go-")) && !build.runtime.packages.contains(&"go".to_string()) {
+                    build.runtime.packages.push("go".to_string());
+                }
+            }
+            "ruby" => {
+                let major_minor = extract_major_minor_version(version);
+                if let Some(mm) = major_minor {
+                    let versioned_pkg = format!("ruby-{}", mm);
+                    replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
+                    replace_package(&mut build.runtime.packages, "ruby", &versioned_pkg);
+                }
+            }
+            _ => {
+                // Unknown tool — skip
+            }
+        }
+    }
+}
+
+/// Read tool versions from mise.toml / .mise.toml / .tool-versions.
+/// Returns a list of (tool_name, version_string) pairs.
+fn read_mise_tools(project_dir: &Path, repo_root: &Path) -> Vec<(String, String)> {
+    for dir in &[project_dir, repo_root] {
+        // Try TOML-based mise config first
+        for filename in &["mise.toml", ".mise.toml"] {
+            let path = dir.join(filename);
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Some(tools) = parse_mise_toml(&content) {
+                    return tools;
+                }
+            }
+        }
+
+        // Try .tool-versions (asdf-compatible format)
+        let path = dir.join(".tool-versions");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            return parse_tool_versions(&content);
+        }
+    }
+
+    Vec::new()
+}
+
+/// Parse mise.toml / .mise.toml content.
+/// Format:
+/// ```toml
+/// [tools]
+/// node = "22"
+/// python = "3.12"
+/// bun = "latest"
+/// ```
+fn parse_mise_toml(content: &str) -> Option<Vec<(String, String)>> {
+    let toml_val: toml::Value = toml::from_str(content).ok()?;
+    let tools = toml_val.get("tools").and_then(|v| v.as_table())?;
+
+    let mut result = Vec::new();
+    for (name, value) in tools {
+        let version = match value {
+            toml::Value::String(s) => s.clone(),
+            toml::Value::Integer(i) => i.to_string(),
+            toml::Value::Float(f) => f.to_string(),
+            _ => continue,
+        };
+        result.push((name.clone(), version));
+    }
+
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
+}
+
+/// Parse .tool-versions (asdf-compatible) content.
+/// Format: `tool_name version [version2 ...]`
+fn parse_tool_versions(content: &str) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let mut parts = trimmed.split_whitespace();
+        if let (Some(tool), Some(version)) = (parts.next(), parts.next()) {
+            result.push((tool.to_string(), version.to_string()));
+        }
+    }
+    result
+}
+
+/// Extract major version from a version string (e.g., "22.1.0" → "22", "24" → "24").
+fn extract_major_version(version: &str) -> Option<&str> {
+    let version = version.trim();
+    if version == "latest" || version == "lts" {
+        return None;
+    }
+    Some(version.split('.').next().unwrap_or(version))
+}
+
+/// Extract major.minor version from a version string (e.g., "3.12.1" → "3.12").
+fn extract_major_minor_version(version: &str) -> Option<String> {
+    let version = version.trim();
+    if version == "latest" || version == "lts" {
+        return None;
+    }
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() >= 2 {
+        Some(format!("{}.{}", parts[0], parts[1]))
+    } else {
+        None
     }
 }
 
@@ -2302,10 +2501,10 @@ const PYTHON_NATIVE_DEPS: &[(&str, &[&str], &[&str])] = &[
     ("psycopg2-binary", &["postgresql-dev"], &["libpq"]),
     // psycopg[c] or psycopg with C backend
     ("psycopg", &["postgresql-dev"], &["libpq"]),
-    // MySQL adapter
+    // MySQL adapter (needs both -dev for headers/symlinks and base for libmariadb.so.3)
     (
         "mysqlclient",
-        &["mariadb-connector-c-dev"],
+        &["mariadb-connector-c-dev", "mariadb-connector-c"],
         &["mariadb-connector-c"],
     ),
     // Cairo graphics
@@ -2511,13 +2710,248 @@ fn scan_node_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
         return;
     }
 
-    debug!("Adding build-base and python for Node.js native dependencies");
+    debug!("Adding build-base, python, and node-gyp for Node.js native dependencies");
 
     for pkg in &["build-base", "python"] {
         let pkg_str = pkg.to_string();
         if !build.build.packages.contains(&pkg_str) {
             build.build.packages.push(pkg_str);
         }
+    }
+
+    // Install node-gyp globally so native modules can be compiled.
+    // node-gyp is not available as a Wolfi package so we install it via npm.
+    let gyp_cmd = "npm install -g node-gyp".to_string();
+    if !build.build.commands.contains(&gyp_cmd) {
+        // Insert before the install command so node-gyp is available during npm ci / pnpm install
+        build.build.commands.insert(0, gyp_cmd);
+    }
+
+    // pnpm bundles its own node-gyp reference at a fixed path inside its distribution.
+    // When the Wolfi pnpm package doesn't include node-gyp, pnpm's postinstall
+    // scripts fail with MODULE_NOT_FOUND. Symlink the globally installed node-gyp
+    // into the path pnpm expects.
+    let is_pnpm = build.metadata.build_system == "pnpm";
+    if is_pnpm {
+        let symlink_cmd = "mkdir -p /usr/lib/node_modules/pnpm/dist/node_modules && ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/pnpm/dist/node_modules/node-gyp".to_string();
+        if !build.build.commands.contains(&symlink_cmd) {
+            // Insert after node-gyp install but before the package install command
+            let gyp_idx = build
+                .build
+                .commands
+                .iter()
+                .position(|c| c.contains("npm install -g node-gyp"))
+                .unwrap_or(0);
+            build.build.commands.insert(gyp_idx + 1, symlink_cmd);
+        }
+    }
+}
+
+// ── Puppeteer / Playwright browser detection ─────────────────────────────
+
+/// Known Puppeteer/Playwright dependency names.
+const BROWSER_AUTOMATION_DEPS: &[&str] = &[
+    "puppeteer",
+    "puppeteer-core",
+    "playwright",
+    "playwright-core",
+    "@playwright/test",
+];
+
+/// Scan for Puppeteer/Playwright and add Chromium + related packages.
+fn scan_node_puppeteer(_repo_root: &Path, build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    let project_dir = extract_project_dir(_repo_root, &build.metadata.reasoning);
+    let pkg_json_path = project_dir.join("package.json");
+
+    let content = match std::fs::read_to_string(&pkg_json_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    let dep_names: Vec<String> = ["dependencies", "devDependencies", "optionalDependencies"]
+        .iter()
+        .filter_map(|section| json.get(section)?.as_object())
+        .flat_map(|obj| obj.keys().cloned())
+        .collect();
+
+    let has_browser = dep_names
+        .iter()
+        .any(|name| BROWSER_AUTOMATION_DEPS.iter().any(|pat| name == pat));
+
+    if !has_browser {
+        return;
+    }
+
+    debug!("Adding Chromium packages for Puppeteer/Playwright");
+
+    let browser_build_pkgs = [
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation",
+    ];
+
+    for pkg in &browser_build_pkgs {
+        let pkg_str = pkg.to_string();
+        if !build.build.packages.contains(&pkg_str) {
+            build.build.packages.push(pkg_str);
+        }
+    }
+
+    // Runtime also needs Chromium and related packages
+    for pkg in &browser_build_pkgs {
+        let pkg_str = pkg.to_string();
+        if !build.runtime.packages.contains(&pkg_str) {
+            build.runtime.packages.push(pkg_str);
+        }
+    }
+
+    // Set PUPPETEER_SKIP_CHROMIUM_DOWNLOAD to avoid downloading
+    // Chromium during npm install (we use the system-installed one)
+    build.build.env.insert(
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD".into(),
+        "true".into(),
+    );
+    build.runtime.env.insert(
+        "PUPPETEER_EXECUTABLE_PATH".into(),
+        "/usr/bin/chromium-browser".into(),
+    );
+}
+
+// ── Node.js build command sanitization ───────────────────────────────────
+
+/// Patterns in build scripts that are deploy-time operations (DB migrations,
+/// etc.) and should be stripped from the build phase.
+const NODE_BUILD_STRIP_PATTERNS: &[&str] = &[
+    "prisma migrate deploy",
+    "prisma migrate dev",
+    "prisma db push",
+    "drizzle-kit push",
+    "typeorm migration:run",
+    "knex migrate:latest",
+];
+
+/// Build tool keywords — if a script contains any of these, it's a real
+/// build script even if it also references env vars.
+const NODE_BUILD_TOOL_KEYWORDS: &[&str] = &[
+    "tsc",
+    "webpack",
+    "vite",
+    "esbuild",
+    "rollup",
+    "next build",
+    "nuxt build",
+    "remix build",
+    "react-scripts build",
+    "ng build",
+    "nest build",
+    "prisma generate",
+];
+
+/// Sanitize Node.js build commands by removing deploy-time subcommands
+/// (like `prisma migrate deploy`) and dropping env-var-dependent scripts
+/// that aren't real build steps.
+fn sanitize_node_build_commands(repo_root: &Path, build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    let pkg_json_path = project_dir.join("package.json");
+
+    let content = match std::fs::read_to_string(&pkg_json_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    let build_script = match json
+        .get("scripts")
+        .and_then(|s| s.get("build"))
+        .and_then(|v| v.as_str())
+    {
+        Some(s) => s.to_string(),
+        None => return,
+    };
+
+    // Find the build command in the commands list (e.g., "npm run build", "yarn run build", "pnpm build")
+    let build_cmd_idx = build.build.commands.iter().position(|c| {
+        c.contains("run build")
+            || c == "pnpm build"
+            || c.ends_with("&& pnpm build")
+            || c.ends_with("&& pnpm run build")
+    });
+
+    let build_cmd_idx = match build_cmd_idx {
+        Some(i) => i,
+        None => return,
+    };
+
+    // Mode 1: Strip deploy-time subcommands from the build script
+    let needs_strip = NODE_BUILD_STRIP_PATTERNS
+        .iter()
+        .any(|pat| build_script.contains(pat));
+
+    if needs_strip {
+        // Split on && and filter out deploy-time commands
+        let parts: Vec<&str> = build_script.split("&&").map(|s| s.trim()).collect();
+        let filtered: Vec<&str> = parts
+            .iter()
+            .filter(|part| {
+                !NODE_BUILD_STRIP_PATTERNS
+                    .iter()
+                    .any(|pat| part.contains(pat))
+            })
+            .copied()
+            .collect();
+
+        if filtered.is_empty() {
+            // All parts were deploy-time; remove the build command entirely
+            build.build.commands.remove(build_cmd_idx);
+        } else {
+            let sanitized = filtered.join(" && ");
+            if sanitized != build_script {
+                // Rewrite package.json's build script in-place before running
+                // the package manager's build command. This preserves
+                // node_modules/.bin PATH resolution.
+                let escaped_sanitized = sanitized.replace('\\', "\\\\").replace('\"', "\\\"");
+                let rewrite_cmd = format!(
+                    "node -e \"var p=require('./package.json');var f=require('fs');p.scripts.build='{}';f.writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n')\"",
+                    escaped_sanitized
+                );
+                build.build.commands.insert(build_cmd_idx, rewrite_cmd);
+            }
+        }
+        return;
+    }
+
+    // Mode 2: Drop env-var-dependent build scripts that aren't real build steps
+    let has_env_var = build_script.contains("$") || build_script.contains("${");
+    let has_build_tool = NODE_BUILD_TOOL_KEYWORDS
+        .iter()
+        .any(|kw| build_script.contains(kw));
+
+    if has_env_var && !has_build_tool {
+        build.build.commands.remove(build_cmd_idx);
     }
 }
 
@@ -2689,14 +3123,48 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
                         .strip_prefix(&project_dir)
                         .unwrap_or(entry.path());
                     let workdir = &build.runtime.workdir;
-                    // If it's a __main__.py inside a package, use the package as FLASK_APP
+                    // If it's a __main__.py inside a package directory, use the
+                    // Python module import form for FLASK_APP. File paths don't
+                    // work for __main__.py because Flask resolves it to the
+                    // built-in __main__ module.
+                    //
+                    // This only works when the directory is a proper Python
+                    // package (has __init__.py) so that import resolution
+                    // succeeds. Without __init__.py, fall back to running the
+                    // script directly via `python path/__main__.py`.
                     if rel_path.file_name().is_some_and(|n| n == "__main__.py") {
                         if let Some(parent) = rel_path.parent() {
-                            let pkg_name =
-                                parent.to_string_lossy().replace(std::path::MAIN_SEPARATOR, ".");
-                            if !pkg_name.is_empty() {
-                                let new_flask_app = format!("{}/{}", workdir, pkg_name);
-                                build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
+                            let dir_name = parent.to_string_lossy();
+                            if !dir_name.is_empty() {
+                                let abs_parent = project_dir.join(parent);
+                                if abs_parent.join("__init__.py").exists() {
+                                    // Proper package — convert to importable module name:
+                                    // - Replace hyphens with underscores (PEP 503)
+                                    // - Replace path separators with dots
+                                    let pkg_name = dir_name
+                                        .replace('-', "_")
+                                        .replace(std::path::MAIN_SEPARATOR, ".");
+                                    let new_flask_app =
+                                        format!("{}.__main__:app", pkg_name);
+                                    build
+                                        .runtime
+                                        .env
+                                        .insert("FLASK_APP".into(), new_flask_app);
+                                    return;
+                                }
+                                // No __init__.py — not a proper Python package.
+                                // Flask's `flask run` can't import __main__.py from
+                                // non-package directories, so fall back to running
+                                // the script directly.
+                                debug!(
+                                    path = %rel_path.display(),
+                                    "Flask app in __main__.py without __init__.py, using direct Python execution"
+                                );
+                                let entrypoint = format!("{}/{}", workdir, rel_path.display());
+                                build.runtime.env.remove("FLASK_APP");
+                                build.runtime.env.remove("FLASK_RUN_HOST");
+                                build.runtime.env.remove("FLASK_RUN_PORT");
+                                build.runtime.command = vec!["python".into(), entrypoint];
                                 return;
                             }
                         }
@@ -3334,6 +3802,13 @@ dependencies = [
                 .packages
                 .contains(&"mariadb-connector-c-dev".to_string()),
             "Should add mariadb-connector-c-dev for mysqlclient"
+        );
+        assert!(
+            build
+                .build
+                .packages
+                .contains(&"mariadb-connector-c".to_string()),
+            "Should add mariadb-connector-c to build packages for mysqlclient (provides libmariadb.so.3)"
         );
         assert!(
             build

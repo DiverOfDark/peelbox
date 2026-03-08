@@ -36,7 +36,7 @@
       ],
       "copy": [
         {
-          "from": "target/uberjar/my-app-0.1.0-standalone.jar",
+          "from": "target/my-app-0.1.0-standalone.jar",
           "to": "/app/my-app-0.1.0-standalone.jar"
         }
       ],

@@ -1,42 +1,39 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "PDM",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml"
+    },
     "build": {
-      "cache": [
-        "/root/.cache/pip/",
-        "/root/.cache/pdm/"
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
       ],
+      "env": {
+        "PDM_PYTHON": "/usr/bin/python3"
+      },
       "commands": [
         "pip install pdm",
         "pdm export --no-hashes --prod -o requirements.txt",
         "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
       ],
-      "env": {
-        "PDM_PYTHON": "/usr/bin/python3"
-      },
-      "packages": [
-        "python-3.13",
-        "py3.13-pip",
-        "build-base",
-        "ca-certificates"
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/pdm/"
       ]
     },
-    "metadata": {
-      "build_system": "PDM",
-      "framework": "Flask",
-      "language": "Python",
-      "project_name": "app",
-      "reasoning": "Detected from pyproject.toml"
-    },
     "runtime": {
-      "command": [
-        "flask",
-        "run"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
       ],
       "env": {
         "FLASK_APP": "/app/app.py",
@@ -45,20 +42,23 @@
         "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
         "VIRTUAL_ENV": "/app/.venv"
       },
-      "health": {
-        "endpoint": "/"
-      },
-      "packages": [
-        "python-3.13",
-        "libgcc",
-        "libstdc++",
-        "ca-certificates"
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
       ],
+      "command": [
+        "flask",
+        "run"
+      ],
+      "workdir": "/app",
       "ports": [
         5000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/"
+      }
+    }
   }
 ]

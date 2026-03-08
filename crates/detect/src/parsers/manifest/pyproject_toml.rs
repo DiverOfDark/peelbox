@@ -267,7 +267,10 @@ impl ManifestParser for PyProjectTomlParser {
                     member_transform: None,
                     env: BTreeMap::new(),
                     cache_dirs: vec![".cache/pip".into()],
-                    artifacts: vec![(".".into(), "/app/".into())],
+                    artifacts: vec![
+                        (".".into(), "/app/".into()),
+                        ("/root/.local/".into(), "/root/.local/".into()),
+                    ],
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -276,7 +279,10 @@ impl ManifestParser for PyProjectTomlParser {
                         "libstdc++".into(),
                         "ca-certificates".into(),
                     ],
-                    env: BTreeMap::new(),
+                    env: btree(&[
+                        ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
+                        ("PYTHONUSERBASE", "/root/.local"),
+                    ]),
                     entrypoint: name
                         .as_ref()
                         .map(|n| format!("python -m {}", n.replace('-', "_"))),

@@ -1,41 +1,28 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "example-node-app",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
     "build": {
-      "cache": [
-        ".yarn-cache"
-      ],
-      "commands": [
-        "yarn install --network-timeout 100000 --network-concurrency 1",
-        "yarn run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "yarn",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Yarn",
-      "language": "JavaScript",
-      "project_name": "example-node-app",
-      "reasoning": "Detected from yarn.lock"
-    },
-    "runtime": {
-      "command": [
-        "yarn",
-        "start"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "yarn",
@@ -43,11 +30,24 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

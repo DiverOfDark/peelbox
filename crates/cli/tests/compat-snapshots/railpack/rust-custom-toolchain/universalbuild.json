@@ -21,7 +21,8 @@
       },
       "commands": [
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.59",
-        "cargo build --release"
+        "cargo build --release",
+        "cp \"$(find /root/.rustup/toolchains -name cargo -path '*/bin/cargo' | head -1)\" /usr/local/bin/cargo"
       ],
       "cache": [
         "/root/.cargo",
@@ -32,13 +33,20 @@
       "packages": [
         "glibc",
         "libssl3",
-        "ca-certificates"
+        "ca-certificates",
+        "libgcc",
+        "zlib",
+        "libcurl-openssl4"
       ],
       "env": {},
       "copy": [
         {
           "from": "target/release/rust-custom-toolchain",
           "to": "/app/rust-custom-toolchain"
+        },
+        {
+          "from": "/usr/local/bin/cargo",
+          "to": "/usr/local/bin/cargo"
         }
       ],
       "command": [

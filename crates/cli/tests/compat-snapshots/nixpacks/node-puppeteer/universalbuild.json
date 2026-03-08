@@ -11,9 +11,17 @@
       "packages": [
         "nodejs-16",
         "npm",
-        "ca-certificates"
+        "ca-certificates",
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation"
       ],
-      "env": {},
+      "env": {
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
+      },
       "commands": [
         "npm install"
       ],
@@ -27,9 +35,17 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation"
       ],
-      "env": {},
+      "env": {
+        "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/chromium-browser"
+      },
       "copy": [
         {
           "from": ".",

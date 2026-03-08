@@ -52,7 +52,8 @@ impl ManifestParser for YarnLockParser {
             .and_then(|s| s.get("start"))
             .and_then(|v| v.as_str());
 
-        let entrypoint = if start_script.is_some() {
+        // Entrypoint will be adjusted later (after Berry detection) if needed
+        let base_entrypoint = if start_script.is_some() {
             // Always use `yarn start` to ensure Yarn PnP resolution works
             Some("yarn start".to_string())
         } else {
@@ -88,13 +89,75 @@ impl ManifestParser for YarnLockParser {
         let has_berry_lockfile = _content.contains("__metadata:");
         let has_yarnrc_path = dir.join(".yarnrc.yml").exists();
         let is_berry = has_package_manager_berry || has_berry_lockfile || has_yarnrc_path;
-        // corepack is only needed when packageManager is set (corepack reads it)
-        // For yarnPath-based Berry, the bundled binary is used directly
-        let needs_corepack = has_package_manager_berry;
+        // corepack is only needed when packageManager is set (corepack reads it).
+        // For yarnPath-based Berry, the bundled binary is used directly.
+        // Additionally, corepack requires Node >= 20 (uses URL.canParse internally),
+        // so we skip it for older Node versions to avoid runtime errors.
+        let node_major_for_corepack = json
+            .get("engines")
+            .and_then(|e| e.get("node"))
+            .and_then(|v| v.as_str())
+            .and_then(super::package_json::extract_node_major)
+            .or_else(|| {
+                json.get("volta")
+                    .and_then(|v| v.get("node"))
+                    .and_then(|v| v.as_str())
+                    .and_then(super::package_json::extract_node_major)
+            })
+            .and_then(|v| v.parse::<u32>().ok());
+        let corepack_compatible = node_major_for_corepack
+            .map(|v| v >= 20)
+            .unwrap_or(true); // Default to compatible if no version specified
+        let needs_corepack = has_package_manager_berry && corepack_compatible;
+
+        // Extract Yarn version from packageManager field (e.g., "yarn@3.2.4")
+        let yarn_version = json
+            .get("packageManager")
+            .and_then(|v| v.as_str())
+            .and_then(|pm| pm.strip_prefix("yarn@"))
+            .map(|v| v.split('+').next().unwrap_or(v).to_string());
+
+        // Read yarnPath from .yarnrc.yml (e.g., ".yarn/releases/yarn-3.2.4.cjs")
+        let yarn_path = dir
+            .join(".yarnrc.yml")
+            .is_file()
+            .then(|| std::fs::read_to_string(dir.join(".yarnrc.yml")).ok())
+            .flatten()
+            .and_then(|content| {
+                content
+                    .lines()
+                    .find(|l| l.starts_with("yarnPath:"))
+                    .map(|l| l.trim_start_matches("yarnPath:").trim().trim_matches('"').to_string())
+            });
+
+        // Berry without corepack: use the bundled yarn binary (yarnPath) directly.
+        // This is only needed when packageManager explicitly requests Berry but corepack
+        // can't be used (e.g., Node < 20). When Berry is detected only via .yarnrc.yml
+        // or lockfile, the globally installed Yarn Classic v1 can delegate to Berry
+        // via .yarnrc.yml's yarnPath setting.
+        let use_bundled_berry =
+            is_berry && has_package_manager_berry && !corepack_compatible && yarn_path.is_some();
 
         let mut commands = Vec::new();
         if needs_corepack {
             commands.push("corepack enable".to_string());
+        } else if is_berry && has_package_manager_berry && !corepack_compatible {
+            if use_bundled_berry {
+                // Use the bundled Berry binary via yarnPath — no install needed.
+                // Yarn Classic reads .yarnrc.yml and delegates to the bundled binary.
+                // But Yarn Classic v1 does NOT read .yarnrc.yml, so we create a wrapper.
+                if let Some(ref yp) = yarn_path {
+                    commands.push(format!(
+                        "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /build/{}  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
+                        yp
+                    ));
+                }
+            } else if let Some(ref ver) = yarn_version {
+                // No bundled binary; install the specific version globally via npm.
+                commands.push(format!("npm install -g yarn@{}", ver));
+            } else {
+                commands.push("npm install -g yarn@berry".to_string());
+            }
         }
         if is_berry {
             // Yarn >= 2 (Berry) does not support --network-timeout/--network-concurrency
@@ -102,8 +165,13 @@ impl ManifestParser for YarnLockParser {
         } else {
             commands.push("yarn install --network-timeout 100000 --network-concurrency 1".into());
         }
-        if let Some(cmd) = build_cmd {
-            commands.push(cmd);
+        // Build member_commands for workspace-aware builds.
+        // The install command runs at the workspace root, but the build command
+        // must run in the member's directory.
+        let mut member_commands = commands.clone();
+        if let Some(ref cmd) = build_cmd {
+            commands.push(cmd.clone());
+            member_commands.push(format!("cd {{module}} && {}", cmd));
         }
 
         // Extract Node.js version from engines.node or volta.node
@@ -125,6 +193,33 @@ impl ManifestParser for YarnLockParser {
         if needs_corepack {
             build_packages.push("corepack".into());
         }
+        if use_bundled_berry {
+            // npm is needed in build for `npm install -g` (no-op here since we use wrapper)
+            // but add npm to build packages since build may still need it
+            if !build_packages.contains(&"npm".to_string()) {
+                build_packages.push("npm".into());
+            }
+        }
+
+        // Compute the final entrypoint for Berry without corepack:
+        // Use the bundled Berry binary directly via `node .yarn/releases/yarn-X.cjs start`
+        let entrypoint = if use_bundled_berry {
+            if let Some(ref yp) = yarn_path {
+                base_entrypoint.map(|cmd| {
+                    // Replace "yarn" with "node <yarnPath>" in the entrypoint
+                    if cmd.starts_with("yarn") {
+                        let rest = cmd.strip_prefix("yarn").unwrap_or("");
+                        format!("node {}{}", yp, rest)
+                    } else {
+                        cmd
+                    }
+                })
+            } else {
+                base_entrypoint
+            }
+        } else {
+            base_entrypoint
+        };
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -141,7 +236,10 @@ impl ManifestParser for YarnLockParser {
             build: BuildSpec {
                 packages: build_packages,
                 commands,
-                member_transform: None,
+                member_transform: Some(MemberBuildTransform {
+                    member_commands,
+                    member_artifacts: None,
+                }),
                 env: {
                     let mut env = BTreeMap::new();
                     if is_berry {

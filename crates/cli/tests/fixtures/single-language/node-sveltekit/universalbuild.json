@@ -1,39 +1,29 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "sveltekit-app",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "SvelteKit",
+      "reasoning": "Detected from package.json"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "npm ci",
-        "npm run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "framework": "SvelteKit",
-      "language": "JavaScript",
-      "project_name": "sveltekit-app",
-      "reasoning": "Detected from package.json"
-    },
-    "runtime": {
-      "command": [
-        "node",
-        "build/index.js"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {},
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "npm",
@@ -41,11 +31,21 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "node",
+        "build/index.js"
+      ],
+      "workdir": "/app",
       "ports": [
         3000
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

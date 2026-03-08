@@ -17,6 +17,8 @@
         "glibc-dev",
         "linux-headers",
         "libffi-dev",
+        "yaml-dev",
+        "pkgconf",
         "ca-certificates",
         "postgresql-18-dev",
         "mariadb-connector-c-dev",

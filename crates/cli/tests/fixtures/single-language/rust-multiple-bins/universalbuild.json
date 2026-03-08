@@ -1,51 +1,51 @@
 [
-    {
-        "build": {
-            "cache": [
-                ".cargo",
-                "target"
-            ],
-            "commands": [
-                "cargo build --release"
-            ],
-            "env": {
-                "CARGO_HOME": ".cargo"
-            },
-            "packages": [
-                "rust-1.92",
-                "build-base",
-                "openssl-dev",
-                "pkgconf",
-                "ca-certificates"
-            ]
-        },
-        "metadata": {
-            "build_system": "Cargo",
-            "language": "Rust",
-            "project_name": "multi-bin-app",
-            "reasoning": "Detected from Cargo.toml"
-        },
-        "runtime": {
-            "command": [
-                "/app/multi-bin-app"
-            ],
-            "copy": [
-                {
-                    "from": "target/release/multi-bin-app",
-                    "to": "/app/multi-bin-app"
-                }
-            ],
-            "env": {},
-            "packages": [
-                "glibc",
-                "libssl3",
-                "ca-certificates"
-            ],
-            "ports": [
-                8080
-            ],
-            "workdir": "/app"
-        },
-        "version": "1.0"
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "multi-bin-app",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml"
+    },
+    "build": {
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cargo build --release"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/release/multi-bin-app",
+          "to": "/app/multi-bin-app"
+        }
+      ],
+      "command": [
+        "/app/multi-bin-app"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
     }
+  }
 ]

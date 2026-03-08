@@ -28,8 +28,8 @@
       },
       "commands": [
         "mix local.hex --force && mix local.rebar --force",
-        "mix deps.get",
-        "mix deps.compile",
+        "rm -f mix.lock && mix deps.get",
+        "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && mix deps.get && mix deps.compile; }",
         "mix compile"
       ],
       "cache": [

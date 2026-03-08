@@ -174,6 +174,33 @@ pub fn resolve_rust_toolchain(build: &mut UniversalBuild, wolfi: &WolfiPackageIn
             *cache = "/root/.cargo".to_string();
         }
     }
+
+    // Copy the real cargo binary (not the rustup shim symlink) to runtime image
+    // so it's available for apps that call cargo at runtime.
+    // The rustup shim at /root/.cargo/bin/cargo is a symlink that requires the
+    // full rustup toolchain metadata, so we resolve through to the actual binary.
+    use peelbox_core::output::schema::CopySpec;
+
+    // Copy the real cargo binary (not the rustup proxy shim) to runtime.
+    // The rustup shim at /root/.cargo/bin/cargo is a multi-call binary that
+    // needs the full rustup toolchain metadata. The actual standalone cargo
+    // binary lives inside the toolchain directory under RUSTUP_HOME (~/.rustup).
+    build.build.commands.push(
+        "cp \"$(find /root/.rustup/toolchains -name cargo -path '*/bin/cargo' | head -1)\" /usr/local/bin/cargo".to_string(),
+    );
+
+    build.runtime.copy.push(CopySpec {
+        from: "/usr/local/bin/cargo".to_string(),
+        to: "/usr/local/bin/cargo".to_string(),
+    });
+
+    // Add runtime dependencies for the dynamically-linked cargo binary
+    for dep in &["libgcc", "zlib", "libcurl-openssl4"] {
+        let dep_str = dep.to_string();
+        if !build.runtime.packages.contains(&dep_str) {
+            build.runtime.packages.push(dep_str);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -401,13 +428,17 @@ version = "0.1.0"
 
         // rust-1.50 doesn't exist in Wolfi — should switch to rustup
         assert_eq!(build.build.packages[0], "curl");
-        assert_eq!(build.build.commands.len(), 2);
+        assert_eq!(build.build.commands.len(), 3);
         assert!(build.build.commands[0].contains("rustup"));
         assert!(build.build.commands[0].contains("1.50"));
         assert_eq!(build.build.commands[1], "cargo build --release");
+        assert!(build.build.commands[2].contains("cp") && build.build.commands[2].contains("cargo"));
         assert_eq!(build.build.env["CARGO_HOME"], "/root/.cargo");
         assert!(build.build.env["PATH"].contains("/root/.cargo/bin"));
         assert_eq!(build.build.cache[0], "/root/.cargo");
+        // Runtime should have cargo copy and lib dependencies
+        assert!(build.runtime.copy.iter().any(|c| c.to == "/usr/local/bin/cargo"));
+        assert!(build.runtime.packages.contains(&"libgcc".to_string()));
     }
 
     #[test]

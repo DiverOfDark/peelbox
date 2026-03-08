@@ -1,18 +1,13 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "my-cabal-app",
+      "language": "Haskell",
+      "build_system": "Cabal",
+      "reasoning": "Detected from my-cabal-app.cabal"
+    },
     "build": {
-      "cache": [
-        ".cabal",
-        "dist-newstyle"
-      ],
-      "commands": [
-        "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup",
-        "ghcup install ghc --set && ghcup install cabal --set",
-        "cabal update && cabal install --install-method=copy --installdir=.cabal-bin"
-      ],
-      "env": {
-        "PATH": "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
       "packages": [
         "build-base",
         "gcc",
@@ -26,34 +21,39 @@
         "ca-certificates",
         "curl",
         "bash"
+      ],
+      "env": {
+        "PATH": "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup",
+        "ghcup install ghc --set && ghcup install cabal --set",
+        "cabal update && cabal build --disable-tests --disable-benchmarks exe:my-cabal-app && mkdir -p .cabal-bin && cp \"$(cabal list-bin exe:my-cabal-app)\" .cabal-bin/my-cabal-app"
+      ],
+      "cache": [
+        ".cabal",
+        "dist-newstyle"
       ]
     },
-    "metadata": {
-      "build_system": "Cabal",
-      "language": "Haskell",
-      "project_name": "my-cabal-app",
-      "reasoning": "Detected from my-cabal-app.cabal"
-    },
     "runtime": {
-      "command": [
-        "/app/my-cabal-app"
-      ],
-      "copy": [
-        {
-          "from": ".cabal-bin/my-cabal-app",
-          "to": "/app/my-cabal-app"
-        }
-      ],
-      "env": {},
       "packages": [
         "glibc",
         "gmp",
         "zlib",
         "ca-certificates"
       ],
-      "ports": [],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "env": {},
+      "copy": [
+        {
+          "from": ".cabal-bin/my-cabal-app",
+          "to": "/app/my-cabal-app"
+        }
+      ],
+      "command": [
+        "/app/my-cabal-app"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
   }
 ]

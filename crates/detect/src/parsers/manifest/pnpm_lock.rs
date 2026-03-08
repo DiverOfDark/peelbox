@@ -101,7 +101,17 @@ impl ManifestParser for PnpmLockParser {
                     }
                     cmds
                 },
-                member_transform: None,
+                member_transform: {
+                    let has_build = json.get("scripts").and_then(|s| s.get("build")).is_some();
+                    let mut member_cmds = vec!["pnpm install".to_string()];
+                    if has_build {
+                        member_cmds.push("cd {module} && pnpm run build".to_string());
+                    }
+                    Some(MemberBuildTransform {
+                        member_commands: member_cmds,
+                        member_artifacts: None,
+                    })
+                },
                 env: BTreeMap::new(),
                 cache_dirs: vec![".pnpm-store".into()],
                 artifacts: vec![(".".into(), "/app".into())],

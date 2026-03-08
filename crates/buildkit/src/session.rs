@@ -572,6 +572,13 @@ impl BuildSession {
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
             .collect();
+        // Ensure PATH is always present -- without it, the container has no
+        // search path for executables (OCI spec treats empty Env as no env).
+        if !env_vars.iter().any(|e| e.starts_with("PATH=")) {
+            env_vars.push(
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+            );
+        }
         env_vars.sort();
 
         #[derive(Debug, Clone, serde::Serialize)]

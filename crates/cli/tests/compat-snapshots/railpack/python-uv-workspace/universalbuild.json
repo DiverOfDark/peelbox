@@ -34,7 +34,10 @@
         "ca-certificates",
         "uv"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
       "copy": [
         {
           "from": ".",

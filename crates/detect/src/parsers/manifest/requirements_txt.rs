@@ -1,7 +1,7 @@
+use crate::helpers::btree;
 use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use std::collections::BTreeMap;
 use std::path::Path;
 
 const PYTHON: LanguageId = LanguageId::new("python");
@@ -60,9 +60,12 @@ impl ManifestParser for RequirementsTxtParser {
                 ],
                 commands: vec!["pip install --user --no-cache-dir -r requirements.txt".into()],
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: btree(&[]),
                 cache_dirs: vec![".cache/pip".into()],
-                artifacts: vec![(".".into(), "/app/".into())],
+                artifacts: vec![
+                    (".".into(), "/app/".into()),
+                    ("/root/.local/".into(), "/root/.local/".into()),
+                ],
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -71,7 +74,10 @@ impl ManifestParser for RequirementsTxtParser {
                     "libstdc++".into(),
                     "ca-certificates".into(),
                 ],
-                env: BTreeMap::new(),
+                env: btree(&[
+                    ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
+                    ("PYTHONUSERBASE", "/root/.local"),
+                ]),
                 entrypoint: None,
                 workdir: Some("/app".into()),
                 ports: vec![],

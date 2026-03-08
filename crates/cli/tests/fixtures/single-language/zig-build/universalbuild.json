@@ -1,30 +1,33 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Zig",
+      "build_system": "Zig Build",
+      "framework": "Zap",
+      "reasoning": "Detected from build.zig.zon"
+    },
     "build": {
-      "cache": [
-        "zig-cache"
-      ],
-      "commands": [
-        "zig build -Doptimize=ReleaseSafe"
-      ],
-      "env": {},
       "packages": [
         "zig",
         "build-base",
         "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "zig build -Doptimize=ReleaseSafe"
+      ],
+      "cache": [
+        "zig-cache"
       ]
     },
-    "metadata": {
-      "build_system": "Zig Build",
-      "framework": "Zap",
-      "language": "Zig",
-      "project_name": "app",
-      "reasoning": "Detected from build.zig.zon"
-    },
     "runtime": {
-      "command": [
-        "/app/app"
+      "packages": [
+        "glibc",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "zig-out/bin/app",
@@ -35,19 +38,16 @@
           "to": "/app/lib/"
         }
       ],
-      "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "glibc",
-        "ca-certificates"
+      "command": [
+        "/app/app"
       ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

@@ -302,9 +302,27 @@ impl WolfiPackageIndex {
     ///
     /// Falls back to `get_latest_version` if fewer than 2 versions are available.
     pub fn get_preferred_stable_version(&self, package_prefix: &str) -> Option<String> {
+        self.get_stable_version_at_offset(package_prefix, 1)
+    }
+
+    /// Get a stable version at a specific offset from the latest.
+    ///
+    /// - offset 0 = latest (same as `get_latest_version`)
+    /// - offset 1 = second-latest (same as `get_preferred_stable_version`)
+    /// - offset 2 = third-latest (e.g., Python where N-2 has broadest wheel support)
+    ///
+    /// Clamps to the last available version if offset exceeds the list length.
+    pub fn get_stable_version_at_offset(
+        &self,
+        package_prefix: &str,
+        offset: usize,
+    ) -> Option<String> {
         let versions = self.get_versions(package_prefix);
-        let pick = if versions.len() >= 2 { &versions[1] } else { versions.first()? };
-        Some(format!("{}-{}", package_prefix, pick))
+        if versions.is_empty() {
+            return None;
+        }
+        let idx = offset.min(versions.len() - 1);
+        Some(format!("{}-{}", package_prefix, versions[idx]))
     }
 
     /// Check if exact package name exists (e.g., "build-base", "nodejs-22").

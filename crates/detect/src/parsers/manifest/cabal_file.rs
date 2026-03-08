@@ -37,7 +37,8 @@ impl ManifestParser for CabalFileParser {
         let version = parse_cabal_field(content, "version");
 
         // Check if there's an executable section (application vs library)
-        let has_executable = content.contains("executable ");
+        let exe_names = parse_executable_names(content);
+        let has_executable = !exe_names.is_empty();
         let has_library = content.contains("library") && !has_executable;
         let is_application = has_executable || !has_library;
 
@@ -71,11 +72,34 @@ impl ManifestParser for CabalFileParser {
                     "curl".into(),
                     "bash".into(),
                 ],
-                commands: vec![
-                    "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup".into(),
-                    "ghcup install ghc --set && ghcup install cabal --set".into(),
-                    "cabal update && cabal install --install-method=copy --installdir=.cabal-bin".into(),
-                ],
+                commands: {
+                    let install_cmd = if !exe_names.is_empty() {
+                        // Use `cabal build` + manual copy instead of `cabal install`
+                        // because `cabal install` configures the entire package
+                        // (including test suites) even with --disable-tests, which
+                        // fails when test source files don't exist (Cabal-2115).
+                        let targets: Vec<String> = exe_names
+                            .iter()
+                            .map(|e| format!("exe:{}", e))
+                            .collect();
+                        let copy_cmds: Vec<String> = exe_names
+                            .iter()
+                            .map(|e| format!("cp \"$(cabal list-bin exe:{e})\" .cabal-bin/{e}"))
+                            .collect();
+                        format!(
+                            "cabal update && cabal build --disable-tests --disable-benchmarks {} && mkdir -p .cabal-bin && {}",
+                            targets.join(" "),
+                            copy_cmds.join(" && ")
+                        )
+                    } else {
+                        "cabal update && cabal install --install-method=copy --installdir=.cabal-bin".into()
+                    };
+                    vec![
+                        "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup".into(),
+                        "ghcup install ghc --set && ghcup install cabal --set".into(),
+                        install_cmd,
+                    ]
+                },
                 member_transform: None,
                 env: BTreeMap::from([
                     (
@@ -85,9 +109,10 @@ impl ManifestParser for CabalFileParser {
                 ]),
                 cache_dirs: vec![".cabal".into(), "dist-newstyle".into()],
                 artifacts: if is_application {
+                    let exe_bin = exe_names.first().cloned().unwrap_or_else(|| name.clone());
                     vec![(
-                        format!(".cabal-bin/{name}"),
-                        format!("/app/{name}"),
+                        format!(".cabal-bin/{exe_bin}"),
+                        format!("/app/{exe_bin}"),
                     )]
                 } else {
                     vec![]
@@ -102,7 +127,8 @@ impl ManifestParser for CabalFileParser {
                 ],
                 env: BTreeMap::new(),
                 entrypoint: if is_application {
-                    Some(format!("/app/{name}"))
+                    let exe_bin = exe_names.first().cloned().unwrap_or_else(|| name.clone());
+                    Some(format!("/app/{exe_bin}"))
                 } else {
                     None
                 },
@@ -112,6 +138,22 @@ impl ManifestParser for CabalFileParser {
             },
         })
     }
+}
+
+/// Extract executable names from a .cabal file.
+/// Matches lines like "executable my-app-exe".
+fn parse_executable_names(content: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(name) = trimmed.strip_prefix("executable ") {
+            let name = name.trim();
+            if !name.is_empty() {
+                names.push(name.to_string());
+            }
+        }
+    }
+    names
 }
 
 /// Parse a top-level field from a .cabal file (e.g., "name:", "version:").

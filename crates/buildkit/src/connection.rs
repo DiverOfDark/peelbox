@@ -181,6 +181,8 @@ impl BuildKitConnection {
                     .initial_connection_window_size(Some(2 * 1024 * 1024))
                     .initial_stream_window_size(Some(2 * 1024 * 1024))
                     .http2_keep_alive_interval(std::time::Duration::from_secs(30))
+                    .keep_alive_timeout(std::time::Duration::from_secs(3600))
+                    .keep_alive_while_idle(true)
                     .connect()
                     .await
                     .context("Failed to connect to TCP endpoint")?

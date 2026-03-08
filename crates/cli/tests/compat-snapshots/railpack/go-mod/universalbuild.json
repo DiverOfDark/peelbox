@@ -31,7 +31,8 @@
     "runtime": {
       "packages": [
         "glibc",
-        "ca-certificates"
+        "ca-certificates",
+        "go-1.25"
       ],
       "env": {},
       "copy": [

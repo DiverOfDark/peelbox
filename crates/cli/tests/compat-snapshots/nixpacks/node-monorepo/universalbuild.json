@@ -16,7 +16,7 @@
       "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
-        "yarn run build"
+        "cd packages/client && yarn run build"
       ],
       "cache": [
         ".yarn-cache"
@@ -64,7 +64,7 @@
       "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
-        "yarn run build"
+        "cd packages/server && yarn run build"
       ],
       "cache": [
         ".yarn-cache"

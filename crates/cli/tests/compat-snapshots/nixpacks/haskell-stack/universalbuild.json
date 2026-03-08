@@ -28,7 +28,7 @@
       "commands": [
         "curl -sSL https://downloads.haskell.org/~ghcup/x86_64-linux-ghcup -o /usr/local/bin/ghcup && chmod +x /usr/local/bin/ghcup",
         "ghcup install ghc --set && ghcup install cabal --set",
-        "cabal update && cabal install --install-method=copy --installdir=.cabal-bin"
+        "cabal update && cabal build --disable-tests --disable-benchmarks exe:haskell-stack-exe && mkdir -p .cabal-bin && cp \"$(cabal list-bin exe:haskell-stack-exe)\" .cabal-bin/haskell-stack-exe"
       ],
       "cache": [
         ".cabal",
@@ -45,12 +45,12 @@
       "env": {},
       "copy": [
         {
-          "from": ".cabal-bin/haskell-stack",
-          "to": "/app/haskell-stack"
+          "from": ".cabal-bin/haskell-stack-exe",
+          "to": "/app/haskell-stack-exe"
         }
       ],
       "command": [
-        "/app/haskell-stack"
+        "/app/haskell-stack-exe"
       ],
       "workdir": "/app",
       "ports": []

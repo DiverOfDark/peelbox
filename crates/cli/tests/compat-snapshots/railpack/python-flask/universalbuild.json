@@ -10,8 +10,8 @@
     },
     "build": {
       "packages": [
-        "python-3.13",
-        "py3.13-pip",
+        "python-3.12",
+        "py3.12-pip",
         "build-base",
         "ca-certificates"
       ],
@@ -25,7 +25,7 @@
     },
     "runtime": {
       "packages": [
-        "python-3.13",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"

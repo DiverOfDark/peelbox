@@ -9,8 +9,8 @@
     },
     "build": {
       "packages": [
-        "python-3.13",
-        "py3.13-pip",
+        "python-3.12",
+        "py3.12-pip",
         "build-base",
         "ca-certificates"
       ],
@@ -24,16 +24,23 @@
     },
     "runtime": {
       "packages": [
-        "python-3.13",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
       "copy": [
         {
           "from": ".",
           "to": "/app/"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local/"
         }
       ],
       "command": [

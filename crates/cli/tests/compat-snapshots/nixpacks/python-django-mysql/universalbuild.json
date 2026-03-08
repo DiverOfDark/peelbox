@@ -10,12 +10,13 @@
     },
     "build": {
       "packages": [
-        "python-3.13",
-        "py3.13-pip",
+        "python-3.12",
+        "py3.12-pip",
         "build-base",
         "ca-certificates",
         "mariadb-connector-c-dev",
-        "python-3.13-dev"
+        "mariadb-connector-c",
+        "python-3.12-dev"
       ],
       "env": {},
       "commands": [
@@ -27,19 +28,30 @@
     },
     "runtime": {
       "packages": [
-        "python-3.13",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates",
         "mariadb-connector-c"
       ],
       "env": {
-        "DJANGO_SETTINGS_MODULE": "python_django.settings"
+        "DB_HOST": "",
+        "DB_NAME": "",
+        "DB_PASSWORD": "",
+        "DB_PORT": "",
+        "DB_USER": "",
+        "DJANGO_SETTINGS_MODULE": "python_django.settings",
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
       },
       "copy": [
         {
           "from": ".",
           "to": "/app/"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local/"
         }
       ],
       "command": [

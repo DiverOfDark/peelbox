@@ -237,13 +237,27 @@ pub fn assert_detection_with_mode(
         return;
     }
 
-    // Snapshot update mode for compat fixtures: write output as the new snapshot
+    // Snapshot update mode: write detection output as the new snapshot
     if super::compat_discovery::should_update_snapshots() {
         if let Some(source) = super::compat_discovery::parse_compat_category(category) {
             let json = serde_json::to_string_pretty(results).expect("Failed to serialize results");
             super::compat_discovery::write_compat_snapshot(source, fixture_name, &json)
                 .unwrap_or_else(|e| panic!("Failed to write compat snapshot: {}", e));
             eprintln!("Updated compat snapshot for {}/{}", source, fixture_name);
+            return;
+        }
+        // Also update fixture snapshots when in update mode
+        let fixture_snapshot = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(category)
+            .join(fixture_name)
+            .join("universalbuild.json");
+        if fixture_snapshot.exists() {
+            let json =
+                serde_json::to_string_pretty(results).expect("Failed to serialize results");
+            std::fs::write(&fixture_snapshot, format!("{}\n", json))
+                .unwrap_or_else(|e| panic!("Failed to write fixture snapshot: {}", e));
+            eprintln!("Updated fixture snapshot for {}/{}", category, fixture_name);
             return;
         }
     }

@@ -22,6 +22,7 @@
       "commands": [
         "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
         "yarn install --network-timeout 100000 --network-concurrency 1",
+        "node -e \"var p=require('./package.json');var f=require('fs');p.scripts.build='prisma generate && tsc';f.writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n')\"",
         "yarn run build"
       ],
       "cache": [

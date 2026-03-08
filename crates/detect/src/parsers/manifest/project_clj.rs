@@ -34,10 +34,17 @@ impl ManifestParser for ProjectCljParser {
         let java_home = "/usr/lib/jvm/java-17-openjdk";
 
         // Build the uberjar filename based on project name and version.
-        // `lein uberjar` places output in target/uberjar/ when :target-path "target/%s" is set
-        // (which is the Leiningen default since 2.x).
+        // Check if :target-path has profile-based substitution (%s).
+        // When :target-path is "target/%s", `lein uberjar` outputs to target/uberjar/.
+        // Otherwise (default), the output goes to target/.
+        let has_profile_target = content.contains(":target-path")
+            && content.contains("%s");
         let jar_name = format!("{}-{}-standalone.jar", project_name, version);
-        let jar_path = format!("target/uberjar/{}", jar_name);
+        let jar_path = if has_profile_target {
+            format!("target/uberjar/{}", jar_name)
+        } else {
+            format!("target/{}", jar_name)
+        };
 
         let entrypoint = Some(format!("java -jar /app/{}", jar_name));
 
@@ -278,6 +285,30 @@ mod tests {
             .entrypoint
             .unwrap()
             .contains("my-app-0.1.0-standalone.jar"));
+        // Default: no :target-path with %s, so artifacts go to target/
+        assert_eq!(
+            manifest.build.artifacts[0].0,
+            "target/my-app-0.1.0-standalone.jar"
+        );
+    }
+
+    #[test]
+    fn test_project_clj_parser_with_target_path_profile() {
+        let parser = ProjectCljParser;
+        let content = r#"(defproject my-app "0.1.0"
+  :description "A web app with target-path"
+  :dependencies [[org.clojure/clojure "1.11.1"]
+                 [ring/ring-core "1.10.0"]]
+  :main my-app.core
+  :target-path "target/%s"
+  :profiles {:uberjar {:aot :all}})"#;
+
+        let manifest = parser.parse(Path::new("project.clj"), content).unwrap();
+        // When :target-path has %s, artifacts go to target/uberjar/
+        assert_eq!(
+            manifest.build.artifacts[0].0,
+            "target/uberjar/my-app-0.1.0-standalone.jar"
+        );
     }
 
     #[test]

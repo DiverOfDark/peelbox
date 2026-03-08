@@ -72,6 +72,8 @@ impl ManifestParser for GemfileParser {
             "glibc-dev".into(),
             "linux-headers".into(),
             "libffi-dev".into(),
+            "yaml-dev".into(),
+            "pkgconf".into(),
             "ca-certificates".into(),
         ];
         if has_sqlite {

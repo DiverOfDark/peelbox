@@ -476,21 +476,47 @@ impl ContainerTestHarness {
 
     pub async fn wait_for_exit(&self, container_id: &str, timeout: Duration) -> Result<i64> {
         let wait_fut = async {
+            // First check if the container has already exited (handles fast-exiting containers
+            // where the process finishes before the wait call is made).
+            if let Ok(exit_code) = self.inspect_exit_code(container_id).await {
+                return Ok(exit_code);
+            }
+
             let options = WaitContainerOptions {
                 condition: "not-running".to_string(),
             };
             let mut stream = self.docker.wait_container(container_id, Some(options));
-            if let Some(result) = stream.next().await {
-                let response = result.context("Error waiting for container")?;
-                Ok(response.status_code)
-            } else {
-                anyhow::bail!("Wait stream ended without result")
+            match stream.next().await {
+                Some(Ok(response)) => Ok(response.status_code),
+                Some(Err(_)) | None => {
+                    // Wait API can fail for fast-exiting containers -- fall back to inspect.
+                    self.inspect_exit_code(container_id)
+                        .await
+                        .context("Error waiting for container (wait API failed, inspect fallback also failed)")
+                }
             }
         };
 
         tokio::time::timeout(timeout, wait_fut)
             .await
             .context("Timeout waiting for container to exit")?
+    }
+
+    /// Inspect a container and return its exit code if it has already stopped.
+    async fn inspect_exit_code(&self, container_id: &str) -> Result<i64> {
+        let inspect = self
+            .docker
+            .inspect_container(container_id, None)
+            .await
+            .context("Failed to inspect container")?;
+        if let Some(state) = &inspect.state {
+            if let Some(running) = state.running {
+                if !running {
+                    return Ok(state.exit_code.unwrap_or(0));
+                }
+            }
+        }
+        anyhow::bail!("Container is still running")
     }
 
     pub async fn get_host_port(&self, container_id: &str, container_port: u16) -> Result<u16> {

@@ -2,19 +2,23 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "app",
+      "project_name": "zig",
       "language": "Zig",
       "build_system": "Zig Build",
       "reasoning": "Detected from build.zig"
     },
     "build": {
       "packages": [
-        "zig",
         "build-base",
-        "ca-certificates"
+        "ca-certificates",
+        "curl",
+        "xz"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/opt/zig:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
+        "mkdir -p /opt/zig && curl -sSL https://ziglang.org/download/0.12.0/zig-linux-x86_64-0.12.0.tar.xz | tar -xJ -C /opt/zig --strip-components=1",
         "zig build -Doptimize=ReleaseSafe"
       ],
       "cache": [
@@ -34,12 +38,10 @@
         }
       ],
       "command": [
-        "/app/app"
+        "/app/zig"
       ],
       "workdir": "/app",
-      "ports": [
-        8080
-      ]
+      "ports": []
     }
   }
 ]

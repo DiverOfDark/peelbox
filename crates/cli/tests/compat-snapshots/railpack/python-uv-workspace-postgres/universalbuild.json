@@ -9,12 +9,12 @@
     },
     "build": {
       "packages": [
-        "python-3.13",
-        "py3.13-pip",
+        "python-3.12",
+        "py3.12-pip",
         "build-base",
         "ca-certificates",
         "postgresql-18-dev",
-        "python-3.13-dev"
+        "python-3.12-dev"
       ],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
@@ -30,14 +30,17 @@
     },
     "runtime": {
       "packages": [
-        "python-3.13",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates",
         "uv",
         "libpq-18"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
       "copy": [
         {
           "from": ".",

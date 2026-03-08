@@ -1,15 +1,21 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "ecto_worker",
+      "language": "Elixir",
+      "build_system": "Mix",
+      "reasoning": "Detected from mix.exs"
+    },
     "build": {
-      "cache": [
-        "deps",
-        "_build"
-      ],
-      "commands": [
-        "mix local.hex --force && mix local.rebar --force",
-        "mix deps.get",
-        "mix deps.compile",
-        "mix compile"
+      "packages": [
+        "elixir-1.17",
+        "erlang-27",
+        "erlang-27-dev",
+        "git",
+        "build-base",
+        "openssl",
+        "ca-certificates"
       ],
       "env": {
         "DATABASE_URL": "",
@@ -20,33 +26,25 @@
         "POOL_SIZE": "",
         "SECRET_KEY_BASE": ""
       },
+      "commands": [
+        "mix local.hex --force && mix local.rebar --force",
+        "rm -f mix.lock && mix deps.get",
+        "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && mix deps.get && mix deps.compile; }",
+        "mix compile"
+      ],
+      "cache": [
+        "deps",
+        "_build"
+      ]
+    },
+    "runtime": {
       "packages": [
         "elixir-1.17",
         "erlang-27",
-        "erlang-27-dev",
+        "busybox",
         "git",
-        "build-base",
         "openssl",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Mix",
-      "language": "Elixir",
-      "project_name": "ecto_worker",
-      "reasoning": "Detected from mix.exs"
-    },
-    "runtime": {
-      "command": [
-        "mix",
-        "run",
-        "--no-halt"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {
         "DATABASE_URL": "",
@@ -56,19 +54,21 @@
         "MIX_HOME": "/app/.mix",
         "PORT": "4000"
       },
-      "packages": [
-        "elixir-1.17",
-        "erlang-27",
-        "busybox",
-        "git",
-        "openssl",
-        "ca-certificates"
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
       ],
+      "command": [
+        "mix",
+        "run",
+        "--no-halt"
+      ],
+      "workdir": "/app",
       "ports": [
         4000
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

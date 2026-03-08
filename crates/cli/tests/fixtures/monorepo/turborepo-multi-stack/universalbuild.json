@@ -1,105 +1,105 @@
 [
-    {
-        "build": {
-            "cache": [
-                ".npm",
-                ".turbo"
-            ],
-            "commands": [
-                "npm install",
-                "cd apps/api && npm run build"
-            ],
-            "env": {},
-            "packages": [
-                "nodejs-25",
-                "npm",
-                "ca-certificates"
-            ]
-        },
-        "metadata": {
-            "build_system": "npm",
-            "framework": "Express",
-            "language": "JavaScript",
-            "project_name": "@multi-stack/api",
-            "reasoning": "Detected from package.json in apps/api"
-        },
-        "runtime": {
-            "command": [
-                "npm",
-                "start"
-            ],
-            "copy": [
-                {
-                    "from": ".",
-                    "to": "/app/"
-                }
-            ],
-            "env": {},
-            "health": {
-                "endpoint": "/health"
-            },
-            "packages": [
-                "nodejs-25",
-                "npm",
-                "busybox",
-                "dumb-init",
-                "ca-certificates"
-            ],
-            "ports": [
-                3000
-            ],
-            "workdir": "/app/apps/api"
-        },
-        "version": "1.0"
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "@multi-stack/api",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Express",
+      "reasoning": "Detected from package.json in apps/api"
     },
-    {
-        "build": {
-            "cache": [
-                ".npm",
-                ".turbo"
-            ],
-            "commands": [
-                "npm install",
-                "cd apps/web && npm run build"
-            ],
-            "env": {},
-            "packages": [
-                "nodejs-25",
-                "npm",
-                "ca-certificates"
-            ]
-        },
-        "metadata": {
-            "build_system": "npm",
-            "framework": "Next.js",
-            "language": "JavaScript",
-            "project_name": "@multi-stack/web",
-            "reasoning": "Detected from package.json in apps/web"
-        },
-        "runtime": {
-            "command": [
-                "npm",
-                "start"
-            ],
-            "copy": [
-                {
-                    "from": ".",
-                    "to": "/app/"
-                }
-            ],
-            "env": {},
-            "packages": [
-                "nodejs-25",
-                "npm",
-                "busybox",
-                "dumb-init",
-                "ca-certificates"
-            ],
-            "ports": [
-                3000
-            ],
-            "workdir": "/app/apps/web"
-        },
-        "version": "1.0"
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install",
+        "cd apps/api && npm run build"
+      ],
+      "cache": [
+        ".npm",
+        ".turbo"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app/apps/api",
+      "ports": [
+        3000
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
     }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "@multi-stack/web",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Next.js",
+      "reasoning": "Detected from package.json in apps/web"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install",
+        "cd apps/web && npm run build"
+      ],
+      "cache": [
+        ".npm",
+        ".turbo"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app/apps/web",
+      "ports": [
+        3000
+      ]
+    }
+  }
 ]

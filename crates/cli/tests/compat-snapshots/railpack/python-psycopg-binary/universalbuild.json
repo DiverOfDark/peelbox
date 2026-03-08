@@ -36,7 +36,9 @@
         "ca-certificates",
         "libpq-18"
       ],
-      "env": {},
+      "env": {
+        "DATABASE_URL": ""
+      },
       "copy": [
         {
           "from": ".",

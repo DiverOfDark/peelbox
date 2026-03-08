@@ -1,17 +1,14 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Ruby",
+      "build_system": "Bundler",
+      "framework": "Sinatra",
+      "reasoning": "Detected from Gemfile"
+    },
     "build": {
-      "cache": [
-        ".bundle",
-        "vendor"
-      ],
-      "commands": [
-        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
-      ],
-      "env": {
-        "BUNDLE_DEPLOYMENT": "false",
-        "BUNDLE_PATH": "vendor/bundle"
-      },
       "packages": [
         "ruby-3.4",
         "ruby-3.4-dev",
@@ -20,37 +17,23 @@
         "glibc-dev",
         "linux-headers",
         "libffi-dev",
+        "yaml-dev",
+        "pkgconf",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Bundler",
-      "framework": "Sinatra",
-      "language": "Ruby",
-      "project_name": "app",
-      "reasoning": "Detected from Gemfile"
-    },
-    "runtime": {
-      "command": [
-        "bundle",
-        "exec",
-        "ruby",
-        "/app/app.rb"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app"
-        }
       ],
       "env": {
-        "BUNDLE_GEMFILE": "/app/Gemfile",
-        "BUNDLE_PATH": "/app/vendor/bundle",
-        "RACK_ENV": "production"
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
       },
-      "health": {
-        "endpoint": "/"
-      },
+      "commands": [
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
+      ],
+      "cache": [
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
       "packages": [
         "ruby-3.4",
         "ruby3.4-bundler",
@@ -60,11 +43,30 @@
         "tzdata",
         "ca-certificates"
       ],
+      "env": {
+        "BUNDLE_GEMFILE": "/app/Gemfile",
+        "BUNDLE_PATH": "/app/vendor/bundle",
+        "RACK_ENV": "production"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "bundle",
+        "exec",
+        "ruby",
+        "/app/app.rb"
+      ],
+      "workdir": "/app",
       "ports": [
         4567
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/"
+      }
+    }
   }
 ]

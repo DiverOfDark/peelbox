@@ -204,7 +204,7 @@ impl BuildStrategy for PeelboxStrategy {
                     copy_commands.push(format!("mkdir -p {}", parent.to_string_lossy()));
                 }
 
-                copy_commands.push(format!("cp -vr {} {}", src_path, dest_path));
+                copy_commands.push(format!("cp -vrL {} {}", src_path, dest_path));
             }
             let script = copy_commands.join(" && ");
 

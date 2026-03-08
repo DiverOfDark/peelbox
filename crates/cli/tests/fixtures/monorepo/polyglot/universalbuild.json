@@ -1,36 +1,41 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "backend",
+      "language": "Java",
+      "build_system": "Maven",
+      "reasoning": "Detected from pom.xml in backend"
+    },
     "build": {
-      "cache": [
-        "/root/.m2/repository"
-      ],
-      "commands": [
-        "mvn -f backend/pom.xml package -DskipTests",
-        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib && mkdir -p backend/target/lib"
+      "packages": [
+        "openjdk-17",
+        "maven-3.9",
+        "ca-certificates"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
-      "packages": [
-        "openjdk-17",
-        "maven-3.9",
-        "ca-certificates"
+      "commands": [
+        "mvn -f backend/pom.xml package -DskipTests",
+        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib && mkdir -p backend/target/lib"
+      ],
+      "cache": [
+        "/root/.m2/repository"
       ]
     },
-    "metadata": {
-      "build_system": "Maven",
-      "language": "Java",
-      "project_name": "backend",
-      "reasoning": "Detected from pom.xml in backend"
-    },
     "runtime": {
-      "command": [
-        "java",
-        "-cp",
-        "/app/*:/app/lib/*",
-        "com.example.Backend"
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
       ],
+      "env": {
+        "CLASSPATH": "/app/*:/app/lib/*",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
       "copy": [
         {
           "from": "backend/target/*.jar",
@@ -41,106 +46,91 @@
           "to": "/app/lib"
         }
       ],
-      "env": {
-        "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "PORT": "8080"
-      },
-      "packages": [
-        "openjdk-17-jre",
-        "ca-certificates"
+      "command": [
+        "java",
+        "-cp",
+        "/app/*:/app/lib/*",
+        "com.example.Backend"
       ],
+      "workdir": "/app",
       "ports": [
         8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   },
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "admin-service",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml in cli"
+    },
     "build": {
-      "cache": [
-        ".cargo",
-        "target"
-      ],
-      "commands": [
-        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
-      ],
-      "env": {
-        "CARGO_HOME": ".cargo"
-      },
       "packages": [
         "rust-1.92",
         "build-base",
         "openssl-dev",
         "pkgconf",
         "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
       ]
     },
-    "metadata": {
-      "build_system": "Cargo",
-      "language": "Rust",
-      "project_name": "admin-service",
-      "reasoning": "Detected from Cargo.toml in cli"
-    },
     "runtime": {
-      "command": [
-        "/app/admin-service"
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "target/release/admin-service",
           "to": "/app/admin-service"
         }
       ],
-      "env": {},
-      "packages": [
-        "glibc",
-        "libssl3",
-        "ca-certificates"
+      "command": [
+        "/app/admin-service"
       ],
+      "workdir": "/app",
       "ports": [
         8082
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   },
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json in frontend"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "cd frontend && npm ci",
-        "cd frontend && npm run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "language": "JavaScript",
-      "project_name": "frontend",
-      "reasoning": "Detected from package.json in frontend"
-    },
-    "runtime": {
-      "command": [
-        "npm",
-        "start"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {},
+      "commands": [
+        "cd frontend && npm ci",
+        "cd frontend && npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "npm",
@@ -148,11 +138,21 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app",
       "ports": [
         3000
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

@@ -12,7 +12,7 @@
         "nodejs-24",
         "pnpm",
         "build-base",
-        "python-3.13",
+        "python-3.12",
         "npm",
         "ca-certificates"
       ],

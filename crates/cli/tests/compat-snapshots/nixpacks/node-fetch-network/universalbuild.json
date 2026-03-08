@@ -12,14 +12,13 @@
         "nodejs-25",
         "pnpm",
         "build-base",
-        "python-3.13",
+        "python-3.12",
         "npm",
         "ca-certificates"
       ],
       "env": {},
       "commands": [
-        "pnpm install",
-        "pnpm build"
+        "pnpm install"
       ],
       "cache": [
         ".pnpm-store"

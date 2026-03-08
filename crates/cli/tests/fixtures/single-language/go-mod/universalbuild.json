@@ -1,13 +1,18 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Go",
+      "build_system": "go mod",
+      "framework": "Gin",
+      "reasoning": "Detected from go.mod"
+    },
     "build": {
-      "cache": [
-        ".cache/go-build",
-        ".cache/go-mod"
-      ],
-      "commands": [
-        "go mod download",
-        "go build -o app ."
+      "packages": [
+        "go-1.21",
+        "git",
+        "ca-certificates"
       ],
       "env": {
         "CGO_ENABLED": "0",
@@ -15,42 +20,37 @@
         "GOMODCACHE": "/build/.cache/go-mod",
         "GOSUMDB": "off"
       },
-      "packages": [
-        "go-1.21",
-        "git",
-        "ca-certificates"
+      "commands": [
+        "go mod download",
+        "go build -o app ."
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
       ]
     },
-    "metadata": {
-      "build_system": "go mod",
-      "framework": "Gin",
-      "language": "Go",
-      "project_name": "app",
-      "reasoning": "Detected from go.mod"
-    },
     "runtime": {
-      "command": [
-        "/app/app"
+      "packages": [
+        "glibc",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "bin/app",
           "to": "/app/app"
         }
       ],
-      "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "glibc",
-        "ca-certificates"
+      "command": [
+        "/app/app"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

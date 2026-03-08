@@ -13,10 +13,11 @@
         "npm",
         "ca-certificates",
         "build-base",
-        "python-3.13"
+        "python-3.12"
       ],
       "env": {},
       "commands": [
+        "npm install -g node-gyp",
         "npm ci"
       ],
       "cache": [

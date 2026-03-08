@@ -1,41 +1,38 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api",
+      "language": "Python",
+      "build_system": "uv",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml in packages/api"
+    },
     "build": {
-      "cache": [
-        "/root/.cache/pip/",
-        "/root/.cache/uv/"
-      ],
-      "commands": [
-        "pip install --user uv",
-        "/root/.local/bin/uv sync --frozen --no-dev --package api"
-      ],
-      "env": {
-        "UV_CACHE_DIR": "/root/.cache/uv"
-      },
       "packages": [
         "python-3.12",
         "py3.12-pip",
         "build-base",
         "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev --package api"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
       ]
     },
-    "metadata": {
-      "build_system": "uv",
-      "framework": "Flask",
-      "language": "Python",
-      "project_name": "api",
-      "reasoning": "Detected from pyproject.toml in packages/api"
-    },
     "runtime": {
-      "command": [
-        "flask",
-        "run"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/build"
-        }
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
       ],
       "env": {
         "FLASK_APP": "/app/packages/api/src/api/app.py",
@@ -44,61 +41,53 @@
         "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
         "VIRTUAL_ENV": "/app/.venv"
       },
-      "health": {
-        "endpoint": "/"
-      },
-      "packages": [
-        "python-3.12",
-        "libgcc",
-        "libstdc++",
-        "ca-certificates"
-      ],
-      "ports": [
-        5000
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        "/root/.cache/pip/",
-        "/root/.cache/uv/"
-      ],
-      "commands": [
-        "pip install --user uv",
-        "/root/.local/bin/uv sync --frozen --no-dev --package shared"
-      ],
-      "env": {
-        "UV_CACHE_DIR": "/root/.cache/uv"
-      },
-      "packages": [
-        "python-3.12",
-        "py3.12-pip",
-        "build-base",
-        "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "uv",
-      "language": "Python",
-      "project_name": "shared",
-      "reasoning": "Detected from pyproject.toml in packages/shared"
-    },
-    "runtime": {
-      "command": [
-        "python",
-        "-m",
-        "shared"
-      ],
       "copy": [
         {
           "from": ".",
           "to": "/build"
         }
       ],
-      "env": {},
+      "command": [
+        "flask",
+        "run"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "shared",
+      "language": "Python",
+      "build_system": "uv",
+      "reasoning": "Detected from pyproject.toml in packages/shared"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev --package shared"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
       "packages": [
         "python-3.12",
         "libgcc",
@@ -106,11 +95,25 @@
         "ca-certificates",
         "uv"
       ],
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/build"
+        }
+      ],
+      "command": [
+        "python",
+        "-m",
+        "shared"
+      ],
+      "workdir": "/build",
       "ports": [
         8000
-      ],
-      "workdir": "/build"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]
