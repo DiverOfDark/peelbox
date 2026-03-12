@@ -116,16 +116,22 @@ impl ManifestParser for BuildGradleParser {
             ),
         ]);
 
-        // Detect broken Kotlin DSL syntax in .kts files: Groovy-style `"key" = "value"`
-        // inside `attributes()` calls should be `"key" to "value"` in Kotlin DSL.
-        // This is a common copy-paste mistake from Groovy build.gradle files.
+        // Detect broken Kotlin DSL syntax in .kts files: Groovy-style patterns
+        // that are invalid in Kotlin DSL. Common when a .gradle file is renamed to .kts.
         let is_kts = path
             .file_name()
             .and_then(|n| n.to_str())
             .map(|n| n.ends_with(".kts"))
             .unwrap_or(false);
-        let needs_kts_fix = is_kts
+        // `"key" = "value"` inside attributes() should be `"key" to "value"`
+        let needs_kts_attr_fix = is_kts
             && regex::Regex::new(r#"(?s)attributes\s*\(.*?"[^"]*"\s*=\s*"[^"]*".*?\)"#)
+                .ok()
+                .map(|r| r.is_match(content))
+                .unwrap_or(false);
+        // `jar {` at top level (Groovy) should be `tasks.jar {` in Kotlin DSL
+        let needs_kts_jar_fix = is_kts
+            && regex::Regex::new(r#"(?m)^jar\s*\{"#)
                 .ok()
                 .map(|r| r.is_match(content))
                 .unwrap_or(false);
@@ -163,16 +169,23 @@ impl ManifestParser for BuildGradleParser {
             )
         };
 
-        // When a .kts file has Groovy-style attributes syntax ("key" = "value"),
-        // prepend a sed command to fix it to Kotlin DSL syntax ("key" to "value")
-        // before running the Gradle build.
+        // When a .kts file has Groovy-style syntax, prepend sed commands to fix
+        // it to valid Kotlin DSL before running the Gradle build.
         let mut build_commands = Vec::new();
-        if needs_kts_fix {
+        if needs_kts_attr_fix || needs_kts_jar_fix {
             let kts_filename = path.file_name().unwrap().to_string_lossy();
-            build_commands.push(format!(
-                "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' {}",
-                kts_filename
-            ));
+            if needs_kts_attr_fix {
+                build_commands.push(format!(
+                    "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' {}",
+                    kts_filename
+                ));
+            }
+            if needs_kts_jar_fix {
+                build_commands.push(format!(
+                    "sed -i 's/^jar {{/tasks.jar {{/' {}",
+                    kts_filename
+                ));
+            }
         }
         build_commands.push(build_command);
 
@@ -340,10 +353,10 @@ jar {
         let parser = BuildGradleParser;
         let manifest = parser.parse(&kts_path, content).unwrap();
 
-        assert_eq!(manifest.build.commands.len(), 2);
+        assert_eq!(manifest.build.commands.len(), 3);
         assert!(
             manifest.build.commands[0].starts_with("sed -i"),
-            "First command should be a sed fix: {}",
+            "First command should be a sed fix for attributes: {}",
             manifest.build.commands[0]
         );
         assert!(
@@ -351,8 +364,13 @@ jar {
             "sed should target build.gradle.kts"
         );
         assert!(
-            manifest.build.commands[1].contains("assemble"),
-            "Second command should be gradlew assemble"
+            manifest.build.commands[1].contains("tasks.jar"),
+            "Second command should fix jar -> tasks.jar: {}",
+            manifest.build.commands[1]
+        );
+        assert!(
+            manifest.build.commands[2].contains("assemble"),
+            "Third command should be gradlew assemble"
         );
     }
 
@@ -393,7 +411,7 @@ jar {
         );
     }
 
-    /// A valid .kts file without the broken attributes pattern should NOT get a sed fix.
+    /// A valid .kts file without any broken patterns should NOT get a sed fix.
     #[test]
     fn test_valid_kts_no_sed_fix() {
         let content = r#"
@@ -404,7 +422,7 @@ repositories { mavenCentral() }
 dependencies {
     implementation("com.google.guava:guava:31.1-jre")
 }
-jar {
+tasks.jar {
     manifest {
         attributes(
             "Main-Class" to "gradle.App"
