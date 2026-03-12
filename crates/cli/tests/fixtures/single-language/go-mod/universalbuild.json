@@ -22,7 +22,8 @@
       },
       "commands": [
         "go mod download",
-        "go build -o app ."
+        "mkdir -p bin",
+        "go build -o bin/app ."
       ],
       "cache": [
         ".cache/go-build",

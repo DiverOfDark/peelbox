@@ -48,9 +48,7 @@
         "/app/csharp-cli.dll"
       ],
       "workdir": "/app",
-      "ports": [
-        5000
-      ]
+      "ports": []
     }
   }
 ]

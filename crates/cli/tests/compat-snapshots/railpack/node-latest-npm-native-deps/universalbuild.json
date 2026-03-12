@@ -13,7 +13,8 @@
         "npm",
         "ca-certificates",
         "build-base",
-        "python-3.12"
+        "python-3.12",
+        "sqlite-dev"
       ],
       "env": {},
       "commands": [
@@ -30,7 +31,8 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "sqlite-libs"
       ],
       "env": {},
       "copy": [

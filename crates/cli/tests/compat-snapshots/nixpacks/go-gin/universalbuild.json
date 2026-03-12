@@ -22,7 +22,8 @@
       },
       "commands": [
         "go mod download",
-        "go build -o gin ."
+        "mkdir -p bin",
+        "go build -o bin/gin ."
       ],
       "cache": [
         ".cache/go-build",

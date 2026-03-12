@@ -21,7 +21,8 @@
       },
       "commands": [
         "go mod download",
-        "go build -o hello-world ."
+        "mkdir -p bin",
+        "go build -o bin/hello-world ."
       ],
       "cache": [
         ".cache/go-build",

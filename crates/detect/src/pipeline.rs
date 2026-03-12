@@ -410,7 +410,8 @@ fn collect_manifests_with_frameworks(
                 let env_keys = profile.preferred_framework_env_keys;
                 if !env_keys.is_empty() {
                     if let Some(ref fw) = framework {
-                        if let Some(variant) = detectors.iter().find_map(|d| {
+                        // Collect all variants that match the required env keys
+                        let matching_variants: Vec<_> = detectors.iter().filter_map(|d| {
                             let contrib = d.contribution(&manifest.dependencies);
                             if contrib.framework == fw.framework
                                 && env_keys
@@ -421,8 +422,20 @@ fn collect_manifests_with_frameworks(
                             } else {
                                 None
                             }
-                        }) {
-                            framework = Some(variant);
+                        }).collect();
+
+                        if !matching_variants.is_empty() {
+                            // Prefer the variant whose workdir matches the manifest's
+                            // runtime workdir. This ensures UV projects (workdir /build)
+                            // pick FlaskUv, while Poetry/PDM (workdir /app) pick their
+                            // own variants.
+                            let manifest_workdir = manifest.runtime_config.workdir.as_deref();
+                            let best = matching_variants.iter()
+                                .find(|v| v.workdir.as_deref() == manifest_workdir)
+                                .or(matching_variants.first());
+                            if let Some(variant) = best {
+                                framework = Some(variant.clone());
+                            }
                         }
                     }
                 }
@@ -1241,6 +1254,21 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     } else {
         vec![]
     };
+
+    // For Gradle installDist projects, resolve the generic `/app/bin/app` entrypoint
+    // to `/app/bin/{project_name}` using the actual project name from settings.gradle.
+    // installDist creates scripts named after the project, not "app".
+    if m.build_system.slug() == "gradle" {
+        if let Some(pkg) = &m.package {
+            if !pkg.name.is_empty() && pkg.name != "app" {
+                for part in entrypoint_cmd.iter_mut() {
+                    if *part == "/app/bin/app" {
+                        *part = format!("/app/bin/{}", pkg.name);
+                    }
+                }
+            }
+        }
+    }
 
     // For Ruby/Bundler projects, ensure `bundle exec` wraps the entrypoint
     // so gems installed in vendor/bundle are on the load path.
@@ -2743,6 +2771,58 @@ fn scan_node_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
                 .position(|c| c.contains("npm install -g node-gyp"))
                 .unwrap_or(0);
             build.build.commands.insert(gyp_idx + 1, symlink_cmd);
+        }
+    }
+
+    // Add package-specific system library dependencies.
+    // Some Node.js native modules need specific C libraries beyond just build-base.
+    scan_node_system_deps(&dep_names, build);
+}
+
+/// Maps well-known Node.js packages to their required system build/runtime packages.
+/// Each entry: (npm_package, build_packages, runtime_packages).
+const NODE_SYSTEM_DEPS: &[(&str, &[&str], &[&str])] = &[
+    // canvas (node-canvas) requires Cairo, Pango, image format libraries, and libuuid
+    (
+        "canvas",
+        &["cairo-dev", "pango-dev", "libjpeg-turbo-dev", "giflib-dev", "pixman-dev"],
+        &["cairo", "pango", "libjpeg-turbo", "giflib", "pixman", "libuuid"],
+    ),
+    // sharp requires vips (image processing library)
+    (
+        "sharp",
+        &["vips-dev"],
+        &["vips"],
+    ),
+    // better-sqlite3 and sqlite3 need SQLite headers
+    (
+        "better-sqlite3",
+        &["sqlite-dev"],
+        &["sqlite-libs"],
+    ),
+    (
+        "sqlite3",
+        &["sqlite-dev"],
+        &["sqlite-libs"],
+    ),
+];
+
+/// Add system library dependencies for specific Node.js native packages.
+fn scan_node_system_deps(dep_names: &[String], build: &mut UniversalBuild) {
+    for (pattern, build_deps, runtime_deps) in NODE_SYSTEM_DEPS {
+        if dep_names.iter().any(|d| d == pattern) {
+            for pkg in *build_deps {
+                let pkg_str = pkg.to_string();
+                if !build.build.packages.contains(&pkg_str) {
+                    build.build.packages.push(pkg_str);
+                }
+            }
+            for pkg in *runtime_deps {
+                let pkg_str = pkg.to_string();
+                if !build.runtime.packages.contains(&pkg_str) {
+                    build.runtime.packages.push(pkg_str);
+                }
+            }
         }
     }
 }

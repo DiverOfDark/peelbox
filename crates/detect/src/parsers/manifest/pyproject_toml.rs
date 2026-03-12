@@ -123,6 +123,12 @@ impl ManifestParser for PyProjectTomlParser {
                     commands: vec![
                         "pip install poetry".into(),
                         "poetry install --no-root --only main".into(),
+                        // Fix venv shebangs: Poetry creates the venv at /build/.venv but
+                        // artifacts are copied to /app/.venv in the runtime image. Script
+                        // shebangs (e.g. #!/build/.venv/bin/python) must be rewritten so
+                        // they resolve correctly at runtime. Also recreate the python
+                        // symlinks to point at the system interpreter.
+                        "find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python".into(),
                     ],
                     member_transform: None,
                     env: btree(&[

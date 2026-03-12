@@ -46,9 +46,7 @@
         "/app/FSharpCli.dll"
       ],
       "workdir": "/app",
-      "ports": [
-        5000
-      ]
+      "ports": []
     }
   }
 ]

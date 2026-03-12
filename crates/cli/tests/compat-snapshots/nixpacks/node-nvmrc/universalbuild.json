@@ -19,7 +19,7 @@
         "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
-        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
         "npm ci"
       ],
       "cache": [
@@ -47,7 +47,7 @@
       "command": [
         "sh",
         "-c",
-        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && node index.js"
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && node index.js"
       ],
       "workdir": "/app",
       "ports": [

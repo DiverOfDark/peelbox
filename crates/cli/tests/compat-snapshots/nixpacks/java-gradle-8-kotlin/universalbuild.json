@@ -9,16 +9,17 @@
     },
     "build": {
       "packages": [
-        "openjdk-20",
+        "openjdk-19",
         "bash",
         "ca-certificates"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/usr/lib/jvm/java-20-openjdk"
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk"
       },
       "commands": [
+        "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' build.gradle.kts",
         "./gradlew assemble -x test --no-daemon --console=plain"
       ],
       "cache": [
@@ -28,12 +29,12 @@
     },
     "runtime": {
       "packages": [
-        "openjdk-20-jre",
+        "openjdk-19-jre",
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-20-openjdk",
-        "PATH": "/usr/lib/jvm/java-20-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk",
+        "PATH": "/usr/lib/jvm/java-19-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "PORT": "8080"
       },
       "copy": [

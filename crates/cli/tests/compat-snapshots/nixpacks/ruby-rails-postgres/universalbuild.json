@@ -22,7 +22,10 @@
         "ca-certificates",
         "postgresql-18-dev",
         "mariadb-connector-c-dev",
-        "icu-dev"
+        "mariadb-connector-c",
+        "cmake",
+        "icu-dev",
+        "zlib-dev"
       ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",

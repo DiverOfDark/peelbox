@@ -112,8 +112,10 @@ impl ManifestParser for MixExsParser {
             "mix local.hex --force && mix local.rebar --force".into(),
             "rm -f mix.lock && mix deps.get".into(),
             // If deps.compile fails (e.g. type conflicts with newer Elixir),
-            // widen all version constraints in mix.exs, re-resolve, and retry.
-            "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && mix deps.get && mix deps.compile; }".into(),
+            // widen all version constraints in mix.exs, clean stale artifacts,
+            // re-resolve, and retry. Use find+rm instead of rm -rf for dirs
+            // that may be mount points (which can't be removed themselves).
+            "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && find deps _build -mindepth 1 -delete 2>/dev/null; rm -f mix.lock && mix deps.get && mix deps.compile; }".into(),
         ];
         if has_phoenix && has_assets_dir {
             build_commands.push("mix assets.deploy".into());

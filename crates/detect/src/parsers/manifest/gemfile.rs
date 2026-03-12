@@ -4,7 +4,6 @@ use crate::ids::{
 };
 use crate::traits::ManifestParser;
 use crate::types::*;
-use std::collections::BTreeMap;
 use std::path::Path;
 
 const RUBY: LanguageId = LanguageId::new("ruby");
@@ -83,10 +82,14 @@ impl ManifestParser for GemfileParser {
             build_packages.push("postgresql-dev".into());
         }
         if has_mysql {
+            // mysql2 gem needs both -dev for headers/symlinks and base for libmariadb.so.3
             build_packages.push("mariadb-connector-c-dev".into());
+            build_packages.push("mariadb-connector-c".into());
         }
         if has_charlock {
+            build_packages.push("cmake".into());
             build_packages.push("icu-dev".into());
+            build_packages.push("zlib-dev".into());
         }
         if has_nokogiri {
             build_packages.push("libxml2-dev".into());
@@ -150,7 +153,9 @@ impl ManifestParser for GemfileParser {
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,
-                env: BTreeMap::new(),
+                env: btree(&[
+                    ("BUNDLE_PATH", "vendor/bundle"),
+                ]),
                 entrypoint: None, // Set by framework detector (Sinatra/Rails)
                 workdir: Some("/app".into()),
                 ports: vec![3000],

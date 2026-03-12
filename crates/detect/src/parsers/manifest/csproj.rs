@@ -65,10 +65,13 @@ impl ManifestParser for CsprojParser {
         // Parse dependencies from PackageReference elements
         let dependencies = parse_csproj_deps(content);
 
+        // Detect if this is a web project (Microsoft.NET.Sdk.Web) vs a CLI/library
+        let is_web = content.contains("Microsoft.NET.Sdk.Web");
+
         let (build, runtime_config) = if let Some(ref ver) = dotnet_version {
-            build_wolfi_dotnet_specs(ver, &file_stem)
+            build_wolfi_dotnet_specs(ver, &file_stem, is_web)
         } else {
-            build_fallback_dotnet_specs(&file_stem)
+            build_fallback_dotnet_specs(&file_stem, is_web)
         };
 
         Some(Manifest {
@@ -105,6 +108,7 @@ fn parse_dotnet_version(content: &str) -> Option<DotnetVersion> {
 fn build_wolfi_dotnet_specs(
     ver: &DotnetVersion,
     file_stem: &Option<String>,
+    is_web: bool,
 ) -> (BuildSpec, RuntimeSpec) {
     let sdk_pkg = format!("dotnet-{}-sdk", ver.major);
     let runtime_pkg = format!("aspnet-{}-runtime", ver.major);
@@ -122,6 +126,10 @@ fn build_wolfi_dotnet_specs(
         BTreeMap::new() // ASPNETCORE_URLS set by framework detector
     };
 
+    // Only assign a default port for web projects (Microsoft.NET.Sdk.Web).
+    // CLI apps (Microsoft.NET.Sdk) don't listen on a port.
+    let ports = if is_web { vec![5000] } else { vec![] };
+
     (
         BuildSpec {
             packages: vec![sdk_pkg, "ca-certificates".into()],
@@ -136,14 +144,16 @@ fn build_wolfi_dotnet_specs(
             env: runtime_env,
             entrypoint: file_stem.as_ref().map(|n| format!("dotnet /app/{}.dll", n)),
             workdir: Some("/app".into()),
-            ports: vec![5000],
+            ports,
             health_endpoint: None,
         },
     )
 }
 
 /// Build specs when no .NET version could be parsed (fallback).
-fn build_fallback_dotnet_specs(file_stem: &Option<String>) -> (BuildSpec, RuntimeSpec) {
+fn build_fallback_dotnet_specs(file_stem: &Option<String>, is_web: bool) -> (BuildSpec, RuntimeSpec) {
+    let ports = if is_web { vec![5000] } else { vec![] };
+
     (
         BuildSpec {
             packages: vec!["dotnet-sdk".into(), "ca-certificates".into()],
@@ -158,7 +168,7 @@ fn build_fallback_dotnet_specs(file_stem: &Option<String>) -> (BuildSpec, Runtim
             env: BTreeMap::new(),
             entrypoint: file_stem.as_ref().map(|n| format!("dotnet /app/{}.dll", n)),
             workdir: Some("/app".into()),
-            ports: vec![5000],
+            ports,
             health_endpoint: None,
         },
     )

@@ -21,7 +21,8 @@
       },
       "commands": [
         "go mod download",
-        "go build -o versiontest ."
+        "mkdir -p bin",
+        "go build -o bin/versiontest ."
       ],
       "cache": [
         ".cache/go-build",

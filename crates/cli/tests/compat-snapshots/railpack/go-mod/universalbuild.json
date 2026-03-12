@@ -21,7 +21,8 @@
       },
       "commands": [
         "go mod download",
-        "go build -o railpack ."
+        "mkdir -p bin",
+        "go build -o bin/railpack ."
       ],
       "cache": [
         ".cache/go-build",

@@ -63,10 +63,22 @@ impl ManifestParser for BuildGradleParser {
         // Detect if this is an application project (has spring-boot or application plugin)
         let has_spring_boot =
             content.contains("spring-boot") || content.contains("org.springframework.boot");
+        let has_shadow_plugin = content.contains("shadow")
+            || content.contains("com.github.johnrengelman.shadow")
+            || content.contains("com.gradleup.shadow");
         let has_application_plugin = content.contains("'application'")
             || content.contains("\"application\"")
             || content.contains("id(\"application\")");
-        let is_application = has_spring_boot || has_application_plugin;
+        let is_application = has_spring_boot || has_shadow_plugin || has_application_plugin;
+
+        // Application plugin without a fat-jar producer (Spring Boot / Shadow)
+        // needs installDist instead of assemble, since assemble only creates a thin jar.
+        // Only use installDist when mainClass is explicitly configured in the application
+        // block — without it, the generated start script has no class to invoke.
+        let has_main_class = content.contains("mainClass")
+            || content.contains("mainClassName");
+        let use_install_dist =
+            has_application_plugin && has_main_class && !has_spring_boot && !has_shadow_plugin;
 
         let java_home = format!(
             "/usr/lib/jvm/java-{}-openjdk",
@@ -80,7 +92,11 @@ impl ManifestParser for BuildGradleParser {
             .unwrap_or(false);
         let gradle_cmd = if has_gradlew { "./gradlew" } else { "gradle" };
 
-        let entrypoint = if is_application {
+        let entrypoint = if use_install_dist {
+            // installDist produces scripts in build/install/{name}/bin/{name}
+            // After copying to /app, the start script is at /app/bin/{name}
+            Some("/app/bin/app".into())
+        } else if is_application {
             match (&project_name, &gradle_version) {
                 (Some(name), Some(ver)) => Some(format!("java -jar /app/{}-{}.jar", name, ver)),
                 _ => Some("java -jar /app/app.jar".into()),
@@ -100,16 +116,94 @@ impl ManifestParser for BuildGradleParser {
             ),
         ]);
 
+        // Detect broken Kotlin DSL syntax in .kts files: Groovy-style `"key" = "value"`
+        // inside `attributes()` calls should be `"key" to "value"` in Kotlin DSL.
+        // This is a common copy-paste mistake from Groovy build.gradle files.
+        let is_kts = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.ends_with(".kts"))
+            .unwrap_or(false);
+        let needs_kts_fix = is_kts
+            && regex::Regex::new(r#"(?s)attributes\s*\(.*?"[^"]*"\s*=\s*"[^"]*".*?\)"#)
+                .ok()
+                .map(|r| r.is_match(content))
+                .unwrap_or(false);
+
+        // Build commands and artifacts differ for installDist vs assemble
+        let (build_command, member_transform, artifacts) = if use_install_dist {
+            (
+                format!("{} installDist -x test --no-daemon --console=plain", gradle_cmd),
+                Some(MemberBuildTransform {
+                    member_commands: vec![format!(
+                        "{} :{{module}}:installDist -x test --no-daemon --console=plain",
+                        gradle_cmd
+                    )],
+                    member_artifacts: Some(vec![(
+                        "{module}/build/install/{module}/.".into(),
+                        "/app".into(),
+                    )]),
+                }),
+                vec![("build/install/.".into(), "/app".into())],
+            )
+        } else {
+            (
+                format!("{} assemble -x test --no-daemon --console=plain", gradle_cmd),
+                Some(MemberBuildTransform {
+                    member_commands: vec![format!(
+                        "{} :{{module}}:assemble -x test --no-daemon --console=plain",
+                        gradle_cmd
+                    )],
+                    member_artifacts: Some(vec![(
+                        "{module}/build/libs/*.jar".into(),
+                        "/app/app.jar".into(),
+                    )]),
+                }),
+                vec![("build/libs/*.jar".into(), "/app/app.jar".into())],
+            )
+        };
+
+        // When a .kts file has Groovy-style attributes syntax ("key" = "value"),
+        // prepend a sed command to fix it to Kotlin DSL syntax ("key" to "value")
+        // before running the Gradle build.
+        let mut build_commands = Vec::new();
+        if needs_kts_fix {
+            let kts_filename = path.file_name().unwrap().to_string_lossy();
+            build_commands.push(format!(
+                "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' {}",
+                kts_filename
+            ));
+        }
+        build_commands.push(build_command);
+
+        // installDist produces shell scripts (#!/bin/sh) that need a POSIX shell
+        // and basic utilities (ls, uname, xargs, sed, etc.) at runtime.
+        // busybox provides /bin/sh and all required utilities.
+        let mut runtime_packages = vec![
+            java_version
+                .as_ref()
+                .map(|v| format!("openjdk-{}-jre", v))
+                .unwrap_or_else(|| "openjdk".into()),
+            "ca-certificates".into(),
+        ];
+        if use_install_dist {
+            runtime_packages.push("busybox".into());
+        }
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: JAVA,
             build_system: GRADLE,
             runtime: JVM,
-            package: gradle_version.as_ref().map(|v| Package {
-                name: String::new(), // Will be filled from settings.gradle merge
-                version: Some(v.clone()),
-                is_application,
-            }),
+            package: if gradle_version.is_some() || is_application {
+                Some(Package {
+                    name: String::new(), // Will be filled from settings.gradle merge
+                    version: gradle_version.clone(),
+                    is_application,
+                })
+            } else {
+                None
+            },
             workspace: None, // Workspace comes from SettingsGradleParser
             dependencies,
             build: BuildSpec {
@@ -123,36 +217,18 @@ impl ManifestParser for BuildGradleParser {
                     pkgs.push("ca-certificates".into());
                     pkgs
                 },
-                commands: vec![format!(
-                    "{} assemble -x test --no-daemon --console=plain",
-                    gradle_cmd
-                )],
-                member_transform: Some(MemberBuildTransform {
-                    member_commands: vec![format!(
-                        "{} :{{module}}:assemble -x test --no-daemon --console=plain",
-                        gradle_cmd
-                    )],
-                    member_artifacts: Some(vec![(
-                        "{module}/build/libs/*.jar".into(),
-                        "/app/app.jar".into(),
-                    )]),
-                }),
+                commands: build_commands,
+                member_transform,
                 env: btree(&[
                     ("JAVA_HOME", &java_home),
                     ("GRADLE_USER_HOME", "/root/.gradle"),
                     ("GRADLE_OPTS", "-Dorg.gradle.native=false"),
                 ]),
                 cache_dirs: vec![".gradle".into(), "build".into()],
-                artifacts: vec![("build/libs/*.jar".into(), "/app/app.jar".into())],
+                artifacts,
             },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    java_version
-                        .as_ref()
-                        .map(|v| format!("openjdk-{}-jre", v))
-                        .unwrap_or_else(|| "openjdk".into()),
-                    "ca-certificates".into(),
-                ],
+                packages: runtime_packages,
                 env: runtime_env,
                 entrypoint,
                 workdir: Some("/app".into()),
@@ -180,7 +256,8 @@ fn max_jdk_for_gradle_wrapper(project_dir: &Path) -> Option<u32> {
         (7, 3..=4) => 17,
         (7, 5) => 18,
         (7, _) => 19,
-        (8, 0..=3) => 20,
+        (8, 0..=2) => 19,
+        (8, 3) => 20,
         (8, 4..=5) => 21,
         (8, 6..=8) => 22,
         (8, 9..=11) => 23,
@@ -226,6 +303,133 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(BuildGradleParser))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ManifestParser;
+    use std::io::Write;
+
+    /// A .kts file with Groovy-style `"key" = "value"` in `attributes()` should
+    /// get a sed pre-build command to fix the syntax to Kotlin DSL (`"key" to "value"`).
+    #[test]
+    fn test_kts_broken_attributes_gets_sed_fix() {
+        let content = r#"
+plugins {
+    id("application")
+}
+repositories { mavenCentral() }
+dependencies {
+    implementation("com.google.guava:guava:31.1-jre")
+}
+jar {
+    manifest {
+        attributes(
+            "Main-Class" = "gradle.App"
+        )
+    }
+}
+"#;
+        let dir = tempfile::tempdir().unwrap();
+        let kts_path = dir.path().join("build.gradle.kts");
+        std::fs::write(&kts_path, content).unwrap();
+        // Create a fake gradlew so the parser uses ./gradlew
+        let gradlew_path = dir.path().join("gradlew");
+        let mut f = std::fs::File::create(&gradlew_path).unwrap();
+        f.write_all(b"#!/bin/sh\n").unwrap();
+
+        let parser = BuildGradleParser;
+        let manifest = parser.parse(&kts_path, content).unwrap();
+
+        assert_eq!(manifest.build.commands.len(), 2);
+        assert!(
+            manifest.build.commands[0].starts_with("sed -i"),
+            "First command should be a sed fix: {}",
+            manifest.build.commands[0]
+        );
+        assert!(
+            manifest.build.commands[0].contains("build.gradle.kts"),
+            "sed should target build.gradle.kts"
+        );
+        assert!(
+            manifest.build.commands[1].contains("assemble"),
+            "Second command should be gradlew assemble"
+        );
+    }
+
+    /// A non-kts (Groovy) build.gradle should NOT get a sed fix, even with the
+    /// same content pattern.
+    #[test]
+    fn test_groovy_gradle_no_sed_fix() {
+        let content = r#"
+plugins {
+    id 'application'
+}
+repositories { mavenCentral() }
+dependencies {
+    implementation 'com.google.guava:guava:31.1-jre'
+}
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'gradle.App'
+        )
+    }
+}
+"#;
+        let dir = tempfile::tempdir().unwrap();
+        let gradle_path = dir.path().join("build.gradle");
+        std::fs::write(&gradle_path, content).unwrap();
+        let gradlew_path = dir.path().join("gradlew");
+        let mut f = std::fs::File::create(&gradlew_path).unwrap();
+        f.write_all(b"#!/bin/sh\n").unwrap();
+
+        let parser = BuildGradleParser;
+        let manifest = parser.parse(&gradle_path, content).unwrap();
+
+        assert_eq!(manifest.build.commands.len(), 1);
+        assert!(
+            manifest.build.commands[0].contains("assemble"),
+            "Should have only the assemble command"
+        );
+    }
+
+    /// A valid .kts file without the broken attributes pattern should NOT get a sed fix.
+    #[test]
+    fn test_valid_kts_no_sed_fix() {
+        let content = r#"
+plugins {
+    id("application")
+}
+repositories { mavenCentral() }
+dependencies {
+    implementation("com.google.guava:guava:31.1-jre")
+}
+jar {
+    manifest {
+        attributes(
+            "Main-Class" to "gradle.App"
+        )
+    }
+}
+"#;
+        let dir = tempfile::tempdir().unwrap();
+        let kts_path = dir.path().join("build.gradle.kts");
+        std::fs::write(&kts_path, content).unwrap();
+        let gradlew_path = dir.path().join("gradlew");
+        let mut f = std::fs::File::create(&gradlew_path).unwrap();
+        f.write_all(b"#!/bin/sh\n").unwrap();
+
+        let parser = BuildGradleParser;
+        let manifest = parser.parse(&kts_path, content).unwrap();
+
+        assert_eq!(manifest.build.commands.len(), 1);
+        assert!(
+            manifest.build.commands[0].contains("assemble"),
+            "Should have only the assemble command"
+        );
+    }
+}
+
 // ── Build System Profile ────────────────────────────────────────────────────
 
 fn gradle_resolve_artifacts(
@@ -238,6 +442,16 @@ fn gradle_resolve_artifacts(
             for artifact in artifacts.iter_mut() {
                 if artifact.from.contains("*.jar") {
                     artifact.from = artifact.from.replace("*.jar", &specific_jar);
+                }
+            }
+        }
+        // For installDist artifacts, resolve the project name in the install directory path.
+        // installDist creates build/install/{projectName}/ — replace the generic path
+        // with the resolved project name.
+        if !pkg.name.is_empty() {
+            for artifact in artifacts.iter_mut() {
+                if artifact.from == "build/install/." {
+                    artifact.from = format!("build/install/{}/.", pkg.name);
                 }
             }
         }

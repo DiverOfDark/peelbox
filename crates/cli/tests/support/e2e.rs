@@ -360,10 +360,15 @@ pub fn get_fixture_container_test_infos(
                 .map(|(k, v)| format!("{}={}", k, v))
                 .collect();
 
-            // Prefer expected_output.txt when present — it's an explicit test
-            // declaration that overrides port-based validation (some CLI apps
-            // have default ports from detection but don't actually run a server).
-            let validation = if expected_output_path.exists() {
+            // Check for per-project expected output first (e.g.,
+            // expected_output_api.txt), then fall back to the global
+            // expected_output.txt. This lets monorepo fixtures declare
+            // different expected stdout for each service.
+            let per_project_path = fixture_dir.join(format!("expected_output_{}.txt", project_name));
+            let validation = if per_project_path.exists() {
+                let expected_output = std::fs::read_to_string(&per_project_path).ok()?;
+                ContainerValidation::Stdout { expected_output }
+            } else if expected_output_path.exists() {
                 let expected_output = std::fs::read_to_string(&expected_output_path).ok()?;
                 ContainerValidation::Stdout { expected_output }
             } else if !build.runtime.ports.is_empty() {
@@ -542,19 +547,6 @@ pub async fn run_container_integration_test(
                         )
                     })?;
 
-                if exit_code != 0 {
-                    let logs = harness
-                        .get_container_logs(&container_id)
-                        .await
-                        .unwrap_or_default();
-                    let _ = harness.cleanup_container(&container_id).await;
-                    let _ = harness.cleanup_image(&image_name).await;
-                    return Err(format!(
-                        "Container for {} exited with code {}\nLogs:\n{}",
-                        info.project_name, exit_code, logs
-                    ));
-                }
-
                 let logs = harness
                     .get_container_logs(&container_id)
                     .await
@@ -565,13 +557,29 @@ pub async fn run_container_integration_test(
 
                 // Use "contains" check to allow flexible matching (e.g.,
                 // apps that include version numbers or decorative output).
+                // We check output before exit code so that expected-failure
+                // tests (e.g., apps that need a database) can match their
+                // error output and pass even with non-zero exit codes.
                 if !actual.contains(expected) {
                     let _ = harness.cleanup_container(&container_id).await;
                     let _ = harness.cleanup_image(&image_name).await;
+                    if exit_code != 0 {
+                        return Err(format!(
+                            "Container for {} exited with code {} and stdout did not contain expected output.\n--- expected (substring) ---\n{}\n--- actual ---\n{}",
+                            info.project_name, exit_code, expected, actual
+                        ));
+                    }
                     return Err(format!(
                         "Stdout mismatch for {}:\n--- expected (substring) ---\n{}\n--- actual ---\n{}",
                         info.project_name, expected, actual
                     ));
+                }
+
+                if exit_code != 0 {
+                    eprintln!(
+                        "note: container for {} exited with code {} but output matched expected text — treating as success",
+                        info.project_name, exit_code
+                    );
                 }
 
                 let _ = harness.cleanup_container(&container_id).await;

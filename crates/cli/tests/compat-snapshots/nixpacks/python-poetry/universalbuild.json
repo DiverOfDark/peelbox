@@ -21,7 +21,8 @@
       },
       "commands": [
         "pip install poetry",
-        "poetry install --no-root --only main"
+        "poetry install --no-root --only main",
+        "find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
       ],
       "cache": [
         "/root/.cache/pip/",

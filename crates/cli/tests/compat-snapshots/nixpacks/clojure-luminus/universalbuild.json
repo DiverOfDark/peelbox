@@ -41,14 +41,14 @@
       },
       "copy": [
         {
-          "from": "target/uberjar/clojure-luminus-0.1.0-SNAPSHOT-standalone.jar",
-          "to": "/app/clojure-luminus-0.1.0-SNAPSHOT-standalone.jar"
+          "from": "target/uberjar/clojure-luminus.jar",
+          "to": "/app/clojure-luminus.jar"
         }
       ],
       "command": [
         "java",
         "-jar",
-        "/app/clojure-luminus-0.1.0-SNAPSHOT-standalone.jar"
+        "/app/clojure-luminus.jar"
       ],
       "workdir": "/app",
       "ports": [

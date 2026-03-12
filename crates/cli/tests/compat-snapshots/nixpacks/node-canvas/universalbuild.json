@@ -13,7 +13,12 @@
         "npm",
         "ca-certificates",
         "build-base",
-        "python-3.12"
+        "python-3.12",
+        "cairo-dev",
+        "pango-dev",
+        "libjpeg-turbo-dev",
+        "giflib-dev",
+        "pixman-dev"
       ],
       "env": {},
       "commands": [
@@ -30,7 +35,13 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "cairo",
+        "pango",
+        "libjpeg-turbo",
+        "giflib",
+        "pixman",
+        "libuuid"
       ],
       "env": {},
       "copy": [

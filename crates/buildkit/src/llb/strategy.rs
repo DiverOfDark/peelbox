@@ -124,11 +124,27 @@ impl BuildStrategy for PeelboxStrategy {
             packages_list.sort();
             let packages = packages_list.join(" ");
 
+            // When busybox is in the runtime packages, create its applet symlinks
+            // after installation. The --no-scripts flag skips post-install scripts,
+            // so busybox symlinks (sh, env, ln, etc.) won't exist otherwise.
+            // We use chroot so symlinks get correct absolute paths (e.g., /usr/bin/busybox
+            // instead of /runtime-root/usr/bin/busybox).
+            let busybox_symlinks = if spec
+                .runtime
+                .packages
+                .iter()
+                .any(|p| p == "busybox")
+            {
+                " && chroot /runtime-root /usr/bin/busybox --install -s /usr/bin"
+            } else {
+                ""
+            };
+
             let install_meta = pb::Meta {
                 args: vec![
                     "/bin/sh".to_string(),
                     "-c".to_string(),
-                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk add --root /runtime-root --no-cache --initdb {} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages),
+                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk add --root /runtime-root --no-cache --no-scripts --initdb {}{} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages, busybox_symlinks),
                 ],
                 env: vec![
                     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
@@ -204,7 +220,7 @@ impl BuildStrategy for PeelboxStrategy {
                     copy_commands.push(format!("mkdir -p {}", parent.to_string_lossy()));
                 }
 
-                copy_commands.push(format!("cp -vrL {} {}", src_path, dest_path));
+                copy_commands.push(format!("cp -vra {} {}", src_path, dest_path));
             }
             let script = copy_commands.join(" && ");
 

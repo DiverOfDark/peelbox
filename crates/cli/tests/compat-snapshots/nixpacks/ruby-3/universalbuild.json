@@ -42,7 +42,9 @@
         "tzdata",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "BUNDLE_PATH": "vendor/bundle"
+      },
       "copy": [
         {
           "from": ".",

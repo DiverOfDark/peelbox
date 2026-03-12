@@ -32,7 +32,7 @@
       "commands": [
         "mix local.hex --force && mix local.rebar --force",
         "rm -f mix.lock && mix deps.get",
-        "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && mix deps.get && mix deps.compile; }",
+        "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && find deps _build -mindepth 1 -delete 2>/dev/null; rm -f mix.lock && mix deps.get && mix deps.compile; }",
         "mix assets.deploy",
         "mix compile"
       ],

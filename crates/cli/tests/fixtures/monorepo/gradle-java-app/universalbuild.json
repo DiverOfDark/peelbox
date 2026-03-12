@@ -6,7 +6,7 @@
         "build"
       ],
       "commands": [
-        "gradle :app:assemble -x test --no-daemon --console=plain"
+        "gradle :app:installDist -x test --no-daemon --console=plain"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
@@ -27,14 +27,12 @@
     },
     "runtime": {
       "command": [
-        "java",
-        "-jar",
-        "/app/app.jar"
+        "/app/bin/app"
       ],
       "copy": [
         {
-          "from": "app/build/libs/*.jar",
-          "to": "/app/app.jar"
+          "from": "app/build/install/app/.",
+          "to": "/app"
         }
       ],
       "env": {
@@ -44,7 +42,8 @@
       },
       "packages": [
         "openjdk-21-jre",
-        "ca-certificates"
+        "ca-certificates",
+        "busybox"
       ],
       "ports": [
         8080

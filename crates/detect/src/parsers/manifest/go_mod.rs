@@ -98,7 +98,8 @@ impl ManifestParser for GoModParser {
             (
                 vec![
                     "go mod download".into(),
-                    format!("go build -o {} .", short_name),
+                    "mkdir -p bin".into(),
+                    format!("go build -o bin/{} .", short_name),
                 ],
                 Some(MemberBuildTransform {
                     member_commands: vec![

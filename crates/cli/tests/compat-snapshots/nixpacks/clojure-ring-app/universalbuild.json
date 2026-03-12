@@ -47,8 +47,11 @@
       ],
       "command": [
         "java",
-        "-jar",
-        "/app/hello-ring-0.1.0-SNAPSHOT-standalone.jar"
+        "-cp",
+        "/app/hello-ring-0.1.0-SNAPSHOT-standalone.jar",
+        "clojure.main",
+        "-m",
+        "hello-ring.core"
       ],
       "workdir": "/app",
       "ports": [

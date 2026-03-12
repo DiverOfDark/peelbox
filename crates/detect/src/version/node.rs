@@ -65,7 +65,7 @@ pub fn resolve_node_version(build: &mut UniversalBuild, wolfi: &WolfiPackageInde
     // Prepend Node.js installation command using `n` (node version manager)
     // `n` is a single shell script that can install any Node.js version
     let install_cmd = format!(
-        "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n {}",
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n {}",
         version
     );
     build.build.commands.insert(0, install_cmd);
@@ -100,7 +100,7 @@ pub fn resolve_node_version(build: &mut UniversalBuild, wolfi: &WolfiPackageInde
         let original_cmd = build.runtime.command.clone();
         if !original_cmd.is_empty() {
             let install_cmd = format!(
-                "curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n {} > /dev/null 2>&1",
+                "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n {} > /dev/null 2>&1",
                 version
             );
             let original_cmd_str = original_cmd.join(" ");
@@ -189,6 +189,7 @@ mod tests {
         assert!(build.build.packages.contains(&"bash".to_string()));
         assert!(build.build.packages.contains(&"libstdc++".to_string()));
         assert_eq!(build.build.commands.len(), 2);
+        assert!(build.build.commands[0].contains("mkdir -p /usr/local/bin"));
         assert!(build.build.commands[0].contains("/n"));
         assert!(build.build.commands[0].ends_with(" 14"));
         assert_eq!(build.build.commands[1], "npm install");
