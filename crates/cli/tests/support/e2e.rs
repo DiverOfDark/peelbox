@@ -316,6 +316,11 @@ pub enum ContainerValidation {
     Stdout {
         expected_output: String,
     },
+    /// Start container, poll logs until expected output appears, then kill.
+    /// For apps that run indefinitely but aren't reachable via port (e.g., binds to 127.0.0.1).
+    Log {
+        expected_output: String,
+    },
 }
 
 #[allow(dead_code)]
@@ -344,6 +349,7 @@ pub fn get_fixture_container_test_infos(
         .ok()?;
 
     let expected_output_path = fixture_dir.join("expected_output.txt");
+    let expected_log_path = fixture_dir.join("expected_log.txt");
 
     let infos: Vec<_> = ub
         .into_iter()
@@ -364,6 +370,10 @@ pub fn get_fixture_container_test_infos(
             // expected_output_api.txt), then fall back to the global
             // expected_output.txt. This lets monorepo fixtures declare
             // different expected stdout for each service.
+            //
+            // expected_log.txt is for apps that run indefinitely but
+            // aren't reachable via port (e.g., bind to 127.0.0.1).
+            // It polls logs while the container runs, then kills it.
             let per_project_path = fixture_dir.join(format!("expected_output_{}.txt", project_name));
             let validation = if per_project_path.exists() {
                 let expected_output = std::fs::read_to_string(&per_project_path).ok()?;
@@ -371,6 +381,9 @@ pub fn get_fixture_container_test_infos(
             } else if expected_output_path.exists() {
                 let expected_output = std::fs::read_to_string(&expected_output_path).ok()?;
                 ContainerValidation::Stdout { expected_output }
+            } else if expected_log_path.exists() {
+                let expected_output = std::fs::read_to_string(&expected_log_path).ok()?;
+                ContainerValidation::Log { expected_output }
             } else if !build.runtime.ports.is_empty() {
                 let port = build.runtime.ports.first().copied()?;
                 let health_endpoint = build.runtime.health.as_ref().map(|h| h.endpoint.clone());
@@ -404,8 +417,6 @@ pub async fn run_container_integration_test(
     category: &str,
     fixture_name: &str,
 ) -> Result<(), String> {
-    let temp_cache_dir = shared_wolfi_cache_dir();
-
     let fixture_path = fixture_path(category, fixture_name);
     let spec_path = fixture_path.join("universalbuild.json");
 
@@ -444,7 +455,6 @@ pub async fn run_container_integration_test(
                 &spec_path,
                 &fixture_path,
                 &image_name,
-                &temp_cache_dir,
                 Some(&info.project_name),
                 None,
             )
@@ -580,6 +590,56 @@ pub async fn run_container_integration_test(
                         "note: container for {} exited with code {} but output matched expected text — treating as success",
                         info.project_name, exit_code
                     );
+                }
+
+                let _ = harness.cleanup_container(&container_id).await;
+            }
+            ContainerValidation::Log { expected_output } => {
+                // Start container without port mapping — app may bind to
+                // 127.0.0.1 or otherwise not be reachable from the host.
+                let container_id = harness
+                    .start_container(
+                        &image,
+                        None,
+                        None,
+                        if info.env.is_empty() {
+                            None
+                        } else {
+                            Some(info.env.clone())
+                        },
+                    )
+                    .await
+                    .map_err(|e| {
+                        format!("Failed to start container for {}: {}", info.project_name, e)
+                    })?;
+
+                let expected = expected_output.trim();
+
+                // Poll container logs until expected output appears (up to 30s).
+                let found = async {
+                    for _ in 0..60 {
+                        if let Ok(logs) = harness.get_container_logs(&container_id).await {
+                            if logs.contains(expected) {
+                                return true;
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    false
+                }
+                .await;
+
+                if !found {
+                    let logs = harness
+                        .get_container_logs(&container_id)
+                        .await
+                        .unwrap_or_default();
+                    let _ = harness.cleanup_container(&container_id).await;
+                    let _ = harness.cleanup_image(&image_name).await;
+                    return Err(format!(
+                        "Log output for {} did not contain expected text within 30s.\n--- expected (substring) ---\n{}\n--- actual ---\n{}",
+                        info.project_name, expected, logs.trim()
+                    ));
                 }
 
                 let _ = harness.cleanup_container(&container_id).await;

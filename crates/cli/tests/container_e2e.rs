@@ -24,13 +24,7 @@ fn main() {
     .collect();
 
     // Tests identified by "category::name" that need skipping for category-specific reasons
-    let skip_full: std::collections::HashSet<&str> = [
-        "compat-nixpacks::node-puppeteer", // App navigates to external URL — requires network access
-        "compat-nixpacks::python-django-mysql", // Django runserver crashes when MySQL socket unavailable (check_migrations fails)
-        "compat-nixpacks::python-setuptools", // Flask app.run() binds to 127.0.0.1 — unreachable from outside container
-    ]
-    .into_iter()
-    .collect();
+    let skip_full: std::collections::HashSet<&str> = [].into_iter().collect();
 
     for fixture in fixtures {
         if !fixture.has_snapshot {

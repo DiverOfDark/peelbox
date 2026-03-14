@@ -95,15 +95,34 @@ impl BuildKitConnection {
             Ok(Some(endpoint)) => {
                 debug!("Found Docker BuildKit endpoint: {}", endpoint);
                 match BuildKitAddr::from_str(&endpoint) {
-                    Ok(addr) => match Self::connect_to_addr(addr).await {
-                        Ok(conn) => {
-                            info!("Connected to Docker daemon BuildKit");
-                            return Ok(conn);
+                    Ok(addr) => {
+                        let max_attempts = 5;
+                        let mut last_err = None;
+                        for attempt in 1..=max_attempts {
+                            match Self::connect_to_addr(addr.clone()).await {
+                                Ok(conn) => {
+                                    info!("Connected to Docker daemon BuildKit");
+                                    return Ok(conn);
+                                }
+                                Err(e) => {
+                                    debug!(
+                                        "Docker BuildKit connect attempt {}/{} failed: {}",
+                                        attempt, max_attempts, e
+                                    );
+                                    last_err = Some(e);
+                                    if attempt < max_attempts {
+                                        let backoff = std::time::Duration::from_secs(
+                                            1 << (attempt - 1),
+                                        );
+                                        tokio::time::sleep(backoff).await;
+                                    }
+                                }
+                            }
                         }
-                        Err(e) => {
-                            debug!("Failed to connect to Docker daemon BuildKit: {}", e);
+                        if let Some(e) = last_err {
+                            debug!("All Docker BuildKit connect attempts failed: {}", e);
                         }
-                    },
+                    }
                     Err(e) => {
                         debug!("Failed to parse Docker endpoint: {}", e);
                     }

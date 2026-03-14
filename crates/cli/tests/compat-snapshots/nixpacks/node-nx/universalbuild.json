@@ -5,7 +5,7 @@
       "project_name": "node-nx",
       "language": "JavaScript",
       "build_system": "npm",
-      "framework": "Express",
+      "framework": "Next.js",
       "reasoning": "Detected from package.json"
     },
     "build": {
@@ -47,9 +47,7 @@
         3333,
         3000
       ],
-      "health": {
-        "endpoint": "/health"
-      }
+      "health": null
     }
   }
 ]

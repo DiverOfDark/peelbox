@@ -21,25 +21,42 @@ pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
         }
     };
 
-    match docker.version().await {
-        Ok(v) => {
-            let api_version = v.api_version.unwrap_or_else(|| "0.0".to_string());
-            if let Ok(version_float) = api_version.parse::<f32>() {
-                if version_float >= 1.41 {
-                    debug!(
-                        "Docker API version {} supports native BuildKit via POST /grpc",
-                        api_version
-                    );
-                    return Ok(Some(format!("docker://{}", DOCKER_SOCKET_PATH)));
-                } else {
-                    debug!("Docker API version {} is too old for native BuildKit. Requires 1.41+ (Docker 23.0+)", api_version);
+    let max_attempts = 5;
+    let mut last_err = None;
+    for attempt in 1..=max_attempts {
+        match docker.version().await {
+            Ok(v) => {
+                let api_version = v.api_version.unwrap_or_else(|| "0.0".to_string());
+                if let Ok(version_float) = api_version.parse::<f32>() {
+                    if version_float >= 1.41 {
+                        debug!(
+                            "Docker API version {} supports native BuildKit via POST /grpc",
+                            api_version
+                        );
+                        return Ok(Some(format!("docker://{}", DOCKER_SOCKET_PATH)));
+                    } else {
+                        debug!("Docker API version {} is too old for native BuildKit. Requires 1.41+ (Docker 23.0+)", api_version);
+                    }
+                }
+                last_err = None;
+                break;
+            }
+            Err(e) => {
+                debug!(
+                    "Docker version check attempt {}/{} failed: {}",
+                    attempt, max_attempts, e
+                );
+                last_err = Some(e);
+                if attempt < max_attempts {
+                    let backoff = std::time::Duration::from_millis(500 * (1 << (attempt - 1)));
+                    tokio::time::sleep(backoff).await;
                 }
             }
         }
-        Err(e) => {
-            debug!("Failed to get Docker version: {}", e);
-            return Ok(None);
-        }
+    }
+    if let Some(e) = last_err {
+        debug!("All Docker version check attempts failed: {}", e);
+        return Ok(None);
     }
 
     let mut filters = HashMap::new();

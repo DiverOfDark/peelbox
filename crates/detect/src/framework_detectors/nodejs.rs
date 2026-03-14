@@ -33,6 +33,7 @@ impl crate::traits::FrameworkDetector for ExpressDetector {
             d.name == "@angular/ssr"
                 || d.name == "@nguniversal/express-engine"
                 || d.name == "@nestjs/core"
+                || d.name == "next"
         })
     }
 

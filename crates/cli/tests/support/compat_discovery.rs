@@ -188,8 +188,22 @@ fn assemble_compat_work_dir(
     copy_dir_recursive(external_example, work_dir)?;
 
     // Overlay all files from the snapshot directory (universalbuild.json,
-    // expected_output.txt, etc.)
+    // expected_output.txt, expected_log.txt, etc.)
+    //
+    // First, remove snapshot-managed files from the work dir that no longer
+    // exist in the snapshot dir (e.g., expected_output.txt was deleted).
+    const SNAPSHOT_MANAGED_FILES: &[&str] = &[
+        "universalbuild.json",
+        "expected_output.txt",
+        "expected_log.txt",
+    ];
     if let Some(snapshot_dir) = snapshot_file.parent() {
+        for filename in SNAPSHOT_MANAGED_FILES {
+            let work_file = work_dir.join(filename);
+            if work_file.exists() && !snapshot_dir.join(filename).exists() {
+                let _ = fs::remove_file(work_file);
+            }
+        }
         for entry in fs::read_dir(snapshot_dir)? {
             let entry = entry?;
             if entry.file_type()?.is_file() {
