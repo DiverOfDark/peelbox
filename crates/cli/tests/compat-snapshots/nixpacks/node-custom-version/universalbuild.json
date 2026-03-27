@@ -2,19 +2,20 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "node",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "reasoning": "Detected from package.json"
+      "project_name": "app",
+      "language": "Shell",
+      "build_system": "Shell",
+      "reasoning": "Detected from start.sh"
     },
     "build": {
       "packages": [
+        "ca-certificates",
         "nodejs-22",
-        "npm",
-        "ca-certificates"
+        "npm"
       ],
       "env": {},
       "commands": [
+        "chmod +x start.sh",
         "npm ci"
       ],
       "cache": [
@@ -23,10 +24,7 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-22",
-        "npm",
         "busybox",
-        "dumb-init",
         "ca-certificates"
       ],
       "env": {},
@@ -37,13 +35,10 @@
         }
       ],
       "command": [
-        "npm",
-        "start"
+        "./start.sh"
       ],
       "workdir": "/app",
-      "ports": [
-        3000
-      ]
+      "ports": []
     }
   }
 ]

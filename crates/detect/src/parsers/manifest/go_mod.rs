@@ -26,9 +26,38 @@ inventory::submit! {
     BuildSystemMeta { slug: "go-mod", display_name: "go mod", aliases: &["go-mod"] }
 }
 
-/// Check if any `.go` file in the given directory declares `package main`.
+/// Check if any `.go` file in the given directory (or its `cmd/` subdirectories)
+/// declares `package main`.
 /// This determines whether the Go module is an executable (application) or a library.
-fn has_go_main_package(dir: &Path) -> bool {
+///
+/// Returns `Some(cmd_subdir_name)` if found in `cmd/X/`, or `Some("")` if found
+/// in the root directory itself, or `None` if not found.
+fn find_go_main_package(dir: &Path) -> Option<String> {
+    // First check the root directory itself
+    if dir_has_package_main(dir) {
+        return Some(String::new());
+    }
+
+    // Then check cmd/ subdirectories (common Go project layout)
+    let cmd_dir = dir.join("cmd");
+    if let Ok(entries) = std::fs::read_dir(&cmd_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if dir_has_package_main(&path) {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        return Some(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if any `.go` file in the given directory declares `package main`.
+fn dir_has_package_main(dir: &Path) -> bool {
     let entries = match std::fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(_) => return false,
@@ -92,29 +121,56 @@ impl ManifestParser for GoModParser {
 
         // Determine if this module is an executable or a library
         let dir = path.parent().unwrap_or(Path::new("."));
-        let is_application = has_go_main_package(dir);
+        let main_location = find_go_main_package(dir);
+        let is_application = main_location.is_some();
 
-        let (commands, member_transform, artifacts, entrypoint, ports) = if is_application {
-            (
-                vec![
-                    "go mod download".into(),
-                    "mkdir -p bin".into(),
-                    format!("go build -o bin/{} .", short_name),
-                ],
-                Some(MemberBuildTransform {
-                    member_commands: vec![
+        let (commands, member_transform, artifacts, entrypoint, ports) = if let Some(ref cmd_subdir) = main_location {
+            if cmd_subdir.is_empty() {
+                // main.go is in the root directory
+                (
+                    vec![
+                        "go mod download".into(),
                         "mkdir -p bin".into(),
-                        format!("go build -o bin/{} ./{{module}}", short_name),
+                        format!("go build -o bin/{} .", short_name),
                     ],
-                    member_artifacts: None,
-                }),
-                vec![(
-                    format!("bin/{}", short_name),
-                    format!("/app/{}", short_name),
-                )],
-                Some(format!("/app/{}", short_name)),
-                vec![8080],
-            )
+                    Some(MemberBuildTransform {
+                        member_commands: vec![
+                            "mkdir -p bin".into(),
+                            format!("go build -o bin/{} ./{{module}}", short_name),
+                        ],
+                        member_artifacts: None,
+                    }),
+                    vec![(
+                        format!("bin/{}", short_name),
+                        format!("/app/{}", short_name),
+                    )],
+                    Some(format!("/app/{}", short_name)),
+                    vec![8080],
+                )
+            } else {
+                // main.go is in cmd/<subdir>/
+                let binary_name = cmd_subdir;
+                (
+                    vec![
+                        "go mod download".into(),
+                        "mkdir -p bin".into(),
+                        format!("go build -o bin/{} ./cmd/{}", binary_name, binary_name),
+                    ],
+                    Some(MemberBuildTransform {
+                        member_commands: vec![
+                            "mkdir -p bin".into(),
+                            format!("go build -o bin/{} ./{{module}}/cmd/{}", binary_name, binary_name),
+                        ],
+                        member_artifacts: None,
+                    }),
+                    vec![(
+                        format!("bin/{}", binary_name),
+                        format!("/app/{}", binary_name),
+                    )],
+                    Some(format!("/app/{}", binary_name)),
+                    vec![8080],
+                )
+            }
         } else {
             (vec![], None, vec![], None, vec![])
         };

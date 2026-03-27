@@ -115,5 +115,47 @@
         8000
       ]
     }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "reasoning": "Detected from app.py in packages/api/src/api"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "cd packages/api/src/api && echo 'No build step required'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "python",
+        "app.py"
+      ],
+      "workdir": "/app",
+      "ports": [],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

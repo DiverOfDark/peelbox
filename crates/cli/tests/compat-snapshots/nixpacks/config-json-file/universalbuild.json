@@ -1,1 +1,43 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Config",
+      "build_system": "Config",
+      "reasoning": "Detected from nixpacks.json"
+    },
+    "build": {
+      "packages": [
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "echo 'Config-only project'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "bash",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "not",
+        "the",
+        "start",
+        "command"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

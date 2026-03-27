@@ -1,1 +1,52 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "crystal",
+      "language": "Crystal",
+      "build_system": "Shards",
+      "reasoning": "Detected from shard.yml"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "curl",
+        "glibc-dev",
+        "libevent-dev",
+        "libxml2-dev",
+        "yaml-dev",
+        "openssl-dev",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "curl -fsSL https://crystal-lang.org/install.sh | bash",
+        "shards install",
+        "shards build --release"
+      ],
+      "cache": [
+        "lib"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "bin/crystal",
+          "to": "/app/bin/crystal"
+        }
+      ],
+      "command": [
+        "./bin/crystal"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "reasoning": "Detected from bot.py"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "echo 'No build step required'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "python",
+        "bot.py"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

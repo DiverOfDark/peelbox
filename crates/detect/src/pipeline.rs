@@ -298,6 +298,18 @@ fn classify_file(
         }
     }
 
+    // Try .cbl files (special case: extension-based matching for COBOL)
+    if filename.ends_with(".cbl") {
+        let cobol_parser = crate::parsers::manifest::CobolParser;
+        if let Ok(content) = std::fs::read_to_string(abs_path) {
+            if let Some(mut manifest) = ManifestParser::parse(&cobol_parser, abs_path, &content) {
+                manifest.path = rel_path.to_path_buf();
+                debug!(file = %rel_path.display(), "Parsed COBOL source file");
+                return FileKind::Manifest(Box::new(manifest));
+            }
+        }
+    }
+
     // Try .cabal files (special case: extension-based matching)
     if filename.ends_with(".cabal") {
         let cabal_parser = crate::parsers::manifest::CabalFileParser;
@@ -306,6 +318,46 @@ fn classify_file(
                 manifest.path = rel_path.to_path_buf();
                 debug!(file = %rel_path.display(), "Parsed Haskell .cabal file");
                 return FileKind::Manifest(Box::new(manifest));
+            }
+        }
+    }
+
+    // Try .ts files for Deno URL imports (e.g., https://deno.land/)
+    if filename.ends_with(".ts") && !filename.ends_with(".d.ts") {
+        if let Ok(content) = std::fs::read_to_string(abs_path) {
+            if content.contains("https://deno.land/") || content.contains("jsr:@") {
+                // Check no deno.json/deno.jsonc or package.json exists
+                let parent = abs_path.parent().unwrap_or(Path::new("."));
+                let has_manifest = parent.join("deno.json").exists()
+                    || parent.join("deno.jsonc").exists()
+                    || parent.join("package.json").exists();
+                // Also check repo root (one level up from src/)
+                let repo_has_manifest = parent
+                    .parent()
+                    .map(|p| {
+                        p.join("deno.json").exists()
+                            || p.join("deno.jsonc").exists()
+                            || p.join("package.json").exists()
+                    })
+                    .unwrap_or(false);
+                if !has_manifest && !repo_has_manifest {
+                    let deno_parser = crate::parsers::manifest::DenoJsonParser;
+                    // Provide a minimal deno.json-like content to the parser
+                    let synthetic = r#"{"tasks":{}}"#;
+                    if let Some(mut manifest) =
+                        ManifestParser::parse(&deno_parser, abs_path, synthetic)
+                    {
+                        // Override entrypoint to point to the actual .ts file
+                        let ts_path = rel_path.display().to_string();
+                        manifest.runtime_config.entrypoint = Some(format!(
+                            "deno run --allow-net --allow-read --allow-env {}",
+                            ts_path
+                        ));
+                        manifest.path = rel_path.to_path_buf();
+                        debug!(file = %rel_path.display(), "Detected Deno from URL imports in .ts file");
+                        return FileKind::Manifest(Box::new(manifest));
+                    }
+                }
             }
         }
     }
@@ -1532,6 +1584,14 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
                         *pkg = dev_pkg;
                     }
                 }
+            } else if base.starts_with("ruby-") {
+                // ruby-2.6-dev → ruby-3.0-dev (EOL version fallback)
+                let versions = wolfi.get_versions("ruby");
+                if let Some(oldest) = versions.last() {
+                    let resolved = format!("ruby-{}-dev", oldest);
+                    debug!(from = %pkg, to = %resolved, "Resolved unavailable Ruby -dev version to oldest Wolfi package");
+                    *pkg = resolved;
+                }
             }
         } else if pkg.starts_with("openjdk-") && !pkg.contains("-jre") {
             // openjdk-17 → check it exists, if not try with wolfi
@@ -1571,6 +1631,30 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             if let Some(latest) = wolfi.get_latest_version("go") {
                 debug!(from = %pkg, to = %latest, "Resolved old Go version to latest Wolfi package");
                 *pkg = latest;
+            }
+        } else if pkg.starts_with("python-")
+            && pkg[7..].chars().next().is_some_and(|c| c.is_ascii_digit())
+            && !wolfi.has_package(pkg)
+        {
+            // python-2.7 → resolve to preferred stable Python version
+            // Python 2 isn't in Wolfi; fall back to the stable Python 3.x
+            // (N-2 offset matching PREFER_STABLE_PACKAGES for broadest support).
+            if let Some(resolved) = wolfi.get_stable_version_at_offset("python", 2) {
+                debug!(from = %pkg, to = %resolved, "Resolved unavailable Python version to stable Wolfi package");
+                *pkg = resolved;
+            }
+        } else if pkg.starts_with("ruby-")
+            && !pkg.ends_with("-dev")
+            && pkg[5..].chars().next().is_some_and(|c| c.is_ascii_digit())
+            && !wolfi.has_package(pkg)
+        {
+            // ruby-2.6 → resolve to minimum available Ruby version
+            // EOL Ruby versions aren't in Wolfi; fall back to oldest available.
+            let versions = wolfi.get_versions("ruby");
+            if let Some(oldest) = versions.last() {
+                let resolved = format!("ruby-{}", oldest);
+                debug!(from = %pkg, to = %resolved, "Resolved unavailable Ruby version to oldest Wolfi package");
+                *pkg = resolved;
             }
         }
     }
@@ -2492,6 +2576,23 @@ fn read_python_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
                 && parts[1].chars().all(|c| c.is_ascii_digit())
             {
                 return Some(format!("{}.{}", parts[0], parts[1]));
+            }
+        }
+    }
+
+    // Check runtime.txt (Heroku convention: "python-3.11.4" or "python-2.7")
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join("runtime.txt");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            if let Some(version_str) = trimmed.strip_prefix("python-") {
+                let parts: Vec<&str> = version_str.split('.').collect();
+                if parts.len() >= 2
+                    && parts[0].chars().all(|c| c.is_ascii_digit())
+                    && parts[1].chars().all(|c| c.is_ascii_digit())
+                {
+                    return Some(format!("{}.{}", parts[0], parts[1]));
+                }
             }
         }
     }

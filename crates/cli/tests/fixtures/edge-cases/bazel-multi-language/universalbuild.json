@@ -2,6 +2,58 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "server",
+      "language": "Java",
+      "build_system": "Bazel",
+      "reasoning": "Detected from BUILD in java"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "bazel-7",
+        "openjdk-21",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "cd java && bazel build //:server_deploy.jar && mkdir -p _output && cp -rL bazel-bin/server_deploy.jar _output/"
+      ],
+      "cache": [
+        ".cache/bazel"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-21-default-jvm",
+        "openjdk-21-jre",
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": "8080"
+      },
+      "copy": [
+        {
+          "from": "java/_output/server_deploy.jar",
+          "to": "/app/server.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/server.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "worker",
       "language": "Python",
       "build_system": "Bazel",
@@ -46,58 +98,6 @@
       ],
       "command": [
         "/app/worker"
-      ],
-      "workdir": "/app",
-      "ports": [
-        8080
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "server",
-      "language": "Java",
-      "build_system": "Bazel",
-      "reasoning": "Detected from BUILD in java"
-    },
-    "build": {
-      "packages": [
-        "build-base",
-        "bazel-7",
-        "openjdk-21",
-        "ca-certificates"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "commands": [
-        "cd java && bazel build //:server_deploy.jar && mkdir -p _output && cp -rL bazel-bin/server_deploy.jar _output/"
-      ],
-      "cache": [
-        ".cache/bazel"
-      ]
-    },
-    "runtime": {
-      "packages": [
-        "openjdk-21-default-jvm",
-        "openjdk-21-jre",
-        "ca-certificates"
-      ],
-      "env": {
-        "PORT": "8080"
-      },
-      "copy": [
-        {
-          "from": "java/_output/server_deploy.jar",
-          "to": "/app/server.jar"
-        }
-      ],
-      "command": [
-        "java",
-        "-jar",
-        "/app/server.jar"
       ],
       "workdir": "/app",
       "ports": [

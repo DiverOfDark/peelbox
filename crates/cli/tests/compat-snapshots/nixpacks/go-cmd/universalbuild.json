@@ -1,1 +1,57 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "gin",
+      "language": "Go",
+      "build_system": "go mod",
+      "framework": "Gin",
+      "reasoning": "Detected from go.mod"
+    },
+    "build": {
+      "packages": [
+        "go-1.25",
+        "git",
+        "ca-certificates"
+      ],
+      "env": {
+        "CGO_ENABLED": "0",
+        "GOCACHE": "/build/.cache/go-build",
+        "GOMODCACHE": "/build/.cache/go-mod",
+        "GOSUMDB": "off"
+      },
+      "commands": [
+        "go mod download",
+        "mkdir -p bin",
+        "go build -o bin/server ./cmd/server"
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "bin/server",
+          "to": "/app/server"
+        }
+      ],
+      "command": [
+        "/app/server"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

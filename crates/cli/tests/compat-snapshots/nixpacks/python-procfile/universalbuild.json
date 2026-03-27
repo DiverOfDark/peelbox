@@ -1,1 +1,54 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "reasoning": "Detected from Procfile"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "true"
+      ],
+      "cache": [
+        ".cache/pip"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local/"
+        }
+      ],
+      "command": [
+        "python",
+        "src/main.py"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

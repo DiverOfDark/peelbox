@@ -1,45 +1,45 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "cpp-meson",
+      "language": "C++",
+      "build_system": "Meson",
+      "reasoning": "Detected from meson.build"
+    },
     "build": {
-      "cache": [
-        "build/"
-      ],
-      "commands": [
-        "meson setup build --buildtype=release --wipe 2>/dev/null || meson setup build --buildtype=release",
-        "meson compile -C build"
-      ],
-      "env": {},
       "packages": [
         "meson",
         "build-base",
         "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "meson setup build --buildtype=release --wipe 2>/dev/null || meson setup build --buildtype=release",
+        "meson compile -C build"
+      ],
+      "cache": [
+        "build/"
       ]
     },
-    "metadata": {
-      "build_system": "Meson",
-      "language": "C++",
-      "project_name": "cpp-meson",
-      "reasoning": "Detected from meson.build"
-    },
     "runtime": {
-      "command": [
-        "/app/cpp-meson"
+      "packages": [
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "build/cpp-meson",
           "to": "/app/cpp-meson"
         }
       ],
-      "env": {},
-      "packages": [
-        "ca-certificates"
+      "command": [
+        "/app/cpp-meson"
       ],
+      "workdir": "/app",
       "ports": [
         8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

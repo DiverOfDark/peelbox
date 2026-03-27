@@ -23,7 +23,10 @@ impl ManifestParser for BuildGradleParser {
     }
 
     fn parse(&self, path: &Path, content: &str) -> Option<Manifest> {
-        if !content.contains("plugins") && !content.contains("dependencies") {
+        if !content.contains("plugins")
+            && !content.contains("dependencies")
+            && !content.contains("apply plugin")
+        {
             return None;
         }
 
@@ -60,6 +63,23 @@ impl ManifestParser for BuildGradleParser {
                     .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
             });
 
+        // Extract Main-Class from jar manifest attributes (both Groovy and Kotlin DSL)
+        // Groovy: attributes('Main-Class': 'com.example.Main')
+        // Kotlin DSL: attributes["Main-Class"] = "com.example.Main"
+        //          or attributes("Main-Class" to "com.example.Main")
+        let jar_main_class = regex::Regex::new(
+            r#"(?s)(?:attributes\s*\(.*?['"]Main-Class['"]\s*(?::|to)\s*['"]([^'"]+)['"]|attributes\s*\[\s*"Main-Class"\s*\]\s*=\s*"([^"]+)")"#
+        )
+        .ok()
+        .and_then(|re| {
+            re.captures(content).map(|c| {
+                c.get(1)
+                    .or_else(|| c.get(2))
+                    .map(|m| m.as_str().to_string())
+            })
+        })
+        .flatten();
+
         // Detect if this is an application project (has spring-boot or application plugin)
         let has_spring_boot =
             content.contains("spring-boot") || content.contains("org.springframework.boot");
@@ -68,8 +88,11 @@ impl ManifestParser for BuildGradleParser {
             || content.contains("com.gradleup.shadow");
         let has_application_plugin = content.contains("'application'")
             || content.contains("\"application\"")
-            || content.contains("id(\"application\")");
-        let is_application = has_spring_boot || has_shadow_plugin || has_application_plugin;
+            || content.contains("id(\"application\")")
+            || is_bare_application_plugin(content);
+        let has_jar_main_class = jar_main_class.is_some();
+        let is_application =
+            has_spring_boot || has_shadow_plugin || has_application_plugin || has_jar_main_class;
 
         // Application plugin without a fat-jar producer (Spring Boot / Shadow)
         // needs installDist instead of assemble, since assemble only creates a thin jar.
@@ -97,6 +120,7 @@ impl ManifestParser for BuildGradleParser {
             // After copying to /app, the start script is at /app/bin/{name}
             Some("/app/bin/app".into())
         } else if is_application {
+            // is_application covers: spring-boot, shadow, application plugin, or jar Main-Class
             match (&project_name, &gradle_version) {
                 (Some(name), Some(ver)) => Some(format!("java -jar /app/{}-{}.jar", name, ver)),
                 _ => Some("java -jar /app/app.jar".into()),
@@ -250,6 +274,31 @@ impl ManifestParser for BuildGradleParser {
             },
         })
     }
+}
+
+/// Detect the bare `application` keyword inside a `plugins { ... }` block
+/// in Kotlin DSL. This is the shorthand for `id("application")`.
+/// We avoid false positives by only matching inside the plugins block.
+fn is_bare_application_plugin(content: &str) -> bool {
+    // Find the plugins block and check for bare `application` keyword (Kotlin DSL shorthand)
+    if let Some(plugins_start) = content.find("plugins") {
+        let rest = &content[plugins_start..];
+        if let Some(brace_start) = rest.find('{') {
+            let inner = &rest[brace_start + 1..];
+            if let Some(brace_end) = inner.find('}') {
+                let block = &inner[..brace_end];
+                // Check for `application` as a standalone token on a line
+                return block.lines().any(|line| {
+                    let trimmed = line.trim();
+                    // Match bare `application` or `application` followed by a comment
+                    trimmed == "application"
+                        || trimmed.starts_with("application //")
+                        || trimmed.starts_with("application /*")
+                });
+            }
+        }
+    }
+    false
 }
 
 /// Parse the Gradle version from `gradle/wrapper/gradle-wrapper.properties`

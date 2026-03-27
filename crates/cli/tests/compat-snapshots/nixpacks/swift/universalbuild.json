@@ -1,1 +1,49 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "swift",
+      "language": "Swift",
+      "build_system": "Swift Package Manager",
+      "reasoning": "Detected from Package.swift"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "curl",
+        "glibc-dev",
+        "libstdc++-dev",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "curl -fsSL https://swift.org/install.sh | bash -s -- --swift-version=latest",
+        "swift build -c release"
+      ],
+      "cache": [
+        ".build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".build/release/",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        ".build/release/swift"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

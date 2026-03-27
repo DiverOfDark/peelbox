@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Config",
+      "build_system": "Config",
+      "reasoning": "Detected from nixpacks.toml"
+    },
+    "build": {
+      "packages": [
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "echo 'Config-only project'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "bash",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "ffmpeg",
+        "2>&1"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

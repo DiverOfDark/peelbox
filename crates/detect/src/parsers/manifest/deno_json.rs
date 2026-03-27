@@ -28,18 +28,8 @@ impl ManifestParser for DenoJsonParser {
     }
 
     fn parse(&self, path: &Path, content: &str) -> Option<Manifest> {
-        // Strip JSONC comments for parsing
-        let clean = content
-            .lines()
-            .map(|l| {
-                if let Some(idx) = l.find("//") {
-                    &l[..idx]
-                } else {
-                    l
-                }
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+        // Strip JSONC comments for parsing (handles //, /* */, and respects strings)
+        let clean = strip_jsonc_comments(content);
 
         let json: serde_json::Value = serde_json::from_str(&clean).ok()?;
 
@@ -88,6 +78,162 @@ impl ManifestParser for DenoJsonParser {
     }
 }
 
+/// Strip JSONC comments from content, handling:
+/// - Single-line comments: `// ...`
+/// - Multi-line comments: `/* ... */`
+/// - Preserves `//` and `/*` inside JSON string literals
+fn strip_jsonc_comments(content: &str) -> String {
+    let mut result = String::with_capacity(content.len());
+    let chars: Vec<char> = content.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string = false;
+
+    while i < len {
+        if in_string {
+            // Inside a JSON string — pass through everything
+            if chars[i] == '\\' && i + 1 < len {
+                // Escaped character — emit both and skip
+                result.push(chars[i]);
+                result.push(chars[i + 1]);
+                i += 2;
+            } else if chars[i] == '"' {
+                result.push(chars[i]);
+                in_string = false;
+                i += 1;
+            } else {
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else if chars[i] == '"' {
+            result.push(chars[i]);
+            in_string = true;
+            i += 1;
+        } else if chars[i] == '/' && i + 1 < len && chars[i + 1] == '/' {
+            // Single-line comment — skip until end of line
+            i += 2;
+            while i < len && chars[i] != '\n' {
+                i += 1;
+            }
+            // Keep the newline if present (helps preserve structure)
+        } else if chars[i] == '/' && i + 1 < len && chars[i + 1] == '*' {
+            // Multi-line comment — skip until */
+            i += 2;
+            while i + 1 < len && !(chars[i] == '*' && chars[i + 1] == '/') {
+                // Preserve newlines within multi-line comments to keep line structure
+                if chars[i] == '\n' {
+                    result.push('\n');
+                }
+                i += 1;
+            }
+            if i + 1 < len {
+                i += 2; // skip */
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    result
+}
+
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(DenoJsonParser))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_strip_jsonc_single_line_comments() {
+        let input = r#"{
+  // this is a comment
+  "key": "value"
+}"#;
+        let clean = strip_jsonc_comments(input);
+        let parsed: serde_json::Value = serde_json::from_str(&clean).unwrap();
+        assert_eq!(parsed["key"], "value");
+    }
+
+    #[test]
+    fn test_strip_jsonc_multiline_comments() {
+        let input = r#"{
+  /* multiline
+     comment */
+  "key": "value"
+}"#;
+        let clean = strip_jsonc_comments(input);
+        let parsed: serde_json::Value = serde_json::from_str(&clean).unwrap();
+        assert_eq!(parsed["key"], "value");
+    }
+
+    #[test]
+    fn test_strip_jsonc_inline_multiline() {
+        let input = r#"{
+  /* :) */ "key": "value"
+}"#;
+        let clean = strip_jsonc_comments(input);
+        let parsed: serde_json::Value = serde_json::from_str(&clean).unwrap();
+        assert_eq!(parsed["key"], "value");
+    }
+
+    #[test]
+    fn test_strip_jsonc_preserves_strings() {
+        let input = r#"{
+  "url": "https://example.com/path"
+}"#;
+        let clean = strip_jsonc_comments(input);
+        let parsed: serde_json::Value = serde_json::from_str(&clean).unwrap();
+        assert_eq!(parsed["url"], "https://example.com/path");
+    }
+
+    #[test]
+    fn test_strip_jsonc_full_deno_jsonc() {
+        let input = r#"// THIS FILE HAS ALL KINDS OF COMMENTS POSSIBLE TO TEST JSONC
+{
+  //some random comment
+  "tasks": {
+    // random afterline comment
+    /* :) */ "dev": "deno run --watch main.ts",
+    "start": "deno start main.ts"
+  } /*
+    This
+    is some multiline comment
+    */,
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}"#;
+        let clean = strip_jsonc_comments(input);
+        let parsed: serde_json::Value = serde_json::from_str(&clean).unwrap();
+        assert_eq!(parsed["tasks"]["dev"], "deno run --watch main.ts");
+        assert_eq!(parsed["tasks"]["start"], "deno start main.ts");
+        assert_eq!(parsed["imports"]["@std/assert"], "jsr:@std/assert@1");
+    }
+
+    #[test]
+    fn test_deno_jsonc_parser() {
+        let input = r#"// THIS FILE HAS ALL KINDS OF COMMENTS POSSIBLE TO TEST JSONC
+{
+  //some random comment
+  "tasks": {
+    // random afterline comment
+    /* :) */ "dev": "deno run --watch main.ts",
+    "start": "deno start main.ts"
+  } /*
+    This
+    is some multiline comment
+    */,
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}"#;
+        let parser = DenoJsonParser;
+        let manifest = parser.parse(Path::new("deno.jsonc"), input).unwrap();
+        assert_eq!(manifest.language, crate::ids::LanguageId::new("deno"));
+        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("deno"));
+        assert!(manifest.package.unwrap().is_application);
+    }
 }

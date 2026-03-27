@@ -1,1 +1,107 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "client",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Next.js",
+      "reasoning": "Detected from package.json in packages/client"
+    },
+    "build": {
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install",
+        "cd packages/client && npx tsc"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npx",
+        "next",
+        "start"
+      ],
+      "workdir": "/app/packages/client",
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "server",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Fastify",
+      "reasoning": "Detected from package.json in packages/server"
+    },
+    "build": {
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install",
+        "cd packages/server && npx tsc"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": ""
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app/packages/server",
+      "ports": [
+        5555,
+        3000
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

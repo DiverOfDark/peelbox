@@ -146,6 +146,7 @@ impl ManifestParser for PackageJsonParser {
             .and_then(|v| v.as_str());
 
         let main_file = json.get("main").and_then(|v| v.as_str());
+        let module_file = json.get("module").and_then(|v| v.as_str());
 
         // Read tsconfig.json outDir if present — used to adjust the main entrypoint
         // when TypeScript compiles to a different directory.
@@ -183,6 +184,24 @@ impl ManifestParser for PackageJsonParser {
                 main.to_string()
             };
             Some(format!("node {}", resolved_main))
+        } else if build_system == BUN {
+            // Bun fallback: use module field or index.ts as the entry point
+            if let Some(module) = module_file {
+                Some(format!("bun run {}", module))
+            } else {
+                // Check for common entry files in the project directory
+                let entry = path
+                    .parent()
+                    .and_then(|dir| {
+                        for candidate in &["index.ts", "index.tsx", "index.js", "server.ts", "server.js"] {
+                            if dir.join(candidate).exists() {
+                                return Some(*candidate);
+                            }
+                        }
+                        None
+                    });
+                entry.map(|e| format!("bun run {}", e))
+            }
         } else {
             // No scripts.start, no main → entrypoint from framework fallback or none
             None

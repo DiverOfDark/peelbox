@@ -1,1 +1,51 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Scheme",
+      "build_system": "Haunt",
+      "reasoning": "Detected from haunt.scm"
+    },
+    "build": {
+      "packages": [
+        "guile",
+        "curl",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "guile -c '(use-modules (guix packages))' 2>/dev/null || (curl -fsSL https://git.savannah.gnu.org/cgit/haunt.git/snapshot/haunt-0.3.0.tar.gz | tar -xz && cd haunt-0.3.0 && ./configure && make install && cd .. && rm -rf haunt-0.3.0)",
+        "haunt build"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "site",
+          "to": "/app/site"
+        }
+      ],
+      "command": [
+        "busybox",
+        "httpd",
+        "-f",
+        "-p",
+        "8080",
+        "-h",
+        "/app/site"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]
