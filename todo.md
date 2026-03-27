@@ -1,7 +1,7 @@
 # Compat Test Coverage TODO
 
 Cross-validation of peelbox against railpack and nixpacks external fixtures.
-Current state: **262 passing, 82 ignored (empty detection), 0 failing**.
+Current state: **290 passing, 54 ignored (empty detection), 0 failing**.
 
 ## How this works
 
@@ -20,7 +20,7 @@ Current state: **262 passing, 82 ignored (empty detection), 0 failing**.
 
 ---
 
-## Ignored tests (82) — empty detection result
+## Ignored tests (54) — empty detection result
 
 These fixtures produce an empty `[]` — peelbox found no recognizable manifests or language stacks. Grouped by root cause.
 
@@ -47,7 +47,7 @@ Languages peelbox doesn't support at all yet. Each would need a new manifest par
 - [ ] `compat-railpack::node-bun` — Bun project (`bun.lockb`, `index.ts`)
 - [ ] `compat-railpack::node-bun-workspaces` — Bun workspaces
 
-### Static file / shell / config-only projects (20)
+### Static file / shell / config-only projects (19)
 
 Projects that are not traditional compiled/interpreted apps — static HTML, shell scripts, config-driven builds, or env-var-only projects.
 
@@ -58,7 +58,6 @@ Projects that are not traditional compiled/interpreted apps — static HTML, she
 - [ ] `compat-nixpacks::custom-plan-path` — config-only
 - [ ] `compat-nixpacks::custom-user` — config-only
 - [ ] `compat-nixpacks::pin_archive` — config-only
-- [ ] `compat-nixpacks::overriding-environment-variables` — env var config only
 - [ ] `compat-nixpacks::config-from-environment-variables` — env var config only
 - [ ] `compat-nixpacks::config-json-file` — JSON config only
 - [ ] `compat-nixpacks::config-toml-file` — TOML config only
@@ -72,51 +71,24 @@ Projects that are not traditional compiled/interpreted apps — static HTML, she
 - [ ] `compat-railpack::staticfile-config` — static file serving
 - [ ] `compat-railpack::staticfile-index` — static `index.html`
 
-### Node.js detection gaps (19)
+### Node.js detection gaps (3)
 
 Node.js projects that produce empty results due to missing lockfile handling, missing framework detection, or tool-specific config.
 
-#### Vite / SPA frameworks without lockfiles (12)
+#### Vite / SPA frameworks without lockfiles (1)
 
 These have `package.json` but no lockfile, or use framework-specific config peelbox doesn't parse.
 
-- [ ] `compat-nixpacks::node-vite-lit-ts` — Vite + Lit (TypeScript)
 - [ ] `compat-nixpacks::node-vite-preact-ts` — Vite + Preact
-- [ ] `compat-nixpacks::node-vite-qwik-ts` — Vite + Qwik
-- [ ] `compat-nixpacks::node-vite-react-ts` — Vite + React (TypeScript)
-- [ ] `compat-nixpacks::node-vite-solid-ts` — Vite + Solid
-- [ ] `compat-nixpacks::node-vite-svelte-ts` — Vite + Svelte (TypeScript)
-- [ ] `compat-nixpacks::node-vite-vanilla-ts` — Vite vanilla TypeScript
-- [ ] `compat-nixpacks::node-vite-vue-ts` — Vite + Vue (TypeScript)
-- [ ] `compat-railpack::node-vite-react` — Vite + React
-- [ ] `compat-railpack::node-vite-react-router-spa` — Vite + React Router SPA
-- [ ] `compat-railpack::node-vite-svelte` — Vite + Svelte
-- [ ] `compat-railpack::node-vite-vanilla` — Vite vanilla
 
-#### Other Node.js issues (7)
+#### Other Node.js issues (2)
 
-- [ ] `compat-nixpacks::node-no-scripts` — `package.json` without scripts section
-- [ ] `compat-nixpacks::node-main-file` — `package.json` with `main` field but no start script
-- [ ] `compat-nixpacks::node-main-file-not-exist` — `main` field points to non-existent file
-- [ ] `compat-nixpacks::node-custom-cache-directories` — custom cache config
-- [ ] `compat-nixpacks::node-react-router-v7-spa` — React Router v7 SPA mode
-- [ ] `compat-nixpacks::node-variables` — env variable usage in build
-- [ ] `compat-nixpacks::node-typescript-incremental` — TypeScript incremental builds
-- [ ] `compat-nixpacks::node-typescript-incremental-extends` — TypeScript extends
-- [ ] `compat-nixpacks::node-typescript-incremental-out-dir` — TypeScript outDir
-- [ ] `compat-nixpacks::node-typescript-incremental-tsbuildinfo-path` — tsBuildInfoFile path
-- [ ] `compat-railpack::node-astro` — Astro (no lockfile)
-- [ ] `compat-railpack::node-nuxt` — Nuxt (no lockfile or missing detection)
-- [ ] `compat-railpack::node-puppeteer` — Puppeteer (system deps needed)
-- [ ] `compat-railpack::node-svelte-kit` — SvelteKit (no lockfile)
 - [ ] `compat-railpack::node-npm-workspaces` — npm workspaces
 - [ ] `compat-railpack::node-yarn-workspaces` — Yarn workspaces
 
-### Monorepo / workspace gaps (3)
+### Monorepo / workspace gaps (1)
 
 - [ ] `compat-nixpacks::node-moon-monorepo` — Moon workspace tool
-- [ ] `compat-nixpacks::node-nx-20` — Nx 20 workspace
-- [ ] `compat-nixpacks::nested` — nested project structure
 
 ### Go detection gaps (4)
 
@@ -158,11 +130,13 @@ Go projects with only `main.go` (no `go.mod`) or multi-cmd layout.
 
 ## Priority recommendation
 
-1. **Node.js Vite/lockfile gaps** (12) — high-impact, covers popular frameworks, likely a few parser fixes.
-2. **Node.js other gaps** (7+) — workspace support, TypeScript incremental, misc edge cases.
-3. **Go/Java/Clojure/Ruby/Deno detection gaps** (11) — small targeted parser fixes.
-4. **Unsupported languages** (13) — new parser work, lower priority unless users request.
-5. **Static/shell/config-only** (20) — fundamentally different from build detection; may need a new detection category.
+1. **Go/Java/Clojure/Ruby/Deno detection gaps** (11) — small targeted parser fixes.
+2. **Node.js remaining gaps** (3) — Vite+Preact, npm workspaces, yarn workspaces.
+3. **Unsupported languages** (13) — new parser work, lower priority unless users request.
+4. **Unsupported runtimes: Bun** (2) — new runtime support needed.
+5. **Static/shell/config-only** (19) — fundamentally different from build detection; may need a new detection category.
+6. **Python edge cases** (5) — Python 2, Procfile-only, mixed Node+Python.
+7. **Monorepo gaps** (1) — Moon workspace tool.
 
    Summary [1001.357s] 944 tests run: 944 passed, 164 skipped
    Summary [1585.171s] 1006 tests run: 990 passed (5 slow), 16 failed, 102 skipped
