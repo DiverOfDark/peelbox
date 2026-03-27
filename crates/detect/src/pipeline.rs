@@ -177,6 +177,11 @@ pub fn detect_with_registry_and_wolfi(
         wrap_yarn_corepack_entrypoint(build);
     }
 
+    // Step 9: Provide fallback entrypoints for detected frameworks without scripts.start
+    for build in &mut builds {
+        provide_framework_fallback_entrypoint(build);
+    }
+
     // Filter out non-application builds (e.g., library crates, utility packages)
     builds.retain(|b| !b.runtime.command.is_empty());
 
@@ -636,12 +641,52 @@ fn partition(
                 }
             }
 
-            // Merge framework from other manifests (unless primary is a lock file)
+            // Merge framework from other manifests (unless primary is a lock file).
+            // Lock file primaries skip this because their dependency lists may differ
+            // from package.json, and merging could introduce incorrect framework
+            // contributions (e.g., health endpoints, runtime commands) that break
+            // the container runtime. Instead, lock file primaries merge devDependency-
+            // based frameworks separately (see below).
             if primary.framework.is_none() && lock_file_idx.is_none() {
                 for other in manifests_in_dir.iter() {
                     if other.framework.is_some() {
                         primary.framework = other.framework.clone();
                         break;
+                    }
+                }
+            }
+
+            // For lock file primaries: merge framework ONLY from devDependency-based
+            // detection. This covers cases like Vite, SvelteKit, Astro where the
+            // framework package is a devDependency not included in lock file manifests.
+            // We avoid merging production-dep frameworks (Fastify, Express) since
+            // the lock file's own detection should handle those.
+            if primary.framework.is_none() && lock_file_idx.is_some() {
+                for other in manifests_in_dir.iter() {
+                    if let Some(ref fw) = other.framework {
+                        // Only merge if the framework was detected via devDependencies
+                        let is_dev_framework = other
+                            .manifest
+                            .dependencies
+                            .iter()
+                            .filter(|d| d.scope == DepScope::Dev)
+                            .any(|d| {
+                                // Check if any dev dep name matches common build tool patterns
+                                let n = d.name.as_str();
+                                n == "vite"
+                                    || n.starts_with("@sveltejs/")
+                                    || n == "astro"
+                                    || n.starts_with("@react-router/")
+                                    || n.starts_with("@remix-run/")
+                                    || n.starts_with("@solidjs/")
+                                    || n.starts_with("@tanstack/")
+                                    || n == "nuxt"
+                                    || n == "nuxt3"
+                            });
+                        if is_dev_framework {
+                            primary.framework = Some(fw.clone());
+                            break;
+                        }
                     }
                 }
             }
@@ -831,6 +876,19 @@ fn partition(
                         }
                     }
 
+                    // For workspace members that are libraries (no start/build scripts,
+                    // no framework detected), clear any main-field-derived entrypoint
+                    // to prevent false-positive service detection.
+                    let is_app = mwf
+                        .manifest
+                        .package
+                        .as_ref()
+                        .map(|p| p.is_application)
+                        .unwrap_or(false);
+                    if !is_app && mwf.framework.is_none() {
+                        mwf.manifest.runtime_config.entrypoint = None;
+                    }
+
                     buckets.push(ServiceBucket {
                         path: member_dir,
                         manifest: mwf.manifest,
@@ -842,9 +900,46 @@ fn partition(
                 }
             }
 
-            // Remove workspace root from merged so it doesn't become a standalone project.
-            // Workspace roots coordinate member builds but are not deployable services themselves.
-            merged.remove(ws_root);
+            // Remove workspace root from merged so it doesn't become a standalone project,
+            // UNLESS the root itself is an application AND no workspace members are
+            // applications. This handles pnpm workspaces where the root has scripts.start
+            // and workspace packages are internal libraries (not deployable services).
+            let any_member_is_app = buckets
+                .iter()
+                .filter(|b| b.workspace_root.as_ref() == Some(ws_root))
+                .any(|b| {
+                    b.manifest
+                        .package
+                        .as_ref()
+                        .map(|p| p.is_application)
+                        .unwrap_or(false)
+                        || b.framework.is_some()
+                });
+
+            if !any_member_is_app {
+                if let Some(ws_mwf) = merged.get(ws_root) {
+                    let root_is_app = ws_mwf
+                        .manifest
+                        .package
+                        .as_ref()
+                        .map(|p| p.is_application)
+                        .unwrap_or(false);
+                    let root_has_framework = ws_mwf.framework.is_some();
+                    let root_has_entrypoint = ws_mwf.manifest.runtime_config.entrypoint.is_some();
+
+                    if root_is_app || root_has_framework || root_has_entrypoint {
+                        // Keep the workspace root as a standalone project — it's the only
+                        // deployable service (e.g., pnpm workspace with library packages)
+                    } else {
+                        merged.remove(ws_root);
+                    }
+                } else {
+                    merged.remove(ws_root);
+                }
+            } else {
+                // Workspace has application members — the root is just a coordinator
+                merged.remove(ws_root);
+            }
         }
     }
 
@@ -2449,6 +2544,76 @@ fn replace_package(packages: &mut [String], unversioned: &str, versioned: &str) 
             *pkg = versioned.to_string();
         }
     }
+}
+
+// ── Framework fallback entrypoints ───────────────────────────────────────
+
+/// For detected frameworks without an explicit start script, provide a
+/// production-ready fallback entrypoint command. This only triggers when
+/// the build has a detected framework but no runtime command (i.e., no
+/// scripts.start, no main field, no Procfile).
+fn provide_framework_fallback_entrypoint(build: &mut UniversalBuild) {
+    if !build.runtime.command.is_empty() {
+        return;
+    }
+    let framework = match build.metadata.framework.as_deref() {
+        Some(fw) => fw,
+        None => return,
+    };
+
+    // Build the exec prefix based on package manager.
+    // npx is only available when npm is installed; pnpm/yarn use their own exec commands.
+    let exec_prefix: Vec<&str> = match build.metadata.build_system.as_str() {
+        "Bun" => vec!["bunx"],
+        "pnpm" => vec!["pnpm", "exec"],
+        "Yarn" => vec!["yarn"],
+        _ => vec!["npx"],
+    };
+
+    // Helper: build a command with the package-manager exec prefix
+    let with_exec = |args: &[&str]| -> Vec<String> {
+        exec_prefix
+            .iter()
+            .chain(args.iter())
+            .map(|s| s.to_string())
+            .collect()
+    };
+
+    let command: Vec<String> = match framework {
+        // SPA / static build frameworks — serve built output
+        "Vite" => with_exec(&["vite", "preview", "--host", "0.0.0.0"]),
+        "Create React App" => with_exec(&["serve", "-s", "build"]),
+        "Angular" => with_exec(&["serve", "-s", "dist/browser"]),
+        "Gatsby" => with_exec(&["gatsby", "serve", "-H", "0.0.0.0"]),
+
+        // SSR / full-stack frameworks — run the built server
+        "Nuxt" => vec!["node", ".output/server/index.mjs"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "Astro" => with_exec(&["astro", "preview", "--host", "0.0.0.0"]),
+        "SvelteKit" => vec!["node", "build/index.js"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "React Router" => with_exec(&["react-router-serve", "build/server/index.js"]),
+        "Next.js" => with_exec(&["next", "start"]),
+        "Remix" => with_exec(&["remix-serve", "build/server/index.js"]),
+        "SolidStart" => vec!["node", ".output/server/index.mjs"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "Docusaurus" => with_exec(&["docusaurus", "serve"]),
+
+        _ => return,
+    };
+
+    debug!(
+        framework = framework,
+        command = ?command,
+        "Providing framework fallback entrypoint"
+    );
+    build.runtime.command = command;
 }
 
 // ── Yarn Berry corepack entrypoint wrapping ─────────────────────────────

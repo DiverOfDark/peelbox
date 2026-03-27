@@ -1,55 +1,55 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "Gradle",
+      "reasoning": "Detected from build.gradle in app"
+    },
     "build": {
-      "cache": [
-        ".gradle",
-        "build"
-      ],
-      "commands": [
-        "gradle :app:installDist -x test --no-daemon --console=plain"
+      "packages": [
+        "openjdk-21",
+        "gradle-8",
+        "ca-certificates"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
         "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
       },
-      "packages": [
-        "openjdk-21",
-        "gradle-8",
-        "ca-certificates"
+      "commands": [
+        "gradle :app:installDist -x test --no-daemon --console=plain"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
       ]
     },
-    "metadata": {
-      "build_system": "Gradle",
-      "language": "Java",
-      "project_name": "app",
-      "reasoning": "Detected from build.gradle in app"
-    },
     "runtime": {
-      "command": [
-        "/app/bin/app"
-      ],
-      "copy": [
-        {
-          "from": "app/build/install/app/.",
-          "to": "/app"
-        }
+      "packages": [
+        "openjdk-21-jre",
+        "ca-certificates",
+        "busybox"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
         "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "PORT": "8080"
       },
-      "packages": [
-        "openjdk-21-jre",
-        "ca-certificates",
-        "busybox"
+      "copy": [
+        {
+          "from": "app/build/install/app/.",
+          "to": "/app"
+        }
       ],
+      "command": [
+        "/app/bin/app"
+      ],
+      "workdir": "/app",
       "ports": [
         8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      ]
+    }
   }
 ]

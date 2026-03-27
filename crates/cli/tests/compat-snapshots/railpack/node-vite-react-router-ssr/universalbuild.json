@@ -5,6 +5,7 @@
       "project_name": "node-vite-react-router-ssr",
       "language": "JavaScript",
       "build_system": "pnpm",
+      "framework": "React Router",
       "reasoning": "Detected from pnpm-lock.yaml"
     },
     "build": {

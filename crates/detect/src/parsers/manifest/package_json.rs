@@ -145,6 +145,23 @@ impl ManifestParser for PackageJsonParser {
             .and_then(|s| s.get("start"))
             .and_then(|v| v.as_str());
 
+        let main_file = json.get("main").and_then(|v| v.as_str());
+
+        // Read tsconfig.json outDir if present — used to adjust the main entrypoint
+        // when TypeScript compiles to a different directory.
+        let ts_out_dir = path
+            .parent()
+            .and_then(|dir| {
+                let tsconfig_path = dir.join("tsconfig.json");
+                let content = std::fs::read_to_string(tsconfig_path).ok()?;
+                let tsconfig: serde_json::Value = serde_json::from_str(&content).ok()?;
+                tsconfig
+                    .get("compilerOptions")
+                    .and_then(|co| co.get("outDir"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.trim_end_matches('/').to_string())
+            });
+
         let entrypoint = if let Some(script) = start_script {
             // scripts.start takes priority — it defines how to run the application
             if script.starts_with("node ") {
@@ -152,8 +169,22 @@ impl ManifestParser for PackageJsonParser {
             } else {
                 Some(format!("{} start", pkg_manager))
             }
+        } else if let Some(main) = main_file {
+            // main field fallback — treat as the application entry point.
+            // When TypeScript has outDir, the compiled JS is under that directory.
+            let resolved_main = if let Some(ref out_dir) = ts_out_dir {
+                // Only prepend outDir if main doesn't already start with it
+                if main.starts_with(&format!("{}/", out_dir)) || main.starts_with(&format!("{out_dir}\\")) {
+                    main.to_string()
+                } else {
+                    format!("{}/{}", out_dir, main)
+                }
+            } else {
+                main.to_string()
+            };
+            Some(format!("node {}", resolved_main))
         } else {
-            // No scripts.start → no entrypoint (main field is for library entry, not runtime)
+            // No scripts.start, no main → entrypoint from framework fallback or none
             None
         };
 
@@ -175,14 +206,33 @@ impl ManifestParser for PackageJsonParser {
             }
         };
 
+        // Detect TypeScript projects without a build script — add tsc compilation step
+        let has_typescript_dep = json
+            .get("devDependencies")
+            .and_then(|d| d.get("typescript"))
+            .is_some()
+            || json
+                .get("dependencies")
+                .and_then(|d| d.get("typescript"))
+                .is_some();
+        let has_tsconfig = path.is_absolute()
+            && path
+                .parent()
+                .map(|d| d.join("tsconfig.json").exists())
+                .unwrap_or(false);
+
         let mut build_commands = vec![install_cmd.clone()];
         if has_build {
             build_commands.push(format!("{} run build", pkg_manager));
+        } else if has_typescript_dep && has_tsconfig {
+            build_commands.push("npx tsc".to_string());
         }
 
         let mut member_commands = vec![install_cmd];
         if has_build {
             member_commands.push(format!("cd {{module}} && {} run build", pkg_manager));
+        } else if has_typescript_dep && has_tsconfig {
+            member_commands.push("cd {module} && npx tsc".to_string());
         }
 
         Some(Manifest {

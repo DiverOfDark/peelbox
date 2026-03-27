@@ -1,36 +1,42 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api-service",
+      "language": "Java",
+      "build_system": "Maven",
+      "framework": "Spring Boot",
+      "reasoning": "Detected from pom.xml in api-service"
+    },
     "build": {
-      "cache": [
-        "/root/.m2/repository"
-      ],
-      "commands": [
-        "mvn -pl api-service -am install -DskipTests",
-        "mvn -pl api-service dependency:copy-dependencies -DoutputDirectory=target/lib"
+      "packages": [
+        "openjdk-17",
+        "maven-3.9",
+        "ca-certificates"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
       },
-      "packages": [
-        "openjdk-17",
-        "maven-3.9",
-        "ca-certificates"
+      "commands": [
+        "mvn -pl api-service -am install -DskipTests",
+        "mvn -pl api-service dependency:copy-dependencies -DoutputDirectory=target/lib"
+      ],
+      "cache": [
+        "/root/.m2/repository"
       ]
     },
-    "metadata": {
-      "build_system": "Maven",
-      "framework": "Spring Boot",
-      "language": "Java",
-      "project_name": "api-service",
-      "reasoning": "Detected from pom.xml in api-service"
-    },
     "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/api-service-1.0.0.jar"
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
       ],
+      "env": {
+        "CLASSPATH": "/app/*:/app/lib/*",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
       "copy": [
         {
           "from": "api-service/target/*.jar",
@@ -41,58 +47,58 @@
           "to": "/app/lib"
         }
       ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/api-service-1.0.0.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ],
+      "health": {
+        "endpoint": "/actuator/health"
+      }
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web-service",
+      "language": "Java",
+      "build_system": "Maven",
+      "framework": "Spring Boot",
+      "reasoning": "Detected from pom.xml in web-service"
+    },
+    "build": {
+      "packages": [
+        "openjdk-17",
+        "maven-3.9",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
+      },
+      "commands": [
+        "mvn -pl web-service -am install -DskipTests",
+        "mvn -pl web-service dependency:copy-dependencies -DoutputDirectory=target/lib"
+      ],
+      "cache": [
+        "/root/.m2/repository"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
+      ],
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "PORT": "8080"
       },
-      "health": {
-        "endpoint": "/actuator/health"
-      },
-      "packages": [
-        "openjdk-17-jre",
-        "ca-certificates"
-      ],
-      "ports": [
-        8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
-  },
-  {
-    "build": {
-      "cache": [
-        "/root/.m2/repository"
-      ],
-      "commands": [
-        "mvn -pl web-service -am install -DskipTests",
-        "mvn -pl web-service dependency:copy-dependencies -DoutputDirectory=target/lib"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
-      },
-      "packages": [
-        "openjdk-17",
-        "maven-3.9",
-        "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Maven",
-      "framework": "Spring Boot",
-      "language": "Java",
-      "project_name": "web-service",
-      "reasoning": "Detected from pom.xml in web-service"
-    },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/web-service-1.0.0.jar"
-      ],
       "copy": [
         {
           "from": "web-service/target/*.jar",
@@ -103,24 +109,18 @@
           "to": "/app/lib"
         }
       ],
-      "env": {
-        "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "PORT": "8080"
-      },
-      "health": {
-        "endpoint": "/actuator/health"
-      },
-      "packages": [
-        "openjdk-17-jre",
-        "ca-certificates"
+      "command": [
+        "java",
+        "-jar",
+        "/app/web-service-1.0.0.jar"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/actuator/health"
+      }
+    }
   }
 ]

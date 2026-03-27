@@ -2,59 +2,48 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "backend",
-      "language": "Java",
-      "build_system": "Maven",
-      "reasoning": "Detected from pom.xml in backend"
+      "project_name": "frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json in frontend"
     },
     "build": {
       "packages": [
-        "openjdk-17",
-        "maven-3.9",
+        "nodejs-25",
+        "npm",
         "ca-certificates"
       ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
-      },
+      "env": {},
       "commands": [
-        "mvn -f backend/pom.xml package -DskipTests",
-        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib && mkdir -p backend/target/lib"
+        "cd frontend && npm ci",
+        "cd frontend && npm run build"
       ],
       "cache": [
-        "/root/.m2/repository"
+        ".npm"
       ]
     },
     "runtime": {
       "packages": [
-        "openjdk-17-jre",
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
         "ca-certificates"
       ],
-      "env": {
-        "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "PORT": "8080"
-      },
+      "env": {},
       "copy": [
         {
-          "from": "backend/target/*.jar",
+          "from": ".",
           "to": "/app/"
-        },
-        {
-          "from": "backend/target/lib/",
-          "to": "/app/lib"
         }
       ],
       "command": [
-        "java",
-        "-cp",
-        "/app/*:/app/lib/*",
-        "com.example.Backend"
+        "npm",
+        "start"
       ],
       "workdir": "/app",
       "ports": [
-        8080
+        3000
       ]
     }
   },
@@ -110,48 +99,59 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "frontend",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "reasoning": "Detected from package.json in frontend"
+      "project_name": "backend",
+      "language": "Java",
+      "build_system": "Maven",
+      "reasoning": "Detected from pom.xml in backend"
     },
     "build": {
       "packages": [
-        "nodejs-25",
-        "npm",
+        "openjdk-17",
+        "maven-3.9",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
+      },
       "commands": [
-        "cd frontend && npm ci",
-        "cd frontend && npm run build"
+        "mvn -f backend/pom.xml package -DskipTests",
+        "mvn -f backend/pom.xml dependency:copy-dependencies -DoutputDirectory=target/lib && mkdir -p backend/target/lib"
       ],
       "cache": [
-        ".npm"
+        "/root/.m2/repository"
       ]
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
-        "npm",
-        "busybox",
-        "dumb-init",
+        "openjdk-17-jre",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "CLASSPATH": "/app/*:/app/lib/*",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
       "copy": [
         {
-          "from": ".",
+          "from": "backend/target/*.jar",
           "to": "/app/"
+        },
+        {
+          "from": "backend/target/lib/",
+          "to": "/app/lib"
         }
       ],
       "command": [
-        "npm",
-        "start"
+        "java",
+        "-cp",
+        "/app/*:/app/lib/*",
+        "com.example.Backend"
       ],
       "workdir": "/app",
       "ports": [
-        3000
+        8080
       ]
     }
   }

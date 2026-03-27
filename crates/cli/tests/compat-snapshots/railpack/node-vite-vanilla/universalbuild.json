@@ -1,1 +1,54 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-vite-vanilla",
+      "language": "JavaScript",
+      "build_system": "Bun",
+      "framework": "Vite",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "bun",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "bun install",
+        "bun run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "bun",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "bunx",
+        "vite",
+        "preview",
+        "--host",
+        "0.0.0.0"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5173
+      ]
+    }
+  }
+]

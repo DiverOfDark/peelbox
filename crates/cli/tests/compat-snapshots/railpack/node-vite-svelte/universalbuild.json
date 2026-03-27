@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-vite-svelte",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "framework": "Vite",
+      "reasoning": "Detected from pnpm-lock.yaml"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "build-base",
+        "python-3.12",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pnpm install",
+        "pnpm build"
+      ],
+      "cache": [
+        ".pnpm-store"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "pnpm",
+        "exec",
+        "vite",
+        "preview",
+        "--host",
+        "0.0.0.0"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5173
+      ]
+    }
+  }
+]

@@ -1,1 +1,49 @@
-[]
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-main-file-not-exist",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "node",
+        "inbex.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

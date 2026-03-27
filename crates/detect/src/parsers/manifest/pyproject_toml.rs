@@ -121,14 +121,15 @@ impl ManifestParser for PyProjectTomlParser {
                         "ca-certificates".into(),
                     ],
                     commands: vec![
-                        "pip install poetry".into(),
-                        "poetry install --no-root --only main".into(),
-                        // Fix venv shebangs: Poetry creates the venv at /build/.venv but
-                        // artifacts are copied to /app/.venv in the runtime image. Script
-                        // shebangs (e.g. #!/build/.venv/bin/python) must be rewritten so
-                        // they resolve correctly at runtime. Also recreate the python
-                        // symlinks to point at the system interpreter.
-                        "find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python".into(),
+                        "pip install poetry poetry-plugin-export".into(),
+                        // Ensure a lockfile exists (no-op if one is already present),
+                        // then export to requirements.txt and install via pip.
+                        // Poetry 2.x's modern installer rejects wheels whose ABI tags
+                        // don't precisely match the target Python (common on Wolfi/Alpine).
+                        // Using pip as the installer provides proper sdist fallback.
+                        "poetry lock --no-update 2>/dev/null || poetry lock".into(),
+                        "poetry export --without-hashes -f requirements.txt -o requirements.txt --only main".into(),
+                        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python".into(),
                     ],
                     member_transform: None,
                     env: btree(&[

@@ -82,7 +82,7 @@ impl ManifestParser for PnpmLockParser {
                 version,
                 is_application: has_start,
             }),
-            workspace: None,
+            workspace: parse_pnpm_workspace_yaml(dir),
             dependencies,
             build: BuildSpec {
                 packages: vec![
@@ -132,6 +132,38 @@ impl ManifestParser for PnpmLockParser {
             },
         })
     }
+}
+
+/// Parse `pnpm-workspace.yaml` to extract workspace member globs.
+///
+/// pnpm uses a separate `pnpm-workspace.yaml` file (not the `workspaces` field
+/// in `package.json`) to define workspace members. The file format is:
+///
+/// ```yaml
+/// packages:
+///   - "packages/*"
+///   - "apps/*"
+/// ```
+fn parse_pnpm_workspace_yaml(dir: &Path) -> Option<Workspace> {
+    let ws_path = dir.join("pnpm-workspace.yaml");
+    let content = std::fs::read_to_string(&ws_path).ok()?;
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&content).ok()?;
+
+    let packages = yaml.get("packages")?;
+    let members: Vec<String> = packages
+        .as_sequence()?
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect();
+
+    if members.is_empty() {
+        return None;
+    }
+
+    Some(Workspace {
+        members,
+        orchestrator: None,
+    })
 }
 
 inventory::submit! {

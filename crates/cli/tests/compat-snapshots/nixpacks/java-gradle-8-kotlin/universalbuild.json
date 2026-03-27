@@ -20,6 +20,7 @@
       },
       "commands": [
         "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' build.gradle.kts",
+        "sed -i 's/^jar {/tasks.jar {/' build.gradle.kts",
         "./gradlew assemble -x test --no-daemon --console=plain"
       ],
       "cache": [

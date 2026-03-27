@@ -50,7 +50,7 @@ impl ManifestParser for MesonBuildParser {
                     "ca-certificates".into(),
                 ],
                 commands: vec![
-                    "meson setup build --buildtype=release".into(),
+                    "meson setup build --buildtype=release --wipe 2>/dev/null || meson setup build --buildtype=release".into(),
                     "meson compile -C build".into(),
                 ],
                 member_transform: None,
