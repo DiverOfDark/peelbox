@@ -164,6 +164,10 @@ Go projects with only `main.go` (no `go.mod`) or multi-cmd layout.
 4. **Unsupported languages** (13) — new parser work, lower priority unless users request.
 5. **Static/shell/config-only** (20) — fundamentally different from build detection; may need a new detection category.
 
+   Summary [1001.357s] 944 tests run: 944 passed, 164 skipped
+   Summary [1585.171s] 1006 tests run: 990 passed (5 slow), 16 failed, 102 skipped
+   Summary [3440.891s] 1000 tests run: 1000 passed (24 slow), 108 skipped
+
 
 TODO:
  - fix strange ruby sed thingy, instead install ruby of correct versino from Gemfile.
