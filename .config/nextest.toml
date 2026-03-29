@@ -11,7 +11,7 @@ path = "junit.xml"
 
 [test-groups]
 serial-tests = { max-threads = 1 }
-container-tests = { max-threads = 4 }
+container-tests = { max-threads = 8 }
 ci-container-tests = { max-threads = 4 }
 
 [[profile.default.overrides]]
