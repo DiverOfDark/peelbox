@@ -98,9 +98,44 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FlaskDetector))
 }
 
-// ── Flask (Poetry) ──────────────────────────────────────────────────────────
+// ── Flask (venv-based: Poetry, PDM, UV) ────────────────────────────────────
 
-/// Flask detector for Poetry projects (uses .venv instead of --user install)
+/// Shared contribution for Flask detectors that use a virtual environment.
+///
+/// Poetry, PDM, and UV all install into a `.venv` directory rather than using
+/// `--user` (pip) installs. The only difference between them is the workdir
+/// (`/app` for Poetry/PDM, `/build` for UV), which determines where `FLASK_APP`,
+/// `VIRTUAL_ENV`, and `PATH` point. This helper eliminates the duplication.
+fn flask_venv_contribution(workdir: &str) -> FrameworkContribution {
+    FrameworkContribution {
+        framework: FLASK,
+        default_ports: vec![5000],
+        health_endpoints: vec!["/".into()],
+        env_vars: BTreeMap::new(),
+        runtime_packages: vec![],
+        runtime_command: Some(vec!["flask".into(), "run".into()]),
+        runtime_env: btree(&[
+            ("FLASK_APP", &format!("{workdir}/app.py")),
+            ("FLASK_RUN_HOST", "0.0.0.0"),
+            ("FLASK_RUN_PORT", "5000"),
+            ("VIRTUAL_ENV", &format!("{workdir}/.venv")),
+            (
+                "PATH",
+                &format!("{workdir}/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+            ),
+        ]),
+        workdir: Some(workdir.into()),
+        extra_copy: vec![],
+    }
+}
+
+/// Flask detector for Poetry projects (uses .venv instead of --user install).
+///
+/// `detect()` returns `false` by design. This detector is not selected via
+/// dependency scanning; instead, the Poetry build-system profile declares
+/// `preferred_framework_env_keys: &["VIRTUAL_ENV"]`, and the pipeline's
+/// framework-selection logic picks this contribution when the build system
+/// is Poetry and the base Flask framework was already detected.
 pub struct FlaskPoetryDetector;
 
 impl FrameworkDetector for FlaskPoetryDetector {
@@ -111,27 +146,10 @@ impl FrameworkDetector for FlaskPoetryDetector {
         &[PYTHON]
     }
     fn detect(&self, _deps: &[Dependency]) -> bool {
-        // This is used specifically for Poetry projects; detection is handled externally
         false
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
-        FrameworkContribution {
-            framework: FLASK,
-            default_ports: vec![5000],
-            health_endpoints: vec!["/".into()],
-            env_vars: BTreeMap::new(),
-            runtime_packages: vec![],
-            runtime_command: Some(vec!["flask".into(), "run".into()]),
-            runtime_env: btree(&[
-                ("FLASK_APP", "/app/app.py"),
-                ("FLASK_RUN_HOST", "0.0.0.0"),
-                ("FLASK_RUN_PORT", "5000"),
-                ("VIRTUAL_ENV", "/app/.venv"),
-                ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
-            ]),
-            workdir: Some("/app".into()),
-            extra_copy: vec![],
-        }
+        flask_venv_contribution("/app")
     }
 }
 
@@ -139,9 +157,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FlaskPoetryDetector))
 }
 
-// ── Flask (PDM) ────────────────────────────────────────────────────────────
-
-/// Flask detector for PDM projects (uses .venv instead of --user install)
+/// Flask detector for PDM projects (uses .venv instead of --user install).
+///
+/// `detect()` returns `false` by design. This detector is not selected via
+/// dependency scanning; instead, the PDM build-system profile declares
+/// `preferred_framework_env_keys: &["VIRTUAL_ENV"]`, and the pipeline's
+/// framework-selection logic picks this contribution when the build system
+/// is PDM and the base Flask framework was already detected.
 pub struct FlaskPdmDetector;
 
 impl FrameworkDetector for FlaskPdmDetector {
@@ -152,27 +174,10 @@ impl FrameworkDetector for FlaskPdmDetector {
         &[PYTHON]
     }
     fn detect(&self, _deps: &[Dependency]) -> bool {
-        // This is used specifically for PDM projects; detection is handled externally
         false
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
-        FrameworkContribution {
-            framework: FLASK,
-            default_ports: vec![5000],
-            health_endpoints: vec!["/".into()],
-            env_vars: BTreeMap::new(),
-            runtime_packages: vec![],
-            runtime_command: Some(vec!["flask".into(), "run".into()]),
-            runtime_env: btree(&[
-                ("FLASK_APP", "/app/app.py"),
-                ("FLASK_RUN_HOST", "0.0.0.0"),
-                ("FLASK_RUN_PORT", "5000"),
-                ("VIRTUAL_ENV", "/app/.venv"),
-                ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
-            ]),
-            workdir: Some("/app".into()),
-            extra_copy: vec![],
-        }
+        flask_venv_contribution("/app")
     }
 }
 
@@ -180,9 +185,13 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FlaskPdmDetector))
 }
 
-// ── Flask (UV) ──────────────────────────────────────────────────────────────
-
-/// Flask detector for UV projects (uses .venv in /build workdir)
+/// Flask detector for UV projects (uses .venv in /build workdir).
+///
+/// `detect()` returns `false` by design. This detector is not selected via
+/// dependency scanning; instead, the UV build-system profile declares
+/// `preferred_framework_env_keys: &["VIRTUAL_ENV"]`, and the pipeline's
+/// framework-selection logic picks this contribution when the build system
+/// is UV and the base Flask framework was already detected.
 pub struct FlaskUvDetector;
 
 impl FrameworkDetector for FlaskUvDetector {
@@ -193,27 +202,10 @@ impl FrameworkDetector for FlaskUvDetector {
         &[PYTHON]
     }
     fn detect(&self, _deps: &[Dependency]) -> bool {
-        // This is used specifically for UV projects; detection is handled externally
         false
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
-        FrameworkContribution {
-            framework: FLASK,
-            default_ports: vec![5000],
-            health_endpoints: vec!["/".into()],
-            env_vars: BTreeMap::new(),
-            runtime_packages: vec![],
-            runtime_command: Some(vec!["flask".into(), "run".into()]),
-            runtime_env: btree(&[
-                ("FLASK_APP", "/build/app.py"),
-                ("FLASK_RUN_HOST", "0.0.0.0"),
-                ("FLASK_RUN_PORT", "5000"),
-                ("VIRTUAL_ENV", "/build/.venv"),
-                ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
-            ]),
-            workdir: Some("/build".into()),
-            extra_copy: vec![],
-        }
+        flask_venv_contribution("/build")
     }
 }
 

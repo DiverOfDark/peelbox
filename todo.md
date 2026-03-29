@@ -50,8 +50,8 @@
 ## Phase 6: Deduplicate Flask Detectors + Fix FlaskUvDetector
 **Risk: Low-Medium | Snapshot updates: 0**
 
-- [ ] Extract shared `flask_venv_contribution()` from identical `FlaskPoetryDetector` and `FlaskPdmDetector`
-- [ ] Add doc comments explaining `detect()` returning `false` is by design (selected via `preferred_framework_env_keys`)
+- [x] Extract shared `flask_venv_contribution()` from identical `FlaskPoetryDetector` and `FlaskPdmDetector`
+- [x] Add doc comments explaining `detect()` returning `false` is by design (selected via `preferred_framework_env_keys`)
 
 ## Phase 7: Fix Connection/Retry Code Quality
 **Risk: Medium | Snapshot updates: 0**
