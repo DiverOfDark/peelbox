@@ -1,5 +1,11 @@
-//! Node.js version resolution for old versions not available in Wolfi.
+//! Node.js version detection and resolution.
 //!
+//! Version detection reads `.nvmrc` and `.node-version` files, handling:
+//! - Plain version numbers (`18.12.0`, `20`)
+//! - `v`-prefixed versions (`v18.12.0`)
+//! - LTS codenames (`lts/iron`, `lts/hydrogen`)
+//!
+//! Version resolution handles old versions not available in Wolfi.
 //! Wolfi only provides Node.js >= 16 (nodejs-16, nodejs-18, nodejs-20, nodejs-22, nodejs-24).
 //! When a project pins an older Node.js version (e.g., 14 from `.nvmrc`), this module
 //! replaces the unavailable Wolfi package with a direct download from nodejs.org using
@@ -7,7 +13,48 @@
 
 use peelbox_core::output::schema::UniversalBuild;
 use peelbox_wolfi::WolfiPackageIndex;
+use std::path::Path;
 use tracing::debug;
+
+/// Read Node.js version from `.nvmrc` or `.node-version` file.
+/// Returns the major version string (e.g., "18", "20").
+pub fn read_node_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        for filename in &[".nvmrc", ".node-version"] {
+            let path = dir.join(filename);
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let trimmed = content.trim();
+                if let Some(version) = parse_node_version_string(trimmed) {
+                    return Some(version);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Parse a Node.js version string: strip 'v' prefix, map LTS codenames, extract major.
+pub fn parse_node_version_string(s: &str) -> Option<String> {
+    let s = s.trim().trim_start_matches('v');
+
+    // Map LTS codenames
+    let s = match s.to_lowercase().as_str() {
+        "lts/iron" => "20",
+        "lts/hydrogen" => "18",
+        "lts/gallium" => "16",
+        "lts/fermium" => "14",
+        "lts/*" => return None, // Can't resolve "latest LTS" statically
+        _ => s,
+    };
+
+    // Extract major version
+    let major = s.split('.').next()?;
+    if major.chars().all(|c| c.is_ascii_digit()) && !major.is_empty() {
+        Some(major.to_string())
+    } else {
+        None
+    }
+}
 
 /// The minimum major Node.js version available in Wolfi.
 /// Versions below this threshold require direct download.
@@ -286,5 +333,50 @@ mod tests {
         if wolfi.has_package("nodejs-16") {
             assert_eq!(build.build.packages, original_packages);
         }
+    }
+
+    #[test]
+    fn test_parse_node_version_string() {
+        assert_eq!(
+            parse_node_version_string("v18.12.0"),
+            Some("18".to_string())
+        );
+        assert_eq!(parse_node_version_string("20"), Some("20".to_string()));
+        assert_eq!(parse_node_version_string("18.12.0"), Some("18".to_string()));
+        assert_eq!(
+            parse_node_version_string("lts/iron"),
+            Some("20".to_string())
+        );
+        assert_eq!(
+            parse_node_version_string("lts/hydrogen"),
+            Some("18".to_string())
+        );
+        assert_eq!(parse_node_version_string("lts/*"), None);
+    }
+
+    #[test]
+    fn test_read_node_version_from_nvmrc() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".nvmrc"), "v18.12.0\n").unwrap();
+        assert_eq!(
+            read_node_version(dir.path(), dir.path()),
+            Some("18".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_node_version_from_node_version() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".node-version"), "20\n").unwrap();
+        assert_eq!(
+            read_node_version(dir.path(), dir.path()),
+            Some("20".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_node_version_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(read_node_version(dir.path(), dir.path()), None);
     }
 }

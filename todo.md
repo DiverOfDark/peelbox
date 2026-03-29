@@ -30,13 +30,13 @@
 ## Phase 4: Extract Version Readers
 **Risk: Medium-Low | Snapshot updates: 0**
 
-- [ ] Create `version/ruby.rs` — `read_ruby_version()`, `parse_gemfile_ruby_version()`, `parse_gemfile_lock_ruby_version()`
-- [ ] Create `version/python.rs` — `read_python_version()`, `parse_pipfile_python_version()`
-- [ ] Create `version/php.rs` — `read_php_version()`
-- [ ] Create `version/swift.rs` — `read_swift_version()`
-- [ ] Create `version/mise.rs` — `scan_mise_config()`, `read_mise_tools()`, `parse_mise_toml()`, `parse_tool_versions()`
-- [ ] Extend `version/node.rs` with `read_node_version()`, `parse_node_version_string()`
-- [ ] Update `version/mod.rs` to declare + re-export all submodules
+- [x] Create `version/ruby.rs` — `read_ruby_version()`, `parse_gemfile_ruby_version()`, `parse_gemfile_lock_ruby_version()`
+- [x] Create `version/python.rs` — `read_python_version()`, `parse_pipfile_python_version()`
+- [x] Create `version/php.rs` — `read_php_version()`
+- [x] Create `version/swift.rs` — `read_swift_version()`
+- [x] Create `version/mise.rs` — `scan_mise_config()`, `read_mise_tools()`, `parse_mise_toml()`, `parse_tool_versions()`
+- [x] Extend `version/node.rs` with `read_node_version()`, `parse_node_version_string()`
+- [x] Update `version/mod.rs` to declare + re-export all submodules
 
 ## Phase 5: Extract Language-Specific Post-Processing
 **Risk: Medium | Snapshot updates: 0**
