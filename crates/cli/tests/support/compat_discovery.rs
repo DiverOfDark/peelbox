@@ -163,7 +163,7 @@ fn assemble_compat_work_dir(
     if work_dir.exists() && dest_snapshot.exists() {
         let snapshot_src_mtime = snapshot_file
             .parent()
-            .and_then(|dir| newest_mtime_recursive(dir))
+            .and_then(newest_mtime_recursive)
             .or_else(|| fs::metadata(snapshot_file).and_then(|m| m.modified()).ok());
         let external_src_mtime = newest_mtime_recursive(external_example);
         let dest_mtime = fs::metadata(&dest_snapshot).and_then(|m| m.modified()).ok();
