@@ -14,6 +14,7 @@ pub mod helpers;
 pub mod ids;
 pub mod parsers;
 pub mod pipeline;
+pub mod postprocess;
 pub mod registry;
 pub mod source_scanning;
 pub mod traits;
