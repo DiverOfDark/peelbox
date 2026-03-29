@@ -134,12 +134,12 @@ impl ContainerTestHarness {
                 container_config,
             )
             .await
-            .context("Failed to create container")?;
+            .with_context(|| format!("Failed to create container from image {}", image_name))?;
 
         self.docker
             .start_container(&container.id, None::<StartContainerOptions>)
             .await
-            .context("Failed to start container")?;
+            .with_context(|| format!("Failed to start container {} from image {}", container.id, image_name))?;
 
         Ok(container.id)
     }

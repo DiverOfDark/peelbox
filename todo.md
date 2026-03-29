@@ -6,7 +6,6 @@
 - [ ] Remove unused `_extra_packages` param in `nixpacks_config.rs` `build_config_manifest()`
 - [ ] Clean `#[allow(dead_code)]` in `compat_discovery.rs` (5 functions)
 - [ ] Remove empty `skip_full` HashSet in `container_e2e.rs`
-- [ ] Revert CI branch trigger in `.github/workflows/ci.yml` (remove feature branch)
 - [ ] Fix placeholder `echo 'Config-only project'` build command in `nixpacks_config.rs`
 - [ ] Fix formatting in `bazel_build.rs` around `build_image: None`
 - [ ] Fix `_repo_root` → `repo_root` in `pipeline.rs` `scan_node_puppeteer` (it IS used)

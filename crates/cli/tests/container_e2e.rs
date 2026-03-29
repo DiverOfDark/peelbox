@@ -23,9 +23,6 @@ fn main() {
     .into_iter()
     .collect();
 
-    // Tests identified by "category::name" that need skipping for category-specific reasons
-    let skip_full: std::collections::HashSet<&str> = [].into_iter().collect();
-
     for fixture in fixtures {
         if !fixture.has_snapshot {
             continue;
@@ -36,10 +33,6 @@ fn main() {
         }
 
         let test_name = format!("{}::{}", fixture.category, fixture.name);
-        if skip_full.contains(test_name.as_str()) {
-            continue;
-        }
-
         let ignored = fixture.ignore;
         let fixture_clone = fixture.clone();
 
