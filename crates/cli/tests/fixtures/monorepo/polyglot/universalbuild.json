@@ -51,6 +51,54 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json in frontend"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "cd frontend && npm ci",
+        "cd frontend && npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "backend",
       "language": "Java",
       "build_system": "Maven",
@@ -104,54 +152,6 @@
       "workdir": "/app",
       "ports": [
         8080
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
-      "project_name": "frontend",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "reasoning": "Detected from package.json in frontend"
-    },
-    "build": {
-      "packages": [
-        "nodejs-25",
-        "npm",
-        "ca-certificates"
-      ],
-      "env": {},
-      "commands": [
-        "cd frontend && npm ci",
-        "cd frontend && npm run build"
-      ],
-      "cache": [
-        ".npm"
-      ]
-    },
-    "runtime": {
-      "packages": [
-        "nodejs-25",
-        "npm",
-        "busybox",
-        "dumb-init",
-        "ca-certificates"
-      ],
-      "env": {},
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
-      ],
-      "command": [
-        "npm",
-        "start"
-      ],
-      "workdir": "/app",
-      "ports": [
-        3000
       ]
     }
   }

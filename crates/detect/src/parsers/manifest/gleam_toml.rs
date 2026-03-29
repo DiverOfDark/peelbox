@@ -20,6 +20,11 @@ inventory::submit! {
     RuntimeMeta { slug: "erlang-beam", display_name: "BEAM", aliases: &["gleam"] }
 }
 
+/// Last Gleam 0.x version that compiles `if erlang {}` syntax — used for old
+/// projects with gleam_stdlib ~>0.28 that use conditional compilation blocks.
+/// (0.31+ turns these into hard errors; 0.30 still accepts them as warnings.)
+const GLEAM_LEGACY: &str = "0.30.0";
+
 pub struct GleamTomlParser;
 
 impl ManifestParser for GleamTomlParser {
@@ -43,6 +48,42 @@ impl ManifestParser for GleamTomlParser {
 
         let dependencies = parse_gleam_deps(&toml_val);
 
+        // Determine which Gleam version to install.
+        // If gleam.toml has `gleam = ">= 1.x"`, use latest.
+        // Otherwise (old projects with no gleam constraint or pre-1.0 constraint),
+        // pin to the last 0.x release for compatibility with old gleam_stdlib.
+        let gleam_constraint = toml_val
+            .get("gleam")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let needs_v1 = gleam_constraint.contains("1.");
+
+        // For Gleam 1.x+ projects, use the official Gleam Docker image which has
+        // Erlang, rebar3, and escript properly configured (needed for NIF deps like simplifile).
+        // For old pre-1.0 projects, use Wolfi with a pinned Gleam binary.
+        let (build_packages, build_commands, build_image) = if needs_v1 {
+            (
+                vec![],
+                vec!["gleam export erlang-shipment".to_string()],
+                Some("ghcr.io/gleam-lang/gleam:v1.13.0-erlang".to_string()),
+            )
+        } else {
+            let gleam_install = format!(
+                "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v{v}/gleam-v{v}-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/",
+                v = GLEAM_LEGACY
+            );
+            (
+                vec![
+                    "erlang".into(),
+                    "rebar3".into(),
+                    "curl".into(),
+                    "ca-certificates".into(),
+                ],
+                vec![gleam_install, "gleam export erlang-shipment".to_string()],
+                None,
+            )
+        };
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: GLEAM,
@@ -56,23 +97,16 @@ impl ManifestParser for GleamTomlParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![
-                    "erlang".into(),
-                    "rebar3".into(),
-                    "curl".into(),
-                    "ca-certificates".into(),
-                ],
-                commands: vec![
-                    "curl -fsSL https://github.com/gleam-lang/gleam/releases/latest/download/gleam-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/".into(),
-                    "gleam export erlang-shipment".into(),
-                ],
+                packages: build_packages,
+                commands: build_commands,
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec!["build".into()],
-                artifacts: vec![],
+                artifacts: vec![("build/erlang-shipment".into(), "/app/build/erlang-shipment".into())],
+                build_image,
             },
             runtime_config: RuntimeSpec {
-                packages: vec!["erlang".into(), "ca-certificates".into()],
+                packages: vec!["erlang".into(), "busybox".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
                 entrypoint: Some("./build/erlang-shipment/entrypoint.sh run".into()),
                 workdir: Some("/app".into()),

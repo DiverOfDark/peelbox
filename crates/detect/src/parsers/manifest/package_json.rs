@@ -276,7 +276,8 @@ impl ManifestParser for PackageJsonParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".npm".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-            },
+                            build_image: None,
+},
             runtime_config: RuntimeSpec {
                 packages: vec![
                     node_runtime_pkg,

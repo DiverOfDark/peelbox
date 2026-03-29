@@ -65,7 +65,8 @@ impl ManifestParser for DenoJsonParser {
                     (".".into(), "/app".into()),
                     ("/deno-dir".into(), "/deno-dir".into()),
                 ],
-            },
+                            build_image: None,
+},
             runtime_config: RuntimeSpec {
                 packages: vec!["deno".into(), "ca-certificates".into()],
                 env: btree(&[("DENO_DIR", "/deno-dir")]),

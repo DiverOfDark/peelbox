@@ -8,28 +8,29 @@
       "reasoning": "Detected from gleam.toml"
     },
     "build": {
-      "packages": [
-        "erlang-27",
-        "rebar3",
-        "curl",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
-        "curl -fsSL https://github.com/gleam-lang/gleam/releases/latest/download/gleam-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/",
         "gleam export erlang-shipment"
       ],
       "cache": [
         "build"
-      ]
+      ],
+      "build_image": "ghcr.io/gleam-lang/gleam:v1.13.0-erlang"
     },
     "runtime": {
       "packages": [
-        "erlang-27",
+        "erlang-26",
+        "busybox",
         "ca-certificates"
       ],
       "env": {},
-      "copy": [],
+      "copy": [
+        {
+          "from": "build/erlang-shipment",
+          "to": "/app/build/erlang-shipment"
+        }
+      ],
       "command": [
         "./build/erlang-shipment/entrypoint.sh",
         "run"

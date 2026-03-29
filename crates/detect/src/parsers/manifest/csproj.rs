@@ -138,7 +138,8 @@ fn build_wolfi_dotnet_specs(
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-        },
+                    build_image: None,
+},
         RuntimeSpec {
             packages: vec![runtime_pkg, "ca-certificates".into()],
             env: runtime_env,
@@ -162,7 +163,8 @@ fn build_fallback_dotnet_specs(file_stem: &Option<String>, is_web: bool) -> (Bui
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-        },
+                    build_image: None,
+},
         RuntimeSpec {
             packages: vec!["dotnet-runtime".into(), "ca-certificates".into()],
             env: BTreeMap::new(),

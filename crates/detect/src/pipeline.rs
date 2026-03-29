@@ -1388,8 +1388,15 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root projects, build system profile may override the entrypoint
-        // (e.g., Node.js uses `npm start` instead of direct command)
-        if !is_root_project {
+        // (e.g., Node.js uses `npm start` instead of direct command).
+        // Only apply the override when the package has a start script (is_application),
+        // not when the entrypoint was derived from the `main` field.
+        let has_start_script = m
+            .package
+            .as_ref()
+            .map(|p| p.is_application)
+            .unwrap_or(false);
+        if !is_root_project && has_start_script {
             if let Some(override_cmd) = profile.and_then(|p| p.non_root_entrypoint_override) {
                 override_cmd.iter().map(|s| s.to_string()).collect()
             } else {
@@ -1492,6 +1499,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             env: m.build.env.clone(),
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
+            build_image: m.build.build_image.clone(),
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -1536,7 +1544,7 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
 const PREFER_STABLE_PACKAGES: &[(&str, usize)] = &[
     ("python", 2),  // Many libraries publish wheels late; N-2 has broadest support
     ("elixir", 1),
-    ("erlang", 1),
+    ("erlang", 2),  // Erlang 27+ has escript compilation issues with popular packages (e.g. simplifile)
 ];
 
 /// Resolve generic package names to versioned Wolfi package names.
@@ -2278,8 +2286,34 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }
         }
+        "Swift" => {
+            // Pin the Swift Docker build image to a specific version from .swift-version.
+            if let Some(version) = read_swift_version(&project_dir, repo_root) {
+                build.build.build_image = Some(format!("docker.io/library/swift:{}", version));
+            }
+        }
         _ => {}
     }
+}
+
+/// Read Swift version from `.swift-version` file.
+fn read_swift_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join(".swift-version");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            if !trimmed.is_empty()
+                && trimmed
+                    .chars()
+                    .next()
+                    .map(|c| c.is_ascii_digit())
+                    .unwrap_or(false)
+            {
+                return Some(trimmed.to_string());
+            }
+        }
+    }
+    None
 }
 
 // ── Mise / .tool-versions scanning ──────────────────────────────────────
@@ -3594,7 +3628,8 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
-                },
+                                    build_image: None,
+},
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
                     env: BTreeMap::new(),
@@ -3648,7 +3683,8 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
-                },
+                                    build_image: None,
+},
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
                     env: BTreeMap::new(),
@@ -3724,7 +3760,8 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -3768,7 +3805,8 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -3819,7 +3857,8 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -4036,7 +4075,8 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libgcc".into()],
                 env: BTreeMap::new(),
@@ -4079,7 +4119,8 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -4128,7 +4169,8 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into()],
                 env: BTreeMap::new(),
@@ -4184,7 +4226,8 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libpq".into()],
                 env: BTreeMap::new(),

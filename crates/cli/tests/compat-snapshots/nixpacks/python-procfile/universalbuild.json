@@ -27,18 +27,11 @@
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {
-        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
-        "PYTHONUSERBASE": "/root/.local"
-      },
+      "env": {},
       "copy": [
         {
           "from": ".",
           "to": "/app/"
-        },
-        {
-          "from": "/root/.local/",
-          "to": "/root/.local/"
         }
       ],
       "command": [

@@ -41,10 +41,19 @@ impl ManifestParser for PackageSwiftParser {
 
         let dependencies = parse_swift_deps(content);
 
+        // Extract the executable target name — it may differ from the package name.
+        let exec_target_name = extract_executable_target_name(content).unwrap_or_else(|| name.clone());
         let entrypoint = if is_application {
-            Some(format!(".build/release/{}", name))
+            Some(format!("/app/{}", exec_target_name))
         } else {
             None
+        };
+
+        // Choose Swift Docker image based on swift-tools-version.
+        // Swift 6.x has breaking stdlib changes, so 5.x projects need swift:5.10.
+        let swift_image = match swift_version.as_deref() {
+            Some(v) if v.starts_with('5') => "docker.io/library/swift:5.10",
+            _ => "docker.io/library/swift:latest",
         };
 
         Some(Manifest {
@@ -60,21 +69,19 @@ impl ManifestParser for PackageSwiftParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![
-                    "build-base".into(),
-                    "curl".into(),
-                    "glibc-dev".into(),
-                    "libstdc++-dev".into(),
-                    "ca-certificates".into(),
-                ],
+                // No Wolfi packages needed -- using the official Swift Docker image
+                packages: vec![],
                 commands: vec![
-                    "curl -fsSL https://swift.org/install.sh | bash -s -- --swift-version=latest".into(),
                     "swift build -c release".into(),
                 ],
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec![".build".into()],
-                artifacts: vec![(".build/release/".into(), "/app/".into())],
+                artifacts: vec![
+                    (".build/release/".into(), "/app/".into()),
+                    ("/usr/lib/swift/linux/".into(), "/usr/lib/swift/linux/".into()),
+                ],
+                build_image: Some(swift_image.to_string()),
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -142,6 +149,14 @@ fn parse_swift_deps(content: &str) -> Vec<Dependency> {
         .collect()
 }
 
+/// Extract the first `.executableTarget(name: "...")` target name.
+fn extract_executable_target_name(content: &str) -> Option<String> {
+    let re = regex::Regex::new(r#"\.executableTarget\s*\(\s*name:\s*"([^"]+)""#).ok()?;
+    re.captures(content)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PackageSwiftParser))
 }
@@ -179,10 +194,19 @@ let package = Package(
         assert!(pkg.is_application);
         assert_eq!(
             manifest.runtime_config.entrypoint.as_deref(),
-            Some(".build/release/swift")
+            Some("/app/swift")
         );
         assert_eq!(manifest.runtime_config.ports, vec![8080]);
-        assert!(manifest.build.commands.iter().any(|c| c.contains("swift build -c release")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("swift build -c release")));
+        assert_eq!(
+            manifest.build.build_image.as_deref(),
+            Some("docker.io/library/swift:5.10")
+        );
+        assert!(manifest.build.packages.is_empty());
     }
 
     #[test]

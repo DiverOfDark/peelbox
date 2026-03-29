@@ -192,8 +192,9 @@ impl ContainerTestHarness {
     pub async fn get_host_port(&self, container_id: &str, container_port: u16) -> Result<u16> {
         let port_key = format!("{}/tcp", container_port);
 
-        // Retry: port bindings may not be immediately available after container start
-        for attempt in 0..10 {
+        // Retry: port bindings may not be immediately available after container start,
+        // especially under parallel load when Docker is slow to assign ports.
+        for attempt in 0..60 {
             let inspect = self
                 .docker
                 .inspect_container(container_id, None)
@@ -213,13 +214,13 @@ impl ContainerTestHarness {
                     .context("Failed to parse host port as u16");
             }
 
-            if attempt < 9 {
-                tokio::time::sleep(Duration::from_millis(200)).await;
+            if attempt < 59 {
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
         }
 
         anyhow::bail!(
-            "Failed to get host port from container after 10 attempts (port {})",
+            "Failed to get host port from container after 60 attempts (port {})",
             container_port
         )
     }

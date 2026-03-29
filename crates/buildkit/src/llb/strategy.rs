@@ -21,43 +21,50 @@ impl BuildStrategy for PeelboxStrategy {
         let exclude = builder.load_gitignore_patterns();
         let context_idx = builder.create_local_source(&exclude);
 
-        let with_build_packages_idx = if !spec.build.packages.is_empty() {
-            let mut packages_list = spec.build.packages.clone();
-            packages_list.sort();
-            let packages = packages_list.join(" ");
-            let meta = pb::Meta {
-                args: vec![
-                    "sh".to_string(),
-                    "-c".to_string(),
-                    format!("apk add --no-cache {}", packages),
-                ],
-                env: vec![],
-                cwd: "/".to_string(),
-                user: String::new(),
-                proxy_env: None,
-                extra_hosts: vec![],
-                hostname: String::new(),
-                ulimit: vec![],
-                cgroup_parent: String::new(),
-                remove_mount_stubs_recursive: false,
+        // When a custom build image is specified, use it directly as the build base
+        // instead of Wolfi + apk packages. This is used for languages like Swift
+        // that require a specialized toolchain image.
+        let base_idx = if let Some(build_image) = &spec.build.build_image {
+            builder.create_image_source(build_image)
+        } else {
+            let with_build_packages_idx = if !spec.build.packages.is_empty() {
+                let mut packages_list = spec.build.packages.clone();
+                packages_list.sort();
+                let packages = packages_list.join(" ");
+                let meta = pb::Meta {
+                    args: vec![
+                        "sh".to_string(),
+                        "-c".to_string(),
+                        format!("apk add --no-cache {}", packages),
+                    ],
+                    env: vec![],
+                    cwd: "/".to_string(),
+                    user: String::new(),
+                    proxy_env: None,
+                    extra_hosts: vec![],
+                    hostname: String::new(),
+                    ulimit: vec![],
+                    cgroup_parent: String::new(),
+                    remove_mount_stubs_recursive: false,
+                };
+
+                let mounts = vec![
+                    builder.layer_mount(0, 0, "/"),
+                    builder.scratch_mount("/tmp"),
+                ];
+
+                Some(builder.create_exec(
+                    vec![(wolfi_base_idx, 0)],
+                    mounts,
+                    meta,
+                    Some("Install build packages".to_string()),
+                ))
+            } else {
+                None
             };
 
-            let mounts = vec![
-                builder.layer_mount(0, 0, "/"),
-                builder.scratch_mount("/tmp"),
-            ];
-
-            Some(builder.create_exec(
-                vec![(wolfi_base_idx, 0)],
-                mounts,
-                meta,
-                Some("Install build packages".to_string()),
-            ))
-        } else {
-            None
+            with_build_packages_idx.unwrap_or(wolfi_base_idx)
         };
-
-        let base_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
 
         let build_result_idx = if !spec.build.commands.is_empty() {
             let mut last_idx = base_idx;

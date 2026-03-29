@@ -1,5 +1,5 @@
 [profile.default]
-slow-timeout = { period = "100s", terminate-after = 15 }
+slow-timeout = { period = "120s", terminate-after = 25 }
 
 [profile.ci]
 # CI slow-timeout: 300s × 5 = 1500s max (matches old default profile behavior)

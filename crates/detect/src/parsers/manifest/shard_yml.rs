@@ -34,6 +34,10 @@ impl ManifestParser for ShardYmlParser {
 
         let dependencies = parse_shard_deps(content);
 
+        // Extract crystal version from the `crystal:` key, default to 1.14.0
+        let crystal_version = extract_yaml_value(content, "crystal")
+            .unwrap_or_else(|| "1.14.0".to_string());
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: CRYSTAL,
@@ -55,10 +59,14 @@ impl ManifestParser for ShardYmlParser {
                     "libxml2-dev".into(),
                     "yaml-dev".into(),
                     "openssl-dev".into(),
+                    "pcre-dev".into(),
                     "ca-certificates".into(),
                 ],
                 commands: vec![
-                    "curl -fsSL https://crystal-lang.org/install.sh | bash".into(),
+                    format!(
+                        "curl -fsSL https://github.com/crystal-lang/crystal/releases/download/{v}/crystal-{v}-1-linux-x86_64.tar.gz | tar xz -C /usr/local --strip-components=1",
+                        v = crystal_version
+                    ),
                     "shards install".into(),
                     "shards build --release".into(),
                 ],
@@ -68,9 +76,10 @@ impl ManifestParser for ShardYmlParser {
                 artifacts: vec![
                     (format!("bin/{}", target_name), format!("/app/bin/{}", target_name)),
                 ],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
-                packages: vec!["glibc".into(), "ca-certificates".into()],
+                packages: vec!["glibc".into(), "pcre".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
                 entrypoint: Some(format!("./bin/{}", target_name)),
                 workdir: Some("/app".into()),

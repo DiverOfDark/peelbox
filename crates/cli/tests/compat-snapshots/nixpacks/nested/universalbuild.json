@@ -37,8 +37,8 @@
         }
       ],
       "command": [
-        "npm",
-        "start"
+        "node",
+        "index.js"
       ],
       "workdir": "/app",
       "ports": [

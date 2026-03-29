@@ -63,6 +63,20 @@ impl ManifestParser for ProcfileParser {
             build_packages.insert(2, "build-base".into());
         }
 
+        let mut artifacts = vec![(".".into(), "/app/".into())];
+        if has_requirements {
+            artifacts.push(("/root/.local/".into(), "/root/.local/".into()));
+        }
+
+        let runtime_env = if has_requirements {
+            btree(&[
+                ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
+                ("PYTHONUSERBASE", "/root/.local"),
+            ])
+        } else {
+            btree(&[])
+        };
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: PYTHON,
@@ -81,10 +95,8 @@ impl ManifestParser for ProcfileParser {
                 member_transform: None,
                 env: btree(&[]),
                 cache_dirs: vec![".cache/pip".into()],
-                artifacts: vec![
-                    (".".into(), "/app/".into()),
-                    ("/root/.local/".into(), "/root/.local/".into()),
-                ],
+                artifacts,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -93,10 +105,7 @@ impl ManifestParser for ProcfileParser {
                     "libstdc++".into(),
                     "ca-certificates".into(),
                 ],
-                env: btree(&[
-                    ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
-                    ("PYTHONUSERBASE", "/root/.local"),
-                ]),
+                env: runtime_env,
                 entrypoint: Some(command),
                 workdir: Some("/app".into()),
                 ports: vec![8000],

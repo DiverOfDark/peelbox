@@ -40,8 +40,8 @@
         }
       ],
       "command": [
-        "npm",
-        "start"
+        "node",
+        "index.js"
       ],
       "workdir": "/app/packages/api",
       "ports": [

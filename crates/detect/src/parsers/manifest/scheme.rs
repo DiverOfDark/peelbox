@@ -33,6 +33,28 @@ impl ManifestParser for SchemeHauntParser {
             return None;
         }
 
+        // Haunt is a pure Guile Scheme static site generator. Wolfi's Guile package
+        // has a known segfault, so we use a Debian build image where Guile works.
+        // We extract Haunt and guile-commonmark tarballs, create the haunt script by
+        // filling in template placeholders (bypassing ./configure which also uses Guile),
+        // and set GUILE_LOAD_PATH so all modules are found.
+        let install_deps =
+            "apt-get update -qq && apt-get install -y -qq guile-3.0 curl ca-certificates";
+        let install_haunt = concat!(
+            "curl -fsSL https://files.dthompson.us/haunt/haunt-0.3.0.tar.gz | tar -xz",
+            " && curl -fsSL https://github.com/OrangeShark/guile-commonmark/archive/refs/tags/v0.1.2.tar.gz | tar -xz",
+            " && sed 's|@GUILE@|/usr/bin/guile|g; ",
+            "s|@guilemoduledir@|/build/haunt-0.3.0|g; ",
+            "s|@guileobjectdir@|/build/haunt-0.3.0|g' ",
+            "haunt-0.3.0/scripts/haunt.in > /usr/local/bin/haunt && chmod +x /usr/local/bin/haunt",
+            " && printf '(define-module (haunt config)\\n",
+            "  #:export (%%haunt-version %%rsync %%hut %%tar))\\n",
+            "(define %%haunt-version \"0.3.0\")\\n",
+            "(define %%rsync \"rsync\")\\n",
+            "(define %%hut \"hut\")\\n",
+            "(define %%tar \"tar\")\\n' > haunt-0.3.0/haunt/config.scm",
+        );
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: SCHEME,
@@ -46,26 +68,26 @@ impl ManifestParser for SchemeHauntParser {
             workspace: None,
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: vec![
-                    "guile".into(),
-                    "curl".into(),
-                    "build-base".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: vec![],
                 commands: vec![
-                    "guile -c '(use-modules (guix packages))' 2>/dev/null || (curl -fsSL https://git.savannah.gnu.org/cgit/haunt.git/snapshot/haunt-0.3.0.tar.gz | tar -xz && cd haunt-0.3.0 && ./configure && make install && cd .. && rm -rf haunt-0.3.0)".into(),
-                    "haunt build".into(),
+                    install_deps.into(),
+                    install_haunt.into(),
+                    "haunt build && mkdir -p site".into(),
                 ],
                 member_transform: None,
-                env: btree(&[]),
+                env: btree(&[
+                    ("GUILE_AUTO_COMPILE", "0"),
+                    (
+                        "GUILE_LOAD_PATH",
+                        "/build/haunt-0.3.0:/build/guile-commonmark-0.1.2",
+                    ),
+                ]),
                 cache_dirs: vec![],
                 artifacts: vec![("site".into(), "/app/site".into())],
+                build_image: Some("docker.io/library/debian:bookworm-slim".into()),
             },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    "busybox".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: vec!["busybox".into(), "ca-certificates".into()],
                 env: btree(&[]),
                 entrypoint: Some("busybox httpd -f -p 8080 -h /app/site".into()),
                 workdir: Some("/app".into()),
@@ -108,9 +130,22 @@ mod tests {
         assert_eq!(manifest.language, SCHEME);
         assert_eq!(manifest.build_system, HAUNT);
         assert_eq!(manifest.runtime, GUILE);
-        assert!(manifest.build.commands.iter().any(|c| c.contains("haunt build")));
-        assert!(manifest.runtime_config.entrypoint.as_ref().unwrap().contains("httpd"));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("haunt build")));
+        assert!(manifest
+            .runtime_config
+            .entrypoint
+            .as_ref()
+            .unwrap()
+            .contains("httpd"));
         assert_eq!(manifest.runtime_config.ports, vec![8080]);
+        assert_eq!(
+            manifest.build.build_image.as_deref(),
+            Some("docker.io/library/debian:bookworm-slim")
+        );
     }
 
     #[test]

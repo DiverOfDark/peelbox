@@ -63,7 +63,8 @@ impl ManifestParser for CobolParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-            },
+                            build_image: None,
+},
             runtime_config: RuntimeSpec {
                 packages: vec![
                     "glibc".into(),

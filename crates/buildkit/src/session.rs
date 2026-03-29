@@ -662,9 +662,21 @@ impl BuildSession {
 
         frontend_inputs.insert("context".to_string(), local_source_def);
 
+        // When using Docker daemon's native BuildKit with `type=docker`, the daemon
+        // writes the image directly into its own store — no FileSend/DiffCopy callback.
+        // We only request `tar=true` when we need the image streamed back to us.
+        let is_docker_native = matches!(
+            self.connection.addr(),
+            crate::connection::BuildKitAddr::DockerNative(_)
+        );
+        let needs_tar_stream = !is_docker_native
+            || !matches!(self.output_dest, OutputDestination::DockerLoad);
+
         let mut exporter_attrs = std::collections::HashMap::new();
         exporter_attrs.insert("name".to_string(), image_tag.to_string());
-        exporter_attrs.insert("tar".to_string(), "true".to_string());
+        if needs_tar_stream {
+            exporter_attrs.insert("tar".to_string(), "true".to_string());
+        }
         exporter_attrs.insert("containerimage.config".to_string(), config_json_str);
 
         if self.attestation_config.sbom {
@@ -861,20 +873,29 @@ impl BuildSession {
         debug!("Solve response: {:?}", solve_response);
 
         if let Some(export_done) = self.export_done.take() {
-            debug!("Waiting for tar export to complete...");
-            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_done)
+            if needs_tar_stream {
+                debug!("Waiting for tar export to complete...");
+                match tokio::time::timeout(
+                    Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS),
+                    export_done,
+                )
                 .await
-            {
-                Ok(Ok(())) => {
-                    debug!("Tar export completed successfully");
+                {
+                    Ok(Ok(())) => {
+                        debug!("Tar export completed successfully");
+                    }
+                    Ok(Err(_)) => {
+                        warn!("Export completion sender dropped - export may have failed");
+                    }
+                    Err(_) => {
+                        error!("Timeout waiting for tar export after 5 minutes");
+                        return Err(anyhow::anyhow!("Tar export timed out after 5 minutes"));
+                    }
                 }
-                Ok(Err(_)) => {
-                    warn!("Export completion sender dropped - export may have failed");
-                }
-                Err(_) => {
-                    error!("Timeout waiting for tar export after 5 minutes");
-                    return Err(anyhow::anyhow!("Tar export timed out after 5 minutes"));
-                }
+            } else {
+                debug!(
+                    "Docker daemon handles export internally — skipping tar stream wait"
+                );
             }
         } else {
             debug!("No export completion signal configured");

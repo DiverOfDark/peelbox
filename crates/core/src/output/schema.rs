@@ -66,6 +66,8 @@ pub struct BuildStage {
     pub commands: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
     pub cache: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build_image: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
@@ -127,7 +129,8 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
                 env: BTreeMap::new(),
@@ -348,7 +351,8 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-            },
+                            build_image: None,
+},
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),

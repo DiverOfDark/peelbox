@@ -250,7 +250,8 @@ impl ManifestParser for YarnLockParser {
                 },
                 cache_dirs: vec![".yarn-cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-            },
+                            build_image: None,
+},
             runtime_config: RuntimeSpec {
                 packages: {
                     let mut pkgs = vec![

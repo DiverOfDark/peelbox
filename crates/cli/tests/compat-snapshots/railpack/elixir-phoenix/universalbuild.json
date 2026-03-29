@@ -11,8 +11,8 @@
     "build": {
       "packages": [
         "elixir-1.17",
-        "erlang-27",
-        "erlang-27-dev",
+        "erlang-26",
+        "erlang-26-dev",
         "git",
         "build-base",
         "openssl",
@@ -44,7 +44,7 @@
     "runtime": {
       "packages": [
         "elixir-1.17",
-        "erlang-27",
+        "erlang-26",
         "busybox",
         "git",
         "openssl",

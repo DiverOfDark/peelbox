@@ -8,21 +8,15 @@
       "reasoning": "Detected from Package.swift"
     },
     "build": {
-      "packages": [
-        "build-base",
-        "curl",
-        "glibc-dev",
-        "libstdc++-dev",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
-        "curl -fsSL https://swift.org/install.sh | bash -s -- --swift-version=latest",
         "swift build -c release"
       ],
       "cache": [
         ".build"
-      ]
+      ],
+      "build_image": "docker.io/library/swift:5.4"
     },
     "runtime": {
       "packages": [
@@ -35,10 +29,14 @@
         {
           "from": ".build/release/",
           "to": "/app/"
+        },
+        {
+          "from": "/usr/lib/swift/linux/",
+          "to": "/usr/lib/swift/linux/"
         }
       ],
       "command": [
-        ".build/release/swift-custom-version"
+        "/app/swift"
       ],
       "workdir": "/app",
       "ports": [
