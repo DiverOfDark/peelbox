@@ -5,7 +5,7 @@ on:
     branches: [master]
     tags: ["v*"]
   pull_request:
-    branches: [master, feature/external-compat-tests]
+    branches: [master]
 
 env:
   CARGO_TERM_COLOR: always
