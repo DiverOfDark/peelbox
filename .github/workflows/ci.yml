@@ -30,7 +30,6 @@ jobs:
           - os: macos-latest
             runs-on: macos-latest
     runs-on: ${{ matrix.runs-on }}
-    container: ${{ matrix.os == 'ubuntu-latest' && 'buildpack-deps:trixie' || '' }}
     permissions:
       contents: read
       checks: write
