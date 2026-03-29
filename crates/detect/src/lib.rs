@@ -15,6 +15,7 @@ pub mod ids;
 pub mod parsers;
 pub mod pipeline;
 pub mod registry;
+pub mod source_scanning;
 pub mod traits;
 pub mod types;
 pub mod version;
