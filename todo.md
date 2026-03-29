@@ -13,19 +13,19 @@
 ## Phase 2: Deduplicate Pattern Tables
 **Risk: Low | Snapshot updates: 0**
 
-- [ ] Merge duplicate JS/TS entries in `PORT_PATTERNS`, `HEALTH_PATTERNS`, `ENV_VAR_PATTERNS`
-- [ ] Merge duplicate Java/Kotlin entries in same tables
-- [ ] Change table type to `(&[&str], &[&str], &[&str])` (list of language names as first element)
-- [ ] Update `scan_source_*` lookup logic to `languages.contains(&lang)`
+- [x] Merge duplicate JS/TS entries in `PORT_PATTERNS`, `HEALTH_PATTERNS`, `ENV_VAR_PATTERNS`
+- [x] Merge duplicate Java/Kotlin entries in same tables
+- [x] Change table type to `(&[&str], &[&str], &[&str])` (list of language names as first element)
+- [x] Update `scan_source_*` lookup logic to `languages.contains(&lang)`
 
 ## Phase 3: Generic Source Scanning + Extract Helpers
 **Risk: Low | Snapshot updates: 0**
 
-- [ ] Create `crates/detect/src/source_scanning.rs` with generic `scan_source_files()`
-- [ ] Move `PORT_PATTERNS`, `HEALTH_PATTERNS`, `ENV_VAR_PATTERNS`, `BUILTIN_ENV_VARS` there
-- [ ] Re-export `scan_source_ports()`, `scan_source_health()`, `scan_source_env_vars()` as wrappers
-- [ ] Move `extract_project_dir()`, `replace_package()`, `extract_major_version()`, `extract_major_minor_version()` to `helpers.rs`
-- [ ] Add `pub mod source_scanning;` to `lib.rs`
+- [x] Create `crates/detect/src/source_scanning.rs` with generic `scan_source_files()`
+- [x] Move `PORT_PATTERNS`, `HEALTH_PATTERNS`, `ENV_VAR_PATTERNS`, `BUILTIN_ENV_VARS` there
+- [x] Re-export `scan_source_ports()`, `scan_source_health()`, `scan_source_env_vars()` as wrappers
+- [x] Move `extract_project_dir()`, `replace_package()`, `extract_major_version()`, `extract_major_minor_version()` to `helpers.rs`
+- [x] Add `pub mod source_scanning;` to `lib.rs`
 
 ## Phase 4: Extract Version Readers
 **Risk: Medium-Low | Snapshot updates: 0**
@@ -97,3 +97,4 @@ Swift is the ONLY language using `build_image` to bypass Wolfi. Swift is NOT in 
 
 // TODO later:
 source_scanning - should be merged with respective static data for languages
+detect/src/version -> move to respective runtimes/package managers
