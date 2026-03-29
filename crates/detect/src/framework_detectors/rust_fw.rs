@@ -63,9 +63,7 @@ impl FrameworkDetector for RocketDetector {
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],
             runtime_command: None,
-            runtime_env: BTreeMap::from([
-                ("ROCKET_ADDRESS".into(), "0.0.0.0".into()),
-            ]),
+            runtime_env: BTreeMap::from([("ROCKET_ADDRESS".into(), "0.0.0.0".into())]),
             workdir: None,
             extra_copy: vec![],
         }

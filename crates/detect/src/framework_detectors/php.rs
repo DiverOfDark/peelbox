@@ -37,10 +37,7 @@ impl FrameworkDetector for LaravelDetector {
                 "--host=0.0.0.0".into(),
                 "--port=8000".into(),
             ]),
-            runtime_env: btree(&[
-                ("SESSION_DRIVER", "file"),
-                ("CACHE_STORE", "file"),
-            ]),
+            runtime_env: btree(&[("SESSION_DRIVER", "file"), ("CACHE_STORE", "file")]),
             workdir: None,
             extra_copy: vec![],
         }

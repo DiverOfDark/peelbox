@@ -98,8 +98,7 @@ impl ManifestParser for BuildGradleParser {
         // needs installDist instead of assemble, since assemble only creates a thin jar.
         // Only use installDist when mainClass is explicitly configured in the application
         // block — without it, the generated start script has no class to invoke.
-        let has_main_class = content.contains("mainClass")
-            || content.contains("mainClassName");
+        let has_main_class = content.contains("mainClass") || content.contains("mainClassName");
         let use_install_dist =
             has_application_plugin && has_main_class && !has_spring_boot && !has_shadow_plugin;
 
@@ -163,7 +162,10 @@ impl ManifestParser for BuildGradleParser {
         // Build commands and artifacts differ for installDist vs assemble
         let (build_command, member_transform, artifacts) = if use_install_dist {
             (
-                format!("{} installDist -x test --no-daemon --console=plain", gradle_cmd),
+                format!(
+                    "{} installDist -x test --no-daemon --console=plain",
+                    gradle_cmd
+                ),
                 Some(MemberBuildTransform {
                     member_commands: vec![format!(
                         "{} :{{module}}:installDist -x test --no-daemon --console=plain",
@@ -178,7 +180,10 @@ impl ManifestParser for BuildGradleParser {
             )
         } else {
             (
-                format!("{} assemble -x test --no-daemon --console=plain", gradle_cmd),
+                format!(
+                    "{} assemble -x test --no-daemon --console=plain",
+                    gradle_cmd
+                ),
                 Some(MemberBuildTransform {
                     member_commands: vec![format!(
                         "{} :{{module}}:assemble -x test --no-daemon --console=plain",
@@ -205,10 +210,7 @@ impl ManifestParser for BuildGradleParser {
                 ));
             }
             if needs_kts_jar_fix {
-                build_commands.push(format!(
-                    "sed -i 's/^jar {{/tasks.jar {{/' {}",
-                    kts_filename
-                ));
+                build_commands.push(format!("sed -i 's/^jar {{/tasks.jar {{/' {}", kts_filename));
             }
         }
         build_commands.push(build_command);
@@ -263,8 +265,8 @@ impl ManifestParser for BuildGradleParser {
                 ]),
                 cache_dirs: vec![".gradle".into(), "build".into()],
                 artifacts,
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,
                 env: runtime_env,

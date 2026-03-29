@@ -124,9 +124,7 @@ mod tests {
       #:builders (list)
 )"#;
 
-        let manifest = parser
-            .parse(Path::new("haunt.scm"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("haunt.scm"), content).unwrap();
         assert_eq!(manifest.language, SCHEME);
         assert_eq!(manifest.build_system, HAUNT);
         assert_eq!(manifest.runtime, GUILE);

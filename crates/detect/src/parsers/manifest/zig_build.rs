@@ -69,8 +69,8 @@ impl ManifestParser for ZigBuildParser {
                 env,
                 cache_dirs: vec!["zig-cache".into()],
                 artifacts: vec![("zig-out/bin/*".into(), "/app/".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
@@ -122,10 +122,7 @@ const exe = b.addExecutable(.{
     .root_source_file = b.path("src/main.zig"),
 });
 "#;
-        assert_eq!(
-            extract_executable_name(content),
-            Some("myapp".to_string())
-        );
+        assert_eq!(extract_executable_name(content), Some("myapp".to_string()));
     }
 
     #[test]
@@ -136,10 +133,7 @@ const exe = b.addExecutable(.{
     .root_source_file = .{ .path = "src/main.zig" },
 });
 "#;
-        assert_eq!(
-            extract_executable_name(content),
-            Some("zig".to_string())
-        );
+        assert_eq!(extract_executable_name(content), Some("zig".to_string()));
     }
 
     #[test]
@@ -167,11 +161,11 @@ pub fn build(b: *std.Build) void {
         let manifest = parser.parse(Path::new("build.zig"), content).unwrap();
         assert!(manifest.build.commands[0].contains("curl"));
         assert!(manifest.build.commands[0].contains("0.12.0"));
-        assert_eq!(manifest.build.commands[1], "zig build -Doptimize=ReleaseSafe");
         assert_eq!(
-            manifest.package.as_ref().unwrap().name,
-            "myapp"
+            manifest.build.commands[1],
+            "zig build -Doptimize=ReleaseSafe"
         );
+        assert_eq!(manifest.package.as_ref().unwrap().name, "myapp");
         assert_eq!(
             manifest.runtime_config.entrypoint,
             Some("/app/myapp".to_string())
@@ -193,7 +187,10 @@ pub fn build(b: *std.Build) void {
 "#;
         let manifest = parser.parse(Path::new("build.zig"), content).unwrap();
         assert_eq!(manifest.build.commands.len(), 1);
-        assert_eq!(manifest.build.commands[0], "zig build -Doptimize=ReleaseSafe");
+        assert_eq!(
+            manifest.build.commands[0],
+            "zig build -Doptimize=ReleaseSafe"
+        );
         assert!(manifest.build.packages.contains(&"zig".to_string()));
     }
 }

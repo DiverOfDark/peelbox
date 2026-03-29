@@ -458,10 +458,7 @@ pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Resul
                 if let Ok(content) = fs::read(entry_path) {
                     hasher.update(&content);
                 } else {
-                    tracing::warn!(
-                        "Failed to read file content for hashing: {:?}",
-                        entry_path
-                    );
+                    tracing::warn!("Failed to read file content for hashing: {:?}", entry_path);
                 }
             }
             Err(e) => {

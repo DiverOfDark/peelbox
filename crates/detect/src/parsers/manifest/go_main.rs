@@ -72,8 +72,8 @@ impl ManifestParser for GoMainParser {
                 env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts: vec![("bin/app".into(), "/app/app".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
@@ -132,7 +132,11 @@ func main() {
         assert_eq!(pkg.name, "app");
         assert!(pkg.is_application);
 
-        assert!(manifest.build.commands.iter().any(|c| c.contains("go build")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go build")));
         assert_eq!(manifest.runtime_config.entrypoint, Some("/app/app".into()));
     }
 
@@ -151,7 +155,11 @@ func main() {
         let tmp = tempfile::tempdir().unwrap();
         let main_go = tmp.path().join("main.go");
         std::fs::write(&main_go, content).unwrap();
-        std::fs::write(tmp.path().join("go.mod"), "module example.com/app\n\ngo 1.21\n").unwrap();
+        std::fs::write(
+            tmp.path().join("go.mod"),
+            "module example.com/app\n\ngo 1.21\n",
+        )
+        .unwrap();
 
         let result = parser.parse(&main_go, content);
         assert!(result.is_none());

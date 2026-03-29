@@ -16,9 +16,9 @@ fn main() {
     let skip_fixtures: std::collections::HashSet<&str> = [
         "multiple-manifests",
         "rust-custom-toolchain", // App calls `cargo version` at runtime — requires build tools in runtime image
-        "node-legacy-prisma",    // Prisma v2.23.0 requires OpenSSL 1.1 (libssl.so.1.1) which Wolfi doesn't provide
-        "node-monorepo",         // Next.js 12 + React 17 incompatible with modern Node.js (no engines/nvmrc)
-        "node-pnpm-monorepo",    // Next.js 12.2.5 incompatible with modern Node.js (same as node-monorepo)
+        "node-legacy-prisma", // Prisma v2.23.0 requires OpenSSL 1.1 (libssl.so.1.1) which Wolfi doesn't provide
+        "node-monorepo", // Next.js 12 + React 17 incompatible with modern Node.js (no engines/nvmrc)
+        "node-pnpm-monorepo", // Next.js 12.2.5 incompatible with modern Node.js (same as node-monorepo)
     ]
     .into_iter()
     .collect();

@@ -122,8 +122,8 @@ impl ManifestParser for DepsEdnParser {
                 ]),
                 cache_dirs: vec![".m2".into(), ".gitlibs".into(), ".cpcache".into()],
                 artifacts,
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec!["openjdk-17-jre".into(), "ca-certificates".into()],
                 env: runtime_env,
@@ -200,8 +200,16 @@ mod tests {
         assert_eq!(pkg.name, "clojure-example");
         assert!(pkg.is_application);
 
-        assert!(manifest.build.commands.iter().any(|c| c.contains("clojure -T:build uber")));
-        assert!(manifest.runtime_config.entrypoint.unwrap().contains("java -jar"));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("clojure -T:build uber")));
+        assert!(manifest
+            .runtime_config
+            .entrypoint
+            .unwrap()
+            .contains("java -jar"));
     }
 
     #[test]
@@ -224,8 +232,16 @@ mod tests {
         assert_eq!(pkg.name, "app");
         assert!(pkg.is_application);
 
-        assert!(manifest.build.commands.iter().any(|c| c.contains("clojure -P")));
-        assert!(manifest.runtime_config.entrypoint.unwrap().contains("clojure -M"));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("clojure -P")));
+        assert!(manifest
+            .runtime_config
+            .entrypoint
+            .unwrap()
+            .contains("clojure -M"));
     }
 
     #[test]
@@ -241,7 +257,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let build_clj = tmp.path().join("build.clj");
         std::fs::write(&build_clj, "(def lib 'my-project)").unwrap();
-        assert_eq!(extract_project_name(tmp.path()), Some("my-project".to_string()));
+        assert_eq!(
+            extract_project_name(tmp.path()),
+            Some("my-project".to_string())
+        );
     }
 
     #[test]
@@ -249,7 +268,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let build_clj = tmp.path().join("build.clj");
         std::fs::write(&build_clj, "(def lib 'com.example/my-project)").unwrap();
-        assert_eq!(extract_project_name(tmp.path()), Some("my-project".to_string()));
+        assert_eq!(
+            extract_project_name(tmp.path()),
+            Some("my-project".to_string())
+        );
     }
 
     #[test]

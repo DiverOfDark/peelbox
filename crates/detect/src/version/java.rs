@@ -287,10 +287,7 @@ pub fn sync_java_home_with_packages(build: &mut UniversalBuild) {
                 .env
                 .insert("JAVA_HOME".to_string(), correct_java_home.clone());
             if build.runtime.env.contains_key("PATH") {
-                build
-                    .runtime
-                    .env
-                    .insert("PATH".to_string(), correct_path);
+                build.runtime.env.insert("PATH".to_string(), correct_path);
             }
         }
     }

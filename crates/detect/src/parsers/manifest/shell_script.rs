@@ -83,8 +83,8 @@ impl ManifestParser for ShellScriptParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,
                 env: btree(&[]),
@@ -110,9 +110,7 @@ mod tests {
     fn test_shell_script_basic() {
         let parser = ShellScriptParser;
         let content = "#!/bin/sh\necho \"Hello, World!\"";
-        let manifest = parser
-            .parse(Path::new("/tmp/start.sh"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/start.sh"), content).unwrap();
         assert_eq!(manifest.language, SHELL);
         assert_eq!(manifest.build_system, SHELL_BS);
         assert_eq!(
@@ -127,9 +125,7 @@ mod tests {
     fn test_shell_script_bash() {
         let parser = ShellScriptParser;
         let content = "#!/bin/bash\necho \"Hello from bash\"";
-        let manifest = parser
-            .parse(Path::new("/tmp/start.sh"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/start.sh"), content).unwrap();
         assert!(manifest.runtime_config.packages.contains(&"bash".into()));
     }
 

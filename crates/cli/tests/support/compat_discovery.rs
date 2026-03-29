@@ -164,20 +164,12 @@ fn assemble_compat_work_dir(
         let snapshot_src_mtime = snapshot_file
             .parent()
             .and_then(|dir| newest_mtime_recursive(dir))
-            .or_else(|| {
-                fs::metadata(snapshot_file)
-                    .and_then(|m| m.modified())
-                    .ok()
-            });
+            .or_else(|| fs::metadata(snapshot_file).and_then(|m| m.modified()).ok());
         let external_src_mtime = newest_mtime_recursive(external_example);
-        let dest_mtime = fs::metadata(&dest_snapshot)
-            .and_then(|m| m.modified())
-            .ok();
+        let dest_mtime = fs::metadata(&dest_snapshot).and_then(|m| m.modified()).ok();
         if let (Some(d), Some(ss)) = (dest_mtime, snapshot_src_mtime) {
             let snapshot_fresh = d >= ss;
-            let external_fresh = external_src_mtime
-                .map(|em| d >= em)
-                .unwrap_or(true);
+            let external_fresh = external_src_mtime.map(|em| d >= em).unwrap_or(true);
             if snapshot_fresh && external_fresh {
                 return Ok(());
             }
@@ -235,7 +227,9 @@ fn newest_mtime_recursive(dir: &Path) -> Option<std::time::SystemTime> {
                 if meta.is_dir() {
                     if let Some(child_newest) = newest_mtime_recursive(&entry.path()) {
                         newest =
-                            Some(newest.map_or(child_newest, |n: std::time::SystemTime| n.max(child_newest)));
+                            Some(newest.map_or(child_newest, |n: std::time::SystemTime| {
+                                n.max(child_newest)
+                            }));
                     }
                 }
             }

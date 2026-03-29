@@ -63,14 +63,9 @@ impl ManifestParser for PackageJsonParser {
                 let has_bun_lock = path.is_absolute()
                     && path
                         .parent()
-                        .map(|dir| {
-                            dir.join("bun.lockb").exists() || dir.join("bun.lock").exists()
-                        })
+                        .map(|dir| dir.join("bun.lockb").exists() || dir.join("bun.lock").exists())
                         .unwrap_or(false);
-                let has_engines_bun = json
-                    .get("engines")
-                    .and_then(|e| e.get("bun"))
-                    .is_some();
+                let has_engines_bun = json.get("engines").and_then(|e| e.get("bun")).is_some();
                 if has_bun_lock || has_engines_bun {
                     BUN
                 } else {
@@ -150,18 +145,16 @@ impl ManifestParser for PackageJsonParser {
 
         // Read tsconfig.json outDir if present — used to adjust the main entrypoint
         // when TypeScript compiles to a different directory.
-        let ts_out_dir = path
-            .parent()
-            .and_then(|dir| {
-                let tsconfig_path = dir.join("tsconfig.json");
-                let content = std::fs::read_to_string(tsconfig_path).ok()?;
-                let tsconfig: serde_json::Value = serde_json::from_str(&content).ok()?;
-                tsconfig
-                    .get("compilerOptions")
-                    .and_then(|co| co.get("outDir"))
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.trim_end_matches('/').to_string())
-            });
+        let ts_out_dir = path.parent().and_then(|dir| {
+            let tsconfig_path = dir.join("tsconfig.json");
+            let content = std::fs::read_to_string(tsconfig_path).ok()?;
+            let tsconfig: serde_json::Value = serde_json::from_str(&content).ok()?;
+            tsconfig
+                .get("compilerOptions")
+                .and_then(|co| co.get("outDir"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim_end_matches('/').to_string())
+        });
 
         let entrypoint = if let Some(script) = start_script {
             // scripts.start takes priority — it defines how to run the application
@@ -175,7 +168,9 @@ impl ManifestParser for PackageJsonParser {
             // When TypeScript has outDir, the compiled JS is under that directory.
             let resolved_main = if let Some(ref out_dir) = ts_out_dir {
                 // Only prepend outDir if main doesn't already start with it
-                if main.starts_with(&format!("{}/", out_dir)) || main.starts_with(&format!("{out_dir}\\")) {
+                if main.starts_with(&format!("{}/", out_dir))
+                    || main.starts_with(&format!("{out_dir}\\"))
+                {
                     main.to_string()
                 } else {
                     format!("{}/{}", out_dir, main)
@@ -190,16 +185,20 @@ impl ManifestParser for PackageJsonParser {
                 Some(format!("bun run {}", module))
             } else {
                 // Check for common entry files in the project directory
-                let entry = path
-                    .parent()
-                    .and_then(|dir| {
-                        for candidate in &["index.ts", "index.tsx", "index.js", "server.ts", "server.js"] {
-                            if dir.join(candidate).exists() {
-                                return Some(*candidate);
-                            }
+                let entry = path.parent().and_then(|dir| {
+                    for candidate in &[
+                        "index.ts",
+                        "index.tsx",
+                        "index.js",
+                        "server.ts",
+                        "server.js",
+                    ] {
+                        if dir.join(candidate).exists() {
+                            return Some(*candidate);
                         }
-                        None
-                    });
+                    }
+                    None
+                });
                 entry.map(|e| format!("bun run {}", e))
             }
         } else {
@@ -276,8 +275,8 @@ impl ManifestParser for PackageJsonParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".npm".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec![
                     node_runtime_pkg,

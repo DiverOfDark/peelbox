@@ -41,8 +41,7 @@ impl ManifestParser for ProjectCljParser {
         // Check if :target-path has profile-based substitution (%s).
         // When :target-path is "target/%s", `lein uberjar` outputs to target/uberjar/.
         // Otherwise (default), the output goes to target/.
-        let has_profile_target = content.contains(":target-path")
-            && content.contains("%s");
+        let has_profile_target = content.contains(":target-path") && content.contains("%s");
         let jar_name = custom_uberjar_name
             .unwrap_or_else(|| format!("{}-{}-standalone.jar", project_name, version));
         let jar_path = if has_profile_target {

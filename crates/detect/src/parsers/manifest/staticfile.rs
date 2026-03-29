@@ -81,8 +81,8 @@ fn parse_staticfile(path: &Path, content: &str) -> Option<Manifest> {
             env: btree(&[]),
             cache_dirs: vec![],
             artifacts: vec![(".".into(), "/app/".into())],
-                    build_image: None,
-},
+            build_image: None,
+        },
         runtime_config: RuntimeSpec {
             packages: vec!["busybox".into(), "ca-certificates".into()],
             env: btree(&[]),
@@ -152,8 +152,8 @@ fn parse_index_html(path: &Path, content: &str) -> Option<Manifest> {
             env: btree(&[]),
             cache_dirs: vec![],
             artifacts: vec![(".".into(), "/app/".into())],
-                    build_image: None,
-},
+            build_image: None,
+        },
         runtime_config: RuntimeSpec {
             packages: vec!["busybox".into(), "ca-certificates".into()],
             env: btree(&[]),
@@ -178,9 +178,7 @@ mod tests {
     fn test_staticfile_with_root() {
         let parser = StaticfileParser;
         let content = "root: site\n";
-        let manifest = parser
-            .parse(Path::new("/tmp/Staticfile"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/Staticfile"), content).unwrap();
         assert_eq!(manifest.language, STATIC);
         assert_eq!(
             manifest.runtime_config.entrypoint,
@@ -192,9 +190,7 @@ mod tests {
     fn test_staticfile_no_root() {
         let parser = StaticfileParser;
         let content = "";
-        let manifest = parser
-            .parse(Path::new("/tmp/Staticfile"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/Staticfile"), content).unwrap();
         assert_eq!(
             manifest.runtime_config.entrypoint,
             Some("busybox httpd -f -p 8080 -h /app".into())

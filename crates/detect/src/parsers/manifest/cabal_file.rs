@@ -78,10 +78,8 @@ impl ManifestParser for CabalFileParser {
                         // because `cabal install` configures the entire package
                         // (including test suites) even with --disable-tests, which
                         // fails when test source files don't exist (Cabal-2115).
-                        let targets: Vec<String> = exe_names
-                            .iter()
-                            .map(|e| format!("exe:{}", e))
-                            .collect();
+                        let targets: Vec<String> =
+                            exe_names.iter().map(|e| format!("exe:{}", e)).collect();
                         let copy_cmds: Vec<String> = exe_names
                             .iter()
                             .map(|e| format!("cp \"$(cabal list-bin exe:{e})\" .cabal-bin/{e}"))
@@ -101,24 +99,20 @@ impl ManifestParser for CabalFileParser {
                     ]
                 },
                 member_transform: None,
-                env: BTreeMap::from([
-                    (
-                        "PATH".to_string(),
-                        "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
-                    ),
-                ]),
+                env: BTreeMap::from([(
+                    "PATH".to_string(),
+                    "/root/.ghcup/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                        .to_string(),
+                )]),
                 cache_dirs: vec![".cabal".into(), "dist-newstyle".into()],
                 artifacts: if is_application {
                     let exe_bin = exe_names.first().cloned().unwrap_or_else(|| name.clone());
-                    vec![(
-                        format!(".cabal-bin/{exe_bin}"),
-                        format!("/app/{exe_bin}"),
-                    )]
+                    vec![(format!(".cabal-bin/{exe_bin}"), format!("/app/{exe_bin}"))]
                 } else {
                     vec![]
                 },
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec![
                     "glibc".into(),

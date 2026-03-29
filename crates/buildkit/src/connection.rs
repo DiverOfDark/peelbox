@@ -111,9 +111,8 @@ impl BuildKitConnection {
                                     );
                                     last_err = Some(e);
                                     if attempt < max_attempts {
-                                        let backoff = std::time::Duration::from_secs(
-                                            1 << (attempt - 1),
-                                        );
+                                        let backoff =
+                                            std::time::Duration::from_secs(1 << (attempt - 1));
                                         tokio::time::sleep(backoff).await;
                                     }
                                 }

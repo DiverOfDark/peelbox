@@ -136,12 +136,7 @@ impl BuildStrategy for PeelboxStrategy {
             // so busybox symlinks (sh, env, ln, etc.) won't exist otherwise.
             // We use chroot so symlinks get correct absolute paths (e.g., /usr/bin/busybox
             // instead of /runtime-root/usr/bin/busybox).
-            let busybox_symlinks = if spec
-                .runtime
-                .packages
-                .iter()
-                .any(|p| p == "busybox")
-            {
+            let busybox_symlinks = if spec.runtime.packages.iter().any(|p| p == "busybox") {
                 " && chroot /runtime-root /usr/bin/busybox --install -s /usr/bin"
             } else {
                 ""

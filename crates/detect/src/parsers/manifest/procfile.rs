@@ -17,15 +17,9 @@ impl ManifestParser for ProcfileParser {
 
     fn parse(&self, path: &Path, content: &str) -> Option<Manifest> {
         // Find the web: line
-        let web_line = content
-            .lines()
-            .find(|l| l.trim().starts_with("web:"))?;
+        let web_line = content.lines().find(|l| l.trim().starts_with("web:"))?;
 
-        let command = web_line
-            .trim()
-            .strip_prefix("web:")?
-            .trim()
-            .to_string();
+        let command = web_line.trim().strip_prefix("web:")?.trim().to_string();
 
         if command.is_empty() {
             return None;
@@ -128,9 +122,7 @@ mod tests {
     fn test_procfile_python_command() {
         let parser = ProcfileParser;
         let content = "web: python src/main.py\nworker: echo \"another process\"";
-        let manifest = parser
-            .parse(Path::new("/tmp/Procfile"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/Procfile"), content).unwrap();
         assert_eq!(manifest.language, PYTHON);
         assert_eq!(manifest.build_system, PIP);
         assert_eq!(
@@ -143,9 +135,7 @@ mod tests {
     fn test_procfile_gunicorn_command() {
         let parser = ProcfileParser;
         let content = "web: gunicorn app:app --bind 0.0.0.0:8000";
-        let manifest = parser
-            .parse(Path::new("/tmp/Procfile"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/Procfile"), content).unwrap();
         assert_eq!(
             manifest.runtime_config.entrypoint,
             Some("gunicorn app:app --bind 0.0.0.0:8000".into())
@@ -156,9 +146,7 @@ mod tests {
     fn test_procfile_uvicorn_command() {
         let parser = ProcfileParser;
         let content = "web: uvicorn main:app --host 0.0.0.0 --port 8000";
-        let manifest = parser
-            .parse(Path::new("/tmp/Procfile"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("/tmp/Procfile"), content).unwrap();
         assert_eq!(
             manifest.runtime_config.entrypoint,
             Some("uvicorn main:app --host 0.0.0.0 --port 8000".into())

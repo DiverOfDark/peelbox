@@ -105,9 +105,7 @@ impl ManifestParser for YarnLockParser {
                     .and_then(super::package_json::extract_node_major)
             })
             .and_then(|v| v.parse::<u32>().ok());
-        let corepack_compatible = node_major_for_corepack
-            .map(|v| v >= 20)
-            .unwrap_or(true); // Default to compatible if no version specified
+        let corepack_compatible = node_major_for_corepack.map(|v| v >= 20).unwrap_or(true); // Default to compatible if no version specified
         let needs_corepack = has_package_manager_berry && corepack_compatible;
 
         // Extract Yarn version from packageManager field (e.g., "yarn@3.2.4")
@@ -127,7 +125,12 @@ impl ManifestParser for YarnLockParser {
                 content
                     .lines()
                     .find(|l| l.starts_with("yarnPath:"))
-                    .map(|l| l.trim_start_matches("yarnPath:").trim().trim_matches('"').to_string())
+                    .map(|l| {
+                        l.trim_start_matches("yarnPath:")
+                            .trim()
+                            .trim_matches('"')
+                            .to_string()
+                    })
             });
 
         // Berry without corepack: use the bundled yarn binary (yarnPath) directly.
@@ -250,8 +253,8 @@ impl ManifestParser for YarnLockParser {
                 },
                 cache_dirs: vec![".yarn-cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: {
                     let mut pkgs = vec![

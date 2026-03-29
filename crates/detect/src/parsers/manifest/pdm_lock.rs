@@ -69,9 +69,8 @@ impl ManifestParser for PdmLockParser {
             .unwrap_or_else(|| "python".into());
         let python_runtime_pkg = python_build_pkg.clone();
 
-        let dependencies = crate::parsers::manifest::pyproject_toml::parse_pyproject_deps_public(
-            &toml_val, false,
-        );
+        let dependencies =
+            crate::parsers::manifest::pyproject_toml::parse_pyproject_deps_public(&toml_val, false);
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -100,8 +99,8 @@ impl ManifestParser for PdmLockParser {
                 env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec![
                     python_runtime_pkg,

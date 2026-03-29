@@ -124,56 +124,60 @@ impl ManifestParser for GoModParser {
         let main_location = find_go_main_package(dir);
         let is_application = main_location.is_some();
 
-        let (commands, member_transform, artifacts, entrypoint, ports) = if let Some(ref cmd_subdir) = main_location {
-            if cmd_subdir.is_empty() {
-                // main.go is in the root directory
-                (
-                    vec![
-                        "go mod download".into(),
-                        "mkdir -p bin".into(),
-                        format!("go build -o bin/{} .", short_name),
-                    ],
-                    Some(MemberBuildTransform {
-                        member_commands: vec![
+        let (commands, member_transform, artifacts, entrypoint, ports) =
+            if let Some(ref cmd_subdir) = main_location {
+                if cmd_subdir.is_empty() {
+                    // main.go is in the root directory
+                    (
+                        vec![
+                            "go mod download".into(),
                             "mkdir -p bin".into(),
-                            format!("go build -o bin/{} ./{{module}}", short_name),
+                            format!("go build -o bin/{} .", short_name),
                         ],
-                        member_artifacts: None,
-                    }),
-                    vec![(
-                        format!("bin/{}", short_name),
-                        format!("/app/{}", short_name),
-                    )],
-                    Some(format!("/app/{}", short_name)),
-                    vec![8080],
-                )
+                        Some(MemberBuildTransform {
+                            member_commands: vec![
+                                "mkdir -p bin".into(),
+                                format!("go build -o bin/{} ./{{module}}", short_name),
+                            ],
+                            member_artifacts: None,
+                        }),
+                        vec![(
+                            format!("bin/{}", short_name),
+                            format!("/app/{}", short_name),
+                        )],
+                        Some(format!("/app/{}", short_name)),
+                        vec![8080],
+                    )
+                } else {
+                    // main.go is in cmd/<subdir>/
+                    let binary_name = cmd_subdir;
+                    (
+                        vec![
+                            "go mod download".into(),
+                            "mkdir -p bin".into(),
+                            format!("go build -o bin/{} ./cmd/{}", binary_name, binary_name),
+                        ],
+                        Some(MemberBuildTransform {
+                            member_commands: vec![
+                                "mkdir -p bin".into(),
+                                format!(
+                                    "go build -o bin/{} ./{{module}}/cmd/{}",
+                                    binary_name, binary_name
+                                ),
+                            ],
+                            member_artifacts: None,
+                        }),
+                        vec![(
+                            format!("bin/{}", binary_name),
+                            format!("/app/{}", binary_name),
+                        )],
+                        Some(format!("/app/{}", binary_name)),
+                        vec![8080],
+                    )
+                }
             } else {
-                // main.go is in cmd/<subdir>/
-                let binary_name = cmd_subdir;
-                (
-                    vec![
-                        "go mod download".into(),
-                        "mkdir -p bin".into(),
-                        format!("go build -o bin/{} ./cmd/{}", binary_name, binary_name),
-                    ],
-                    Some(MemberBuildTransform {
-                        member_commands: vec![
-                            "mkdir -p bin".into(),
-                            format!("go build -o bin/{} ./{{module}}/cmd/{}", binary_name, binary_name),
-                        ],
-                        member_artifacts: None,
-                    }),
-                    vec![(
-                        format!("bin/{}", binary_name),
-                        format!("/app/{}", binary_name),
-                    )],
-                    Some(format!("/app/{}", binary_name)),
-                    vec![8080],
-                )
-            }
-        } else {
-            (vec![], None, vec![], None, vec![])
-        };
+                (vec![], None, vec![], None, vec![])
+            };
 
         // Build environment
         let env_pairs: Vec<(&str, &str)> = vec![
@@ -202,8 +206,8 @@ impl ManifestParser for GoModParser {
                 env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts,
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),

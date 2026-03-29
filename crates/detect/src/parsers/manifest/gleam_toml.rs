@@ -52,10 +52,7 @@ impl ManifestParser for GleamTomlParser {
         // If gleam.toml has `gleam = ">= 1.x"`, use latest.
         // Otherwise (old projects with no gleam constraint or pre-1.0 constraint),
         // pin to the last 0.x release for compatibility with old gleam_stdlib.
-        let gleam_constraint = toml_val
-            .get("gleam")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let gleam_constraint = toml_val.get("gleam").and_then(|v| v.as_str()).unwrap_or("");
         let needs_v1 = gleam_constraint.contains("1.");
 
         // For Gleam 1.x+ projects, use the official Gleam Docker image which has
@@ -102,7 +99,10 @@ impl ManifestParser for GleamTomlParser {
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec!["build".into()],
-                artifacts: vec![("build/erlang-shipment".into(), "/app/build/erlang-shipment".into())],
+                artifacts: vec![(
+                    "build/erlang-shipment".into(),
+                    "/app/build/erlang-shipment".into(),
+                )],
                 build_image,
             },
             runtime_config: RuntimeSpec {
@@ -133,10 +133,7 @@ fn parse_gleam_deps(toml_val: &toml::Value) -> Vec<Dependency> {
             });
         }
     }
-    if let Some(table) = toml_val
-        .get("dev-dependencies")
-        .and_then(|v| v.as_table())
-    {
+    if let Some(table) = toml_val.get("dev-dependencies").and_then(|v| v.as_table()) {
         for (name, val) in table {
             let version = match val {
                 toml::Value::String(s) => Some(s.clone()),
@@ -187,7 +184,11 @@ gleam_stdlib = "~> 0.28.0"
             Some("./build/erlang-shipment/entrypoint.sh run")
         );
         assert_eq!(manifest.runtime_config.ports, vec![4000]);
-        assert!(manifest.build.commands.iter().any(|c| c.contains("gleam export erlang-shipment")));
+        assert!(manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("gleam export erlang-shipment")));
     }
 
     #[test]

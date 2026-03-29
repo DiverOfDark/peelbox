@@ -1,6 +1,4 @@
-use crate::ids::{
-    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId,
-};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
@@ -35,8 +33,8 @@ impl ManifestParser for ShardYmlParser {
         let dependencies = parse_shard_deps(content);
 
         // Extract crystal version from the `crystal:` key, default to 1.14.0
-        let crystal_version = extract_yaml_value(content, "crystal")
-            .unwrap_or_else(|| "1.14.0".to_string());
+        let crystal_version =
+            extract_yaml_value(content, "crystal").unwrap_or_else(|| "1.14.0".to_string());
 
         Some(Manifest {
             path: path.to_path_buf(),

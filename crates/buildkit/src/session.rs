@@ -669,8 +669,8 @@ impl BuildSession {
             self.connection.addr(),
             crate::connection::BuildKitAddr::DockerNative(_)
         );
-        let needs_tar_stream = !is_docker_native
-            || !matches!(self.output_dest, OutputDestination::DockerLoad);
+        let needs_tar_stream =
+            !is_docker_native || !matches!(self.output_dest, OutputDestination::DockerLoad);
 
         let mut exporter_attrs = std::collections::HashMap::new();
         exporter_attrs.insert("name".to_string(), image_tag.to_string());
@@ -893,9 +893,7 @@ impl BuildSession {
                     }
                 }
             } else {
-                debug!(
-                    "Docker daemon handles export internally — skipping tar stream wait"
-                );
+                debug!("Docker daemon handles export internally — skipping tar stream wait");
             }
         } else {
             debug!("No export completion signal configured");

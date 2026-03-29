@@ -142,8 +142,8 @@ mod tests {
                 commands: vec!["npm install".into()],
                 env: BTreeMap::new(),
                 cache: vec![".npm".into()],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: peelbox_core::output::schema::RuntimeStage {
                 packages: runtime_packages,
                 command: vec!["node".into(), "index.js".into()],
@@ -240,8 +240,8 @@ mod tests {
                 commands: vec!["pip install .".into()],
                 env: BTreeMap::new(),
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: Default::default(),
         };
 

@@ -389,8 +389,8 @@ version = "0.1.0"
                 commands: vec!["cargo build --release".into()],
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: Default::default(),
         };
 
@@ -421,8 +421,8 @@ version = "0.1.0"
                 commands: vec!["cargo build --release".into()],
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: Default::default(),
         };
 
@@ -434,12 +434,18 @@ version = "0.1.0"
         assert!(build.build.commands[0].contains("rustup"));
         assert!(build.build.commands[0].contains("1.50"));
         assert_eq!(build.build.commands[1], "cargo build --release");
-        assert!(build.build.commands[2].contains("cp") && build.build.commands[2].contains("cargo"));
+        assert!(
+            build.build.commands[2].contains("cp") && build.build.commands[2].contains("cargo")
+        );
         assert_eq!(build.build.env["CARGO_HOME"], "/root/.cargo");
         assert!(build.build.env["PATH"].contains("/root/.cargo/bin"));
         assert_eq!(build.build.cache[0], "/root/.cargo");
         // Runtime should have cargo copy and lib dependencies
-        assert!(build.runtime.copy.iter().any(|c| c.to == "/usr/local/bin/cargo"));
+        assert!(build
+            .runtime
+            .copy
+            .iter()
+            .any(|c| c.to == "/usr/local/bin/cargo"));
         assert!(build.runtime.packages.contains(&"libgcc".to_string()));
     }
 
@@ -462,8 +468,8 @@ version = "0.1.0"
                 commands: vec!["pip install .".into()],
                 env: BTreeMap::new(),
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: Default::default(),
         };
 

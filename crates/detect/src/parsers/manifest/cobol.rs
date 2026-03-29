@@ -63,14 +63,10 @@ impl ManifestParser for CobolParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    "glibc".into(),
-                    "libgcc".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: vec!["glibc".into(), "libgcc".into(), "ca-certificates".into()],
                 env: btree(&[]),
                 entrypoint: Some("./app".into()),
                 workdir: Some("/app".into()),
@@ -138,10 +134,7 @@ mod tests {
         assert_eq!(manifest.build_system, GNUCOBOL);
         assert_eq!(manifest.runtime, NATIVE_RT);
         assert!(manifest.build.commands[0].contains("cobc -x -o app"));
-        assert_eq!(
-            manifest.runtime_config.entrypoint,
-            Some("./app".into())
-        );
+        assert_eq!(manifest.runtime_config.entrypoint, Some("./app".into()));
     }
 
     #[test]

@@ -253,8 +253,7 @@ pub fn assert_detection_with_mode(
             .join(fixture_name)
             .join("universalbuild.json");
         if fixture_snapshot.exists() {
-            let json =
-                serde_json::to_string_pretty(results).expect("Failed to serialize results");
+            let json = serde_json::to_string_pretty(results).expect("Failed to serialize results");
             std::fs::write(&fixture_snapshot, format!("{}\n", json))
                 .unwrap_or_else(|e| panic!("Failed to write fixture snapshot: {}", e));
             eprintln!("Updated fixture snapshot for {}/{}", category, fixture_name);
@@ -374,7 +373,8 @@ pub fn get_fixture_container_test_infos(
             // expected_log.txt is for apps that run indefinitely but
             // aren't reachable via port (e.g., bind to 127.0.0.1).
             // It polls logs while the container runs, then kills it.
-            let per_project_path = fixture_dir.join(format!("expected_output_{}.txt", project_name));
+            let per_project_path =
+                fixture_dir.join(format!("expected_output_{}.txt", project_name));
             let validation = if per_project_path.exists() {
                 let expected_output = std::fs::read_to_string(&per_project_path).ok()?;
                 ContainerValidation::Stdout { expected_output }

@@ -33,10 +33,7 @@ impl ManifestParser for DenoJsonParser {
 
         let json: serde_json::Value = serde_json::from_str(&clean).ok()?;
 
-        let has_build = json
-            .get("tasks")
-            .and_then(|t| t.get("build"))
-            .is_some();
+        let has_build = json.get("tasks").and_then(|t| t.get("build")).is_some();
 
         let mut build_commands = vec!["deno install".into()];
         if has_build {
@@ -65,8 +62,8 @@ impl ManifestParser for DenoJsonParser {
                     (".".into(), "/app".into()),
                     ("/deno-dir".into(), "/deno-dir".into()),
                 ],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: vec!["deno".into(), "ca-certificates".into()],
                 env: btree(&[("DENO_DIR", "/deno-dir")]),
@@ -234,7 +231,10 @@ mod tests {
         let parser = DenoJsonParser;
         let manifest = parser.parse(Path::new("deno.jsonc"), input).unwrap();
         assert_eq!(manifest.language, crate::ids::LanguageId::new("deno"));
-        assert_eq!(manifest.build_system, crate::ids::BuildSystemId::new("deno"));
+        assert_eq!(
+            manifest.build_system,
+            crate::ids::BuildSystemId::new("deno")
+        );
         assert!(manifest.package.unwrap().is_application);
     }
 }

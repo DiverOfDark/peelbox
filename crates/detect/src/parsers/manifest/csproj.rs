@@ -117,10 +117,7 @@ fn build_wolfi_dotnet_specs(
     // enable roll-forward so the app runs on the newer runtime.
     let runtime_env = if ver.major < MIN_WOLFI_DOTNET_NATIVE {
         let mut env = BTreeMap::new();
-        env.insert(
-            "DOTNET_ROLL_FORWARD".into(),
-            "LatestMajor".into(),
-        );
+        env.insert("DOTNET_ROLL_FORWARD".into(), "LatestMajor".into());
         env
     } else {
         BTreeMap::new() // ASPNETCORE_URLS set by framework detector
@@ -138,8 +135,8 @@ fn build_wolfi_dotnet_specs(
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-                    build_image: None,
-},
+            build_image: None,
+        },
         RuntimeSpec {
             packages: vec![runtime_pkg, "ca-certificates".into()],
             env: runtime_env,
@@ -152,7 +149,10 @@ fn build_wolfi_dotnet_specs(
 }
 
 /// Build specs when no .NET version could be parsed (fallback).
-fn build_fallback_dotnet_specs(file_stem: &Option<String>, is_web: bool) -> (BuildSpec, RuntimeSpec) {
+fn build_fallback_dotnet_specs(
+    file_stem: &Option<String>,
+    is_web: bool,
+) -> (BuildSpec, RuntimeSpec) {
     let ports = if is_web { vec![5000] } else { vec![] };
 
     (
@@ -163,8 +163,8 @@ fn build_fallback_dotnet_specs(file_stem: &Option<String>, is_web: bool) -> (Bui
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-                    build_image: None,
-},
+            build_image: None,
+        },
         RuntimeSpec {
             packages: vec!["dotnet-runtime".into(), "ca-certificates".into()],
             env: BTreeMap::new(),

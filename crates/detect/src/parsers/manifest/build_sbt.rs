@@ -153,8 +153,8 @@ impl ManifestParser for BuildSbtParser {
                 ]),
                 cache_dirs: vec![".ivy2".into(), ".sbt".into(), "target".into()],
                 artifacts,
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: {
                     let mut pkgs = vec![

@@ -373,11 +373,7 @@ impl OciIndex {
                         if let Ok(age) = now.duration_since(modified) {
                             if age < gc_grace_period {
                                 skipped_recent += 1;
-                                debug!(
-                                    "Skipping recent blob {} (age: {}s)",
-                                    digest,
-                                    age.as_secs()
-                                );
+                                debug!("Skipping recent blob {} (age: {}s)", digest, age.as_secs());
                                 continue;
                             }
                         }

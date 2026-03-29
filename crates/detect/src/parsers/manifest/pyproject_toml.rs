@@ -189,8 +189,8 @@ impl ManifestParser for PyProjectTomlParser {
                     env: btree(&[("UV_CACHE_DIR", "/root/.cache/uv")]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
                     artifacts: vec![(".".into(), "/build".into())],
-                                    build_image: None,
-},
+                    build_image: None,
+                },
                 runtime_config: RuntimeSpec {
                     packages: vec![
                         python_runtime_pkg,
@@ -281,8 +281,8 @@ impl ManifestParser for PyProjectTomlParser {
                         (".".into(), "/app/".into()),
                         ("/root/.local/".into(), "/root/.local/".into()),
                     ],
-                                    build_image: None,
-},
+                    build_image: None,
+                },
                 runtime_config: RuntimeSpec {
                     packages: vec![
                         python_runtime_pkg,
@@ -541,11 +541,7 @@ build-backend = "pdm.backend"
             .commands
             .iter()
             .any(|c| c.contains("pdm export")));
-        assert!(manifest
-            .build
-            .commands
-            .iter()
-            .any(|c| c.contains(".venv")));
+        assert!(manifest.build.commands.iter().any(|c| c.contains(".venv")));
 
         // Check env vars
         assert!(manifest.build.env.contains_key("PDM_PYTHON"));
@@ -554,10 +550,7 @@ build-backend = "pdm.backend"
         assert!(manifest.build.cache_dirs.iter().any(|c| c.contains("pdm")));
 
         // Check artifacts
-        assert_eq!(
-            manifest.build.artifacts,
-            vec![(".".into(), "/app".into())]
-        );
+        assert_eq!(manifest.build.artifacts, vec![(".".into(), "/app".into())]);
     }
 
     #[test]

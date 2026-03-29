@@ -468,18 +468,21 @@ fn collect_manifests_with_frameworks(
                 if !env_keys.is_empty() {
                     if let Some(ref fw) = framework {
                         // Collect all variants that match the required env keys
-                        let matching_variants: Vec<_> = detectors.iter().filter_map(|d| {
-                            let contrib = d.contribution(&manifest.dependencies);
-                            if contrib.framework == fw.framework
-                                && env_keys
-                                    .iter()
-                                    .all(|k| contrib.runtime_env.contains_key(*k))
-                            {
-                                Some(contrib)
-                            } else {
-                                None
-                            }
-                        }).collect();
+                        let matching_variants: Vec<_> = detectors
+                            .iter()
+                            .filter_map(|d| {
+                                let contrib = d.contribution(&manifest.dependencies);
+                                if contrib.framework == fw.framework
+                                    && env_keys
+                                        .iter()
+                                        .all(|k| contrib.runtime_env.contains_key(*k))
+                                {
+                                    Some(contrib)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
 
                         if !matching_variants.is_empty() {
                             // Prefer the variant whose workdir matches the manifest's
@@ -487,7 +490,8 @@ fn collect_manifests_with_frameworks(
                             // pick FlaskUv, while Poetry/PDM (workdir /app) pick their
                             // own variants.
                             let manifest_workdir = manifest.runtime_config.workdir.as_deref();
-                            let best = matching_variants.iter()
+                            let best = matching_variants
+                                .iter()
                                 .find(|v| v.workdir.as_deref() == manifest_workdir)
                                 .or(matching_variants.first());
                             if let Some(variant) = best {
@@ -586,7 +590,6 @@ fn partition(
                     primary_idx = dep_idx;
                 }
             }
-
 
             let mut primary = manifests_in_dir.remove(primary_idx);
 
@@ -1361,7 +1364,9 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             .unwrap_or(parts.len());
         for kv in &parts[..env_prefix_end] {
             if let Some((k, v)) = kv.split_once('=') {
-                runtime_env.entry(k.to_string()).or_insert_with(|| v.to_string());
+                runtime_env
+                    .entry(k.to_string())
+                    .or_insert_with(|| v.to_string());
             }
         }
         let remaining: &str = &config_cmd[config_cmd
@@ -1429,7 +1434,9 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     if m.build_system.slug() == "bundler"
         && !entrypoint_cmd.is_empty()
         && entrypoint_cmd.first().map(|s| s.as_str()) != Some("bundle")
-        && entrypoint_cmd.iter().any(|s| s == "ruby" || s.ends_with(".rb"))
+        && entrypoint_cmd
+            .iter()
+            .any(|s| s == "ruby" || s.ends_with(".rb"))
     {
         let mut wrapped = vec!["bundle".to_string(), "exec".to_string()];
         wrapped.extend(entrypoint_cmd);
@@ -1542,9 +1549,9 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
 /// bleeding-edge release). For these, prefer the second-latest minor version
 /// when no explicit version is pinned — matching PaaS defaults (Heroku, Railway).
 const PREFER_STABLE_PACKAGES: &[(&str, usize)] = &[
-    ("python", 2),  // Many libraries publish wheels late; N-2 has broadest support
+    ("python", 2), // Many libraries publish wheels late; N-2 has broadest support
     ("elixir", 1),
-    ("erlang", 2),  // Erlang 27+ has escript compilation issues with popular packages (e.g. simplifile)
+    ("erlang", 2), // Erlang 27+ has escript compilation issues with popular packages (e.g. simplifile)
 ];
 
 /// Resolve generic package names to versioned Wolfi package names.
@@ -1567,7 +1574,9 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             .iter()
             .find(|(name, _)| *name == pkg.as_str())
         {
-            let resolved = if let Some((_, offset)) = PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix) {
+            let resolved = if let Some((_, offset)) =
+                PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix)
+            {
                 wolfi.get_stable_version_at_offset(prefix, *offset)
             } else {
                 wolfi.get_latest_version(prefix)
@@ -1580,7 +1589,9 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             // Handle e.g. erlang-dev → erlang-28-dev
             let base = pkg.strip_suffix("-dev").unwrap();
             if let Some((_, prefix)) = VERSIONABLE_PACKAGES.iter().find(|(name, _)| *name == base) {
-                let resolved = if let Some((_, offset)) = PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix) {
+                let resolved = if let Some((_, offset)) =
+                    PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix)
+                {
                     wolfi.get_stable_version_at_offset(prefix, *offset)
                 } else {
                     wolfi.get_latest_version(prefix)
@@ -1938,7 +1949,11 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
             if let Some(&first_port) = source_ports.first() {
                 let flask_port_num = flask_port.parse::<u16>().unwrap_or(0);
                 if flask_port_num != first_port {
-                    debug!(old_port = flask_port_num, new_port = first_port, "Syncing FLASK_RUN_PORT with source-detected port");
+                    debug!(
+                        old_port = flask_port_num,
+                        new_port = first_port,
+                        "Syncing FLASK_RUN_PORT with source-detected port"
+                    );
                     build
                         .runtime
                         .env
@@ -2363,13 +2378,20 @@ fn scan_mise_config(repo_root: &Path, build: &mut UniversalBuild) {
                 } else {
                     "python".to_string()
                 };
-                if !build.runtime.packages.iter().any(|p| p.starts_with("python")) {
+                if !build
+                    .runtime
+                    .packages
+                    .iter()
+                    .any(|p| p.starts_with("python"))
+                {
                     build.runtime.packages.push(pkg_name);
                 }
             }
             "go" | "golang" => {
                 // Add go as runtime package if not already present
-                if !build.runtime.packages.iter().any(|p| p.starts_with("go-")) && !build.runtime.packages.contains(&"go".to_string()) {
+                if !build.runtime.packages.iter().any(|p| p.starts_with("go-"))
+                    && !build.runtime.packages.contains(&"go".to_string())
+                {
                     build.runtime.packages.push("go".to_string());
                 }
             }
@@ -2886,10 +2908,7 @@ fn fix_django_settings(repo_root: &Path, build: &mut UniversalBuild) {
     if let Ok(content) = std::fs::read_to_string(&manage_py) {
         // Look for: os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'some.module')
         // or: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "some.module")
-        let re = regex::Regex::new(
-            r#"DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]"#,
-        )
-        .unwrap();
+        let re = regex::Regex::new(r#"DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([\w.]+)['"]"#).unwrap();
         if let Some(caps) = re.captures(&content) {
             let settings_module = caps.get(1).unwrap().as_str();
             build
@@ -2956,9 +2975,7 @@ fn scan_python_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
                 None
             };
             if let Some(dev) = dev_pkg {
-                if !build.build.packages.contains(&dev)
-                    && !build_pkgs_to_add.contains(&dev)
-                {
+                if !build.build.packages.contains(&dev) && !build_pkgs_to_add.contains(&dev) {
                     build_pkgs_to_add.push(dev);
                 }
             }
@@ -3085,26 +3102,27 @@ const NODE_SYSTEM_DEPS: &[(&str, &[&str], &[&str])] = &[
     // canvas (node-canvas) requires Cairo, Pango, image format libraries, and libuuid
     (
         "canvas",
-        &["cairo-dev", "pango-dev", "libjpeg-turbo-dev", "giflib-dev", "pixman-dev"],
-        &["cairo", "pango", "libjpeg-turbo", "giflib", "pixman", "libuuid"],
+        &[
+            "cairo-dev",
+            "pango-dev",
+            "libjpeg-turbo-dev",
+            "giflib-dev",
+            "pixman-dev",
+        ],
+        &[
+            "cairo",
+            "pango",
+            "libjpeg-turbo",
+            "giflib",
+            "pixman",
+            "libuuid",
+        ],
     ),
     // sharp requires vips (image processing library)
-    (
-        "sharp",
-        &["vips-dev"],
-        &["vips"],
-    ),
+    ("sharp", &["vips-dev"], &["vips"]),
     // better-sqlite3 and sqlite3 need SQLite headers
-    (
-        "better-sqlite3",
-        &["sqlite-dev"],
-        &["sqlite-libs"],
-    ),
-    (
-        "sqlite3",
-        &["sqlite-dev"],
-        &["sqlite-libs"],
-    ),
+    ("better-sqlite3", &["sqlite-dev"], &["sqlite-libs"]),
+    ("sqlite3", &["sqlite-dev"], &["sqlite-libs"]),
 ];
 
 /// Add system library dependencies for specific Node.js native packages.
@@ -3201,10 +3219,10 @@ fn scan_node_puppeteer(_repo_root: &Path, build: &mut UniversalBuild) {
 
     // Set PUPPETEER_SKIP_CHROMIUM_DOWNLOAD to avoid downloading
     // Chromium during npm install (we use the system-installed one)
-    build.build.env.insert(
-        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD".into(),
-        "true".into(),
-    );
+    build
+        .build
+        .env
+        .insert("PUPPETEER_SKIP_CHROMIUM_DOWNLOAD".into(), "true".into());
     build.runtime.env.insert(
         "PUPPETEER_EXECUTABLE_PATH".into(),
         "/usr/bin/chromium-browser".into(),
@@ -3474,7 +3492,11 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
     // No app.py found anywhere — check for main.py with Flask imports
     if project_dir.join("main.py").exists() {
         if let Ok(content) = std::fs::read_to_string(project_dir.join("main.py")) {
-            if content.contains("from flask") || content.contains("import flask") || content.contains("import Flask") || content.contains("from Flask") {
+            if content.contains("from flask")
+                || content.contains("import flask")
+                || content.contains("import Flask")
+                || content.contains("from Flask")
+            {
                 let workdir = &build.runtime.workdir;
                 let new_flask_app = format!("{}/main.py", workdir);
                 debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP to main.py (contains Flask imports)");
@@ -3524,12 +3546,8 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
                                     let pkg_name = dir_name
                                         .replace('-', "_")
                                         .replace(std::path::MAIN_SEPARATOR, ".");
-                                    let new_flask_app =
-                                        format!("{}.__main__:app", pkg_name);
-                                    build
-                                        .runtime
-                                        .env
-                                        .insert("FLASK_APP".into(), new_flask_app);
+                                    let new_flask_app = format!("{}.__main__:app", pkg_name);
+                                    build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
                                     return;
                                 }
                                 // No __init__.py — not a proper Python package.
@@ -3549,8 +3567,7 @@ fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
                             }
                         }
                     }
-                    let new_flask_app =
-                        format!("{}/{}", workdir, rel_path.display());
+                    let new_flask_app = format!("{}/{}", workdir, rel_path.display());
                     build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
                     return;
                 }
@@ -3628,8 +3645,8 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
-                                    build_image: None,
-},
+                    build_image: None,
+                },
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
                     env: BTreeMap::new(),
@@ -3683,8 +3700,8 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
-                                    build_image: None,
-},
+                    build_image: None,
+                },
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
                     env: BTreeMap::new(),
@@ -3760,8 +3777,8 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -3805,8 +3822,8 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -3857,8 +3874,8 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -4075,8 +4092,8 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libgcc".into()],
                 env: BTreeMap::new(),
@@ -4119,8 +4136,8 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec![],
                 env: BTreeMap::new(),
@@ -4169,8 +4186,8 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into()],
                 env: BTreeMap::new(),
@@ -4226,8 +4243,8 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libpq".into()],
                 env: BTreeMap::new(),

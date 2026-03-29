@@ -1,6 +1,4 @@
-use crate::ids::{
-    BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId,
-};
+use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
 use std::collections::BTreeMap;
@@ -42,7 +40,8 @@ impl ManifestParser for PackageSwiftParser {
         let dependencies = parse_swift_deps(content);
 
         // Extract the executable target name — it may differ from the package name.
-        let exec_target_name = extract_executable_target_name(content).unwrap_or_else(|| name.clone());
+        let exec_target_name =
+            extract_executable_target_name(content).unwrap_or_else(|| name.clone());
         let entrypoint = if is_application {
             Some(format!("/app/{}", exec_target_name))
         } else {
@@ -71,24 +70,21 @@ impl ManifestParser for PackageSwiftParser {
             build: BuildSpec {
                 // No Wolfi packages needed -- using the official Swift Docker image
                 packages: vec![],
-                commands: vec![
-                    "swift build -c release".into(),
-                ],
+                commands: vec!["swift build -c release".into()],
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec![".build".into()],
                 artifacts: vec![
                     (".build/release/".into(), "/app/".into()),
-                    ("/usr/lib/swift/linux/".into(), "/usr/lib/swift/linux/".into()),
+                    (
+                        "/usr/lib/swift/linux/".into(),
+                        "/usr/lib/swift/linux/".into(),
+                    ),
                 ],
                 build_image: Some(swift_image.to_string()),
             },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    "glibc".into(),
-                    "libstdc++".into(),
-                    "ca-certificates".into(),
-                ],
+                packages: vec!["glibc".into(), "libstdc++".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
                 entrypoint,
                 workdir: Some("/app".into()),
@@ -179,9 +175,7 @@ let package = Package(
     ]
 )
 "#;
-        let manifest = parser
-            .parse(Path::new("Package.swift"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("Package.swift"), content).unwrap();
         assert_eq!(manifest.language, LanguageId::new("swift"));
         assert_eq!(
             manifest.build_system,
@@ -221,9 +215,7 @@ let package = Package(
     ]
 )
 "#;
-        let manifest = parser
-            .parse(Path::new("Package.swift"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("Package.swift"), content).unwrap();
         let pkg = manifest.package.unwrap();
         assert_eq!(pkg.name, "my-lib");
         assert!(!pkg.is_application);
@@ -247,9 +239,7 @@ let package = Package(
     ]
 )
 "#;
-        let manifest = parser
-            .parse(Path::new("Package.swift"), content)
-            .unwrap();
+        let manifest = parser.parse(Path::new("Package.swift"), content).unwrap();
         assert_eq!(manifest.dependencies.len(), 2);
         assert_eq!(manifest.dependencies[0].name, "vapor");
         assert_eq!(manifest.dependencies[1].name, "fluent");
