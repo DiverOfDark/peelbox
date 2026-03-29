@@ -35,7 +35,7 @@ impl BuildStrategy for PeelboxStrategy {
                     args: vec![
                         "sh".to_string(),
                         "-c".to_string(),
-                        format!("apk update && apk add --no-cache {}", packages),
+                        format!("apk add --no-cache {}", packages),
                     ],
                     env: vec![],
                     cwd: "/".to_string(),
@@ -146,7 +146,7 @@ impl BuildStrategy for PeelboxStrategy {
                 args: vec![
                     "/bin/sh".to_string(),
                     "-c".to_string(),
-                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk update && apk add --root /runtime-root --no-cache --no-scripts --initdb {}{} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages, busybox_symlinks),
+                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk add --root /runtime-root --no-cache --no-scripts --initdb {}{} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages, busybox_symlinks),
                 ],
                 env: vec![
                     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
