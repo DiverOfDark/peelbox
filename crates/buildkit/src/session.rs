@@ -679,31 +679,34 @@ impl BuildSession {
         }
         exporter_attrs.insert("containerimage.config".to_string(), config_json_str);
 
-        if self.attestation_config.sbom {
-            exporter_attrs.insert("attest:sbom".to_string(), String::new());
-            debug!("Enabled SBOM attestation (SPDX format)");
-        }
-
-        if let Some(mode) = self.attestation_config.provenance {
-            let mode_str = match mode {
-                ProvenanceMode::Min => "mode=min",
-                ProvenanceMode::Max => "mode=max",
-            };
-            exporter_attrs.insert("attest:provenance".to_string(), mode_str.to_string());
-            debug!("Enabled SLSA provenance attestation ({})", mode_str);
-        }
-
-        if self.attestation_config.scan_context {
-            exporter_attrs.insert(
-                "build-arg:BUILDKIT_SBOM_SCAN_CONTEXT".to_string(),
-                "true".to_string(),
-            );
-            debug!("Enabled build context scanning for SBOM");
-        }
-
         // Docker's embedded BuildKit ("moby" exporter) unpacks images directly
-        // into Docker's store, which conflicts with rewrite-timestamp.
+        // into Docker's store. Attestations create an OCI index with multiple
+        // manifests which can cause "no command specified" errors, and
+        // rewrite-timestamp conflicts with the unpack step. Skip all of these
+        // for Docker native — they're only meaningful for standalone BuildKit.
         if !is_docker_native {
+            if self.attestation_config.sbom {
+                exporter_attrs.insert("attest:sbom".to_string(), String::new());
+                debug!("Enabled SBOM attestation (SPDX format)");
+            }
+
+            if let Some(mode) = self.attestation_config.provenance {
+                let mode_str = match mode {
+                    ProvenanceMode::Min => "mode=min",
+                    ProvenanceMode::Max => "mode=max",
+                };
+                exporter_attrs.insert("attest:provenance".to_string(), mode_str.to_string());
+                debug!("Enabled SLSA provenance attestation ({})", mode_str);
+            }
+
+            if self.attestation_config.scan_context {
+                exporter_attrs.insert(
+                    "build-arg:BUILDKIT_SBOM_SCAN_CONTEXT".to_string(),
+                    "true".to_string(),
+                );
+                debug!("Enabled build context scanning for SBOM");
+            }
+
             exporter_attrs.insert("rewrite-timestamp".to_string(), "true".to_string());
             exporter_attrs.insert("source-date-epoch".to_string(), "0".to_string());
         }
