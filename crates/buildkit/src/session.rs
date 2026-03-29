@@ -705,7 +705,13 @@ impl BuildSession {
         exporter_attrs.insert("source-date-epoch".to_string(), "0".to_string());
 
         let exporter_type = match &self.output_dest {
-            OutputDestination::DockerLoad => "docker",
+            OutputDestination::DockerLoad => {
+                if is_docker_native {
+                    "moby"
+                } else {
+                    "docker"
+                }
+            }
             OutputDestination::File { format, .. } => format.as_str(),
         };
 
