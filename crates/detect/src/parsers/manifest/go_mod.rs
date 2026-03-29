@@ -43,11 +43,9 @@ fn find_go_main_package(dir: &Path) -> Option<String> {
     if let Ok(entries) = std::fs::read_dir(&cmd_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() {
-                if dir_has_package_main(&path) {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        return Some(name.to_string());
-                    }
+            if path.is_dir() && dir_has_package_main(&path) {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    return Some(name.to_string());
                 }
             }
         }

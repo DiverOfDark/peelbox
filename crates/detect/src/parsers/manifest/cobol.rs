@@ -84,17 +84,7 @@ fn find_main_cbl(parent: &Path, current_file: &Path) -> String {
     // Check for index.cbl in the same directory
     let index_path = parent.join("index.cbl");
     if index_path.exists() {
-        return current_file
-            .file_name()
-            .and_then(|n| n.to_str())
-            .map(|n| {
-                if n == "index.cbl" {
-                    "index.cbl".to_string()
-                } else {
-                    "index.cbl".to_string()
-                }
-            })
-            .unwrap_or_else(|| "index.cbl".to_string());
+        return "index.cbl".to_string();
     }
 
     // Use the current file

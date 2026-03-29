@@ -117,8 +117,8 @@ fn extract_toml_start_cmd(content: &str) -> Option<String> {
             if trimmed.starts_with("cmd") {
                 // cmd = "..." or cmd = '...'
                 let val = trimmed
-                    .splitn(2, '=')
-                    .nth(1)?
+                    .split_once('=')?
+                    .1
                     .trim()
                     .trim_matches('"')
                     .trim_matches('\'');

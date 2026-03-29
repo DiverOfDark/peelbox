@@ -42,13 +42,11 @@ impl ManifestParser for DepsEdnParser {
             let jar_name = format!("{}-standalone.jar", project_name);
             (
                 vec![
-                    format!(
-                        "curl -fsSL https://download.clojure.org/install/linux-install-1.11.1.1435.sh | bash -s -- -p /usr/local"
-                    ),
+                    "curl -fsSL https://download.clojure.org/install/linux-install-1.11.1.1435.sh | bash -s -- -p /usr/local".to_string(),
                     "clojure -T:build uber".into(),
                 ],
                 Some(format!("java -jar /app/{}", jar_name)),
-                vec![(format!("target/*-standalone.jar"), format!("/app/{}", jar_name))],
+                vec![("target/*-standalone.jar".to_string(), format!("/app/{}", jar_name))],
             )
         } else {
             // Plain deps.edn without build.clj — run with clojure directly

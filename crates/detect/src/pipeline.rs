@@ -1452,10 +1452,10 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     if cmd_uses_ruby && !runtime_packages.iter().any(|p| p.starts_with("ruby")) {
         // Find ruby packages from build packages
         for pkg in &m.build.packages {
-            if (pkg.starts_with("ruby") && !pkg.contains("-dev")) || pkg == "bundler" {
-                if !runtime_packages.contains(pkg) {
-                    runtime_packages.push(pkg.clone());
-                }
+            if ((pkg.starts_with("ruby") && !pkg.contains("-dev")) || pkg == "bundler")
+                && !runtime_packages.contains(pkg)
+            {
+                runtime_packages.push(pkg.clone());
             }
         }
     }
