@@ -3,12 +3,12 @@
 ## Phase 1: Dead Code Removal & Trivial Cleanup
 **Risk: Lowest | Snapshot updates: 0**
 
-- [ ] Remove unused `_extra_packages` param in `nixpacks_config.rs` `build_config_manifest()`
-- [ ] Clean `#[allow(dead_code)]` in `compat_discovery.rs` (5 functions)
-- [ ] Remove empty `skip_full` HashSet in `container_e2e.rs`
-- [ ] Fix placeholder `echo 'Config-only project'` build command in `nixpacks_config.rs`
-- [ ] Fix formatting in `bazel_build.rs` around `build_image: None`
-- [ ] Fix `_repo_root` → `repo_root` in `pipeline.rs` `scan_node_puppeteer` (it IS used)
+- [x] Remove unused `_extra_packages` param in `nixpacks_config.rs` `build_config_manifest()`
+- [x] Clean `#[allow(dead_code)]` in `compat_discovery.rs` (5 functions)
+- [x] Remove empty `skip_full` HashSet in `container_e2e.rs`
+- [x] Fix placeholder `echo 'Config-only project'` build command in `nixpacks_config.rs`
+- [x] Fix formatting in `bazel_build.rs` around `build_image: None`
+- [x] Fix `_repo_root` → `repo_root` in `pipeline.rs` `scan_node_puppeteer` (it IS used)
 
 ## Phase 2: Deduplicate Pattern Tables
 **Risk: Low | Snapshot updates: 0**

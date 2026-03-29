@@ -39,7 +39,6 @@ fn snapshot_dir() -> PathBuf {
 /// 2. A committed snapshot exists in `tests/compat-snapshots/{source}/{example}/`
 ///
 /// Returns an empty vec (with a note) if external fixtures are not present.
-#[allow(dead_code)]
 pub fn find_compat_fixtures() -> Vec<Fixture> {
     let external = external_dir();
     let snapshots = snapshot_dir();
@@ -268,7 +267,6 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
 
 /// When PEELBOX_UPDATE_COMPAT_SNAPSHOTS=1, writes detection output as the new
 /// snapshot instead of asserting equality.
-#[allow(dead_code)]
 pub fn should_update_snapshots() -> bool {
     std::env::var("PEELBOX_UPDATE_COMPAT_SNAPSHOTS")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
@@ -276,7 +274,6 @@ pub fn should_update_snapshots() -> bool {
 }
 
 /// Writes a snapshot file for a compat fixture.
-#[allow(dead_code)]
 pub fn write_compat_snapshot(
     source: &str, // "railpack" or "nixpacks"
     example: &str,
@@ -289,14 +286,12 @@ pub fn write_compat_snapshot(
 }
 
 /// Extracts the compat source name from a category like "compat-railpack".
-#[allow(dead_code)]
 pub fn parse_compat_category(category: &str) -> Option<&str> {
     category.strip_prefix("compat-")
 }
 
 /// Discovers ALL external examples (even without committed snapshots).
 /// Used for initial snapshot generation with PEELBOX_UPDATE_COMPAT_SNAPSHOTS=1.
-#[allow(dead_code)]
 pub fn find_all_external_examples() -> Vec<Fixture> {
     let external = external_dir();
     let work_root = compat_work_dir();

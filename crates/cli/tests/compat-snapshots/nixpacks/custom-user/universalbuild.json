@@ -14,7 +14,7 @@
       "env": {},
       "commands": [
         "chmod +x start.sh",
-        "echo 'Config-only project'"
+        "true"
       ],
       "cache": []
     },

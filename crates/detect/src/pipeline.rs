@@ -3157,7 +3157,7 @@ const BROWSER_AUTOMATION_DEPS: &[&str] = &[
 ];
 
 /// Scan for Puppeteer/Playwright and add Chromium + related packages.
-fn scan_node_puppeteer(_repo_root: &Path, build: &mut UniversalBuild) {
+fn scan_node_puppeteer(repo_root: &Path, build: &mut UniversalBuild) {
     if !matches!(
         build.metadata.language.as_str(),
         "JavaScript" | "TypeScript"
@@ -3165,7 +3165,7 @@ fn scan_node_puppeteer(_repo_root: &Path, build: &mut UniversalBuild) {
         return;
     }
 
-    let project_dir = extract_project_dir(_repo_root, &build.metadata.reasoning);
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
     let pkg_json_path = project_dir.join("package.json");
 
     let content = match std::fs::read_to_string(&pkg_json_path) {

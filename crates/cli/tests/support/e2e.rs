@@ -479,7 +479,10 @@ pub async fn run_container_integration_test(
                     )
                     .await
                     .map_err(|e| {
-                        format!("Failed to start container for {}: {:?}", info.project_name, e)
+                        format!(
+                            "Failed to start container for {}: {:?}",
+                            info.project_name, e
+                        )
                     })?;
 
                 let host_port = harness
@@ -544,7 +547,10 @@ pub async fn run_container_integration_test(
                     )
                     .await
                     .map_err(|e| {
-                        format!("Failed to start container for {}: {:?}", info.project_name, e)
+                        format!(
+                            "Failed to start container for {}: {:?}",
+                            info.project_name, e
+                        )
                     })?;
 
                 let exit_code = harness
@@ -610,7 +616,10 @@ pub async fn run_container_integration_test(
                     )
                     .await
                     .map_err(|e| {
-                        format!("Failed to start container for {}: {:?}", info.project_name, e)
+                        format!(
+                            "Failed to start container for {}: {:?}",
+                            info.project_name, e
+                        )
                     })?;
 
                 let expected = expected_output.trim();

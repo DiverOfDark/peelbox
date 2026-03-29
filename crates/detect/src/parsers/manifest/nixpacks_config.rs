@@ -77,9 +77,8 @@ impl ManifestParser for NixpacksConfigParser {
 fn parse_nixpacks_toml(path: &Path, content: &str) -> Option<Manifest> {
     // Extract [start] cmd
     let start_cmd = extract_toml_start_cmd(content)?;
-    let packages = extract_toml_apt_packages(content);
 
-    Some(build_config_manifest(path, &start_cmd, &packages))
+    Some(build_config_manifest(path, &start_cmd))
 }
 
 fn parse_nixpacks_json(path: &Path, content: &str) -> Option<Manifest> {
@@ -89,7 +88,7 @@ fn parse_nixpacks_json(path: &Path, content: &str) -> Option<Manifest> {
         .and_then(|s| s.get("cmd"))
         .and_then(|c| c.as_str())?;
 
-    Some(build_config_manifest(path, start_cmd, &[]))
+    Some(build_config_manifest(path, start_cmd))
 }
 
 fn parse_railpack_json(path: &Path, content: &str) -> Option<Manifest> {
@@ -99,7 +98,7 @@ fn parse_railpack_json(path: &Path, content: &str) -> Option<Manifest> {
         .and_then(|d| d.get("startCommand"))
         .and_then(|c| c.as_str())?;
 
-    Some(build_config_manifest(path, start_cmd, &[]))
+    Some(build_config_manifest(path, start_cmd))
 }
 
 fn extract_toml_start_cmd(content: &str) -> Option<String> {
@@ -129,33 +128,7 @@ fn extract_toml_start_cmd(content: &str) -> Option<String> {
     None
 }
 
-fn extract_toml_apt_packages(content: &str) -> Vec<String> {
-    let mut packages = Vec::new();
-    let mut in_apt = false;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.contains("aptPkgs") || trimmed.contains("nixPkgs") {
-            in_apt = true;
-            continue;
-        }
-        if in_apt {
-            if trimmed == "]" {
-                break;
-            }
-            let pkg = trimmed
-                .trim_matches(',')
-                .trim()
-                .trim_matches('"')
-                .trim_matches('\'');
-            if !pkg.is_empty() && pkg != "..." {
-                packages.push(pkg.to_string());
-            }
-        }
-    }
-    packages
-}
-
-fn build_config_manifest(path: &Path, start_cmd: &str, _extra_packages: &[String]) -> Manifest {
+fn build_config_manifest(path: &Path, start_cmd: &str) -> Manifest {
     Manifest {
         path: path.to_path_buf(),
         language: CONFIG,
@@ -170,7 +143,7 @@ fn build_config_manifest(path: &Path, start_cmd: &str, _extra_packages: &[String
         dependencies: Vec::new(),
         build: BuildSpec {
             packages: vec!["ca-certificates".into()],
-            commands: vec!["echo 'Config-only project'".into()],
+            commands: vec!["true".into()],
             member_transform: None,
             env: btree(&[]),
             cache_dirs: vec![],

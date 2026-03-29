@@ -13,7 +13,7 @@
       ],
       "env": {},
       "commands": [
-        "echo 'Config-only project'"
+        "true"
       ],
       "cache": []
     },

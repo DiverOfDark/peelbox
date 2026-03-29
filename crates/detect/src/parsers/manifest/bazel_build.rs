@@ -149,8 +149,8 @@ impl ManifestParser for BazelBuildParser {
                 ]),
                 cache_dirs: vec![".cache/bazel".into()],
                 artifacts,
-                            build_image: None,
-},
+                build_image: None,
+            },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,
                 env: BTreeMap::new(),
