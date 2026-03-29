@@ -94,3 +94,6 @@ Swift is the ONLY language using `build_image` to bypass Wolfi. Swift is NOT in 
 - Phases 1–7: no snapshot changes
 - Phases 8–9: regenerate snapshots with `UPDATE_SNAPSHOTS=1`
 - Pipeline.rs reduction: ~4269 → ~2200 lines (48% smaller)
+
+// TODO later:
+source_scanning - should be merged with respective static data for languages
