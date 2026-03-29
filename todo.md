@@ -41,11 +41,11 @@
 ## Phase 5: Extract Language-Specific Post-Processing
 **Risk: Medium | Snapshot updates: 0**
 
-- [ ] Create `postprocess/python.rs` — `scan_python_entrypoints()`, `fix_django_settings()`, `scan_python_native_deps()`, `collect_python_dep_names()`, `fix_flask_app_path()`, `dep_matches()`
-- [ ] Create `postprocess/node.rs` — `scan_node_native_deps()`, `scan_node_system_deps()`, `scan_node_puppeteer()`, `sanitize_node_build_commands()`
-- [ ] Create `postprocess/framework.rs` — `provide_framework_fallback_entrypoint()`, `wrap_yarn_corepack_entrypoint()`
-- [ ] Move related tests to new modules
-- [ ] Result: `pipeline.rs` drops from ~4269 to ~2200 lines
+- [x] Create `postprocess/python.rs` — `scan_python_entrypoints()`, `fix_django_settings()`, `scan_python_native_deps()`, `collect_python_dep_names()`, `fix_flask_app_path()`, `dep_matches()`
+- [x] Create `postprocess/node.rs` — `scan_node_native_deps()`, `scan_node_system_deps()`, `scan_node_puppeteer()`, `sanitize_node_build_commands()`
+- [x] Create `postprocess/framework.rs` — `provide_framework_fallback_entrypoint()`, `wrap_yarn_corepack_entrypoint()`
+- [x] Move related tests to new modules
+- [x] Result: `pipeline.rs` drops from ~4269 to ~2200 lines
 
 ## Phase 6: Deduplicate Flask Detectors + Fix FlaskUvDetector
 **Risk: Low-Medium | Snapshot updates: 0**
@@ -98,3 +98,4 @@ Swift is the ONLY language using `build_image` to bypass Wolfi. Swift is NOT in 
 // TODO later:
 source_scanning - should be merged with respective static data for languages
 detect/src/version -> move to respective runtimes/package managers
+detect/src/postprocess -> also move to respective frameworks/languages/runtimes;
