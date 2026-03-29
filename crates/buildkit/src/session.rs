@@ -701,8 +701,12 @@ impl BuildSession {
             debug!("Enabled build context scanning for SBOM");
         }
 
-        exporter_attrs.insert("rewrite-timestamp".to_string(), "true".to_string());
-        exporter_attrs.insert("source-date-epoch".to_string(), "0".to_string());
+        // Docker's embedded BuildKit ("moby" exporter) unpacks images directly
+        // into Docker's store, which conflicts with rewrite-timestamp.
+        if !is_docker_native {
+            exporter_attrs.insert("rewrite-timestamp".to_string(), "true".to_string());
+            exporter_attrs.insert("source-date-epoch".to_string(), "0".to_string());
+        }
 
         let exporter_type = match &self.output_dest {
             OutputDestination::DockerLoad => {
