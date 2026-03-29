@@ -253,7 +253,7 @@ impl ManifestParser for YarnLockParser {
                 },
                 cache_dirs: vec![".yarn-cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: {

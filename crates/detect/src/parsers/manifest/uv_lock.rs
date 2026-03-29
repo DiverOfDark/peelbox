@@ -80,7 +80,7 @@ impl ManifestParser for UvLockParser {
                 env: BTreeMap::from([("UV_CACHE_DIR".into(), "/root/.cache/uv".into())]),
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
                 artifacts: vec![(".".into(), "/build".into())],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

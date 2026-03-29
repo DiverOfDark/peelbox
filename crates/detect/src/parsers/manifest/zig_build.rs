@@ -69,7 +69,7 @@ impl ManifestParser for ZigBuildParser {
                 env,
                 cache_dirs: vec!["zig-cache".into()],
                 artifacts: vec![("zig-out/bin/*".into(), "/app/".into())],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],

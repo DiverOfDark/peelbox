@@ -8,7 +8,12 @@
       "reasoning": "Detected from gleam.toml"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "erlang-26",
+        "rebar3",
+        "curl",
+        "ca-certificates"
+      ],
       "env": {},
       "commands": [
         "gleam export erlang-shipment"
@@ -16,7 +21,9 @@
       "cache": [
         "build"
       ],
-      "build_image": "ghcr.io/gleam-lang/gleam:v1.13.0-erlang"
+      "setup_commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v1.13.0/gleam-v1.13.0-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/"
+      ]
     },
     "runtime": {
       "packages": [

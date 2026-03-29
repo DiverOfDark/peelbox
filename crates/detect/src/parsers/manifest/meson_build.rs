@@ -57,7 +57,7 @@ impl ManifestParser for MesonBuildParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec!["build/".into()],
                 artifacts: vec![(format!("build/{}", name), format!("/app/{}", name))],
-                            build_image: None,
+                            setup_commands: vec![],
 },
             runtime_config: RuntimeSpec {
                 packages: vec!["ca-certificates".into()],

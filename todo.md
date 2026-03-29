@@ -67,12 +67,12 @@
 
 Swift is the ONLY language using `build_image` to bypass Wolfi. Swift is NOT in Wolfi apk packages.
 
-- [ ] Add `setup_commands: Vec<String>` to `BuildStage` in schema — runs on Wolfi AFTER `apk add`, BEFORE build context mount
-- [ ] Update `PeelboxStrategy` in `strategy.rs` to execute `setup_commands` step, remove `build_image` branch
-- [ ] Update `PackageSwiftParser` — remove `build_image`, add `setup_commands` to download+install Swift toolchain tarball onto Wolfi
-- [ ] Update `scan_version_files` for Swift — override setup_command URL version instead of `build_image`
-- [ ] Remove `build_image` field from `BuildStage` schema entirely
-- [ ] Update all Swift snapshot fixtures
+- [x] Add `setup_commands: Vec<String>` to `BuildStage` in schema — runs on Wolfi AFTER `apk add`, BEFORE build context mount
+- [x] Update `PeelboxStrategy` in `strategy.rs` to execute `setup_commands` step, remove `build_image` branch
+- [x] Update `PackageSwiftParser` — remove `build_image`, add `setup_commands` to download+install Swift toolchain tarball onto Wolfi
+- [x] Update `scan_version_files` for Swift — override setup_command URL version instead of `build_image`
+- [x] Remove `build_image` field from `BuildStage` schema entirely
+- [x] Update all Swift snapshot fixtures (also Scheme and Gleam which used `build_image`)
 
 ## Phase 9: Fix Build Command Hacks & Health Endpoints
 **Risk: Highest | Snapshot updates: YES**

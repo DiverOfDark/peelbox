@@ -102,7 +102,7 @@ impl ManifestParser for MakefileParser {
                 env: BTreeMap::new(),
                 cache_dirs: Vec::new(),
                 artifacts: vec![(name.clone(), format!("/app/{}", name))],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

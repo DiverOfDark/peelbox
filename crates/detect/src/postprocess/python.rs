@@ -500,7 +500,7 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libgcc".into()],
@@ -544,7 +544,7 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -594,7 +594,7 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into()],
@@ -651,7 +651,7 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libpq".into()],

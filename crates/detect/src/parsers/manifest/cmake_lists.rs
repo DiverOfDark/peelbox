@@ -74,7 +74,7 @@ impl ManifestParser for CMakeListsParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec!["CMakeCache.txt".into(), "build".into()],
                 artifacts: vec![(format!("build/{}", name), format!("/app/{}", name))],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

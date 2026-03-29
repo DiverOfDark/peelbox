@@ -21,49 +21,74 @@ impl BuildStrategy for PeelboxStrategy {
         let exclude = builder.load_gitignore_patterns();
         let context_idx = builder.create_local_source(&exclude);
 
-        // When a custom build image is specified, use it directly as the build base
-        // instead of Wolfi + apk packages. This is used for languages like Swift
-        // that require a specialized toolchain image.
-        let base_idx = if let Some(build_image) = &spec.build.build_image {
-            builder.create_image_source(build_image)
-        } else {
-            let with_build_packages_idx = if !spec.build.packages.is_empty() {
-                let mut packages_list = spec.build.packages.clone();
-                packages_list.sort();
-                let packages = packages_list.join(" ");
-                let meta = pb::Meta {
-                    args: vec![
-                        "sh".to_string(),
-                        "-c".to_string(),
-                        format!("apk add --no-cache {}", packages),
-                    ],
-                    env: vec![],
-                    cwd: "/".to_string(),
-                    user: String::new(),
-                    proxy_env: None,
-                    extra_hosts: vec![],
-                    hostname: String::new(),
-                    ulimit: vec![],
-                    cgroup_parent: String::new(),
-                    remove_mount_stubs_recursive: false,
-                };
-
-                let mounts = vec![
-                    builder.layer_mount(0, 0, "/"),
-                    builder.scratch_mount("/tmp"),
-                ];
-
-                Some(builder.create_exec(
-                    vec![(wolfi_base_idx, 0)],
-                    mounts,
-                    meta,
-                    Some("Install build packages".to_string()),
-                ))
-            } else {
-                None
+        let with_build_packages_idx = if !spec.build.packages.is_empty() {
+            let mut packages_list = spec.build.packages.clone();
+            packages_list.sort();
+            let packages = packages_list.join(" ");
+            let meta = pb::Meta {
+                args: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    format!("apk add --no-cache {}", packages),
+                ],
+                env: vec![],
+                cwd: "/".to_string(),
+                user: String::new(),
+                proxy_env: None,
+                extra_hosts: vec![],
+                hostname: String::new(),
+                ulimit: vec![],
+                cgroup_parent: String::new(),
+                remove_mount_stubs_recursive: false,
             };
 
-            with_build_packages_idx.unwrap_or(wolfi_base_idx)
+            let mounts = vec![
+                builder.layer_mount(0, 0, "/"),
+                builder.scratch_mount("/tmp"),
+            ];
+
+            Some(builder.create_exec(
+                vec![(wolfi_base_idx, 0)],
+                mounts,
+                meta,
+                Some("Install build packages".to_string()),
+            ))
+        } else {
+            None
+        };
+
+        let after_packages_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
+
+        // Run setup commands on Wolfi AFTER apk add, BEFORE the build context is mounted.
+        // Used for installing toolchains not available as Wolfi packages (e.g., Swift).
+        let base_idx = if !spec.build.setup_commands.is_empty() {
+            let script = spec.build.setup_commands.join(" && ");
+            let meta = pb::Meta {
+                args: vec!["sh".to_string(), "-c".to_string(), script],
+                env: vec![],
+                cwd: "/".to_string(),
+                user: String::new(),
+                proxy_env: None,
+                extra_hosts: vec![],
+                hostname: String::new(),
+                ulimit: vec![],
+                cgroup_parent: String::new(),
+                remove_mount_stubs_recursive: false,
+            };
+
+            let mounts = vec![
+                builder.layer_mount(0, 0, "/"),
+                builder.scratch_mount("/tmp"),
+            ];
+
+            builder.create_exec(
+                vec![(after_packages_idx, 0)],
+                mounts,
+                meta,
+                Some("Run setup commands".to_string()),
+            )
+        } else {
+            after_packages_idx
         };
 
         let build_result_idx = if !spec.build.commands.is_empty() {

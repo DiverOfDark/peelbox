@@ -55,31 +55,21 @@ impl ManifestParser for GleamTomlParser {
         let gleam_constraint = toml_val.get("gleam").and_then(|v| v.as_str()).unwrap_or("");
         let needs_v1 = gleam_constraint.contains("1.");
 
-        // For Gleam 1.x+ projects, use the official Gleam Docker image which has
-        // Erlang, rebar3, and escript properly configured (needed for NIF deps like simplifile).
-        // For old pre-1.0 projects, use Wolfi with a pinned Gleam binary.
-        let (build_packages, build_commands, build_image) = if needs_v1 {
-            (
-                vec![],
-                vec!["gleam export erlang-shipment".to_string()],
-                Some("ghcr.io/gleam-lang/gleam:v1.13.0-erlang".to_string()),
-            )
-        } else {
-            let gleam_install = format!(
-                "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v{v}/gleam-v{v}-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/",
-                v = GLEAM_LEGACY
-            );
-            (
-                vec![
-                    "erlang".into(),
-                    "rebar3".into(),
-                    "curl".into(),
-                    "ca-certificates".into(),
-                ],
-                vec![gleam_install, "gleam export erlang-shipment".to_string()],
-                None,
-            )
-        };
+        // For Gleam 1.x+ projects, install the latest Gleam binary plus Erlang/rebar3
+        // from Wolfi. For old pre-1.0 projects, pin to the last compatible Gleam version.
+        let gleam_version = if needs_v1 { "1.13.0" } else { GLEAM_LEGACY };
+        let gleam_install = format!(
+            "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v{v}/gleam-v{v}-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/",
+            v = gleam_version
+        );
+        let build_packages = vec![
+            "erlang".into(),
+            "rebar3".into(),
+            "curl".into(),
+            "ca-certificates".into(),
+        ];
+        let setup_commands = vec![gleam_install];
+        let build_commands = vec!["gleam export erlang-shipment".to_string()];
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -103,7 +93,7 @@ impl ManifestParser for GleamTomlParser {
                     "build/erlang-shipment".into(),
                     "/app/build/erlang-shipment".into(),
                 )],
-                build_image,
+                setup_commands,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["erlang".into(), "busybox".into(), "ca-certificates".into()],

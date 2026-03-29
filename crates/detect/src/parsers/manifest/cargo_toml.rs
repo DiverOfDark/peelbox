@@ -123,7 +123,7 @@ impl ManifestParser for CargoTomlParser {
                 env: btree(&[("CARGO_HOME", ".cargo")]),
                 cache_dirs: vec![".cargo".into(), "target".into()],
                 artifacts,
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],

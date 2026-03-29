@@ -63,7 +63,7 @@ impl ManifestParser for CobolParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libgcc".into(), "ca-certificates".into()],

@@ -1523,7 +1523,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             env: m.build.env.clone(),
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
-            build_image: m.build.build_image.clone(),
+            setup_commands: m.build.setup_commands.clone(),
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -1797,9 +1797,19 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
             }
         }
         "Swift" => {
-            // Pin the Swift Docker build image to a specific version from .swift-version.
+            // Override the Swift toolchain version in setup_commands from .swift-version.
             if let Some(version) = read_swift_version(&project_dir, repo_root) {
-                build.build.build_image = Some(format!("docker.io/library/swift:{}", version));
+                // Replace version in patterns like "swift-6.1-release" and "swift-6.1-RELEASE"
+                let re = regex::Regex::new(r"swift-([\d.]+)-(release|RELEASE)").unwrap();
+                for cmd in &mut build.build.setup_commands {
+                    if cmd.contains("swift-") && cmd.contains("-RELEASE") {
+                        *cmd = re
+                            .replace_all(cmd, |caps: &regex::Captures| {
+                                format!("swift-{}-{}", version, &caps[2])
+                            })
+                            .to_string();
+                    }
+                }
             }
         }
         _ => {}
@@ -1843,7 +1853,7 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
-                    build_image: None,
+                    setup_commands: vec![],
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
@@ -1898,7 +1908,7 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
-                    build_image: None,
+                    setup_commands: vec![],
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
@@ -1975,7 +1985,7 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2020,7 +2030,7 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2072,7 +2082,7 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: RuntimeStage {
                 packages: vec![],

@@ -72,7 +72,7 @@ impl ManifestParser for PubspecYamlParser {
                     format!("bin/{}", binary_name),
                     format!("/app/bin/{}", binary_name),
                 )],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],

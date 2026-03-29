@@ -16,11 +16,13 @@
       ],
       "env": {},
       "commands": [
-        "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v0.30.0/gleam-v0.30.0-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/",
         "gleam export erlang-shipment"
       ],
       "cache": [
         "build"
+      ],
+      "setup_commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v0.30.0/gleam-v0.30.0-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/"
       ]
     },
     "runtime": {

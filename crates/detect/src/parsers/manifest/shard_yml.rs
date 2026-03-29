@@ -74,7 +74,7 @@ impl ManifestParser for ShardYmlParser {
                 artifacts: vec![
                     (format!("bin/{}", target_name), format!("/app/bin/{}", target_name)),
                 ],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "pcre".into(), "ca-certificates".into()],

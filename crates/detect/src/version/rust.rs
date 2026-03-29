@@ -389,7 +389,7 @@ version = "0.1.0"
                 commands: vec!["cargo build --release".into()],
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: Default::default(),
         };
@@ -421,7 +421,7 @@ version = "0.1.0"
                 commands: vec!["cargo build --release".into()],
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: Default::default(),
         };
@@ -468,7 +468,7 @@ version = "0.1.0"
                 commands: vec!["pip install .".into()],
                 env: BTreeMap::new(),
                 cache: vec![],
-                build_image: None,
+                setup_commands: vec![],
             },
             runtime: Default::default(),
         };
