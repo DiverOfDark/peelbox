@@ -68,6 +68,10 @@ impl ContainerTestHarness {
             cmd.args(["--output", "type=docker"]);
         }
 
+        if let Ok(buildkit_addr) = std::env::var("PEELBOX_BUILDKIT_ADDR") {
+            cmd.args(["--buildkit", &buildkit_addr]);
+        }
+
         let peelbox_output = cmd.output().context("Failed to run peelbox build")?;
 
         if !peelbox_output.status.success() {
