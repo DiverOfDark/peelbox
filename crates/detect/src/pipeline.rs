@@ -1735,11 +1735,11 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
 // ── Source code port scanning ────────────────────────────────────────────────
 
 /// Language-specific regex patterns for detecting ports in source code.
-/// Each entry is (language, extension_filter, patterns) where patterns are regex strings
+/// Each entry is (languages, extension_filter, patterns) where patterns are regex strings
 /// with a capture group for the port number.
-const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
+const PORT_PATTERNS: &[(&[&str], &[&str], &[&str])] = &[
     (
-        "Rust",
+        &["Rust"],
         &["rs"],
         &[
             r#"[.:]+bind\([^,)]*:(\d{4,5})"#,
@@ -1748,7 +1748,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "JavaScript",
+        &["JavaScript", "TypeScript"],
         &["js", "ts", "mjs", "cjs"],
         &[
             r"\.listen\(\s*(\d{4,5})",
@@ -1757,16 +1757,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "TypeScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[
-            r"\.listen\(\s*(\d{4,5})",
-            r#"port["\s:=]+(\d{4,5})"#,
-            r"\|\|\s*(\d{4,5})",
-        ],
-    ),
-    (
-        "Python",
+        &["Python"],
         &["py"],
         &[
             r"\.run\([^)]*port\s*=\s*(\d{4,5})",
@@ -1774,7 +1765,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "Go",
+        &["Go"],
         &["go"],
         &[
             r"ListenAndServe\([^)]*:(\d{4,5})",
@@ -1782,7 +1773,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "Java",
+        &["Java", "Kotlin"],
         &["java", "kt", "kts", "properties", "yml", "yaml"],
         &[
             r"\.setPort\(\s*(\d{4,5})\s*\)",
@@ -1790,15 +1781,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "Kotlin",
-        &["java", "kt", "kts", "properties", "yml", "yaml"],
-        &[
-            r"\.setPort\(\s*(\d{4,5})\s*\)",
-            r#"server\.port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (
-        "Scala",
+        &["Scala"],
         &["scala", "java", "properties", "yml", "yaml"],
         &[
             r"\.setPort\(\s*(\d{4,5})\s*\)",
@@ -1806,14 +1789,14 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
             r#"port\s*=\s*(\d{4,5})"#,
         ],
     ),
-    ("Elixir", &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
+    (&["Elixir"], &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
     (
-        "Ruby",
+        &["Ruby"],
         &["rb"],
         &[r#"set\s*:port\s*,\s*(\d{4,5})"#, r#"port\s*=\s*(\d{4,5})"#],
     ),
     (
-        "C#",
+        &["C#"],
         &["cs"],
         &[
             r#"UseUrls\([^)]*:(\d{4,5})"#,
@@ -1822,7 +1805,7 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "F#",
+        &["F#"],
         &["fs"],
         &[
             r#"UseUrls\([^)]*:(\d{4,5})"#,
@@ -1830,22 +1813,22 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "PHP",
+        &["PHP"],
         &["php"],
         &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
     ),
     (
-        "C",
+        &["C"],
         &["c", "h"],
         &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
     ),
     (
-        "C++",
+        &["C++"],
         &["cpp", "cxx", "cc", "hpp", "h"],
         &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
     ),
     (
-        "Clojure",
+        &["Clojure"],
         &["clj", "cljc", "cljs"],
         &[
             r#":port\s+(\d{4,5})"#,
@@ -1860,7 +1843,9 @@ const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
 fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
 
-    let patterns_entry = PORT_PATTERNS.iter().find(|(lang, _, _)| *lang == language);
+    let patterns_entry = PORT_PATTERNS
+        .iter()
+        .find(|(languages, _, _)| languages.contains(&language.as_str()));
 
     let (_, extensions, patterns) = match patterns_entry {
         Some(entry) => entry,
@@ -1980,29 +1965,19 @@ fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
 // ── Source code health endpoint scanning ──────────────────────────────────
 
 /// Language-specific regex patterns for detecting health endpoints in source code.
-const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
+const HEALTH_PATTERNS: &[(&[&str], &[&str], &[&str])] = &[
     (
-        "JavaScript",
+        &["JavaScript", "TypeScript"],
         &["js", "ts", "mjs", "cjs"],
         &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
-        "TypeScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Java",
+        &["Java", "Kotlin"],
         &["java", "kt", "kts"],
         &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
-        "Kotlin",
-        &["java", "kt", "kts"],
-        &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Scala",
+        &["Scala"],
         &["scala", "java"],
         &[
             r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
@@ -2010,22 +1985,22 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "Python",
+        &["Python"],
         &["py"],
         &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
-        "Go",
+        &["Go"],
         &["go"],
         &[r#"\.(?:GET|Handle(?:Func)?)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
-        "Rust",
+        &["Rust"],
         &["rs"],
         &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
     ),
     (
-        "C",
+        &["C"],
         &["c", "h"],
         &[
             r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
@@ -2033,7 +2008,7 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "C++",
+        &["C++"],
         &["cpp", "cxx", "cc", "hpp", "h"],
         &[
             r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
@@ -2041,7 +2016,7 @@ const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "PHP",
+        &["PHP"],
         &["php"],
         &[
             r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
@@ -2061,7 +2036,7 @@ fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
     let patterns_entry = HEALTH_PATTERNS
         .iter()
-        .find(|(lang, _, _)| *lang == language);
+        .find(|(languages, _, _)| languages.contains(&language.as_str()));
     let (_, extensions, patterns) = match patterns_entry {
         Some(entry) => entry,
         None => return,
@@ -2120,19 +2095,14 @@ fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
 // ── Source code env var scanning ──────────────────────────────────────────
 
 /// Language-specific regex patterns for detecting environment variable access.
-const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
+const ENV_VAR_PATTERNS: &[(&[&str], &[&str], &[&str])] = &[
     (
-        "JavaScript",
+        &["JavaScript", "TypeScript"],
         &["js", "ts", "mjs", "cjs"],
         &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
     ),
     (
-        "TypeScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
-    ),
-    (
-        "Python",
+        &["Python"],
         &["py"],
         &[
             r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
@@ -2140,20 +2110,15 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
             r#"os\.environ\[['"]([A-Z_][A-Z0-9_]*)['"]\]"#,
         ],
     ),
-    ("Rust", &["rs"], &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#]),
-    ("Go", &["go"], &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#]),
+    (&["Rust"], &["rs"], &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#]),
+    (&["Go"], &["go"], &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#]),
     (
-        "Java",
+        &["Java", "Kotlin"],
         &["java", "kt", "kts"],
         &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
     ),
     (
-        "Kotlin",
-        &["java", "kt", "kts"],
-        &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-    (
-        "Scala",
+        &["Scala"],
         &["scala", "java"],
         &[
             r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
@@ -2161,22 +2126,22 @@ const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
         ],
     ),
     (
-        "Elixir",
+        &["Elixir"],
         &["ex", "exs"],
         &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
     ),
     (
-        "C",
+        &["C"],
         &["c", "h"],
         &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
     ),
     (
-        "C++",
+        &["C++"],
         &["cpp", "cxx", "cc", "hpp", "h"],
         &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
     ),
     (
-        "Clojure",
+        &["Clojure"],
         &["clj", "cljc", "cljs"],
         &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
     ),
@@ -2191,7 +2156,7 @@ fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
     let patterns_entry = ENV_VAR_PATTERNS
         .iter()
-        .find(|(lang, _, _)| *lang == language);
+        .find(|(languages, _, _)| languages.contains(&language.as_str()));
     let (_, extensions, patterns) = match patterns_entry {
         Some(entry) => entry,
         None => return,
