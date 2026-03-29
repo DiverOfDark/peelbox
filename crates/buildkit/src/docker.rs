@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;
 
+use crate::retry::retry_with_backoff;
+
 const DOCKER_SOCKET_PATH: &str = "/var/run/docker.sock";
 
 pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
@@ -21,42 +23,36 @@ pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
         }
     };
 
-    let max_attempts = 5;
-    let mut last_err = None;
-    for attempt in 1..=max_attempts {
-        match docker.version().await {
-            Ok(v) => {
-                let api_version = v.api_version.unwrap_or_else(|| "0.0".to_string());
-                if let Ok(version_float) = api_version.parse::<f32>() {
-                    if version_float >= 1.41 {
-                        debug!(
-                            "Docker API version {} supports native BuildKit via POST /grpc",
-                            api_version
-                        );
-                        return Ok(Some(format!("docker://{}", DOCKER_SOCKET_PATH)));
-                    } else {
-                        debug!("Docker API version {} is too old for native BuildKit. Requires 1.41+ (Docker 23.0+)", api_version);
-                    }
-                }
-                last_err = None;
-                break;
-            }
-            Err(e) => {
-                debug!(
-                    "Docker version check attempt {}/{} failed: {}",
-                    attempt, max_attempts, e
-                );
-                last_err = Some(e);
-                if attempt < max_attempts {
-                    let backoff = std::time::Duration::from_millis(500 * (1 << (attempt - 1)));
-                    tokio::time::sleep(backoff).await;
+    let version_result = retry_with_backoff(
+        5,
+        std::time::Duration::from_millis(500),
+        "Docker version check",
+        || {
+            let docker = docker.clone();
+            async move { docker.version().await }
+        },
+    )
+    .await;
+
+    match version_result {
+        Ok(v) => {
+            let api_version = v.api_version.unwrap_or_else(|| "0.0".to_string());
+            if let Ok(version_float) = api_version.parse::<f32>() {
+                if version_float >= 1.41 {
+                    debug!(
+                        "Docker API version {} supports native BuildKit via POST /grpc",
+                        api_version
+                    );
+                    return Ok(Some(format!("docker://{}", DOCKER_SOCKET_PATH)));
+                } else {
+                    debug!("Docker API version {} is too old for native BuildKit. Requires 1.41+ (Docker 23.0+)", api_version);
                 }
             }
         }
-    }
-    if let Some(e) = last_err {
-        debug!("All Docker version check attempts failed: {}", e);
-        return Ok(None);
+        Err(e) => {
+            debug!("All Docker version check attempts failed: {}", e);
+            return Ok(None);
+        }
     }
 
     let mut filters = HashMap::new();

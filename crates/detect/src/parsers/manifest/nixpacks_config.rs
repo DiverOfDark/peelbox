@@ -75,10 +75,13 @@ impl ManifestParser for NixpacksConfigParser {
 }
 
 fn parse_nixpacks_toml(path: &Path, content: &str) -> Option<Manifest> {
-    // Extract [start] cmd
-    let start_cmd = extract_toml_start_cmd(content)?;
+    let table: toml::Value = toml::from_str(content).ok()?;
+    let start_cmd = table
+        .get("start")
+        .and_then(|s| s.get("cmd"))
+        .and_then(|c| c.as_str())?;
 
-    Some(build_config_manifest(path, &start_cmd))
+    Some(build_config_manifest(path, start_cmd))
 }
 
 fn parse_nixpacks_json(path: &Path, content: &str) -> Option<Manifest> {
@@ -99,33 +102,6 @@ fn parse_railpack_json(path: &Path, content: &str) -> Option<Manifest> {
         .and_then(|c| c.as_str())?;
 
     Some(build_config_manifest(path, start_cmd))
-}
-
-fn extract_toml_start_cmd(content: &str) -> Option<String> {
-    let mut in_start = false;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed == "[start]" {
-            in_start = true;
-            continue;
-        }
-        if in_start {
-            if trimmed.starts_with('[') {
-                break;
-            }
-            if trimmed.starts_with("cmd") {
-                // cmd = "..." or cmd = '...'
-                let val = trimmed
-                    .split_once('=')?
-                    .1
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'');
-                return Some(val.to_string());
-            }
-        }
-    }
-    None
 }
 
 fn build_config_manifest(path: &Path, start_cmd: &str) -> Manifest {

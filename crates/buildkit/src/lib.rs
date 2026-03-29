@@ -13,6 +13,7 @@ pub mod llb;
 pub mod oci_index;
 pub mod progress;
 pub mod proto;
+pub mod retry;
 pub mod session;
 pub mod stream_conn;
 

@@ -221,6 +221,15 @@ impl LLBBuilder {
         self.add_op(op)
     }
 
+    /// Create a cache mount for the given `dest` directory.
+    ///
+    /// The cache sharing mode is set to `Shared` (not `Private` or `Locked`)
+    /// because BuildKit may schedule multiple exec operations concurrently
+    /// within the same solve request. `Shared` allows all concurrent
+    /// operations to read and write to the same cache directory without
+    /// blocking. This is the correct choice for package-manager caches
+    /// (e.g. cargo registry, pip cache, npm cache) where concurrent access
+    /// is safe, and using `Locked` would serialize builds unnecessarily.
     pub(crate) fn cache_mount(&self, dest: &str, cache_path: &str) -> pb::Mount {
         pb::Mount {
             input: -1,
