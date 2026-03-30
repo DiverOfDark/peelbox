@@ -78,7 +78,7 @@ impl ManifestParser for ShardYmlParser {
                 build_image: None,
             },
             runtime_config: RuntimeSpec {
-                packages: vec!["glibc".into(), "pcre".into(), "ca-certificates".into()],
+                packages: vec!["glibc".into(), "libevent".into(), "pcre".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
                 entrypoint: Some(format!("./bin/{}", target_name)),
                 workdir: Some("/app".into()),
