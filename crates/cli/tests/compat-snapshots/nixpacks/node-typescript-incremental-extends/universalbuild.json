@@ -39,7 +39,7 @@
       ],
       "command": [
         "node",
-        "index.js"
+        "pleasehelp/index.js"
       ],
       "workdir": "/app",
       "ports": [

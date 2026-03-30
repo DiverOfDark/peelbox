@@ -144,17 +144,11 @@ impl ManifestParser for PackageJsonParser {
         let module_file = json.get("module").and_then(|v| v.as_str());
 
         // Read tsconfig.json outDir if present — used to adjust the main entrypoint
-        // when TypeScript compiles to a different directory.
-        let ts_out_dir = path.parent().and_then(|dir| {
-            let tsconfig_path = dir.join("tsconfig.json");
-            let content = std::fs::read_to_string(tsconfig_path).ok()?;
-            let tsconfig: serde_json::Value = serde_json::from_str(&content).ok()?;
-            tsconfig
-                .get("compilerOptions")
-                .and_then(|co| co.get("outDir"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.trim_end_matches('/').to_string())
-        });
+        // when TypeScript compiles to a different directory. Follows `extends` chains
+        // to resolve outDir from parent configs.
+        let ts_out_dir = path
+            .parent()
+            .and_then(|dir| resolve_tsconfig_out_dir(&dir.join("tsconfig.json"), 0));
 
         let entrypoint = if let Some(script) = start_script {
             // scripts.start takes priority — it defines how to run the application
@@ -294,6 +288,38 @@ impl ManifestParser for PackageJsonParser {
             },
         })
     }
+}
+
+/// Resolves `outDir` from a tsconfig.json file, following `extends` chains up to 5 levels deep.
+/// TypeScript's `extends` merges compilerOptions from parent configs, with child values taking
+/// precedence. We walk the chain to find the effective outDir.
+fn resolve_tsconfig_out_dir(tsconfig_path: &std::path::Path, depth: u8) -> Option<String> {
+    if depth > 5 {
+        return None;
+    }
+    let content = std::fs::read_to_string(tsconfig_path).ok()?;
+    let tsconfig: serde_json::Value = serde_json::from_str(&content).ok()?;
+
+    // Check this config's own outDir first (child takes precedence)
+    let local_out_dir = tsconfig
+        .get("compilerOptions")
+        .and_then(|co| co.get("outDir"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim_end_matches('/').to_string());
+
+    if local_out_dir.is_some() {
+        return local_out_dir;
+    }
+
+    // Follow extends chain to find outDir in parent config
+    let extends = tsconfig.get("extends").and_then(|v| v.as_str())?;
+    let parent_dir = tsconfig_path.parent()?;
+    let mut extended_path = parent_dir.join(extends);
+    // If the extends path doesn't have a .json extension, try adding it
+    if !extended_path.exists() && extended_path.extension().is_none() {
+        extended_path.set_extension("json");
+    }
+    resolve_tsconfig_out_dir(&extended_path, depth + 1)
 }
 
 /// Extract major version number from a Node.js version constraint.

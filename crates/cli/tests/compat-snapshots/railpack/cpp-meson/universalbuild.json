@@ -15,8 +15,7 @@
       ],
       "env": {},
       "commands": [
-        "meson setup build --buildtype=release --wipe 2>/dev/null || meson setup build --buildtype=release",
-        "meson compile -C build"
+        "(meson setup build --buildtype=release --wipe 2>/dev/null || meson setup build --buildtype=release) && meson compile -C build"
       ],
       "cache": [
         "build/"
