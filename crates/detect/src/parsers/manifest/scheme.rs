@@ -39,6 +39,7 @@ impl ManifestParser for SchemeHauntParser {
         // placeholders (bypassing ./configure which also uses Guile), and set
         // GUILE_LOAD_PATH so all modules are found.
         let install_haunt = concat!(
+            "mkdir -p /usr/local/bin && ",
             "curl -fsSL https://files.dthompson.us/haunt/haunt-0.3.0.tar.gz | tar -xz",
             " && curl -fsSL https://github.com/OrangeShark/guile-commonmark/archive/refs/tags/v0.1.2.tar.gz | tar -xz",
             " && sed 's|@GUILE@|/usr/bin/guile|g; ",
@@ -79,6 +80,7 @@ impl ManifestParser for SchemeHauntParser {
                 cache_dirs: vec![],
                 artifacts: vec![("site".into(), "/app/site".into())],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["busybox".into(), "ca-certificates".into()],

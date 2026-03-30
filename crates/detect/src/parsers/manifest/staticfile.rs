@@ -82,6 +82,7 @@ fn parse_staticfile(path: &Path, content: &str) -> Option<Manifest> {
             cache_dirs: vec![],
             artifacts: vec![(".".into(), "/app/".into())],
             setup_commands: vec![],
+            build_image: None,
         },
         runtime_config: RuntimeSpec {
             packages: vec!["busybox".into(), "ca-certificates".into()],
@@ -153,6 +154,7 @@ fn parse_index_html(path: &Path, content: &str) -> Option<Manifest> {
             cache_dirs: vec![],
             artifacts: vec![(".".into(), "/app/".into())],
             setup_commands: vec![],
+            build_image: None,
         },
         runtime_config: RuntimeSpec {
             packages: vec!["busybox".into(), "ca-certificates".into()],

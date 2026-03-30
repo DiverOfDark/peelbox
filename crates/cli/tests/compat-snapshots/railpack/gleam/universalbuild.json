@@ -10,11 +10,14 @@
     "build": {
       "packages": [
         "erlang-26",
+        "erlang-26-dev",
         "rebar3",
         "curl",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "gleam export erlang-shipment"
       ],

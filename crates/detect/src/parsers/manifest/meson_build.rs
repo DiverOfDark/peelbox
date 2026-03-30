@@ -58,6 +58,7 @@ impl ManifestParser for MesonBuildParser {
                 cache_dirs: vec!["build/".into()],
                 artifacts: vec![(format!("build/{}", name), format!("/app/{}", name))],
                             setup_commands: vec![],
+                build_image: None,
 },
             runtime_config: RuntimeSpec {
                 packages: vec!["ca-certificates".into()],

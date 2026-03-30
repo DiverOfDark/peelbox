@@ -81,6 +81,7 @@ impl ManifestParser for UvLockParser {
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
                 artifacts: vec![(".".into(), "/build".into())],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

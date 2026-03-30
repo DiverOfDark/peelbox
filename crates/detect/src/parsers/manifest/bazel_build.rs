@@ -150,6 +150,7 @@ impl ManifestParser for BazelBuildParser {
                 cache_dirs: vec![".cache/bazel".into()],
                 artifacts,
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

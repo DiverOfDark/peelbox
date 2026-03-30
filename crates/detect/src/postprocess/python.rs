@@ -501,6 +501,7 @@ mod tests {
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libgcc".into()],
@@ -545,6 +546,7 @@ mod tests {
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -595,6 +597,7 @@ dependencies = [
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into()],
@@ -652,6 +655,7 @@ dependencies = [
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libpq".into()],

@@ -19,6 +19,7 @@ fn main() {
         "node-legacy-prisma", // Prisma v2.23.0 requires OpenSSL 1.1 (libssl.so.1.1) which Wolfi doesn't provide
         "node-monorepo", // Next.js 12 + React 17 incompatible with modern Node.js (no engines/nvmrc)
         "node-pnpm-monorepo", // Next.js 12.2.5 incompatible with modern Node.js (same as node-monorepo)
+        "scheme", // Wolfi's guile package (3.0.11-r6) crashes on startup — upstream packaging bug
     ]
     .into_iter()
     .collect();

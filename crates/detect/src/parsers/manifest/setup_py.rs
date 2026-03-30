@@ -53,6 +53,7 @@ impl ManifestParser for SetupPyParser {
                 cache_dirs: vec![".cache/pip".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

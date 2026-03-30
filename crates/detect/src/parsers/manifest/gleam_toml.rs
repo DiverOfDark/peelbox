@@ -64,6 +64,7 @@ impl ManifestParser for GleamTomlParser {
         );
         let build_packages = vec![
             "erlang".into(),
+            "erlang-dev".into(),
             "rebar3".into(),
             "curl".into(),
             "ca-certificates".into(),
@@ -87,13 +88,17 @@ impl ManifestParser for GleamTomlParser {
                 packages: build_packages,
                 commands: build_commands,
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: BTreeMap::from([(
+                    "PATH".into(),
+                    "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin".into(),
+                )]),
                 cache_dirs: vec!["build".into()],
                 artifacts: vec![(
                     "build/erlang-shipment".into(),
                     "/app/build/erlang-shipment".into(),
                 )],
                 setup_commands,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["erlang".into(), "busybox".into(), "ca-certificates".into()],

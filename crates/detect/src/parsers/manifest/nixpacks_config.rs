@@ -125,6 +125,7 @@ fn build_config_manifest(path: &Path, start_cmd: &str) -> Manifest {
             cache_dirs: vec![],
             artifacts: vec![(".".into(), "/app/".into())],
             setup_commands: vec![],
+            build_image: None,
         },
         runtime_config: RuntimeSpec {
             packages: vec!["busybox".into(), "bash".into(), "ca-certificates".into()],

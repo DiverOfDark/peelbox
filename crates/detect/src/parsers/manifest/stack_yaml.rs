@@ -115,6 +115,7 @@ impl ManifestParser for StackYamlParser {
                     format!("/app/{}", project_name),
                 )],
                             setup_commands: vec![],
+                build_image: None,
 },
             runtime_config: RuntimeSpec {
                 packages: vec![

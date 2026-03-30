@@ -390,6 +390,7 @@ version = "0.1.0"
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: Default::default(),
         };
@@ -422,6 +423,7 @@ version = "0.1.0"
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: Default::default(),
         };
@@ -469,6 +471,7 @@ version = "0.1.0"
                 env: BTreeMap::new(),
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: Default::default(),
         };

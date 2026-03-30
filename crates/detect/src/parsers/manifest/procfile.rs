@@ -91,6 +91,7 @@ impl ManifestParser for ProcfileParser {
                 cache_dirs: vec![".cache/pip".into()],
                 artifacts,
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

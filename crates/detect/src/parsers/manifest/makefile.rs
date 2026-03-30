@@ -103,6 +103,7 @@ impl ManifestParser for MakefileParser {
                 cache_dirs: Vec::new(),
                 artifacts: vec![(name.clone(), format!("/app/{}", name))],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

@@ -21,6 +21,15 @@ impl BuildStrategy for PeelboxStrategy {
         let exclude = builder.load_gitignore_patterns();
         let context_idx = builder.create_local_source(&exclude);
 
+        // If build_image is set, use that image directly as the build base
+        // (skipping Wolfi, apk add, and setup_commands). Used for languages
+        // tightly coupled to specific C library versions (e.g., Swift).
+        let custom_build_image_idx = spec
+            .build
+            .build_image
+            .as_ref()
+            .map(|image| builder.create_image_source(image));
+
         let with_build_packages_idx = if !spec.build.packages.is_empty() {
             let mut packages_list = spec.build.packages.clone();
             packages_list.sort();
@@ -57,11 +66,15 @@ impl BuildStrategy for PeelboxStrategy {
             None
         };
 
-        let after_packages_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
+        // When a custom build image is used, skip Wolfi packages and setup_commands entirely.
+        let after_packages_idx = custom_build_image_idx
+            .unwrap_or_else(|| with_build_packages_idx.unwrap_or(wolfi_base_idx));
 
         // Run setup commands on Wolfi AFTER apk add, BEFORE the build context is mounted.
-        // Used for installing toolchains not available as Wolfi packages (e.g., Swift).
-        let base_idx = if !spec.build.setup_commands.is_empty() {
+        // Used for installing toolchains not available as Wolfi packages (e.g., Gleam).
+        let base_idx = if custom_build_image_idx.is_some() {
+            after_packages_idx
+        } else if !spec.build.setup_commands.is_empty() {
             let script = spec.build.setup_commands.join(" && ");
             let meta = pb::Meta {
                 args: vec!["sh".to_string(), "-c".to_string(), script],

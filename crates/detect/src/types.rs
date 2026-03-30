@@ -128,6 +128,11 @@ pub struct BuildSpec {
     /// Used for installing toolchains not available as Wolfi packages (e.g., Swift).
     #[serde(default)]
     pub setup_commands: Vec<String>,
+    /// Optional Docker image to use as the build base INSTEAD of Wolfi.
+    /// When set, `packages` and `setup_commands` are ignored; the image must
+    /// already contain all required build tools.
+    #[serde(default)]
+    pub build_image: Option<String>,
 }
 
 /// How to adjust build commands for a workspace member.

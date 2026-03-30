@@ -8,28 +8,15 @@
       "reasoning": "Detected from Package.swift"
     },
     "build": {
-      "packages": [
-        "curl",
-        "ca-certificates",
-        "build-base",
-        "binutils",
-        "libstdc++-dev",
-        "zlib-dev",
-        "libxml2-dev",
-        "ncurses-dev"
-      ],
-      "env": {
-        "PATH": "/usr/local/swift/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [],
+      "env": {},
       "commands": [
         "swift build -c release"
       ],
       "cache": [
         ".build"
       ],
-      "setup_commands": [
-        "SWIFT_URL=\"https://download.swift.org/swift-5.4-release/ubi9/swift-5.4-RELEASE/swift-5.4-RELEASE-linux.tar.gz\" && curl -fsSL \"$SWIFT_URL\" -o /tmp/swift.tar.gz && mkdir -p /usr/local/swift && tar -xzf /tmp/swift.tar.gz -C /usr/local/swift --strip-components=1 && rm /tmp/swift.tar.gz && swift --version"
-      ]
+      "build_image": "docker.io/library/swift:5.4-focal"
     },
     "runtime": {
       "packages": [
@@ -37,14 +24,16 @@
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "LD_LIBRARY_PATH": "/usr/lib/swift/linux"
+      },
       "copy": [
         {
           "from": ".build/release/",
           "to": "/app/"
         },
         {
-          "from": "/usr/local/swift/usr/lib/swift/linux/",
+          "from": "/usr/lib/swift/linux/",
           "to": "/usr/lib/swift/linux/"
         }
       ],

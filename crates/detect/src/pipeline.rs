@@ -1524,6 +1524,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
             setup_commands: m.build.setup_commands.clone(),
+            build_image: m.build.build_image.clone(),
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -1797,19 +1798,21 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
             }
         }
         "Swift" => {
-            // Override the Swift toolchain version in setup_commands from .swift-version.
+            // Override the Swift Docker image from .swift-version.
+            // Each Swift major.minor needs a specific Ubuntu codename:
+            // 5.4-5.6 → focal, 5.7-5.10 → jammy, 6.0+ → noble
             if let Some(version) = read_swift_version(&project_dir, repo_root) {
-                // Replace version in patterns like "swift-6.1-release" and "swift-6.1-RELEASE"
-                let re = regex::Regex::new(r"swift-([\d.]+)-(release|RELEASE)").unwrap();
-                for cmd in &mut build.build.setup_commands {
-                    if cmd.contains("swift-") && cmd.contains("-RELEASE") {
-                        *cmd = re
-                            .replace_all(cmd, |caps: &regex::Captures| {
-                                format!("swift-{}-{}", version, &caps[2])
-                            })
-                            .to_string();
+                let ubuntu_codename = match version.as_str() {
+                    v if v.starts_with("5.4") || v.starts_with("5.5") || v.starts_with("5.6") => {
+                        "focal"
                     }
-                }
+                    v if v.starts_with("5.") => "jammy",
+                    _ => "noble",
+                };
+                build.build.build_image = Some(format!(
+                    "docker.io/library/swift:{}-{}",
+                    version, ubuntu_codename
+                ));
             }
         }
         _ => {}
@@ -1854,6 +1857,7 @@ mod tests {
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
                     setup_commands: vec![],
+                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
@@ -1909,6 +1913,7 @@ mod tests {
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
                     setup_commands: vec![],
+                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
@@ -1986,6 +1991,7 @@ app.listen(3000);
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2031,6 +2037,7 @@ app.listen(3000);
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2083,6 +2090,7 @@ const home = process.env.HOME;
                 commands: vec![],
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],

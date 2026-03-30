@@ -48,11 +48,13 @@ impl ManifestParser for PackageSwiftParser {
             None
         };
 
-        // Choose Swift toolchain version based on swift-tools-version.
-        // Swift 6.x has breaking stdlib changes, so 5.x projects need swift 5.10.
-        let swift_version_tag = match swift_version.as_deref() {
-            Some(v) if v.starts_with('5') => "5.10",
-            _ => "6.1",
+        // Choose Swift Docker image based on swift-tools-version.
+        // Swift is tightly coupled to the host's glibc headers — newer glibc (Wolfi)
+        // breaks older swift-log due to localtime_r nullability changes.
+        // Using the official Swift Docker images avoids these ABI issues.
+        let swift_image = match swift_version.as_deref() {
+            Some(v) if v.starts_with('5') => "docker.io/library/swift:5.10-jammy",
+            _ => "docker.io/library/swift:6.1-noble",
         };
 
         Some(Manifest {
@@ -68,35 +70,24 @@ impl ManifestParser for PackageSwiftParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![
-                    "curl".into(),
-                    "ca-certificates".into(),
-                    "build-base".into(),
-                    "binutils".into(),
-                    "libstdc++-dev".into(),
-                    "zlib-dev".into(),
-                    "libxml2-dev".into(),
-                    "ncurses-dev".into(),
-                ],
+                packages: vec![],
                 commands: vec!["swift build -c release".into()],
                 member_transform: None,
-                env: BTreeMap::from([(
-                    "PATH".into(),
-                    "/usr/local/swift/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".into(),
-                )]),
+                env: BTreeMap::new(),
                 cache_dirs: vec![".build".into()],
                 artifacts: vec![
                     (".build/release/".into(), "/app/".into()),
                     (
-                        "/usr/local/swift/usr/lib/swift/linux/".into(),
+                        "/usr/lib/swift/linux/".into(),
                         "/usr/lib/swift/linux/".into(),
                     ),
                 ],
-                setup_commands: swift_setup_commands(swift_version_tag),
+                setup_commands: vec![],
+                build_image: Some(swift_image.to_string()),
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libstdc++".into(), "ca-certificates".into()],
-                env: BTreeMap::new(),
+                env: BTreeMap::from([("LD_LIBRARY_PATH".into(), "/usr/lib/swift/linux".into())]),
                 entrypoint,
                 workdir: Some("/app".into()),
                 ports: vec![8080],
@@ -156,22 +147,6 @@ fn parse_swift_deps(content: &str) -> Vec<Dependency> {
         .collect()
 }
 
-/// Generate setup commands to download and install the Swift toolchain from swift.org.
-/// These run on Wolfi AFTER `apk add` but BEFORE the build context is mounted.
-fn swift_setup_commands(version_tag: &str) -> Vec<String> {
-    vec![format!(
-        concat!(
-            "SWIFT_URL=\"https://download.swift.org/swift-{v}-release/ubi9/swift-{v}-RELEASE/swift-{v}-RELEASE-linux.tar.gz\" && ",
-            "curl -fsSL \"$SWIFT_URL\" -o /tmp/swift.tar.gz && ",
-            "mkdir -p /usr/local/swift && ",
-            "tar -xzf /tmp/swift.tar.gz -C /usr/local/swift --strip-components=1 && ",
-            "rm /tmp/swift.tar.gz && ",
-            "swift --version",
-        ),
-        v = version_tag
-    )]
-}
-
 /// Extract the first `.executableTarget(name: "...")` target name.
 fn extract_executable_target_name(content: &str) -> Option<String> {
     let re = regex::Regex::new(r#"\.executableTarget\s*\(\s*name:\s*"([^"]+)""#).ok()?;
@@ -223,10 +198,11 @@ let package = Package(
             .commands
             .iter()
             .any(|c| c.contains("swift build -c release")));
-        assert!(!manifest.build.setup_commands.is_empty());
-        assert!(manifest.build.setup_commands[0].contains("swift-5.10-RELEASE"));
-        assert!(!manifest.build.packages.is_empty());
-        assert!(manifest.build.packages.contains(&"curl".to_string()));
+        assert!(manifest.build.setup_commands.is_empty());
+        assert_eq!(
+            manifest.build.build_image.as_deref(),
+            Some("docker.io/library/swift:5.10-jammy")
+        );
     }
 
     #[test]

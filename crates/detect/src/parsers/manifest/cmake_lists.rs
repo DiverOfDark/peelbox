@@ -75,6 +75,7 @@ impl ManifestParser for CMakeListsParser {
                 cache_dirs: vec!["CMakeCache.txt".into(), "build".into()],
                 artifacts: vec![(format!("build/{}", name), format!("/app/{}", name))],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

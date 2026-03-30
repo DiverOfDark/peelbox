@@ -139,6 +139,7 @@ impl ManifestParser for PyProjectTomlParser {
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pypoetry/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
                                     setup_commands: vec![],
+                build_image: None,
 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -190,6 +191,7 @@ impl ManifestParser for PyProjectTomlParser {
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
                     artifacts: vec![(".".into(), "/build".into())],
                     setup_commands: vec![],
+                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -238,6 +240,7 @@ impl ManifestParser for PyProjectTomlParser {
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
                                     setup_commands: vec![],
+                build_image: None,
 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -282,6 +285,7 @@ impl ManifestParser for PyProjectTomlParser {
                         ("/root/.local/".into(), "/root/.local/".into()),
                     ],
                     setup_commands: vec![],
+                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![

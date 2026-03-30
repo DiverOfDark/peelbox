@@ -67,6 +67,7 @@ impl ManifestParser for RequirementsTxtParser {
                     ("/root/.local/".into(), "/root/.local/".into()),
                 ],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

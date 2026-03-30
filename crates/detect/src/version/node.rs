@@ -190,6 +190,7 @@ mod tests {
                 env: BTreeMap::new(),
                 cache: vec![".npm".into()],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: peelbox_core::output::schema::RuntimeStage {
                 packages: runtime_packages,
@@ -288,6 +289,7 @@ mod tests {
                 env: BTreeMap::new(),
                 cache: vec![],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime: Default::default(),
         };

@@ -124,6 +124,7 @@ impl ManifestParser for CargoTomlParser {
                 cache_dirs: vec![".cargo".into(), "target".into()],
                 artifacts,
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],

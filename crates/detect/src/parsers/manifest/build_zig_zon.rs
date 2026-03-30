@@ -98,6 +98,7 @@ impl ManifestParser for BuildZigZonParser {
                     ("zig-out/lib/".into(), "/app/lib/".into()),
                 ],
                 setup_commands: vec![],
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
