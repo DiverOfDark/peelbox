@@ -210,6 +210,41 @@ impl ContainerTestHarness {
                 .await
                 .context("Failed to inspect container")?;
 
+            // If container has stopped, no point waiting for port
+            if let Some(ref state) = inspect.state {
+                if state.running == Some(false) {
+                    let exit_code = state.exit_code.unwrap_or(-1);
+                    let logs = self
+                        .get_container_logs(container_id)
+                        .await
+                        .unwrap_or_default();
+                    let status = state
+                        .status
+                        .as_ref()
+                        .map(|s| format!("{:?}", s))
+                        .unwrap_or_else(|| "unknown".into());
+                    let error = state.error.as_deref().unwrap_or("");
+                    anyhow::bail!(
+                        "Container exited before port {} became available.\n\
+                         Status: {}, Exit code: {}{}\n\
+                         Container logs:\n{}",
+                        container_port,
+                        status,
+                        exit_code,
+                        if error.is_empty() {
+                            String::new()
+                        } else {
+                            format!(", Error: {}", error)
+                        },
+                        if logs.is_empty() {
+                            "(no logs)".to_string()
+                        } else {
+                            logs
+                        }
+                    );
+                }
+            }
+
             if let Some(host_port) = inspect
                 .network_settings
                 .and_then(|ns| ns.ports)
@@ -228,9 +263,39 @@ impl ContainerTestHarness {
             }
         }
 
+        // Final diagnostic: container is still running but port never appeared
+        let logs = self
+            .get_container_logs(container_id)
+            .await
+            .unwrap_or_default();
+        let inspect = self.docker.inspect_container(container_id, None).await.ok();
+        let state_info = inspect
+            .as_ref()
+            .and_then(|i| i.state.as_ref())
+            .map(|s| {
+                format!(
+                    "Status: {}, Running: {}, Pid: {}",
+                    s.status
+                        .as_ref()
+                        .map(|s| format!("{:?}", s))
+                        .unwrap_or_else(|| "?".into()),
+                    s.running.map_or("?".into(), |r| r.to_string()),
+                    s.pid.map_or("?".into(), |p| p.to_string()),
+                )
+            })
+            .unwrap_or_else(|| "Could not inspect container".to_string());
+
         anyhow::bail!(
-            "Failed to get host port from container after 300 attempts (port {})",
-            container_port
+            "Failed to get host port from container after 300 attempts (port {}).\n\
+             {}\n\
+             Container logs:\n{}",
+            container_port,
+            state_info,
+            if logs.is_empty() {
+                "(no logs)".to_string()
+            } else {
+                logs
+            }
         )
     }
 
@@ -246,21 +311,51 @@ impl ContainerTestHarness {
                     .await
                     .is_ok()
                 {
-                    return Ok(());
+                    return Ok::<(), anyhow::Error>(());
                 }
 
                 let inspect = self.docker.inspect_container(container_id, None).await?;
                 if inspect.state.and_then(|s| s.running) != Some(true) {
-                    anyhow::bail!("Container stopped before port became accessible");
+                    let logs = self
+                        .get_container_logs(container_id)
+                        .await
+                        .unwrap_or_default();
+                    anyhow::bail!(
+                        "Container stopped before port {} became accessible.\n\
+                         Container logs:\n{}",
+                        port,
+                        if logs.is_empty() {
+                            "(no logs)".to_string()
+                        } else {
+                            logs
+                        }
+                    );
                 }
 
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         };
 
-        tokio::time::timeout(timeout_duration, check)
-            .await
-            .context("Timeout waiting for port")?
+        match tokio::time::timeout(timeout_duration, check).await {
+            Ok(result) => result,
+            Err(_) => {
+                let logs = self
+                    .get_container_logs(container_id)
+                    .await
+                    .unwrap_or_default();
+                anyhow::bail!(
+                    "Timeout waiting for port {} after {:?}.\n\
+                     Container logs:\n{}",
+                    port,
+                    timeout_duration,
+                    if logs.is_empty() {
+                        "(no logs)".to_string()
+                    } else {
+                        logs
+                    }
+                )
+            }
+        }
     }
 
     pub async fn http_health_check(
