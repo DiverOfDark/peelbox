@@ -99,3 +99,4 @@ Swift is the ONLY language using `build_image` to bypass Wolfi. Swift is NOT in 
 source_scanning - should be merged with respective static data for languages
 detect/src/version -> move to respective runtimes/package managers
 detect/src/postprocess -> also move to respective frameworks/languages/runtimes;
+setup_commands should be merged with build commands
