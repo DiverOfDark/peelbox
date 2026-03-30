@@ -203,7 +203,7 @@ impl ContainerTestHarness {
 
         // Retry: port bindings may not be immediately available after container start,
         // especially under parallel load when Docker is slow to assign ports.
-        for attempt in 0..60 {
+        for attempt in 0..300 {
             let inspect = self
                 .docker
                 .inspect_container(container_id, None)
@@ -223,13 +223,13 @@ impl ContainerTestHarness {
                     .context("Failed to parse host port as u16");
             }
 
-            if attempt < 59 {
+            if attempt < 299 {
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         }
 
         anyhow::bail!(
-            "Failed to get host port from container after 60 attempts (port {})",
+            "Failed to get host port from container after 300 attempts (port {})",
             container_port
         )
     }
