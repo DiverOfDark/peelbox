@@ -56,11 +56,11 @@
 ## Phase 7: Fix Connection/Retry Code Quality
 **Risk: Medium | Snapshot updates: 0**
 
-- [ ] Create `crates/buildkit/src/retry.rs` with generic `retry_with_backoff()`, use in `docker.rs` + `connection.rs`
-- [ ] Extract `configure_endpoint()` in `connection.rs` (4 identical HTTP/2 configs)
-- [ ] Normalize `keep_alive_timeout` across all connection variants (currently inconsistent: 3600s/600s/missing)
-- [ ] Replace hand-rolled TOML parsing in `nixpacks_config.rs` with `toml` crate
-- [ ] Document cache sharing mode (`Shared` is correct) in `builder.rs`
+- [x] Create `crates/buildkit/src/retry.rs` with generic `retry_with_backoff()`, use in `docker.rs` + `connection.rs`
+- [x] Extract `configure_endpoint()` in `connection.rs` (4 identical HTTP/2 configs)
+- [x] Normalize `keep_alive_timeout` across all connection variants (currently inconsistent: 3600s/600s/missing)
+- [x] Replace hand-rolled TOML parsing in `nixpacks_config.rs` with `toml` crate
+- [x] Document cache sharing mode (`Shared` is correct) in `builder.rs`
 
 ## Phase 8: Rework Swift Build to Use Wolfi (No Custom Docker Image)
 **Risk: High | Snapshot updates: YES**
