@@ -386,7 +386,15 @@ pub fn get_fixture_container_test_infos(
                 ContainerValidation::Log { expected_output }
             } else if !build.runtime.ports.is_empty() {
                 let port = build.runtime.ports.first().copied()?;
-                let health_endpoint = build.runtime.health.as_ref().map(|h| h.endpoint.clone());
+                // Use the detected health endpoint, or fall back to "/" as a last resort.
+                let health_endpoint = Some(
+                    build
+                        .runtime
+                        .health
+                        .as_ref()
+                        .map(|h| h.endpoint.clone())
+                        .unwrap_or_else(|| "/".to_string()),
+                );
                 ContainerValidation::Port {
                     port,
                     health_endpoint,

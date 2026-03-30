@@ -62,6 +62,16 @@ pub const MIN_WOLFI_NODE_MAJOR: u32 = 16;
 
 /// When a pinned Node.js version (e.g., `nodejs-14`) is not available in Wolfi,
 /// switch to installing it via `n` (node version manager) which downloads from nodejs.org.
+///
+/// # Runtime Node install limitation for old versions
+///
+/// The `n` package manager downloads pre-built Node.js binaries from nodejs.org.
+/// Very old Node.js versions (< 16) may not have pre-built binaries compatible with
+/// the Wolfi/musl-based build environment. In practice, `n` works reliably for
+/// Node.js 14 and 15, but versions older than that (e.g., 10, 12) may fail to
+/// install or run because nodejs.org no longer publishes compatible binaries for
+/// modern Linux distributions. If a project pins a very old version, the build
+/// will attempt to install it but may fail at the `n <version>` step.
 pub fn resolve_node_version(build: &mut UniversalBuild, wolfi: &WolfiPackageIndex) {
     if !matches!(
         build.metadata.language.as_str(),

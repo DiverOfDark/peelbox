@@ -21,7 +21,7 @@
       "commands": [
         "pip install pdm",
         "pdm export --no-hashes --prod -o requirements.txt",
-        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && find .venv/bin -type f -exec sed -i \"s|#\\!/build/.venv/|#\\!/app/.venv/|g\" {} + && ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
+        "python3 -m venv /app/.venv && /app/.venv/bin/pip install -r requirements.txt && ln -sf /usr/bin/python3 /app/.venv/bin/python3 && ln -sf python3 /app/.venv/bin/python"
       ],
       "cache": [
         "/root/.cache/pip/",
