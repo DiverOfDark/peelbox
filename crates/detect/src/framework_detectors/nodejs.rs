@@ -354,16 +354,39 @@ inventory::submit! {
 const TANSTACK_START: FrameworkId = FrameworkId::new("tanstack-start");
 inventory::submit! { FrameworkMeta { slug: "tanstack-start", display_name: "TanStack Start", aliases: &[] } }
 
-super::simple_detector!(
-    TanStackStartDetector,
-    TANSTACK_START,
-    &[JS, TS],
-    |deps: &[Dependency]| deps.iter().any(|d| d.name == "@tanstack/router-plugin"),
-    vec![3000],
-    vec![],
-    BTreeMap::new(),
-    vec![]
-);
+pub struct TanStackStartDetector;
+
+impl crate::traits::FrameworkDetector for TanStackStartDetector {
+    fn id(&self) -> FrameworkId {
+        TANSTACK_START
+    }
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[JS, TS]
+    }
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        deps.iter()
+            .any(|d| d.name == "@tanstack/router-plugin")
+    }
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        // TanStack Start (post-Vinxi, v1.80+) builds with `vite build` and
+        // produces a WinterCG-style fetch handler in `dist/server/server.js`.
+        // The `h3` CLI (a transitive dependency) serves it as an HTTP server.
+        FrameworkContribution {
+            framework: TANSTACK_START,
+            default_ports: vec![3000],
+            health_endpoints: vec![],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: Some(vec![
+                "node_modules/.bin/h3".into(),
+                "dist/server/server.js".into(),
+            ]),
+            runtime_env: BTreeMap::new(),
+            workdir: None,
+            extra_copy: vec![],
+        }
+    }
+}
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(TanStackStartDetector))

@@ -20,7 +20,6 @@ fn main() {
         "node-monorepo", // Next.js 12 + React 17 incompatible with modern Node.js (no engines/nvmrc)
         "node-pnpm-monorepo", // Next.js 12.2.5 incompatible with modern Node.js (same as node-monorepo)
         "scheme", // Wolfi's guile package (3.0.11-r6) crashes on startup — upstream packaging bug
-        "node-tanstack-start", // vite build doesn't produce .output/ with locked TanStack Start ^1.95 + Vite ^7 — needs fixture version update
     ]
     .into_iter()
     .collect();

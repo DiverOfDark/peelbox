@@ -61,6 +61,10 @@ pub fn provide_framework_fallback_entrypoint(build: &mut UniversalBuild) {
             .into_iter()
             .map(String::from)
             .collect(),
+        "TanStack Start" => vec!["node_modules/.bin/h3", "dist/server/server.js"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
         "Docusaurus" => with_exec(&["docusaurus", "serve"]),
 
         _ => return,

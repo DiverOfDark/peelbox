@@ -39,8 +39,8 @@
         }
       ],
       "command": [
-        "node",
-        ".output/server/index.mjs"
+        "node_modules/.bin/h3",
+        "dist/server/server.js"
       ],
       "workdir": "/app",
       "ports": [
