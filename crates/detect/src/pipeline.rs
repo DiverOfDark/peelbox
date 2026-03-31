@@ -7,7 +7,8 @@
 
 use crate::helpers::{extract_project_dir, replace_package};
 use crate::postprocess::framework::{
-    provide_framework_fallback_entrypoint, wrap_yarn_corepack_entrypoint,
+    detect_react_router_spa, provide_framework_fallback_entrypoint,
+    wrap_yarn_corepack_entrypoint,
 };
 use crate::postprocess::node::{
     sanitize_node_build_commands, scan_node_native_deps, scan_node_puppeteer,
@@ -197,6 +198,11 @@ pub fn detect_with_registry_and_wolfi(
     // Step 9: Provide fallback entrypoints for detected frameworks without scripts.start
     for build in &mut builds {
         provide_framework_fallback_entrypoint(build);
+    }
+
+    // Step 9b: Detect React Router SPA mode and switch to vite preview
+    for build in &mut builds {
+        detect_react_router_spa(repo_path, build);
     }
 
     // Filter out non-application builds (e.g., library crates, utility packages)
@@ -1478,11 +1484,12 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     }
 
     // Workdir: framework override > manifest workdir
-    // For workspace members with adjusts_workspace_member_workdir, set workdir to the
-    // member's directory so that the entrypoint command runs in the correct context
-    let workdir = if bucket.is_workspace_member
-        && profile.is_some_and(|p| p.adjusts_workspace_member_workdir)
-    {
+    // For workspace members with adjusts_workspace_member_workdir, or standalone
+    // subdirectory projects, set workdir to the member/subdir's directory so that
+    // the entrypoint command runs in the correct context.
+    let needs_subdir_workdir = (bucket.is_workspace_member || is_subdirectory)
+        && profile.is_some_and(|p| p.adjusts_workspace_member_workdir);
+    let workdir = if needs_subdir_workdir {
         let base = framework_workdir
             .or_else(|| m.runtime_config.workdir.clone())
             .unwrap_or_else(|| "/app".into());

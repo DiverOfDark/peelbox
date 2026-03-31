@@ -5,6 +5,7 @@
       "project_name": "app",
       "language": "Python",
       "build_system": "uv",
+      "framework": "Flask",
       "reasoning": "Detected from uv.lock"
     },
     "build": {
@@ -48,9 +49,7 @@
         "/build/main.py"
       ],
       "workdir": "/build",
-      "ports": [
-        8000
-      ]
+      "ports": []
     }
   }
 ]

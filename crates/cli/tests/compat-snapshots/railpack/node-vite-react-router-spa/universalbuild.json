@@ -44,12 +44,14 @@
       "command": [
         "pnpm",
         "exec",
-        "react-router-serve",
-        "build/server/index.js"
+        "vite",
+        "preview",
+        "--host",
+        "0.0.0.0"
       ],
       "workdir": "/app",
       "ports": [
-        3000
+        4173
       ]
     }
   }

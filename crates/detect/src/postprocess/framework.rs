@@ -74,6 +74,60 @@ pub fn provide_framework_fallback_entrypoint(build: &mut UniversalBuild) {
     build.runtime.command = command;
 }
 
+// ── React Router SPA mode detection ─────────────────────────────────────
+
+/// When React Router is in SPA mode (ssr: false in react-router.config.ts),
+/// `react-router-serve` won't work because `build/server/index.js` doesn't exist.
+/// Switch to Vite preview instead.
+pub fn detect_react_router_spa(repo_path: &std::path::Path, build: &mut UniversalBuild) {
+    if build.metadata.framework.as_deref() != Some("React Router") {
+        return;
+    }
+    // Check for react-router.config.ts with ssr: false
+    let _workdir = &build.runtime.workdir;
+    // Resolve the project directory within the repo
+    let project_dir = if let Some(name) = &build.metadata.project_name {
+        // For workspace members, the config might be in a subdirectory
+        let candidate = repo_path.join(name);
+        if candidate.is_dir() {
+            candidate
+        } else {
+            repo_path.to_path_buf()
+        }
+    } else {
+        repo_path.to_path_buf()
+    };
+
+    for config_name in &["react-router.config.ts", "react-router.config.js"] {
+        let config_path = project_dir.join(config_name);
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            if content.contains("ssr: false") || content.contains("ssr:false") {
+                debug!(
+                    project = build.metadata.project_name.as_deref().unwrap_or("?"),
+                    "Detected React Router SPA mode (ssr: false), switching to vite preview"
+                );
+                // Use Vite preview for SPA mode
+                let exec_prefix: Vec<&str> = match build.metadata.build_system.as_str() {
+                    "Bun" => vec!["bunx"],
+                    "pnpm" => vec!["pnpm", "exec"],
+                    "Yarn" => vec!["yarn"],
+                    _ => vec!["npx"],
+                };
+                build.runtime.command = exec_prefix
+                    .iter()
+                    .chain(["vite", "preview", "--host", "0.0.0.0"].iter())
+                    .map(|s| s.to_string())
+                    .collect();
+                // Vite preview uses port 4173
+                if build.runtime.ports == vec![3000] {
+                    build.runtime.ports = vec![4173];
+                }
+                return;
+            }
+        }
+    }
+}
+
 // ── Yarn Berry corepack entrypoint wrapping ─────────────────────────────
 
 /// For Yarn >= 2 (Berry) projects, the runtime entrypoint needs `corepack enable`

@@ -17,7 +17,7 @@
       "env": {},
       "commands": [
         "npm install",
-        "cd packages/client && npx tsc"
+        "cd packages/client && npx next build"
       ],
       "cache": [
         ".npm"

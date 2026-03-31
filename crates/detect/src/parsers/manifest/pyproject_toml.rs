@@ -87,6 +87,24 @@ impl ManifestParser for PyProjectTomlParser {
             (name, version)
         };
 
+        // Extract first [project.scripts] entry (or [tool.poetry.scripts]) for entrypoint
+        let script_entrypoint: Option<String> = if is_poetry {
+            toml_val
+                .get("tool")
+                .and_then(|t| t.get("poetry"))
+                .and_then(|p| p.get("scripts"))
+                .and_then(|s| s.as_table())
+                .and_then(|t| t.keys().next())
+                .map(|k| k.to_string())
+        } else {
+            toml_val
+                .get("project")
+                .and_then(|p| p.get("scripts"))
+                .and_then(|s| s.as_table())
+                .and_then(|t| t.keys().next())
+                .map(|k| k.to_string())
+        };
+
         let build_system_id = if is_poetry {
             POETRY
         } else if is_uv {
@@ -207,9 +225,10 @@ impl ManifestParser for PyProjectTomlParser {
                         ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
                         ("VIRTUAL_ENV", "/build/.venv"),
                     ]),
-                    entrypoint: name
-                        .as_ref()
-                        .map(|n| format!("python -m {}", n.replace('-', "_"))),
+                    entrypoint: script_entrypoint.clone().or_else(|| {
+                        name.as_ref()
+                            .map(|n| format!("python -m {}", n.replace('-', "_")))
+                    }),
                     workdir: Some("/build".into()),
                     ports: vec![8000],
                     health_endpoint: None,
@@ -307,9 +326,10 @@ impl ManifestParser for PyProjectTomlParser {
                         ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
                         ("PYTHONUSERBASE", "/root/.local"),
                     ]),
-                    entrypoint: name
-                        .as_ref()
-                        .map(|n| format!("python -m {}", n.replace('-', "_"))),
+                    entrypoint: script_entrypoint.clone().or_else(|| {
+                        name.as_ref()
+                            .map(|n| format!("python -m {}", n.replace('-', "_")))
+                    }),
                     workdir: Some("/app".into()),
                     ports: vec![8000],
                     health_endpoint: None,

@@ -218,18 +218,43 @@ inventory::submit! {
 const FAST_API: FrameworkId = FrameworkId::new("fastapi");
 inventory::submit! { FrameworkMeta { slug: "fastapi", display_name: "FastAPI", aliases: &[] } }
 
-super::simple_detector!(
-    FastApiDetector,
-    FAST_API,
-    &[PYTHON],
-    |deps: &[Dependency]| deps
-        .iter()
-        .any(|d| d.name == "fastapi" || d.name == "FastAPI"),
-    vec![8000],
-    vec!["/health".into(), "/healthz".into()],
-    BTreeMap::new(),
-    vec![]
-);
+pub struct FastApiDetector;
+
+impl FrameworkDetector for FastApiDetector {
+    fn id(&self) -> FrameworkId {
+        FAST_API
+    }
+    fn compatible_languages(&self) -> &[LanguageId] {
+        &[PYTHON]
+    }
+    fn detect(&self, deps: &[Dependency]) -> bool {
+        deps.iter()
+            .any(|d| d.name == "fastapi" || d.name == "FastAPI")
+    }
+    fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
+        FrameworkContribution {
+            framework: FAST_API,
+            default_ports: vec![8000],
+            health_endpoints: vec!["/health".into(), "/healthz".into()],
+            env_vars: BTreeMap::new(),
+            runtime_packages: vec![],
+            runtime_command: Some(vec![
+                "uvicorn".into(),
+                "main:app".into(),
+                "--host".into(),
+                "0.0.0.0".into(),
+                "--port".into(),
+                "8000".into(),
+            ]),
+            runtime_env: btree(&[
+                ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                ("VIRTUAL_ENV", "/build/.venv"),
+            ]),
+            workdir: Some("/build".into()),
+            extra_copy: vec![],
+        }
+    }
+}
 
 inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FastApiDetector))

@@ -46,9 +46,7 @@
         }
       ],
       "command": [
-        "python",
-        "-m",
-        "workspace_package"
+        "workspace-package"
       ],
       "workdir": "/build",
       "ports": [

@@ -233,9 +233,18 @@ impl ManifestParser for PackageJsonParser {
                 .map(|d| d.join("tsconfig.json").exists())
                 .unwrap_or(false);
 
+        // Check for frameworks that require specific build commands even without scripts.build
+        let has_next = json
+            .get("dependencies")
+            .and_then(|d| d.get("next"))
+            .is_some();
+
         let mut build_commands = vec![install_cmd.clone()];
         if has_build {
             build_commands.push(format!("{} run build", pkg_manager));
+        } else if has_next {
+            // Next.js requires `next build` — `npx tsc` is insufficient
+            build_commands.push("npx next build".to_string());
         } else if has_typescript_dep && has_tsconfig {
             build_commands.push("npx tsc".to_string());
         }
@@ -243,6 +252,8 @@ impl ManifestParser for PackageJsonParser {
         let mut member_commands = vec![install_cmd];
         if has_build {
             member_commands.push(format!("cd {{module}} && {} run build", pkg_manager));
+        } else if has_next {
+            member_commands.push("cd {module} && npx next build".to_string());
         } else if has_typescript_dep && has_tsconfig {
             member_commands.push("cd {module} && npx tsc".to_string());
         }

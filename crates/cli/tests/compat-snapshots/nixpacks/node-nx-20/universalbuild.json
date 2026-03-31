@@ -16,7 +16,8 @@
       ],
       "env": {},
       "commands": [
-        "npm install"
+        "npm install",
+        "cd apps/next-js && npx next build"
       ],
       "cache": [
         ".npm"

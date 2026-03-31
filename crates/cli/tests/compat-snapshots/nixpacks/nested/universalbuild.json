@@ -40,7 +40,7 @@
         "node",
         "index.js"
       ],
-      "workdir": "/app",
+      "workdir": "/app/hello/sub",
       "ports": [
         3000
       ]

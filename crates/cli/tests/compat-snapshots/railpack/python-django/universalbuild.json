@@ -5,6 +5,7 @@
       "project_name": "app",
       "language": "Python",
       "build_system": "uv",
+      "framework": "Django",
       "reasoning": "Detected from uv.lock"
     },
     "build": {
@@ -38,6 +39,7 @@
       ],
       "env": {
         "DATABASE_URL": "",
+        "DJANGO_SETTINGS_MODULE": "mysite.settings",
         "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
         "REDIS_URL": "",
         "VIRTUAL_ENV": "/build/.venv"
@@ -50,12 +52,17 @@
       ],
       "command": [
         "python",
-        "/build/manage.py"
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000"
       ],
       "workdir": "/build",
       "ports": [
         8000
-      ]
+      ],
+      "health": {
+        "endpoint": "/health/"
+      }
     }
   }
 ]
