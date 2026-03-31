@@ -379,18 +379,25 @@ impl ContainerTestHarness {
                 match client.get(&current_url).send().await {
                     Ok(response) if response.status().is_success() => return Ok(true),
                     Ok(response)
-                        if response.status() == reqwest::StatusCode::NOT_FOUND
-                            && !using_fallback
-                            && path != "/" =>
+                        if response.status() == reqwest::StatusCode::NOT_FOUND =>
                     {
                         consecutive_404s += 1;
                         if consecutive_404s >= 3 {
-                            // Server is running but the health endpoint doesn't exist;
-                            // try "/" as a fallback before giving up.
+                            if using_fallback || path == "/" {
+                                // Server responded 3 times — it's alive, just has
+                                // no matching route. Good enough for E2E.
+                                return Ok(true);
+                            }
+                            // Switch to "/" as a fallback before giving up.
                             current_url = fallback_url.clone();
                             using_fallback = true;
                         }
                         tokio::time::sleep(Duration::from_millis(200)).await;
+                    }
+                    Ok(_) if using_fallback => {
+                        // Server responded (even non-2xx) on the fallback URL.
+                        // This proves the server is alive — good enough for E2E.
+                        return Ok(true);
                     }
                     Ok(_) => {
                         consecutive_404s = 0;
