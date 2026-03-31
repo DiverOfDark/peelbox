@@ -93,7 +93,7 @@ impl ManifestParser for PdmLockParser {
                 ],
                 commands: vec![
                     "pip install pdm".into(),
-                    "pdm install --prod --no-self".into(),
+                    "pdm install --prod --no-self && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 2>/dev/null; ln -sf python3 .venv/bin/python 2>/dev/null; true".into(),
                 ],
                 member_transform: None,
                 env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
@@ -109,7 +109,10 @@ impl ManifestParser for PdmLockParser {
                     "libstdc++".into(),
                     "ca-certificates".into(),
                 ],
-                env: std::collections::BTreeMap::new(),
+                env: btree(&[
+                    ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                    ("VIRTUAL_ENV", "/app/.venv"),
+                ]),
                 entrypoint: None,
                 workdir: Some("/app".into()),
                 ports: vec![8000],

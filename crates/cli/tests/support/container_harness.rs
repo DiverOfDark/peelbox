@@ -364,20 +364,40 @@ impl ContainerTestHarness {
         path: &str,
         timeout_duration: std::time::Duration,
     ) -> Result<bool> {
-        let url = format!("http://127.0.0.1:{}{}", port, path);
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
             .build()?;
 
         let check = async {
+            let mut consecutive_404s = 0u32;
+            let mut using_fallback = false;
+            let primary_url = format!("http://127.0.0.1:{}{}", port, path);
+            let fallback_url = format!("http://127.0.0.1:{}/", port);
+            let mut current_url = primary_url.clone();
+
             loop {
-                match client.get(&url).send().await {
+                match client.get(&current_url).send().await {
                     Ok(response) if response.status().is_success() => return Ok(true),
+                    Ok(response)
+                        if response.status() == reqwest::StatusCode::NOT_FOUND
+                            && !using_fallback
+                            && path != "/" =>
+                    {
+                        consecutive_404s += 1;
+                        if consecutive_404s >= 3 {
+                            // Server is running but the health endpoint doesn't exist;
+                            // try "/" as a fallback before giving up.
+                            current_url = fallback_url.clone();
+                            using_fallback = true;
+                        }
+                        tokio::time::sleep(Duration::from_millis(200)).await;
+                    }
                     Ok(_) => {
-                        // Retry on other non-success status (e.g., 503 during startup)
+                        consecutive_404s = 0;
                         tokio::time::sleep(Duration::from_millis(200)).await;
                     }
                     Err(_) => {
+                        consecutive_404s = 0;
                         tokio::time::sleep(Duration::from_millis(200)).await;
                     }
                 }

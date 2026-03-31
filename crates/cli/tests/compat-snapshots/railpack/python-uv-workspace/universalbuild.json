@@ -35,8 +35,9 @@
         "uv"
       ],
       "env": {
-        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
-        "PYTHONUSERBASE": "/root/.local"
+        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local",
+        "VIRTUAL_ENV": "/build/.venv"
       },
       "copy": [
         {

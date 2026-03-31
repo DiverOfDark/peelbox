@@ -22,7 +22,7 @@
         "pip install poetry poetry-plugin-export",
         "poetry lock --no-update 2>/dev/null || poetry lock",
         "poetry export --without-hashes -f requirements.txt -o requirements.txt --only main",
-        "python3 -m venv /app/.venv && /app/.venv/bin/pip install -r requirements.txt && ln -sf /usr/bin/python3 /app/.venv/bin/python3 && ln -sf python3 /app/.venv/bin/python"
+        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
       ],
       "cache": [
         "/root/.cache/pip/",
@@ -36,7 +36,10 @@
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
       "copy": [
         {
           "from": ".",

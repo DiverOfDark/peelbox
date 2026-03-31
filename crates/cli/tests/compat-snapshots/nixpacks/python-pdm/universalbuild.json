@@ -19,7 +19,7 @@
       },
       "commands": [
         "pip install pdm",
-        "pdm install --prod --no-self"
+        "pdm install --prod --no-self && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 2>/dev/null; ln -sf python3 .venv/bin/python 2>/dev/null; true"
       ],
       "cache": [
         "/root/.cache/pip/",
@@ -33,7 +33,10 @@
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
       "copy": [
         {
           "from": ".",

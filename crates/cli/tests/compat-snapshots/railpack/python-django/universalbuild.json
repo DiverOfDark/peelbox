@@ -38,7 +38,9 @@
       ],
       "env": {
         "DATABASE_URL": "",
-        "REDIS_URL": ""
+        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "REDIS_URL": "",
+        "VIRTUAL_ENV": "/build/.venv"
       },
       "copy": [
         {

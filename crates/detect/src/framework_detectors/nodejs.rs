@@ -433,7 +433,7 @@ impl crate::traits::FrameworkDetector for ViteDetector {
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         FrameworkContribution {
             framework: VITE,
-            default_ports: vec![5173],
+            default_ports: vec![4173],
             health_endpoints: vec![],
             env_vars: BTreeMap::new(),
             runtime_packages: vec![],

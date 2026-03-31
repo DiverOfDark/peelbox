@@ -137,12 +137,12 @@ impl ManifestParser for GemfileParser {
             build: BuildSpec {
                 packages: build_packages,
                 commands: vec![
+                    // Remove the ruby version constraint from Gemfile — the correct Ruby
+                    // version is already installed via Wolfi packages (see read_ruby_version).
                     // Add base64 gem (removed from Ruby 3.4 stdlib, needed by older rack/etc).
-                    // The Gemfile's `ruby` constraint is left intact — read_ruby_version()
-                    // handles installing the correct Ruby version via Wolfi packages.
                     // If bundle install fails (e.g., native gem incompatible with current
                     // Ruby), extract failing gem name and update just that gem.
-                    "(grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }".into(),
+                    "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }".into(),
                 ],
                 member_transform: None,
                 env: btree(&[

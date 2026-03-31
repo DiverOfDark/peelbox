@@ -129,7 +129,7 @@ impl ManifestParser for PyProjectTomlParser {
                         // Using pip as the installer provides proper sdist fallback.
                         "poetry lock --no-update 2>/dev/null || poetry lock".into(),
                         "poetry export --without-hashes -f requirements.txt -o requirements.txt --only main".into(),
-                        "python3 -m venv /app/.venv && /app/.venv/bin/pip install -r requirements.txt && ln -sf /usr/bin/python3 /app/.venv/bin/python3 && ln -sf python3 /app/.venv/bin/python".into(),
+                        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python".into(),
                     ],
                     member_transform: None,
                     env: btree(&[
@@ -148,7 +148,10 @@ impl ManifestParser for PyProjectTomlParser {
                         "libstdc++".into(),
                         "ca-certificates".into(),
                     ],
-                    env: BTreeMap::new(),
+                    env: btree(&[
+                        ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                        ("VIRTUAL_ENV", "/app/.venv"),
+                    ]),
                     entrypoint: None, // Will be set by framework detector (Flask)
                     workdir: Some("/app".into()),
                     ports: vec![8000],
@@ -200,7 +203,10 @@ impl ManifestParser for PyProjectTomlParser {
                         "libstdc++".into(),
                         "ca-certificates".into(),
                     ],
-                    env: BTreeMap::new(),
+                    env: btree(&[
+                        ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                        ("VIRTUAL_ENV", "/build/.venv"),
+                    ]),
                     entrypoint: name
                         .as_ref()
                         .map(|n| format!("python -m {}", n.replace('-', "_"))),
@@ -233,7 +239,7 @@ impl ManifestParser for PyProjectTomlParser {
                     commands: vec![
                         "pip install pdm".into(),
                         "pdm export --no-hashes --prod -o requirements.txt".into(),
-                        "python3 -m venv /app/.venv && /app/.venv/bin/pip install -r requirements.txt && ln -sf /usr/bin/python3 /app/.venv/bin/python3 && ln -sf python3 /app/.venv/bin/python".into(),
+                        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python".into(),
                     ],
                     member_transform: None,
                     env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
@@ -249,7 +255,10 @@ impl ManifestParser for PyProjectTomlParser {
                         "libstdc++".into(),
                         "ca-certificates".into(),
                     ],
-                    env: BTreeMap::new(),
+                    env: btree(&[
+                        ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                        ("VIRTUAL_ENV", "/app/.venv"),
+                    ]),
                     entrypoint: None, // Will be set by framework detector (Flask)
                     workdir: Some("/app".into()),
                     ports: vec![8000],

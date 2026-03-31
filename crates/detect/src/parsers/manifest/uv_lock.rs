@@ -1,3 +1,4 @@
+use crate::helpers::btree;
 use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
@@ -90,7 +91,10 @@ impl ManifestParser for UvLockParser {
                     "libstdc++".into(),
                     "ca-certificates".into(),
                 ],
-                env: BTreeMap::new(),
+                env: btree(&[
+                    ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                    ("VIRTUAL_ENV", "/build/.venv"),
+                ]),
                 entrypoint: name
                     .as_ref()
                     .map(|n| format!("python -m {}", n.replace('-', "_"))),

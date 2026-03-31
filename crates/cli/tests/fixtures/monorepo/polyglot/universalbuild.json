@@ -2,49 +2,48 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "admin-service",
-      "language": "Rust",
-      "build_system": "Cargo",
-      "reasoning": "Detected from Cargo.toml in cli"
+      "project_name": "frontend",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json in frontend"
     },
     "build": {
       "packages": [
-        "rust-1.92",
-        "build-base",
-        "openssl-dev",
-        "pkgconf",
+        "nodejs-25",
+        "npm",
         "ca-certificates"
       ],
-      "env": {
-        "CARGO_HOME": ".cargo"
-      },
+      "env": {},
       "commands": [
-        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
+        "cd frontend && npm ci",
+        "cd frontend && npm run build"
       ],
       "cache": [
-        ".cargo",
-        "target"
+        ".npm"
       ]
     },
     "runtime": {
       "packages": [
-        "glibc",
-        "libssl3",
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
         "ca-certificates"
       ],
       "env": {},
       "copy": [
         {
-          "from": "target/release/admin-service",
-          "to": "/app/admin-service"
+          "from": ".",
+          "to": "/app/"
         }
       ],
       "command": [
-        "/app/admin-service"
+        "npm",
+        "start"
       ],
       "workdir": "/app",
       "ports": [
-        8082
+        3000
       ]
     }
   },
@@ -110,48 +109,49 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "frontend",
-      "language": "JavaScript",
-      "build_system": "npm",
-      "reasoning": "Detected from package.json in frontend"
+      "project_name": "admin-service",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml in cli"
     },
     "build": {
       "packages": [
-        "nodejs-25",
-        "npm",
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
       "commands": [
-        "cd frontend && npm ci",
-        "cd frontend && npm run build"
+        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
       ],
       "cache": [
-        ".npm"
+        ".cargo",
+        "target"
       ]
     },
     "runtime": {
       "packages": [
-        "nodejs-25",
-        "npm",
-        "busybox",
-        "dumb-init",
+        "glibc",
+        "libssl3",
         "ca-certificates"
       ],
       "env": {},
       "copy": [
         {
-          "from": ".",
-          "to": "/app/"
+          "from": "target/release/admin-service",
+          "to": "/app/admin-service"
         }
       ],
       "command": [
-        "npm",
-        "start"
+        "/app/admin-service"
       ],
       "workdir": "/app",
       "ports": [
-        3000
+        8082
       ]
     }
   }

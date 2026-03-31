@@ -33,7 +33,10 @@
         "libstdc++",
         "ca-certificates"
       ],
-      "env": {},
+      "env": {
+        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/build/.venv"
+      },
       "copy": [
         {
           "from": ".",

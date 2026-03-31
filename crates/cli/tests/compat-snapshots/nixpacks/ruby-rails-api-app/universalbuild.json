@@ -27,7 +27,7 @@
         "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
-        "(grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
       ],
       "cache": [
         ".bundle",
