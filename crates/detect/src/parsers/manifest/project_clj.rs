@@ -96,13 +96,13 @@ impl ManifestParser for ProjectCljParser {
                     "ca-certificates".into(),
                 ],
                 commands: vec![
-                    "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version".into(),
+                    "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/app/.lein lein version".into(),
                     "lein uberjar".into(),
                 ],
                 member_transform: None,
                 env: btree(&[
                     ("JAVA_HOME", java_home),
-                    ("LEIN_HOME", "/build/.lein"),
+                    ("LEIN_HOME", "/app/.lein"),
                     (
                         "PATH",
                         &format!(

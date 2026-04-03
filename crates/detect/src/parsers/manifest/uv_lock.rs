@@ -83,7 +83,7 @@ impl ManifestParser for UvLockParser {
                 member_transform: None,
                 env: BTreeMap::from([("UV_CACHE_DIR".into(), "/root/.cache/uv".into())]),
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
-                artifacts: vec![(".".into(), "/build".into())],
+                artifacts: vec![(".".into(), "/app".into())],
                 setup_commands: vec![],
                 build_image: None,
             },
@@ -95,13 +95,22 @@ impl ManifestParser for UvLockParser {
                     "ca-certificates".into(),
                 ],
                 env: btree(&[
-                    ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
-                    ("VIRTUAL_ENV", "/build/.venv"),
+                    ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                    ("VIRTUAL_ENV", "/app/.venv"),
                 ]),
-                entrypoint: name
-                    .as_ref()
-                    .map(|n| format!("python -m {}", n.replace('-', "_"))),
-                workdir: Some("/build".into()),
+                entrypoint: {
+                    // Prefer [project.scripts] entrypoint from the companion pyproject.toml
+                    let script_entrypoint = project
+                        .and_then(|p| p.get("scripts"))
+                        .and_then(|s| s.as_table())
+                        .and_then(|t| t.keys().next())
+                        .map(|k| k.to_string());
+                    script_entrypoint.or_else(|| {
+                        name.as_ref()
+                            .map(|n| format!("python -m {}", n.replace('-', "_")))
+                    })
+                },
+                workdir: Some("/app".into()),
                 ports: vec![8000],
                 health_endpoint: None,
             },

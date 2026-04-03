@@ -18,12 +18,16 @@
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "commands": [
-        "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /build/.yarn/releases/yarn-3.2.4.cjs  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
+        "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /app/.yarn/releases/yarn-3.2.4.cjs  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
         "yarn install",
         "yarn run build"
       ],
       "cache": [
         ".yarn-cache"
+      ],
+      "setup_commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp"
       ]
     },
     "runtime": {

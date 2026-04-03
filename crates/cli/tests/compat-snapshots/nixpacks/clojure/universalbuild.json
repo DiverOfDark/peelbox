@@ -16,11 +16,11 @@
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "LEIN_HOME": "/build/.lein",
+        "LEIN_HOME": "/app/.lein",
         "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
-        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version",
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/app/.lein lein version",
         "lein uberjar"
       ],
       "cache": [

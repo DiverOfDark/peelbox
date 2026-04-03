@@ -284,7 +284,7 @@ pub fn collect_python_dep_names(project_dir: &Path) -> Vec<String> {
 
 // ── Flask app path fix ────────────────────────────────────────────────────
 
-/// Fix FLASK_APP for projects where the hardcoded `/build/app.py` doesn't exist.
+/// Fix FLASK_APP for projects where the hardcoded `/app/app.py` doesn't exist.
 /// Searches the project directory for `app.py` or `main.py` and updates accordingly.
 /// If no Flask app file is found, falls back to a Python entrypoint command.
 pub fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
@@ -294,7 +294,7 @@ pub fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
 
     // Only fix if FLASK_APP is set to one of the default hardcoded values
     let flask_app = match build.runtime.env.get("FLASK_APP") {
-        Some(v) if v == "/app/app.py" || v == "/build/app.py" => v.clone(),
+        Some(v) if v == "/app/app.py" => v.clone(),
         _ => return,
     };
 

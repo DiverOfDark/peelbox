@@ -38,7 +38,7 @@
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         },
         {
           "from": "/root/.local/",
@@ -47,9 +47,9 @@
       ],
       "command": [
         "python",
-        "/build/nixpacks-setuptools/__main__.py"
+        "/app/nixpacks-setuptools/__main__.py"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         5000
       ],

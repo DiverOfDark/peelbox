@@ -1,1 +1,1 @@
-Expected PATH to start with
+Hello from python-uv-packaged!

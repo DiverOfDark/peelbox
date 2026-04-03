@@ -37,7 +37,7 @@
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         },
         {
           "from": "/root/.local/",
@@ -52,7 +52,7 @@
         "--port",
         "8000"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         8000
       ],

@@ -151,7 +151,7 @@ impl ManifestParser for YarnLockParser {
                 // But Yarn Classic v1 does NOT read .yarnrc.yml, so we create a wrapper.
                 if let Some(ref yp) = yarn_path {
                     commands.push(format!(
-                        "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /build/{}  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
+                        "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /app/{}  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
                         yp
                     ));
                 }

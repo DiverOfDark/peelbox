@@ -180,8 +180,8 @@ impl ManifestParser for GoModParser {
         // Build environment
         let env_pairs: Vec<(&str, &str)> = vec![
             ("CGO_ENABLED", "0"),
-            ("GOCACHE", "/build/.cache/go-build"),
-            ("GOMODCACHE", "/build/.cache/go-mod"),
+            ("GOCACHE", "/app/.cache/go-build"),
+            ("GOMODCACHE", "/app/.cache/go-mod"),
             ("GOSUMDB", "off"),
         ];
 

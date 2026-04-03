@@ -34,21 +34,19 @@
         "ca-certificates"
       ],
       "env": {
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-        "VIRTUAL_ENV": "/build/.venv"
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
       },
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "command": [
-        "python",
-        "-m",
-        "python_uv_packaged"
+        "python-uv-packaged"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         8000
       ]

@@ -2,6 +2,55 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "admin-service",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml in cli"
+    },
+    "build": {
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/release/admin-service",
+          "to": "/app/admin-service"
+        }
+      ],
+      "command": [
+        "/app/admin-service"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8082
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "backend",
       "language": "Java",
       "build_system": "Maven",
@@ -61,55 +110,6 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "admin-service",
-      "language": "Rust",
-      "build_system": "Cargo",
-      "reasoning": "Detected from Cargo.toml in cli"
-    },
-    "build": {
-      "packages": [
-        "rust-1.92",
-        "build-base",
-        "openssl-dev",
-        "pkgconf",
-        "ca-certificates"
-      ],
-      "env": {
-        "CARGO_HOME": ".cargo"
-      },
-      "commands": [
-        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
-      ],
-      "cache": [
-        ".cargo",
-        "target"
-      ]
-    },
-    "runtime": {
-      "packages": [
-        "glibc",
-        "libssl3",
-        "ca-certificates"
-      ],
-      "env": {},
-      "copy": [
-        {
-          "from": "target/release/admin-service",
-          "to": "/app/admin-service"
-        }
-      ],
-      "command": [
-        "/app/admin-service"
-      ],
-      "workdir": "/app",
-      "ports": [
-        8082
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
       "project_name": "frontend",
       "language": "JavaScript",
       "build_system": "npm",
@@ -128,6 +128,10 @@
       ],
       "cache": [
         ".npm"
+      ],
+      "setup_commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp"
       ]
     },
     "runtime": {

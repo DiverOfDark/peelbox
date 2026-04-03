@@ -35,20 +35,20 @@
         "uv"
       ],
       "env": {
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
         "PYTHONUSERBASE": "/root/.local",
-        "VIRTUAL_ENV": "/build/.venv"
+        "VIRTUAL_ENV": "/app/.venv"
       },
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "command": [
         "workspace-package"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         8000
       ]

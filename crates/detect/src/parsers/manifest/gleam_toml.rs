@@ -103,7 +103,7 @@ impl ManifestParser for GleamTomlParser {
             runtime_config: RuntimeSpec {
                 packages: vec!["erlang".into(), "busybox".into(), "ca-certificates".into()],
                 env: BTreeMap::new(),
-                entrypoint: Some("./build/erlang-shipment/entrypoint.sh run".into()),
+                entrypoint: Some("/app/build/erlang-shipment/entrypoint.sh run".into()),
                 workdir: Some("/app".into()),
                 ports: vec![4000],
                 health_endpoint: None,
@@ -176,7 +176,7 @@ gleam_stdlib = "~> 0.28.0"
         assert_eq!(manifest.dependencies[0].name, "gleam_stdlib");
         assert_eq!(
             manifest.runtime_config.entrypoint.as_deref(),
-            Some("./build/erlang-shipment/entrypoint.sh run")
+            Some("/app/build/erlang-shipment/entrypoint.sh run")
         );
         assert_eq!(manifest.runtime_config.ports, vec![4000]);
         assert!(manifest

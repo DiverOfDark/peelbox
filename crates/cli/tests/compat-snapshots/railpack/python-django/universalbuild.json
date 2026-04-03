@@ -40,14 +40,14 @@
       "env": {
         "DATABASE_URL": "",
         "DJANGO_SETTINGS_MODULE": "mysite.settings",
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
         "REDIS_URL": "",
-        "VIRTUAL_ENV": "/build/.venv"
+        "VIRTUAL_ENV": "/app/.venv"
       },
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         }
       ],
       "command": [
@@ -56,7 +56,7 @@
         "runserver",
         "0.0.0.0:8000"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         8000
       ],

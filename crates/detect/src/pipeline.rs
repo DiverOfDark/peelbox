@@ -11,7 +11,7 @@ use crate::postprocess::framework::{
     wrap_yarn_corepack_entrypoint,
 };
 use crate::postprocess::node::{
-    sanitize_node_build_commands, scan_node_native_deps, scan_node_puppeteer,
+    ensure_npm_node_gyp, sanitize_node_build_commands, scan_node_native_deps, scan_node_puppeteer,
 };
 use crate::postprocess::python::{
     fix_django_settings, fix_flask_app_path, scan_python_entrypoints, scan_python_native_deps,
@@ -132,7 +132,12 @@ pub fn detect_with_registry_and_wolfi(
         scan_python_native_deps(repo_path, build);
     }
 
-    // Step 4j: Detect Node.js native dependency system packages
+    // Step 4j: Ensure npm builds have node-gyp available (Wolfi npm doesn't bundle it)
+    for build in &mut builds {
+        ensure_npm_node_gyp(build);
+    }
+
+    // Step 4k: Detect Node.js native dependency system packages
     for build in &mut builds {
         scan_node_native_deps(repo_path, build);
     }
@@ -509,7 +514,7 @@ fn collect_manifests_with_frameworks(
 
                         if !matching_variants.is_empty() {
                             // Prefer the variant whose workdir matches the manifest's
-                            // runtime workdir. This ensures UV projects (workdir /build)
+                            // runtime workdir. This ensures UV projects (workdir /app)
                             // pick FlaskUv, while Poetry/PDM (workdir /app) pick their
                             // own variants.
                             let manifest_workdir = manifest.runtime_config.workdir.as_deref();

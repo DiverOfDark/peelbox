@@ -37,7 +37,7 @@
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         },
         {
           "from": "/root/.local/",
@@ -46,9 +46,9 @@
       ],
       "command": [
         "python",
-        "/build/main.py"
+        "/app/main.py"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": []
     }
   }

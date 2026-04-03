@@ -32,7 +32,7 @@
         "ca-certificates"
       ],
       "env": {
-        "FLASK_APP": "/build/app.py",
+        "FLASK_APP": "/app/app.py",
         "FLASK_RUN_HOST": "0.0.0.0",
         "FLASK_RUN_PORT": "5000",
         "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
@@ -41,7 +41,7 @@
       "copy": [
         {
           "from": ".",
-          "to": "/build"
+          "to": "/app"
         },
         {
           "from": "/root/.local/",
@@ -52,7 +52,7 @@
         "flask",
         "run"
       ],
-      "workdir": "/build",
+      "workdir": "/app",
       "ports": [
         5000
       ],

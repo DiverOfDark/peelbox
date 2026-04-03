@@ -484,10 +484,20 @@ pub fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
                         }
                         if !build.runtime.env.contains_key(var_name) {
                             debug!(var = var_name, file = %path.display(), "Found env var in source code");
+                            // For Elixir, extract fallback defaults from
+                            // `System.get_env("VAR") || "default"` patterns.
+                            // Empty-string env vars break Elixir's `||` fallback
+                            // (e.g., String.to_integer(get_env("X") || "10") crashes
+                            // on "" because Elixir treats "" as truthy).
+                            let default_value = if language == "Elixir" {
+                                extract_elixir_fallback(content, var_name)
+                            } else {
+                                String::new()
+                            };
                             build
                                 .runtime
                                 .env
-                                .insert(var_name.to_string(), String::new());
+                                .insert(var_name.to_string(), default_value);
                         }
                     }
                 }
@@ -495,4 +505,22 @@ pub fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
             false // keep walking
         },
     );
+}
+
+/// Extract fallback default value from Elixir `System.get_env("VAR") || "default"` patterns.
+/// Returns the default value string if found, or empty string if no fallback exists.
+fn extract_elixir_fallback(content: &str, var_name: &str) -> String {
+    // Match patterns like: System.get_env("POOL_SIZE") || "10"
+    let pattern = format!(
+        r#"System\.get_env\(["']{}["']\)\s*\|\|\s*"([^"]*)""#,
+        regex::escape(var_name)
+    );
+    if let Ok(re) = regex::Regex::new(&pattern) {
+        if let Some(cap) = re.captures(content) {
+            if let Some(m) = cap.get(1) {
+                return m.as_str().to_string();
+            }
+        }
+    }
+    String::new()
 }

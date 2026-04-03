@@ -94,7 +94,7 @@ impl LLBBuilder {
             });
             id
         });
-        let normalized = cache_path.trim_start_matches("/build/").replace('/', "-");
+        let normalized = cache_path.trim_start_matches("/app/").replace('/', "-");
         if let Some(ns) = &self.cache_namespace {
             let prefix = &ns[..ns.len().min(12)];
             format!("{}-{}-{}", project_name, prefix, normalized)

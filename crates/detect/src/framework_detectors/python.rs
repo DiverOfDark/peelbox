@@ -79,15 +79,15 @@ impl FrameworkDetector for FlaskDetector {
             runtime_packages: vec![],
             runtime_command: Some(vec!["flask".into(), "run".into()]),
             runtime_env: btree(&[
-                ("FLASK_APP", "/build/app.py"),
+                ("FLASK_APP", "/app/app.py"),
                 ("FLASK_RUN_HOST", "0.0.0.0"),
                 ("FLASK_RUN_PORT", "5000"),
                 ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
                 ("PYTHONUSERBASE", "/root/.local"),
             ]),
-            workdir: Some("/build".into()),
+            workdir: Some("/app".into()),
             extra_copy: vec![
-                (".".into(), "/build".into()),
+                (".".into(), "/app".into()),
                 ("/root/.local/".into(), "/root/.local".into()),
             ],
         }
@@ -104,7 +104,7 @@ inventory::submit! {
 ///
 /// Poetry, PDM, and UV all install into a `.venv` directory rather than using
 /// `--user` (pip) installs. The only difference between them is the workdir
-/// (`/app` for Poetry/PDM, `/build` for UV), which determines where `FLASK_APP`,
+/// (`/app` for Poetry/PDM/UV), which determines where `FLASK_APP`,
 /// `VIRTUAL_ENV`, and `PATH` point. This helper eliminates the duplication.
 fn flask_venv_contribution(workdir: &str) -> FrameworkContribution {
     FrameworkContribution {
@@ -185,7 +185,7 @@ inventory::submit! {
     crate::registry::FrameworkDetectorEntry(|| Box::new(FlaskPdmDetector))
 }
 
-/// Flask detector for UV projects (uses .venv in /build workdir).
+/// Flask detector for UV projects (uses .venv in /app workdir).
 ///
 /// `detect()` returns `false` by design. This detector is not selected via
 /// dependency scanning; instead, the UV build-system profile declares
@@ -205,7 +205,7 @@ impl FrameworkDetector for FlaskUvDetector {
         false
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
-        flask_venv_contribution("/build")
+        flask_venv_contribution("/app")
     }
 }
 
@@ -247,10 +247,10 @@ impl FrameworkDetector for FastApiDetector {
                 "8000".into(),
             ]),
             runtime_env: btree(&[
-                ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
-                ("VIRTUAL_ENV", "/build/.venv"),
+                ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                ("VIRTUAL_ENV", "/app/.venv"),
             ]),
-            workdir: Some("/build".into()),
+            workdir: Some("/app".into()),
             extra_copy: vec![],
         }
     }
@@ -297,9 +297,9 @@ impl FrameworkDetector for FastHtmlDetector {
                 ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
                 ("PYTHONUSERBASE", "/root/.local"),
             ]),
-            workdir: Some("/build".into()),
+            workdir: Some("/app".into()),
             extra_copy: vec![
-                (".".into(), "/build".into()),
+                (".".into(), "/app".into()),
                 ("/root/.local/".into(), "/root/.local".into()),
             ],
         }

@@ -157,7 +157,7 @@ impl ManifestParser for MixExsParser {
                     ("ELIXIR_ERL_OPTIONS", "+fnu"),
                     ("LC_ALL", "C.UTF-8"),
                     ("MIX_ENV", "prod"),
-                    ("MIX_HOME", "/build/.mix"),
+                    ("MIX_HOME", "/app/.mix"),
                     ("POOL_SIZE", ""),
                     ("SECRET_KEY_BASE", ""),
                 ]),

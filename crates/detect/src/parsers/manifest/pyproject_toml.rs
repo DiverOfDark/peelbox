@@ -210,7 +210,7 @@ impl ManifestParser for PyProjectTomlParser {
                     }),
                     env: btree(&[("UV_CACHE_DIR", "/root/.cache/uv")]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
-                    artifacts: vec![(".".into(), "/build".into())],
+                    artifacts: vec![(".".into(), "/app".into())],
                     setup_commands: vec![],
                     build_image: None,
                 },
@@ -222,14 +222,14 @@ impl ManifestParser for PyProjectTomlParser {
                         "ca-certificates".into(),
                     ],
                     env: btree(&[
-                        ("PATH", "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
-                        ("VIRTUAL_ENV", "/build/.venv"),
+                        ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                        ("VIRTUAL_ENV", "/app/.venv"),
                     ]),
                     entrypoint: script_entrypoint.clone().or_else(|| {
                         name.as_ref()
                             .map(|n| format!("python -m {}", n.replace('-', "_")))
                     }),
-                    workdir: Some("/build".into()),
+                    workdir: Some("/app".into()),
                     ports: vec![8000],
                     health_endpoint: None,
                 },

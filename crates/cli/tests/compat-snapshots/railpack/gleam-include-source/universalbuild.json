@@ -42,7 +42,7 @@
         }
       ],
       "command": [
-        "./build/erlang-shipment/entrypoint.sh",
+        "/app/build/erlang-shipment/entrypoint.sh",
         "run"
       ],
       "workdir": "/app",
