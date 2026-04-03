@@ -378,9 +378,7 @@ impl ContainerTestHarness {
             loop {
                 match client.get(&current_url).send().await {
                     Ok(response) if response.status().is_success() => return Ok(true),
-                    Ok(response)
-                        if response.status() == reqwest::StatusCode::NOT_FOUND =>
-                    {
+                    Ok(response) if response.status() == reqwest::StatusCode::NOT_FOUND => {
                         consecutive_404s += 1;
                         if consecutive_404s >= 3 {
                             if using_fallback || path == "/" {

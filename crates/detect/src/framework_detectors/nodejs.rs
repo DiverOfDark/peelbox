@@ -364,8 +364,7 @@ impl crate::traits::FrameworkDetector for TanStackStartDetector {
         &[JS, TS]
     }
     fn detect(&self, deps: &[Dependency]) -> bool {
-        deps.iter()
-            .any(|d| d.name == "@tanstack/router-plugin")
+        deps.iter().any(|d| d.name == "@tanstack/router-plugin")
     }
     fn contribution(&self, _deps: &[Dependency]) -> FrameworkContribution {
         // TanStack Start (post-Vinxi, v1.80+) builds with `vite build` and

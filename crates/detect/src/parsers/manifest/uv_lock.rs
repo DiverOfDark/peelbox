@@ -53,9 +53,8 @@ impl ManifestParser for UvLockParser {
         // Parse dependencies from the sibling pyproject.toml so that
         // framework detection (e.g., FastAPI, Flask) works even when the
         // pyproject has no [tool.uv] section.
-        let dependencies = crate::parsers::manifest::pyproject_toml::parse_pyproject_deps_public(
-            &toml_val, false,
-        );
+        let dependencies =
+            crate::parsers::manifest::pyproject_toml::parse_pyproject_deps_public(&toml_val, false);
 
         Some(Manifest {
             path: path.to_path_buf(),

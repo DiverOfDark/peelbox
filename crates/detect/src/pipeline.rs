@@ -7,8 +7,7 @@
 
 use crate::helpers::{extract_project_dir, replace_package};
 use crate::postprocess::framework::{
-    detect_react_router_spa, provide_framework_fallback_entrypoint,
-    wrap_yarn_corepack_entrypoint,
+    detect_react_router_spa, provide_framework_fallback_entrypoint, wrap_yarn_corepack_entrypoint,
 };
 use crate::postprocess::node::{
     ensure_npm_node_gyp, sanitize_node_build_commands, scan_node_native_deps, scan_node_puppeteer,
