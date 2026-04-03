@@ -11,7 +11,7 @@ path = "junit.xml"
 
 [test-groups]
 serial-tests = { max-threads = 1 }
-container-tests = { max-threads = 16 }
+container-tests = { max-threads = 6 }
 # GitHub Actions ubuntu-latest: 4 vCPUs, 16 GB RAM, 14 GB SSD.
 # Keep parallelism low to avoid disk exhaustion from concurrent image builds.
 ci-container-tests = { max-threads = 2 }
