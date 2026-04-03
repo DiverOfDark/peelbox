@@ -4,7 +4,11 @@ use crate::ids::{
 };
 use crate::traits::ManifestParser;
 use crate::types::*;
+use peelbox_core::output::schema::{CopySpec, UniversalBuild};
+use peelbox_wolfi::WolfiPackageIndex;
+use regex::Regex;
 use std::path::Path;
+use tracing::debug;
 
 const JAVA: LanguageId = LanguageId::new("java");
 const MAVEN: BuildSystemId = BuildSystemId::new("maven");
@@ -239,7 +243,7 @@ fn parse_maven_deps(doc: &roxmltree::Document) -> Vec<Dependency> {
 }
 
 fn detect_java_version_from_pom(content: &str) -> Option<String> {
-    crate::version::java::detect_java_version(content)
+    detect_java_version(content)
 }
 
 /// Walk up from a pom.xml looking for mvnw in ancestor directories.
@@ -295,6 +299,295 @@ inventory::submit! {
         transform_subdirectory_command: maven_subdirectory_command,
         ..BuildSystemConfig::new(MAVEN)
     })
+}
+
+// ── Shared Java/Kotlin version detection and Wolfi resolution ───────────
+
+/// Minimum Java version that is expected to always be in Wolfi.
+const MIN_GUARANTEED_WOLFI_JAVA_VERSION: u32 = 7;
+
+/// Normalize old-style Java 1.x version strings to their modern equivalent.
+/// "1.8" → "8", "1.7" → "7", "17" → "17"
+pub(crate) fn normalize_java_version(version: &str) -> String {
+    let trimmed = version.trim();
+
+    if let Some(rest) = trimmed.strip_prefix("1.") {
+        let minor: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        if !minor.is_empty() {
+            if let Ok(v) = minor.parse::<u32>() {
+                if v <= 8 {
+                    return minor;
+                }
+            }
+        }
+    }
+
+    let major: String = trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if !major.is_empty() {
+        return major;
+    }
+
+    trimmed.to_string()
+}
+
+/// Detect Java version from manifest content (pom.xml, build.gradle, .java-version).
+/// Returns the normalized version number (e.g., "17", "21", "11", "8").
+pub(crate) fn detect_java_version(manifest_content: &str) -> Option<String> {
+    // Try pom.xml patterns first
+    if let Some(ver) = parse_pom_version(manifest_content) {
+        return Some(normalize_java_version(&ver));
+    }
+
+    // Try build.gradle(.kts) patterns
+    if let Some(ver) = super::build_gradle::parse_gradle_version(manifest_content) {
+        return Some(normalize_java_version(&ver));
+    }
+
+    // Try .java-version file (plain text version number)
+    parse_java_version_file(manifest_content).map(|v| normalize_java_version(&v))
+}
+
+/// Parse Java version from pom.xml content using XML parsing.
+pub(crate) fn parse_pom_version(content: &str) -> Option<String> {
+    if !content.contains('<') {
+        return None;
+    }
+
+    if let Ok(doc) = roxmltree::Document::parse(content) {
+        for node in doc.descendants() {
+            if node.has_tag_name("maven.compiler.source")
+                || node.has_tag_name("java.version")
+                || node.has_tag_name("maven.compiler.release")
+            {
+                if let Some(version) = node.text() {
+                    return Some(version.trim().to_string());
+                }
+            }
+        }
+    }
+
+    // Fallback to regex for cases where XML parsing fails
+    if let Some(caps) = Regex::new(r"<maven\.compiler\.source>([\d.]+)</maven\.compiler\.source>")
+        .ok()
+        .and_then(|re| re.captures(content))
+    {
+        return caps.get(1).map(|m| m.as_str().to_string());
+    }
+    if let Some(caps) = Regex::new(r"<java\.version>([\d.]+)</java\.version>")
+        .ok()
+        .and_then(|re| re.captures(content))
+    {
+        return caps.get(1).map(|m| m.as_str().to_string());
+    }
+    if let Some(caps) = Regex::new(r"<release>([\d.]+)</release>")
+        .ok()
+        .and_then(|re| re.captures(content))
+    {
+        return caps.get(1).map(|m| m.as_str().to_string());
+    }
+
+    None
+}
+
+/// Parse version from a .java-version file (plain text version number).
+fn parse_java_version_file(content: &str) -> Option<String> {
+    if content.contains('<') || content.contains('{') {
+        return None;
+    }
+    let trimmed = content.trim();
+    if Regex::new(r"^\d+(\.\d+)*$").ok()?.is_match(trimmed) {
+        Some(trimmed.to_string())
+    } else {
+        None
+    }
+}
+
+/// Returns the JAVA_HOME path for a given Java major version as installed by Wolfi.
+pub(crate) fn wolfi_java_home_path(major_version: &str) -> String {
+    match major_version.parse::<u32>() {
+        Ok(v) if v <= 9 => format!("/usr/lib/jvm/java-1.{}-openjdk", v),
+        _ => format!("/usr/lib/jvm/java-{}-openjdk", major_version),
+    }
+}
+
+/// After Wolfi package resolution, synchronize JAVA_HOME and PATH env vars
+/// with the actual resolved openjdk package version.
+pub(crate) fn sync_java_home_with_packages(build: &mut UniversalBuild) {
+    let lang = &build.metadata.language;
+    if lang != "Java" && lang != "Kotlin" && lang != "Scala" && lang != "Clojure" {
+        return;
+    }
+
+    let java_version = build
+        .build
+        .packages
+        .iter()
+        .chain(build.runtime.packages.iter())
+        .find_map(|pkg| {
+            pkg.strip_prefix("openjdk-").and_then(|rest| {
+                let version = rest.split('-').next().unwrap_or(rest);
+                if version.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+                    Some(version.to_string())
+                } else {
+                    None
+                }
+            })
+        });
+
+    let version = match java_version {
+        Some(v) => v,
+        None => return,
+    };
+
+    let correct_java_home = wolfi_java_home_path(&version);
+    let correct_path = format!(
+        "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        correct_java_home
+    );
+
+    if let Some(current) = build.build.env.get("JAVA_HOME") {
+        if *current != correct_java_home {
+            debug!(
+                from = %current,
+                to = %correct_java_home,
+                "Correcting build JAVA_HOME to match resolved package"
+            );
+            build
+                .build
+                .env
+                .insert("JAVA_HOME".to_string(), correct_java_home.clone());
+            if build.build.env.contains_key("PATH") {
+                build
+                    .build
+                    .env
+                    .insert("PATH".to_string(), correct_path.clone());
+            }
+        }
+    }
+
+    if let Some(current) = build.runtime.env.get("JAVA_HOME") {
+        if *current != correct_java_home {
+            debug!(
+                from = %current,
+                to = %correct_java_home,
+                "Correcting runtime JAVA_HOME to match resolved package"
+            );
+            build
+                .runtime
+                .env
+                .insert("JAVA_HOME".to_string(), correct_java_home.clone());
+            if build.runtime.env.contains_key("PATH") {
+                build.runtime.env.insert("PATH".to_string(), correct_path);
+            }
+        }
+    }
+}
+
+/// When a Java version is not available in Wolfi, replace openjdk packages
+/// with an Adoptium/Temurin JDK download.
+pub(crate) fn resolve_java_toolchain(build: &mut UniversalBuild, wolfi: &WolfiPackageIndex) {
+    let lang = &build.metadata.language;
+    if lang != "Java" && lang != "Kotlin" && lang != "Scala" && lang != "Clojure" {
+        return;
+    }
+
+    let legacy_version = find_legacy_openjdk_version(&build.build.packages, wolfi)
+        .or_else(|| find_legacy_openjdk_version(&build.runtime.packages, wolfi));
+
+    let version = match legacy_version {
+        Some(v) => v,
+        None => return,
+    };
+
+    debug!(
+        version = %version,
+        "Java version not available in Wolfi, switching to Adoptium Temurin",
+    );
+
+    let java_home = format!("/usr/lib/jvm/java-{}", version);
+    let java_home_bin = format!("{}/bin", java_home);
+    let install_cmd = format!(
+        "curl -fsSL https://api.adoptium.net/v3/binary/latest/{version}/ga/linux/x64/jdk/hotspot/normal/eclipse \
+         -o /tmp/jdk.tar.gz && \
+         mkdir -p {java_home} && \
+         tar -xzf /tmp/jdk.tar.gz -C {java_home} --strip-components=1 && \
+         rm /tmp/jdk.tar.gz",
+        version = version,
+        java_home = java_home,
+    );
+
+    replace_legacy_openjdk_packages(&mut build.build.packages, &version);
+    ensure_package(&mut build.build.packages, "curl");
+    ensure_package(&mut build.build.packages, "ca-certificates");
+
+    build.build.commands.insert(0, install_cmd);
+
+    build
+        .build
+        .env
+        .insert("JAVA_HOME".to_string(), java_home.clone());
+    let path_value = format!(
+        "{}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        java_home_bin
+    );
+    build.build.env.insert("PATH".to_string(), path_value);
+
+    replace_legacy_openjdk_packages(&mut build.runtime.packages, &version);
+
+    build.runtime.copy.push(CopySpec {
+        from: format!("{}/", java_home),
+        to: format!("{}/", java_home),
+    });
+
+    build
+        .runtime
+        .env
+        .insert("JAVA_HOME".to_string(), java_home.clone());
+    build.runtime.env.insert(
+        "PATH".to_string(),
+        format!(
+            "{}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            java_home_bin
+        ),
+    );
+}
+
+fn find_legacy_openjdk_version(packages: &[String], wolfi: &WolfiPackageIndex) -> Option<String> {
+    for pkg in packages {
+        let version_str = if let Some(v) = pkg.strip_prefix("openjdk-") {
+            v.split('-').next().unwrap_or(v)
+        } else {
+            continue;
+        };
+
+        if let Ok(ver) = version_str.parse::<u32>() {
+            if ver >= MIN_GUARANTEED_WOLFI_JAVA_VERSION {
+                continue;
+            }
+            let base_pkg = format!("openjdk-{}", version_str);
+            if !wolfi.has_package(&base_pkg) {
+                return Some(version_str.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn replace_legacy_openjdk_packages(packages: &mut Vec<String>, version: &str) {
+    packages.retain(|pkg| {
+        if let Some(v) = pkg.strip_prefix("openjdk-") {
+            let pkg_version = v.split('-').next().unwrap_or(v);
+            pkg_version != version
+        } else {
+            true
+        }
+    });
+}
+
+fn ensure_package(packages: &mut Vec<String>, pkg: &str) {
+    if !packages.iter().any(|p| p == pkg) {
+        packages.push(pkg.to_string());
+    }
 }
 
 #[cfg(test)]
@@ -375,5 +668,113 @@ mod tests {
 
         let manifest = PomXmlParser.parse(&sub_pom, POM_CONTENT).unwrap();
         assert_eq!(manifest.build.commands[0], "./mvnw package -DskipTests");
+    }
+
+    // ── Java version detection tests ────────────────────────────────────
+
+    #[test]
+    fn test_pom_maven_compiler_source() {
+        let content = r#"<project><properties><maven.compiler.source>17</maven.compiler.source></properties></project>"#;
+        assert_eq!(detect_java_version(content), Some("17".to_string()));
+    }
+
+    #[test]
+    fn test_pom_java_version() {
+        let content =
+            r#"<project><properties><java.version>21</java.version></properties></project>"#;
+        assert_eq!(detect_java_version(content), Some("21".to_string()));
+    }
+
+    #[test]
+    fn test_pom_maven_compiler_release() {
+        let content = r#"<project><properties><maven.compiler.release>11</maven.compiler.release></properties></project>"#;
+        assert_eq!(detect_java_version(content), Some("11".to_string()));
+    }
+
+    #[test]
+    fn test_gradle_source_compat() {
+        let content = r#"sourceCompatibility = "17""#;
+        assert_eq!(detect_java_version(content), Some("17".to_string()));
+    }
+
+    #[test]
+    fn test_gradle_toolchain() {
+        let content = r#"java { toolchain { languageVersion.set(JavaLanguageVersion.of(21)) } }"#;
+        assert_eq!(detect_java_version(content), Some("21".to_string()));
+    }
+
+    #[test]
+    fn test_java_version_file() {
+        assert_eq!(detect_java_version("17"), Some("17".to_string()));
+        assert_eq!(detect_java_version("17.0"), Some("17".to_string()));
+    }
+
+    #[test]
+    fn test_java_version_file_legacy() {
+        assert_eq!(detect_java_version("1.8"), Some("8".to_string()));
+        assert_eq!(detect_java_version("1.8.0"), Some("8".to_string()));
+    }
+
+    #[test]
+    fn test_pom_legacy_java_8() {
+        let content = r#"<project><properties><maven.compiler.source>1.8</maven.compiler.source></properties></project>"#;
+        assert_eq!(detect_java_version(content), Some("8".to_string()));
+    }
+
+    #[test]
+    fn test_pom_legacy_java_7() {
+        let content =
+            r#"<project><properties><java.version>1.7</java.version></properties></project>"#;
+        assert_eq!(detect_java_version(content), Some("7".to_string()));
+    }
+
+    #[test]
+    fn test_gradle_legacy_version_1_8() {
+        let content = r#"sourceCompatibility = JavaVersion.VERSION_1_8"#;
+        assert_eq!(detect_java_version(content), Some("8".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_1_8() {
+        assert_eq!(normalize_java_version("1.8"), "8");
+    }
+
+    #[test]
+    fn test_normalize_1_7() {
+        assert_eq!(normalize_java_version("1.7"), "7");
+    }
+
+    #[test]
+    fn test_normalize_modern_17() {
+        assert_eq!(normalize_java_version("17"), "17");
+    }
+
+    #[test]
+    fn test_no_version() {
+        assert_eq!(detect_java_version("<project></project>"), None);
+    }
+
+    #[test]
+    fn test_pom_version_standalone() {
+        let content = r#"<project><properties><maven.compiler.source>21</maven.compiler.source></properties></project>"#;
+        assert_eq!(parse_pom_version(content), Some("21".to_string()));
+    }
+
+    #[test]
+    fn test_gradle_version_standalone() {
+        let content = r#"sourceCompatibility = "17""#;
+        assert_eq!(
+            crate::parsers::manifest::build_gradle::parse_gradle_version(content),
+            Some("17".to_string())
+        );
+    }
+
+    #[test]
+    fn test_gradle_version_version_prefix() {
+        let content = r#"sourceCompatibility = JavaVersion.VERSION_17"#;
+        assert_eq!(
+            crate::parsers::manifest::build_gradle::parse_gradle_version(content),
+            Some("17".to_string())
+        );
     }
 }

@@ -6,25 +6,25 @@
 //! registered via `inventory::submit!` in the parser files.
 
 use crate::helpers::{extract_project_dir, replace_package};
-use crate::postprocess::framework::{
-    detect_react_router_spa, provide_framework_fallback_entrypoint, wrap_yarn_corepack_entrypoint,
+use crate::parsers::config::mise::scan_mise_config;
+use crate::parsers::manifest::cargo_toml::{read_rust_version, resolve_rust_toolchain};
+use crate::parsers::manifest::composer_json::read_php_version;
+use crate::parsers::manifest::gemfile::read_ruby_version;
+use crate::parsers::manifest::package_json::{
+    detect_react_router_spa, ensure_npm_node_gyp, provide_framework_fallback_entrypoint,
+    read_node_version, resolve_node_version, sanitize_node_build_commands, scan_node_native_deps,
+    scan_node_puppeteer, wrap_yarn_corepack_entrypoint,
 };
-use crate::postprocess::node::{
-    ensure_npm_node_gyp, sanitize_node_build_commands, scan_node_native_deps, scan_node_puppeteer,
-};
-use crate::postprocess::python::{
-    fix_django_settings, fix_flask_app_path, scan_python_entrypoints, scan_python_native_deps,
+use crate::parsers::manifest::package_swift::read_swift_version;
+use crate::parsers::manifest::pom_xml::{resolve_java_toolchain, sync_java_home_with_packages};
+use crate::parsers::manifest::pyproject_toml::{
+    fix_django_settings, fix_flask_app_path, read_python_version, scan_python_entrypoints,
+    scan_python_native_deps,
 };
 use crate::registry::Registry;
 use crate::source_scanning::{scan_source_env_vars, scan_source_health, scan_source_ports};
 use crate::traits::{ConfigParser, ManifestParser};
 use crate::types::*;
-use crate::version::mise::scan_mise_config;
-use crate::version::node::read_node_version;
-use crate::version::php::read_php_version;
-use crate::version::python::read_python_version;
-use crate::version::ruby::read_ruby_version;
-use crate::version::swift::read_swift_version;
 
 use anyhow::Result;
 use ignore::WalkBuilder;
@@ -161,21 +161,21 @@ pub fn detect_with_registry_and_wolfi(
 
     // Step 5b: Sync JAVA_HOME with resolved openjdk package version
     for build in &mut builds {
-        crate::version::java::sync_java_home_with_packages(build);
+        sync_java_home_with_packages(build);
     }
 
     // Step 6: Handle pinned versions not available in Wolfi (use alternative installers)
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            crate::version::rust::resolve_rust_toolchain(build, wolfi);
-            crate::version::node::resolve_node_version(build, wolfi);
+            resolve_rust_toolchain(build, wolfi);
+            resolve_node_version(build, wolfi);
         }
     }
 
     // Step 7: Handle old Java versions not available in Wolfi (use Adoptium Temurin)
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            crate::version::java::resolve_java_toolchain(build, wolfi);
+            resolve_java_toolchain(build, wolfi);
         }
     }
 
@@ -1801,8 +1801,7 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
         }
         "Rust" => {
             // Only build packages need the rust compiler; runtime uses the compiled binary
-            if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
-            {
+            if let Some(version) = read_rust_version(&project_dir, repo_root) {
                 let versioned_pkg = format!("rust-{}", version);
                 replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }

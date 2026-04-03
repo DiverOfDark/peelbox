@@ -1,10 +1,14 @@
+use crate::helpers::extract_project_dir;
 use crate::ids::{
     BuildSystemId, BuildSystemMeta, LanguageId, LanguageMeta, RuntimeId, RuntimeMeta,
 };
 use crate::traits::ManifestParser;
 use crate::types::*;
+use peelbox_core::output::schema::UniversalBuild;
+use peelbox_wolfi::WolfiPackageIndex;
 use std::collections::BTreeMap;
 use std::path::Path;
+use tracing::debug;
 
 const JAVASCRIPT: LanguageId = LanguageId::new("javascript");
 const TYPESCRIPT: LanguageId = LanguageId::new("typescript");
@@ -366,4 +370,846 @@ inventory::submit! {
         adjusts_workspace_member_workdir: true,
         ..BuildSystemConfig::new(BUN)
     })
+}
+
+// ── Node.js version detection and resolution ────────────────────────────
+
+/// Read Node.js version from `.nvmrc` or `.node-version` file.
+/// Returns the major version string (e.g., "18", "20").
+pub(crate) fn read_node_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        for filename in &[".nvmrc", ".node-version"] {
+            let path = dir.join(filename);
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let trimmed = content.trim();
+                if let Some(version) = parse_node_version_string(trimmed) {
+                    return Some(version);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Parse a Node.js version string: strip 'v' prefix, map LTS codenames, extract major.
+pub(crate) fn parse_node_version_string(s: &str) -> Option<String> {
+    let s = s.trim().trim_start_matches('v');
+
+    // Map LTS codenames
+    let s = match s.to_lowercase().as_str() {
+        "lts/iron" => "20",
+        "lts/hydrogen" => "18",
+        "lts/gallium" => "16",
+        "lts/fermium" => "14",
+        "lts/*" => return None, // Can't resolve "latest LTS" statically
+        _ => s,
+    };
+
+    // Extract major version
+    let major = s.split('.').next()?;
+    if major.chars().all(|c| c.is_ascii_digit()) && !major.is_empty() {
+        Some(major.to_string())
+    } else {
+        None
+    }
+}
+
+/// The minimum major Node.js version available in Wolfi.
+/// Versions below this threshold require direct download.
+pub(crate) const MIN_WOLFI_NODE_MAJOR: u32 = 16;
+
+/// When a pinned Node.js version (e.g., `nodejs-14`) is not available in Wolfi,
+/// switch to installing it via `n` (node version manager) which downloads from nodejs.org.
+pub(crate) fn resolve_node_version(build: &mut UniversalBuild, wolfi: &WolfiPackageIndex) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    // Find a nodejs-X package that doesn't exist in Wolfi
+    let pinned_version = build.build.packages.iter().find_map(|pkg| {
+        pkg.strip_prefix("nodejs-").and_then(|version_str| {
+            let major: u32 = version_str.parse().ok()?;
+            if major < MIN_WOLFI_NODE_MAJOR && !wolfi.has_package(pkg) {
+                Some(version_str.to_string())
+            } else {
+                None
+            }
+        })
+    });
+
+    let Some(version) = pinned_version else {
+        return;
+    };
+
+    debug!(
+        version = %version,
+        "Pinned Node.js version not in Wolfi, switching to n (node version manager)"
+    );
+
+    // Replace the unavailable nodejs-X package with curl (for downloading n)
+    for pkg in build.build.packages.iter_mut() {
+        if pkg.starts_with("nodejs-") && !wolfi.has_package(pkg.as_str()) {
+            *pkg = "curl".to_string();
+            break;
+        }
+    }
+
+    // Ensure required packages are present
+    for required_pkg in &["ca-certificates", "build-base", "bash", "libstdc++"] {
+        if !build.build.packages.contains(&required_pkg.to_string()) {
+            build.build.packages.push(required_pkg.to_string());
+        }
+    }
+
+    // Remove npm from build packages (it comes bundled with the Node.js install)
+    build.build.packages.retain(|p| p != "npm");
+
+    // Also remove npm-dependent commands (global installs, symlinks) since npm
+    // won't be available until after the `n` installer runs in build commands.
+    build
+        .build
+        .commands
+        .retain(|c: &String| !c.contains("npm install -g") && !c.contains("node_modules/npm"));
+
+    // Prepend Node.js installation command using `n` (node version manager)
+    let install_cmd = format!(
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n {}",
+        version
+    );
+    build.build.commands.insert(0, install_cmd);
+
+    // Set PATH to include the installed Node.js
+    build.build.env.insert(
+        "PATH".to_string(),
+        "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+    );
+
+    // Fix runtime packages too
+    let mut needs_runtime_fix = false;
+    for pkg in build.runtime.packages.iter_mut() {
+        if pkg.starts_with("nodejs-") && !wolfi.has_package(pkg.as_str()) {
+            *pkg = "curl".to_string();
+            needs_runtime_fix = true;
+            break;
+        }
+    }
+
+    if needs_runtime_fix {
+        for required_pkg in &["ca-certificates", "bash", "libstdc++"] {
+            if !build.runtime.packages.contains(&required_pkg.to_string()) {
+                build.runtime.packages.push(required_pkg.to_string());
+            }
+        }
+        build.runtime.packages.retain(|p| p != "npm");
+
+        let original_cmd = build.runtime.command.clone();
+        if !original_cmd.is_empty() {
+            let install_cmd = format!(
+                "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n {} > /dev/null 2>&1",
+                version
+            );
+            let original_cmd_str = original_cmd.join(" ");
+            build.runtime.command = vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                format!("{} && {}", install_cmd, original_cmd_str),
+            ];
+        }
+
+        build.runtime.env.insert(
+            "PATH".to_string(),
+            "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+        );
+    }
+}
+
+// ── Node.js native dependency detection ──────────────────────────────────
+
+/// Wolfi's `npm` package (11.x) does not bundle `node-gyp`. npm internally
+/// calls `require.resolve('node-gyp/bin/node-gyp.js')` for every lifecycle
+/// script, so any `npm ci` / `npm install` will fail when a dependency has
+/// install hooks (esbuild, prisma, etc.).
+pub(crate) fn ensure_npm_node_gyp(build: &mut UniversalBuild) {
+    if !build.build.packages.iter().any(|p| p == "npm") {
+        return;
+    }
+
+    let gyp_install = "npm install -g node-gyp".to_string();
+    let gyp_symlink = "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp".to_string();
+
+    if !build.build.commands.contains(&gyp_install) {
+        build.build.commands.insert(0, gyp_symlink);
+        build.build.commands.insert(0, gyp_install);
+    }
+}
+
+/// Known Node.js packages that require native compilation (node-gyp).
+const NODE_NATIVE_DEPS: &[&str] = &[
+    "better-sqlite3",
+    "sqlite3",
+    "canvas",
+    "sharp",
+    "bcrypt",
+    "node-sass",
+    "node-gyp",
+    "bufferutil",
+    "utf-8-validate",
+    "msgpackr-extract",
+    "cpu-features",
+    "unix-dgram",
+    "keytar",
+    "re2",
+    "farmhash",
+    "libxmljs",
+    "libxmljs2",
+    "node-expat",
+    "microtime",
+    "couchbase",
+    "zeromq",
+];
+
+/// Scan Node.js dependencies and add build-base + python when native deps are detected.
+pub(crate) fn scan_node_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    let pkg_json_path = project_dir.join("package.json");
+
+    let content = match std::fs::read_to_string(&pkg_json_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    let dep_names: Vec<String> = ["dependencies", "devDependencies", "optionalDependencies"]
+        .iter()
+        .filter_map(|section| json.get(section)?.as_object())
+        .flat_map(|obj| obj.keys().cloned())
+        .collect();
+
+    let has_native = dep_names
+        .iter()
+        .any(|name| NODE_NATIVE_DEPS.iter().any(|pat| name == pat));
+
+    if !has_native {
+        return;
+    }
+
+    debug!("Adding build-base, python, and node-gyp for Node.js native dependencies");
+
+    for pkg in &["build-base", "python"] {
+        let pkg_str = pkg.to_string();
+        if !build.build.packages.contains(&pkg_str) {
+            build.build.packages.push(pkg_str);
+        }
+    }
+
+    let gyp_cmd = "npm install -g node-gyp".to_string();
+    if !build.build.commands.contains(&gyp_cmd) {
+        build.build.commands.insert(0, gyp_cmd.clone());
+    }
+
+    let is_pnpm = build.metadata.build_system == "pnpm";
+    if is_pnpm {
+        let symlink_cmd = "mkdir -p /usr/lib/node_modules/pnpm/dist/node_modules && ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/pnpm/dist/node_modules/node-gyp".to_string();
+        if !build.build.commands.contains(&symlink_cmd) {
+            let gyp_idx = build
+                .build
+                .commands
+                .iter()
+                .position(|c| c.contains("npm install -g node-gyp"))
+                .unwrap_or(0);
+            build.build.commands.insert(gyp_idx + 1, symlink_cmd);
+        }
+    }
+
+    scan_node_system_deps(&dep_names, build);
+}
+
+/// Maps well-known Node.js packages to their required system build/runtime packages.
+const NODE_SYSTEM_DEPS: &[(&str, &[&str], &[&str])] = &[
+    (
+        "canvas",
+        &[
+            "cairo-dev",
+            "pango-dev",
+            "libjpeg-turbo-dev",
+            "giflib-dev",
+            "pixman-dev",
+        ],
+        &[
+            "cairo",
+            "pango",
+            "libjpeg-turbo",
+            "giflib",
+            "pixman",
+            "libuuid",
+        ],
+    ),
+    ("sharp", &["vips-dev"], &["vips"]),
+    ("better-sqlite3", &["sqlite-dev"], &["sqlite-libs"]),
+    ("sqlite3", &["sqlite-dev"], &["sqlite-libs"]),
+];
+
+/// Add system library dependencies for specific Node.js native packages.
+pub(crate) fn scan_node_system_deps(dep_names: &[String], build: &mut UniversalBuild) {
+    for (pattern, build_deps, runtime_deps) in NODE_SYSTEM_DEPS {
+        if dep_names.iter().any(|d| d == pattern) {
+            for pkg in *build_deps {
+                let pkg_str = pkg.to_string();
+                if !build.build.packages.contains(&pkg_str) {
+                    build.build.packages.push(pkg_str);
+                }
+            }
+            for pkg in *runtime_deps {
+                let pkg_str = pkg.to_string();
+                if !build.runtime.packages.contains(&pkg_str) {
+                    build.runtime.packages.push(pkg_str);
+                }
+            }
+        }
+    }
+}
+
+// ── Puppeteer / Playwright browser detection ─────────────────────────────
+
+/// Known Puppeteer/Playwright dependency names.
+const BROWSER_AUTOMATION_DEPS: &[&str] = &[
+    "puppeteer",
+    "puppeteer-core",
+    "playwright",
+    "playwright-core",
+    "@playwright/test",
+];
+
+/// Scan for Puppeteer/Playwright and add Chromium + related packages.
+pub(crate) fn scan_node_puppeteer(repo_root: &Path, build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    let pkg_json_path = project_dir.join("package.json");
+
+    let content = match std::fs::read_to_string(&pkg_json_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    let dep_names: Vec<String> = ["dependencies", "devDependencies", "optionalDependencies"]
+        .iter()
+        .filter_map(|section| json.get(section)?.as_object())
+        .flat_map(|obj| obj.keys().cloned())
+        .collect();
+
+    let has_browser = dep_names
+        .iter()
+        .any(|name| BROWSER_AUTOMATION_DEPS.iter().any(|pat| name == pat));
+
+    if !has_browser {
+        return;
+    }
+
+    debug!("Adding Chromium packages for Puppeteer/Playwright");
+
+    let browser_build_pkgs = [
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation",
+    ];
+
+    for pkg in &browser_build_pkgs {
+        let pkg_str = pkg.to_string();
+        if !build.build.packages.contains(&pkg_str) {
+            build.build.packages.push(pkg_str);
+        }
+    }
+
+    for pkg in &browser_build_pkgs {
+        let pkg_str = pkg.to_string();
+        if !build.runtime.packages.contains(&pkg_str) {
+            build.runtime.packages.push(pkg_str);
+        }
+    }
+
+    build
+        .build
+        .env
+        .insert("PUPPETEER_SKIP_CHROMIUM_DOWNLOAD".into(), "true".into());
+    build.runtime.env.insert(
+        "PUPPETEER_EXECUTABLE_PATH".into(),
+        "/usr/bin/chromium-browser".into(),
+    );
+}
+
+// ── Node.js build command sanitization ───────────────────────────────────
+
+/// Patterns in build scripts that are deploy-time operations.
+const NODE_BUILD_STRIP_PATTERNS: &[&str] = &[
+    "prisma migrate deploy",
+    "prisma migrate dev",
+    "prisma db push",
+    "drizzle-kit push",
+    "typeorm migration:run",
+    "knex migrate:latest",
+];
+
+/// Build tool keywords — if a script contains any of these, it's a real build script.
+const NODE_BUILD_TOOL_KEYWORDS: &[&str] = &[
+    "tsc",
+    "webpack",
+    "vite",
+    "esbuild",
+    "rollup",
+    "next build",
+    "nuxt build",
+    "remix build",
+    "react-scripts build",
+    "ng build",
+    "nest build",
+    "prisma generate",
+];
+
+/// Sanitize Node.js build commands by removing deploy-time subcommands
+/// and dropping env-var-dependent scripts that aren't real build steps.
+pub(crate) fn sanitize_node_build_commands(repo_root: &Path, build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
+    let pkg_json_path = project_dir.join("package.json");
+
+    let content = match std::fs::read_to_string(&pkg_json_path) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    let json: serde_json::Value = match serde_json::from_str(&content) {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    let build_script = match json
+        .get("scripts")
+        .and_then(|s| s.get("build"))
+        .and_then(|v| v.as_str())
+    {
+        Some(s) => s.to_string(),
+        None => return,
+    };
+
+    let build_cmd_idx = build.build.commands.iter().position(|c| {
+        c.contains("run build")
+            || c == "pnpm build"
+            || c.ends_with("&& pnpm build")
+            || c.ends_with("&& pnpm run build")
+    });
+
+    let build_cmd_idx = match build_cmd_idx {
+        Some(i) => i,
+        None => return,
+    };
+
+    let needs_strip = NODE_BUILD_STRIP_PATTERNS
+        .iter()
+        .any(|pat| build_script.contains(pat));
+
+    if needs_strip {
+        let parts: Vec<&str> = build_script.split("&&").map(|s| s.trim()).collect();
+        let filtered: Vec<&str> = parts
+            .iter()
+            .filter(|part| {
+                !NODE_BUILD_STRIP_PATTERNS
+                    .iter()
+                    .any(|pat| part.contains(pat))
+            })
+            .copied()
+            .collect();
+
+        if filtered.is_empty() {
+            build.build.commands.remove(build_cmd_idx);
+        } else {
+            let sanitized = filtered.join(" && ");
+            if sanitized != build_script {
+                let escaped_sanitized = sanitized.replace('\\', "\\\\").replace('\"', "\\\"");
+                let rewrite_cmd = format!(
+                    "node -e \"var p=require('./package.json');var f=require('fs');p.scripts.build='{}';f.writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n')\"",
+                    escaped_sanitized
+                );
+                build.build.commands.insert(build_cmd_idx, rewrite_cmd);
+            }
+        }
+        return;
+    }
+
+    let has_env_var = build_script.contains("$") || build_script.contains("${");
+    let has_build_tool = NODE_BUILD_TOOL_KEYWORDS
+        .iter()
+        .any(|kw| build_script.contains(kw));
+
+    if has_env_var && !has_build_tool {
+        build.build.commands.remove(build_cmd_idx);
+    }
+}
+
+// ── Framework fallback entrypoints ───────────────────────────────────────
+
+/// For detected frameworks without an explicit start script, provide a
+/// production-ready fallback entrypoint command.
+pub(crate) fn provide_framework_fallback_entrypoint(build: &mut UniversalBuild) {
+    if !build.runtime.command.is_empty() {
+        return;
+    }
+    let framework = match build.metadata.framework.as_deref() {
+        Some(fw) => fw,
+        None => return,
+    };
+
+    let exec_prefix: Vec<&str> = match build.metadata.build_system.as_str() {
+        "Bun" => vec!["bunx"],
+        "pnpm" => vec!["pnpm", "exec"],
+        "Yarn" => vec!["yarn"],
+        _ => vec!["npx"],
+    };
+
+    let with_exec = |args: &[&str]| -> Vec<String> {
+        exec_prefix
+            .iter()
+            .chain(args.iter())
+            .map(|s| s.to_string())
+            .collect()
+    };
+
+    let command: Vec<String> = match framework {
+        "Vite" => with_exec(&["vite", "preview", "--host", "0.0.0.0"]),
+        "Create React App" => with_exec(&["serve", "-s", "build"]),
+        "Angular" => with_exec(&["serve", "-s", "dist/browser"]),
+        "Gatsby" => with_exec(&["gatsby", "serve", "-H", "0.0.0.0"]),
+        "Nuxt" => vec!["node", ".output/server/index.mjs"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "Astro" => with_exec(&["astro", "preview", "--host", "0.0.0.0"]),
+        "SvelteKit" => vec!["node", "build/index.js"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "React Router" => with_exec(&["react-router-serve", "build/server/index.js"]),
+        "Next.js" => with_exec(&["next", "start"]),
+        "Remix" => with_exec(&["remix-serve", "build/server/index.js"]),
+        "SolidStart" => vec!["node", ".output/server/index.mjs"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "TanStack Start" => vec!["node_modules/.bin/h3", "dist/server/server.js"]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        "Docusaurus" => with_exec(&["docusaurus", "serve"]),
+        _ => return,
+    };
+
+    debug!(
+        framework = framework,
+        command = ?command,
+        "Providing framework fallback entrypoint"
+    );
+    build.runtime.command = command;
+}
+
+/// When React Router is in SPA mode (ssr: false), switch to Vite preview.
+pub(crate) fn detect_react_router_spa(repo_path: &Path, build: &mut UniversalBuild) {
+    if build.metadata.framework.as_deref() != Some("React Router") {
+        return;
+    }
+    let project_dir = if let Some(name) = &build.metadata.project_name {
+        let candidate = repo_path.join(name);
+        if candidate.is_dir() {
+            candidate
+        } else {
+            repo_path.to_path_buf()
+        }
+    } else {
+        repo_path.to_path_buf()
+    };
+
+    for config_name in &["react-router.config.ts", "react-router.config.js"] {
+        let config_path = project_dir.join(config_name);
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            if content.contains("ssr: false") || content.contains("ssr:false") {
+                debug!(
+                    project = build.metadata.project_name.as_deref().unwrap_or("?"),
+                    "Detected React Router SPA mode (ssr: false), switching to vite preview"
+                );
+                let exec_prefix: Vec<&str> = match build.metadata.build_system.as_str() {
+                    "Bun" => vec!["bunx"],
+                    "pnpm" => vec!["pnpm", "exec"],
+                    "Yarn" => vec!["yarn"],
+                    _ => vec!["npx"],
+                };
+                build.runtime.command = exec_prefix
+                    .iter()
+                    .chain(["vite", "preview", "--host", "0.0.0.0"].iter())
+                    .map(|s| s.to_string())
+                    .collect();
+                if build.runtime.ports == vec![3000] {
+                    build.runtime.ports = vec![4173];
+                }
+                return;
+            }
+        }
+    }
+}
+
+/// For Yarn >= 2 (Berry) projects, wrap the runtime entrypoint with `corepack enable`.
+pub(crate) fn wrap_yarn_corepack_entrypoint(build: &mut UniversalBuild) {
+    if build.metadata.build_system != "Yarn" {
+        return;
+    }
+    if !build.runtime.packages.iter().any(|p| p == "corepack") {
+        return;
+    }
+    if build.runtime.command.is_empty() {
+        return;
+    }
+    if build.runtime.command.first().map(|s| s.as_str()) == Some("sh") {
+        return;
+    }
+    let original_cmd = build.runtime.command.join(" ");
+    build.runtime.command = vec![
+        "sh".to_string(),
+        "-c".to_string(),
+        format!("corepack enable && exec {}", original_cmd),
+    ];
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_node_build(
+        build_packages: Vec<String>,
+        runtime_packages: Vec<String>,
+        language: &str,
+    ) -> UniversalBuild {
+        UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: language.into(),
+                build_system: "npm".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: build_packages,
+                commands: vec!["npm install".into()],
+                env: BTreeMap::new(),
+                cache: vec![".npm".into()],
+                build_image: None,
+            },
+            runtime: peelbox_core::output::schema::RuntimeStage {
+                packages: runtime_packages,
+                command: vec!["node".into(), "index.js".into()],
+                ..Default::default()
+            },
+        }
+    }
+
+    #[test]
+    fn test_resolve_node_version_available_in_wolfi() {
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = make_node_build(
+            vec!["nodejs-22".into(), "npm".into()],
+            vec!["nodejs-22".into()],
+            "JavaScript",
+        );
+
+        resolve_node_version(&mut build, &wolfi);
+
+        // nodejs-22 exists in Wolfi -- no changes
+        assert_eq!(build.build.packages[0], "nodejs-22");
+        assert_eq!(build.build.commands.len(), 1);
+    }
+
+    #[test]
+    fn test_resolve_node_version_not_in_wolfi() {
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = make_node_build(
+            vec!["nodejs-14".into(), "npm".into()],
+            vec!["nodejs-14".into(), "npm".into()],
+            "JavaScript",
+        );
+
+        resolve_node_version(&mut build, &wolfi);
+
+        assert_eq!(build.build.packages[0], "curl");
+        assert!(!build.build.packages.contains(&"npm".to_string()));
+        assert!(build
+            .build
+            .packages
+            .contains(&"ca-certificates".to_string()));
+        assert!(build.build.packages.contains(&"build-base".to_string()));
+        assert!(build.build.packages.contains(&"bash".to_string()));
+        assert!(build.build.packages.contains(&"libstdc++".to_string()));
+        assert_eq!(build.build.commands.len(), 2);
+        assert!(build.build.commands[0].contains("mkdir -p /usr/local/bin"));
+        assert!(build.build.commands[0].contains("/n"));
+        assert!(build.build.commands[0].ends_with(" 14"));
+        assert_eq!(build.build.commands[1], "npm install");
+        assert!(build.build.env.contains_key("PATH"));
+    }
+
+    #[test]
+    fn test_resolve_node_version_fixes_runtime() {
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = make_node_build(
+            vec!["nodejs-14".into(), "npm".into()],
+            vec!["nodejs-14".into(), "npm".into()],
+            "JavaScript",
+        );
+
+        resolve_node_version(&mut build, &wolfi);
+
+        assert!(build.runtime.packages.contains(&"curl".to_string()));
+        assert!(!build.runtime.packages.contains(&"npm".to_string()));
+        assert!(build
+            .runtime
+            .packages
+            .contains(&"ca-certificates".to_string()));
+
+        assert_eq!(build.runtime.command[0], "sh");
+        assert_eq!(build.runtime.command[1], "-c");
+        assert!(build.runtime.command[2].contains("node index.js"));
+        assert!(build.runtime.command[2].contains("/n"));
+    }
+
+    #[test]
+    fn test_resolve_node_version_skips_non_js() {
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = UniversalBuild {
+            version: "1.0".into(),
+            metadata: peelbox_core::output::schema::BuildMetadata {
+                project_name: Some("test".into()),
+                language: "Python".into(),
+                build_system: "pip".into(),
+                framework: None,
+                reasoning: "test".into(),
+            },
+            build: peelbox_core::output::schema::BuildStage {
+                packages: vec!["python-3.11".into()],
+                commands: vec!["pip install .".into()],
+                env: BTreeMap::new(),
+                cache: vec![],
+                build_image: None,
+            },
+            runtime: Default::default(),
+        };
+
+        resolve_node_version(&mut build, &wolfi);
+
+        assert_eq!(build.build.packages[0], "python-3.11");
+        assert_eq!(build.build.commands.len(), 1);
+    }
+
+    #[test]
+    fn test_resolve_node_version_typescript() {
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = make_node_build(
+            vec!["nodejs-14".into(), "npm".into()],
+            vec!["nodejs-14".into(), "npm".into()],
+            "TypeScript",
+        );
+
+        resolve_node_version(&mut build, &wolfi);
+
+        assert_eq!(build.build.packages[0], "curl");
+        assert!(build.build.commands[0].ends_with(" 14"));
+    }
+
+    #[test]
+    fn test_resolve_node_16_not_affected() {
+        let wolfi = WolfiPackageIndex::for_tests();
+        let mut build = make_node_build(
+            vec!["nodejs-16".into(), "npm".into()],
+            vec!["nodejs-16".into()],
+            "JavaScript",
+        );
+        let original_packages = build.build.packages.clone();
+
+        resolve_node_version(&mut build, &wolfi);
+
+        if wolfi.has_package("nodejs-16") {
+            assert_eq!(build.build.packages, original_packages);
+        }
+    }
+
+    #[test]
+    fn test_parse_node_version_string() {
+        assert_eq!(
+            parse_node_version_string("v18.12.0"),
+            Some("18".to_string())
+        );
+        assert_eq!(parse_node_version_string("20"), Some("20".to_string()));
+        assert_eq!(parse_node_version_string("18.12.0"), Some("18".to_string()));
+        assert_eq!(
+            parse_node_version_string("lts/iron"),
+            Some("20".to_string())
+        );
+        assert_eq!(
+            parse_node_version_string("lts/hydrogen"),
+            Some("18".to_string())
+        );
+        assert_eq!(parse_node_version_string("lts/*"), None);
+    }
+
+    #[test]
+    fn test_read_node_version_from_nvmrc() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".nvmrc"), "v18.12.0\n").unwrap();
+        assert_eq!(
+            read_node_version(dir.path(), dir.path()),
+            Some("18".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_node_version_from_node_version() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".node-version"), "20\n").unwrap();
+        assert_eq!(
+            read_node_version(dir.path(), dir.path()),
+            Some("20".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_node_version_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(read_node_version(dir.path(), dir.path()), None);
+    }
 }

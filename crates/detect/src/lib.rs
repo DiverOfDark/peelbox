@@ -14,12 +14,10 @@ pub mod helpers;
 pub mod ids;
 pub mod parsers;
 pub mod pipeline;
-pub mod postprocess;
 pub mod registry;
 pub mod source_scanning;
 pub mod traits;
 pub mod types;
-pub mod version;
 
 pub use pipeline::{
     detect, detect_with_registry, detect_with_registry_and_wolfi, detect_without_wolfi,

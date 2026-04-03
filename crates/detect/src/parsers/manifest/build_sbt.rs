@@ -33,7 +33,7 @@ impl ManifestParser for BuildSbtParser {
         let project_version = extract_project_version(content);
         let dependencies = parse_sbt_deps(content);
 
-        let java_version = crate::version::java::detect_java_version(content);
+        let java_version = super::pom_xml::detect_java_version(content);
         let sbt_max_jdk = detect_sbt_version(path).and_then(|v| max_jdk_for_sbt(&v));
         let effective_java_version = java_version
             .as_deref()

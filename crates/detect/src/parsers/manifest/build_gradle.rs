@@ -30,7 +30,7 @@ impl ManifestParser for BuildGradleParser {
             return None;
         }
 
-        let java_version = crate::version::java::detect_java_version(content).or_else(|| {
+        let java_version = super::pom_xml::detect_java_version(content).or_else(|| {
             // When no explicit Java version is specified, derive a compatible
             // version from the Gradle wrapper (if present). Newer JDKs are not
             // supported by older Gradle versions.
@@ -534,4 +534,61 @@ inventory::submit! {
         resolve_artifacts: gradle_resolve_artifacts,
         ..BuildSystemConfig::new(GRADLE)
     })
+}
+
+// ── Gradle Java version parsing ─────────────────────────────────────────
+
+/// Parse Java version from build.gradle or build.gradle.kts content.
+/// Looks for `sourceCompatibility`, `targetCompatibility`, `languageVersion`.
+/// Returns raw version number (e.g., "17").
+pub(crate) fn parse_gradle_version(content: &str) -> Option<String> {
+    // sourceCompatibility = JavaVersion.VERSION_17 or "17" or JavaVersion.VERSION_1_8
+    if let Some(caps) =
+        regex::Regex::new(r#"sourceCompatibility\s*=\s*(?:JavaVersion\.VERSION_)?["']?([\d._]+)"#)
+            .ok()
+            .and_then(|re| re.captures(content))
+    {
+        let raw = caps.get(1).map(|m| m.as_str())?;
+        // Handle VERSION_1_8 style (underscores become dots)
+        let cleaned = raw.replace('_', ".");
+        return Some(cleaned);
+    }
+
+    // languageVersion.set(JavaLanguageVersion.of(21)) or languageVersion = JavaLanguageVersion.of(21)
+    if let Some(caps) = regex::Regex::new(
+        r"languageVersion(?:\.set)?(?:\s*=\s*|\s+|\()JavaLanguageVersion\.of\((\d+)\)",
+    )
+    .ok()
+    .and_then(|re| re.captures(content))
+    {
+        return caps.get(1).map(|m| m.as_str().to_string());
+    }
+
+    // targetCompatibility as fallback
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("targetCompatibility") {
+            if let Some(version) = trimmed.split(['=', '(', ')', ' ']).find(|s| {
+                let s = s.trim();
+                !s.is_empty() && (s.chars().all(|c| c.is_ascii_digit()) || s.contains("VERSION_"))
+            }) {
+                let version_num = version
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .replace("JavaVersion.VERSION_", "")
+                    .replace('_', ".");
+
+                let version_final = if version_num.starts_with("1.") && version_num.len() > 2 {
+                    version_num.get(2..).unwrap_or(&version_num).to_string()
+                } else {
+                    version_num
+                };
+
+                return Some(version_final);
+            }
+        }
+    }
+
+    None
 }
