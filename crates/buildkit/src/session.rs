@@ -94,19 +94,24 @@ impl BuildSession {
 
         let exclude_patterns = crate::llb::load_exclude_patterns(&context_path);
 
-        // Derive a stable cache namespace from project name + context path on
-        // disk so that cache mount IDs stay constant across builds of the same
-        // project, regardless of file-content changes.
+        // Derive a cache namespace from context path + file content hash.
+        // This ensures cache mount IDs (for target/, .cargo, etc.) change when
+        // source files change, preventing stale compiled artifacts from being
+        // reused across builds with incompatible code changes.
         let shared_key = {
             use sha2::{Digest, Sha256};
             let canonical = context_path
                 .canonicalize()
                 .unwrap_or_else(|_| context_path.clone());
+            let context_hash =
+                crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
+                    .unwrap_or_default();
             let mut h = Sha256::new();
             h.update(canonical.to_string_lossy().as_bytes());
+            h.update(context_hash.as_bytes());
             let hash = hex::encode(h.finalize());
             info!(
-                "Session shared_key derived from context path {}: {}",
+                "Session shared_key derived from context path {} + content hash: {}",
                 canonical.display(),
                 hash
             );
