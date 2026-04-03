@@ -222,6 +222,33 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(CsprojParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["C#"],
+        extensions: &["cs"],
+        port_patterns: &[
+            r#"UseUrls\([^)]*:(\d{4,5})"#,
+            r#"app\.Run\([^)]*:(\d{4,5})"#,
+            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
+        ],
+        health_patterns: &[],
+        env_var_patterns: &[],
+    }
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["F#"],
+        extensions: &["fs"],
+        port_patterns: &[
+            r#"UseUrls\([^)]*:(\d{4,5})"#,
+            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
+        ],
+        health_patterns: &[],
+        env_var_patterns: &[],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

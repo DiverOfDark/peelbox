@@ -134,6 +134,38 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(CMakeListsParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["C"],
+        extensions: &["c", "h"],
+        port_patterns: &[
+            r#"htons\(\s*(\d{4,5})\s*\)"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+        env_var_patterns: &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    }
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["C++"],
+        extensions: &["cpp", "cxx", "cc", "hpp", "h"],
+        port_patterns: &[
+            r#"htons\(\s*(\d{4,5})\s*\)"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+        env_var_patterns: &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

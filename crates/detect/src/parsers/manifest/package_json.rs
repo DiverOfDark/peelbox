@@ -354,6 +354,20 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PackageJsonParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["JavaScript", "TypeScript"],
+        extensions: &["js", "ts", "mjs", "cjs"],
+        port_patterns: &[
+            r"\.listen\(\s*(\d{4,5})",
+            r#"port["\s:=]+(\d{4,5})"#,
+            r"\|\|\s*(\d{4,5})",
+        ],
+        health_patterns: &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+        env_var_patterns: &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
+    }
+}
+
 // ── Build System Profiles ───────────────────────────────────────────────────
 
 inventory::submit! {

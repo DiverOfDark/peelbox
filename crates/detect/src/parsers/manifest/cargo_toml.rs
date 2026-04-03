@@ -183,6 +183,20 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(CargoTomlParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Rust"],
+        extensions: &["rs"],
+        port_patterns: &[
+            r#"[.:]+bind\([^,)]*:(\d{4,5})"#,
+            r#"[.:]+bind\(\("[^"]*",\s*(\d{4,5})\)"#,
+            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
+        ],
+        health_patterns: &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+        env_var_patterns: &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#],
+    }
+}
+
 // ── Build System Profile ────────────────────────────────────────────────────
 
 fn cargo_subdirectory_command(cmd: &str, subdir: &str) -> String {

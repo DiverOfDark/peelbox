@@ -194,6 +194,16 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(MixExsParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Elixir"],
+        extensions: &["ex", "exs"],
+        port_patterns: &[r#"port:\s*(\d{4,5})"#],
+        health_patterns: &[],
+        env_var_patterns: &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -230,6 +230,20 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(ProjectCljParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Clojure"],
+        extensions: &["clj", "cljc", "cljs"],
+        port_patterns: &[
+            r#":port\s+(\d{4,5})"#,
+            r#"\{:port\s+(\d{4,5})\}"#,
+            r#"run-jetty\s+[^\{]*\{[^}]*:port\s+(\d{4,5})"#,
+        ],
+        health_patterns: &[],
+        env_var_patterns: &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

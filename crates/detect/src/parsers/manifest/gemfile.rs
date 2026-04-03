@@ -171,6 +171,19 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(GemfileParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Ruby"],
+        extensions: &["rb"],
+        port_patterns: &[
+            r#"set\s*:port\s*,\s*(\d{4,5})"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[],
+        env_var_patterns: &[],
+    }
+}
+
 // ── Ruby version detection ──────────────────────────────────────────────
 
 /// Read Ruby version from `.ruby-version` file, Gemfile `ruby` directive, or Gemfile.lock.

@@ -291,6 +291,26 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(BuildSbtParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Scala"],
+        extensions: &["scala", "java", "properties", "yml", "yaml"],
+        port_patterns: &[
+            r"\.setPort\(\s*(\d{4,5})\s*\)",
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+        env_var_patterns: &[
+            r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
+            r#"sys\.env\.get(?:OrElse)?\(["']([A-Z_][A-Z0-9_]*)"#,
+        ],
+    }
+}
+
 // ── Build System Profile ────────────────────────────────────────────────────
 
 fn sbt_subdirectory_command(cmd: &str, subdir: &str) -> String {

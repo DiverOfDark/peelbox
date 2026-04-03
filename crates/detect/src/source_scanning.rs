@@ -3,8 +3,8 @@
 //! Three scanners — ports, health endpoints, and environment variables — all
 //! follow the same pattern: look up language-specific regex tables, walk
 //! source files with matching extensions, apply the patterns, and collect
-//! results.  This module centralises the pattern tables and the shared
-//! walker logic so the individual scanners are thin wrappers.
+//! results.  Pattern data is registered per-language via `inventory::submit!`
+//! in the parser files; this module provides the shared walker and scanners.
 
 use crate::helpers::extract_project_dir;
 use ignore::WalkBuilder;
@@ -13,268 +13,50 @@ use std::collections::HashSet;
 use std::path::Path;
 use tracing::debug;
 
-// ── Pattern tables ───────────────────────────────────────────────────────
+// ── Inventory-based pattern registration ────────────────────────────────
 
-/// Each entry: `(languages, file_extensions, regex_patterns)`.
-///
-/// A scanner finds the first entry whose `languages` slice contains the
-/// build's language string, then walks source files whose extension is in
-/// `file_extensions`, applying every regex in `regex_patterns`.
-pub type PatternTable = &'static [(
-    &'static [&'static str],
-    &'static [&'static str],
-    &'static [&'static str],
-)];
+/// Language-specific source scanning patterns, registered via `inventory::submit!`
+/// in each parser file.
+pub struct SourceScanEntry {
+    pub languages: &'static [&'static str],
+    pub extensions: &'static [&'static str],
+    pub port_patterns: &'static [&'static str],
+    pub health_patterns: &'static [&'static str],
+    pub env_var_patterns: &'static [&'static str],
+}
 
-/// Language-specific regex patterns for detecting **port** numbers in source code.
-pub const PORT_PATTERNS: PatternTable = &[
-    (
-        &["Rust"],
-        &["rs"],
-        &[
-            r#"[.:]+bind\([^,)]*:(\d{4,5})"#,
-            r#"[.:]+bind\(\("[^"]*",\s*(\d{4,5})\)"#,
-            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
-        ],
-    ),
-    (
-        &["JavaScript", "TypeScript"],
-        &["js", "ts", "mjs", "cjs"],
-        &[
-            r"\.listen\(\s*(\d{4,5})",
-            r#"port["\s:=]+(\d{4,5})"#,
-            r"\|\|\s*(\d{4,5})",
-        ],
-    ),
-    (
-        &["Python"],
-        &["py"],
-        &[
-            r"\.run\([^)]*port\s*=\s*(\d{4,5})",
-            r#"port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (
-        &["Go"],
-        &["go"],
-        &[
-            r"ListenAndServe\([^)]*:(\d{4,5})",
-            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
-        ],
-    ),
-    (
-        &["Java", "Kotlin"],
-        &["java", "kt", "kts", "properties", "yml", "yaml"],
-        &[
-            r"\.setPort\(\s*(\d{4,5})\s*\)",
-            r#"server\.port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (
-        &["Scala"],
-        &["scala", "java", "properties", "yml", "yaml"],
-        &[
-            r"\.setPort\(\s*(\d{4,5})\s*\)",
-            r#"server\.port\s*=\s*(\d{4,5})"#,
-            r#"port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (&["Elixir"], &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
-    (
-        &["Ruby"],
-        &["rb"],
-        &[r#"set\s*:port\s*,\s*(\d{4,5})"#, r#"port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        &["C#"],
-        &["cs"],
-        &[
-            r#"UseUrls\([^)]*:(\d{4,5})"#,
-            r#"app\.Run\([^)]*:(\d{4,5})"#,
-            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
-        ],
-    ),
-    (
-        &["F#"],
-        &["fs"],
-        &[
-            r#"UseUrls\([^)]*:(\d{4,5})"#,
-            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
-        ],
-    ),
-    (
-        &["PHP"],
-        &["php"],
-        &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        &["C"],
-        &["c", "h"],
-        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        &["C++"],
-        &["cpp", "cxx", "cc", "hpp", "h"],
-        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        &["Clojure"],
-        &["clj", "cljc", "cljs"],
-        &[
-            r#":port\s+(\d{4,5})"#,
-            r#"\{:port\s+(\d{4,5})\}"#,
-            r#"run-jetty\s+[^\{]*\{[^}]*:port\s+(\d{4,5})"#,
-        ],
-    ),
-];
-
-/// Language-specific regex patterns for detecting **health endpoints** in source code.
-pub const HEALTH_PATTERNS: PatternTable = &[
-    (
-        &["JavaScript", "TypeScript"],
-        &["js", "ts", "mjs", "cjs"],
-        &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        &["Java", "Kotlin"],
-        &["java", "kt", "kts"],
-        &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        &["Scala"],
-        &["scala", "java"],
-        &[
-            r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-            r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-        ],
-    ),
-    (
-        &["Python"],
-        &["py"],
-        &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        &["Go"],
-        &["go"],
-        &[r#"\.(?:GET|Handle(?:Func)?)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        &["Rust"],
-        &["rs"],
-        &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        &["C"],
-        &["c", "h"],
-        &[
-            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
-            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
-        ],
-    ),
-    (
-        &["C++"],
-        &["cpp", "cxx", "cc", "hpp", "h"],
-        &[
-            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
-            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
-        ],
-    ),
-    (
-        &["PHP"],
-        &["php"],
-        &[
-            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-            r#"case\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
-            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-        ],
-    ),
-];
-
-/// Language-specific regex patterns for detecting **environment variable** access.
-pub const ENV_VAR_PATTERNS: PatternTable = &[
-    (
-        &["JavaScript", "TypeScript"],
-        &["js", "ts", "mjs", "cjs"],
-        &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
-    ),
-    (
-        &["Python"],
-        &["py"],
-        &[
-            r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
-            r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
-            r#"os\.environ\[['"]([A-Z_][A-Z0-9_]*)['"]\]"#,
-        ],
-    ),
-    (&["Rust"], &["rs"], &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#]),
-    (&["Go"], &["go"], &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#]),
-    (
-        &["Java", "Kotlin"],
-        &["java", "kt", "kts"],
-        &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-    (
-        &["Scala"],
-        &["scala", "java"],
-        &[
-            r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
-            r#"sys\.env\.get(?:OrElse)?\(["']([A-Z_][A-Z0-9_]*)"#,
-        ],
-    ),
-    (
-        &["Elixir"],
-        &["ex", "exs"],
-        &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-    (
-        &["C"],
-        &["c", "h"],
-        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
-    ),
-    (
-        &["C++"],
-        &["cpp", "cxx", "cc", "hpp", "h"],
-        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
-    ),
-    (
-        &["Clojure"],
-        &["clj", "cljc", "cljs"],
-        &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-];
+inventory::collect!(SourceScanEntry);
 
 /// Built-in environment variables to skip during env-var scanning.
 pub const BUILTIN_ENV_VARS: &[&str] = &["PATH", "HOME", "USER", "SHELL", "LANG", "TERM"];
 
 // ── Generic walker ───────────────────────────────────────────────────────
 
-/// Resolve the pattern table entry for a given language and compile regexes.
-///
-/// Returns `None` when no entry matches or all regexes fail to compile.
+/// Resolve patterns for a given language from the inventory-registered entries.
 fn resolve_patterns(
     language: &str,
-    table: PatternTable,
+    get_patterns: fn(&SourceScanEntry) -> &'static [&'static str],
 ) -> Option<(&'static [&'static str], Vec<regex::Regex>)> {
-    let (_, extensions, patterns) = table
-        .iter()
-        .find(|(languages, _, _)| languages.contains(&language))?;
-
-    let compiled: Vec<regex::Regex> = patterns
-        .iter()
-        .filter_map(|p| regex::Regex::new(p).ok())
-        .collect();
-
-    if compiled.is_empty() {
-        return None;
+    for entry in inventory::iter::<SourceScanEntry> {
+        if entry.languages.contains(&language) {
+            let patterns = get_patterns(entry);
+            if patterns.is_empty() {
+                return None;
+            }
+            let compiled: Vec<regex::Regex> = patterns
+                .iter()
+                .filter_map(|p| regex::Regex::new(p).ok())
+                .collect();
+            if compiled.is_empty() {
+                return None;
+            }
+            return Some((entry.extensions, compiled));
+        }
     }
-
-    Some((extensions, compiled))
+    None
 }
 
 /// Callback provided to [`walk_source_files`].
-///
-/// Receives the file content, the list of compiled regexes, and the file
-/// path.  Returns `true` to stop walking early.
 type MatchCallback<'a> = &'a mut dyn FnMut(&str, &[regex::Regex], &Path) -> bool;
 
 /// Walk source files under `project_dir` whose extension matches
@@ -342,7 +124,7 @@ fn walk_source_files(
 pub fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
 
-    let (extensions, compiled) = match resolve_patterns(language.as_str(), PORT_PATTERNS) {
+    let (extensions, compiled) = match resolve_patterns(language.as_str(), |e| e.port_patterns) {
         Some(v) => v,
         None => return,
     };
@@ -374,9 +156,6 @@ pub fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         },
     );
 
-    // Source-code ports are more specific than framework defaults (they come
-    // from explicit bind/listen calls in code), so they go first as the
-    // primary port for health checks and port mapping.
     if !source_ports.is_empty() {
         source_ports.sort();
         source_ports.dedup();
@@ -402,7 +181,6 @@ pub fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
         if build.runtime.ports.is_empty() {
             build.runtime.ports = source_ports;
         } else {
-            // Source-detected ports go first, then existing framework/config ports
             let mut merged = source_ports;
             for port in &build.runtime.ports {
                 if !merged.contains(port) {
@@ -423,7 +201,7 @@ pub fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
 
     let language = &build.metadata.language;
 
-    let (extensions, compiled) = match resolve_patterns(language.as_str(), HEALTH_PATTERNS) {
+    let (extensions, compiled) = match resolve_patterns(language.as_str(), |e| e.health_patterns) {
         Some(v) => v,
         None => return,
     };
@@ -462,10 +240,11 @@ pub fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
 pub fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
 
-    let (extensions, compiled) = match resolve_patterns(language.as_str(), ENV_VAR_PATTERNS) {
-        Some(v) => v,
-        None => return,
-    };
+    let (extensions, compiled) =
+        match resolve_patterns(language.as_str(), |e| e.env_var_patterns) {
+            Some(v) => v,
+            None => return,
+        };
 
     let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
 
@@ -484,11 +263,6 @@ pub fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
                         }
                         if !build.runtime.env.contains_key(var_name) {
                             debug!(var = var_name, file = %path.display(), "Found env var in source code");
-                            // For Elixir, extract fallback defaults from
-                            // `System.get_env("VAR") || "default"` patterns.
-                            // Empty-string env vars break Elixir's `||` fallback
-                            // (e.g., String.to_integer(get_env("X") || "10") crashes
-                            // on "" because Elixir treats "" as truthy).
                             let default_value = if language == "Elixir" {
                                 extract_elixir_fallback(content, var_name)
                             } else {
@@ -508,9 +282,7 @@ pub fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
 }
 
 /// Extract fallback default value from Elixir `System.get_env("VAR") || "default"` patterns.
-/// Returns the default value string if found, or empty string if no fallback exists.
 fn extract_elixir_fallback(content: &str, var_name: &str) -> String {
-    // Match patterns like: System.get_env("POOL_SIZE") || "10"
     let pattern = format!(
         r#"System\.get_env\(["']{}["']\)\s*\|\|\s*"([^"]*)""#,
         regex::escape(var_name)

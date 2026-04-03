@@ -155,6 +155,23 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(ComposerJsonParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["PHP"],
+        extensions: &["php"],
+        port_patterns: &[
+            r#"'PORT'\s*,\s*(\d{4,5})"#,
+            r#"\$port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"case\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+        env_var_patterns: &[],
+    }
+}
+
 // ── PHP version detection ───────────────────────────────────────────────
 
 /// Read PHP version from `.php-version` file.

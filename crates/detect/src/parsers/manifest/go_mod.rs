@@ -265,6 +265,19 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(GoModParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Go"],
+        extensions: &["go"],
+        port_patterns: &[
+            r"ListenAndServe\([^)]*:(\d{4,5})",
+            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
+        ],
+        health_patterns: &[r#"\.(?:GET|Handle(?:Func)?)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+        env_var_patterns: &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

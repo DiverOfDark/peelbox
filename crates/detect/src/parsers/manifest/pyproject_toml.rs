@@ -490,6 +490,23 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PyProjectTomlParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Python"],
+        extensions: &["py"],
+        port_patterns: &[
+            r"\.run\([^)]*port\s*=\s*(\d{4,5})",
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+        env_var_patterns: &[
+            r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+            r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
+            r#"os\.environ\[['"]([A-Z_][A-Z0-9_]*)['"]\]"#,
+        ],
+    }
+}
+
 // ── Build System Profiles ───────────────────────────────────────────────────
 
 inventory::submit! {

@@ -276,6 +276,19 @@ inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(PomXmlParser))
 }
 
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Java", "Kotlin"],
+        extensions: &["java", "kt", "kts", "properties", "yml", "yaml"],
+        port_patterns: &[
+            r"\.setPort\(\s*(\d{4,5})\s*\)",
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+        env_var_patterns: &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    }
+}
+
 // ── Build System Profile ────────────────────────────────────────────────────
 
 fn maven_subdirectory_command(cmd: &str, subdir: &str) -> String {
