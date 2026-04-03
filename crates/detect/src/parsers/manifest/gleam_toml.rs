@@ -69,8 +69,7 @@ impl ManifestParser for GleamTomlParser {
             "curl".into(),
             "ca-certificates".into(),
         ];
-        let setup_commands = vec![gleam_install];
-        let build_commands = vec!["gleam export erlang-shipment".to_string()];
+        let build_commands = vec![gleam_install, "gleam export erlang-shipment".to_string()];
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -97,7 +96,6 @@ impl ManifestParser for GleamTomlParser {
                     "build/erlang-shipment".into(),
                     "/app/build/erlang-shipment".into(),
                 )],
-                setup_commands,
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

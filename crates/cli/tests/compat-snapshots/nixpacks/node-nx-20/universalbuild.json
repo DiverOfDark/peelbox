@@ -16,15 +16,13 @@
       ],
       "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm install",
         "cd apps/next-js && npx next build"
       ],
       "cache": [
         ".npm"
-      ],
-      "setup_commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp"
       ]
     },
     "runtime": {

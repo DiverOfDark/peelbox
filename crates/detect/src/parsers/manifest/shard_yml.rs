@@ -74,7 +74,6 @@ impl ManifestParser for ShardYmlParser {
                 artifacts: vec![
                     (format!("bin/{}", target_name), format!("/app/bin/{}", target_name)),
                 ],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

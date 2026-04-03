@@ -123,7 +123,6 @@ impl ManifestParser for CargoTomlParser {
                 env: btree(&[("CARGO_HOME", ".cargo")]),
                 cache_dirs: vec![".cargo".into(), "target".into()],
                 artifacts,
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

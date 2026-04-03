@@ -180,7 +180,6 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {

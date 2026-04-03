@@ -111,7 +111,6 @@ impl ManifestParser for CabalFileParser {
                 } else {
                     vec![]
                 },
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

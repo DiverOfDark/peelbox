@@ -119,12 +119,12 @@ pub fn resolve_node_version(build: &mut UniversalBuild, wolfi: &WolfiPackageInde
     // Remove npm from build packages (it comes bundled with the Node.js install)
     build.build.packages.retain(|p| p != "npm");
 
-    // Also remove npm-dependent setup_commands since npm won't be available
-    // until after the `n` installer runs in build commands.
+    // Also remove npm-dependent commands (global installs, symlinks) since npm
+    // won't be available until after the `n` installer runs in build commands.
     build
         .build
-        .setup_commands
-        .retain(|c| !c.contains("npm install") && !c.contains("node_modules/npm"));
+        .commands
+        .retain(|c: &String| !c.contains("npm install -g") && !c.contains("node_modules/npm"));
 
     // Prepend Node.js installation command using `n` (node version manager)
     // `n` is a single shell script that can install any Node.js version
@@ -206,7 +206,6 @@ mod tests {
                 commands: vec!["npm install".into()],
                 env: BTreeMap::new(),
                 cache: vec![".npm".into()],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: peelbox_core::output::schema::RuntimeStage {
@@ -305,7 +304,6 @@ mod tests {
                 commands: vec!["pip install .".into()],
                 env: BTreeMap::new(),
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: Default::default(),

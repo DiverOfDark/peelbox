@@ -160,7 +160,6 @@ impl ManifestParser for PomXmlParser {
                     (format!("{}/*.jar", target_dir), "/app/".into()),
                     (format!("{}/lib/", target_dir), "/app/lib".into()),
                 ],
-                            setup_commands: vec![],
                 build_image: None,
 },
             runtime_config: RuntimeSpec {

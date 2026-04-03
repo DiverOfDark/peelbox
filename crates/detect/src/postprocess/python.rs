@@ -500,7 +500,6 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {
@@ -545,7 +544,6 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {
@@ -596,7 +594,6 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {
@@ -654,7 +651,6 @@ dependencies = [
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {

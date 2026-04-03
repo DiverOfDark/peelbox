@@ -72,7 +72,6 @@ impl ManifestParser for GoMainParser {
                 env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts: vec![("bin/app".into(), "/app/app".into())],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

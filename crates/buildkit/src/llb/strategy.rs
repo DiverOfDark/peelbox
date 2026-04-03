@@ -22,8 +22,8 @@ impl BuildStrategy for PeelboxStrategy {
         let context_idx = builder.create_local_source(&exclude);
 
         // If build_image is set, use that image directly as the build base
-        // (skipping Wolfi, apk add, and setup_commands). Used for languages
-        // tightly coupled to specific C library versions (e.g., Swift).
+        // (skipping Wolfi and apk add). Used for languages tightly coupled
+        // to specific C library versions (e.g., Swift).
         let custom_build_image_idx = spec
             .build
             .build_image
@@ -66,43 +66,9 @@ impl BuildStrategy for PeelboxStrategy {
             None
         };
 
-        // When a custom build image is used, skip Wolfi packages and setup_commands entirely.
-        let after_packages_idx = custom_build_image_idx
+        // When a custom build image is used, skip Wolfi packages entirely.
+        let base_idx = custom_build_image_idx
             .unwrap_or_else(|| with_build_packages_idx.unwrap_or(wolfi_base_idx));
-
-        // Run setup commands on Wolfi AFTER apk add, BEFORE the build context is mounted.
-        // Used for installing toolchains not available as Wolfi packages (e.g., Gleam).
-        let base_idx = if custom_build_image_idx.is_some() {
-            after_packages_idx
-        } else if !spec.build.setup_commands.is_empty() {
-            let script = spec.build.setup_commands.join(" && ");
-            let meta = pb::Meta {
-                args: vec!["sh".to_string(), "-c".to_string(), script],
-                env: vec![],
-                cwd: "/".to_string(),
-                user: String::new(),
-                proxy_env: None,
-                extra_hosts: vec![],
-                hostname: String::new(),
-                ulimit: vec![],
-                cgroup_parent: String::new(),
-                remove_mount_stubs_recursive: false,
-            };
-
-            let mounts = vec![
-                builder.layer_mount(0, 0, "/"),
-                builder.scratch_mount("/tmp"),
-            ];
-
-            builder.create_exec(
-                vec![(after_packages_idx, 0)],
-                mounts,
-                meta,
-                Some("Run setup commands".to_string()),
-            )
-        } else {
-            after_packages_idx
-        };
 
         let build_result_idx = if !spec.build.commands.is_empty() {
             let mut last_idx = base_idx;

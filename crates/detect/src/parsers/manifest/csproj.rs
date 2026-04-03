@@ -135,7 +135,6 @@ fn build_wolfi_dotnet_specs(
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-            setup_commands: vec![],
             build_image: None,
         },
         RuntimeSpec {
@@ -164,7 +163,6 @@ fn build_fallback_dotnet_specs(
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-            setup_commands: vec![],
             build_image: None,
         },
         RuntimeSpec {

@@ -99,7 +99,6 @@ impl ManifestParser for PdmLockParser {
                 env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

@@ -72,7 +72,6 @@ impl ManifestParser for PubspecYamlParser {
                     format!("bin/{}", binary_name),
                     format!("/app/bin/{}", binary_name),
                 )],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

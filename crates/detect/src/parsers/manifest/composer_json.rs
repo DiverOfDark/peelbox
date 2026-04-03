@@ -137,7 +137,6 @@ impl ManifestParser for ComposerJsonParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".composer/cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

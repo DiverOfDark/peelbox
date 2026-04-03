@@ -124,12 +124,8 @@ pub struct BuildSpec {
     pub cache_dirs: Vec<String>,
     /// Artifacts to copy from build → runtime (from, to).
     pub artifacts: Vec<(String, String)>,
-    /// Commands that run on Wolfi AFTER `apk add` but BEFORE the build context is mounted.
-    /// Used for installing toolchains not available as Wolfi packages (e.g., Swift).
-    #[serde(default)]
-    pub setup_commands: Vec<String>,
     /// Optional Docker image to use as the build base INSTEAD of Wolfi.
-    /// When set, `packages` and `setup_commands` are ignored; the image must
+    /// When set, `packages` are ignored; the image must
     /// already contain all required build tools.
     #[serde(default)]
     pub build_image: Option<String>,

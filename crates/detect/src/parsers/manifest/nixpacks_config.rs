@@ -124,7 +124,6 @@ fn build_config_manifest(path: &Path, start_cmd: &str) -> Manifest {
             env: btree(&[]),
             cache_dirs: vec![],
             artifacts: vec![(".".into(), "/app/".into())],
-            setup_commands: vec![],
             build_image: None,
         },
         runtime_config: RuntimeSpec {

@@ -34,7 +34,7 @@ impl ManifestParser for SchemeHauntParser {
         }
 
         // Haunt is a pure Guile Scheme static site generator.
-        // We install Guile via setup_commands on Wolfi, then extract Haunt and
+        // We install Guile via Wolfi packages, then extract Haunt and
         // guile-commonmark tarballs, create the haunt script by filling in template
         // placeholders (bypassing ./configure which also uses Guile), and set
         // GUILE_LOAD_PATH so all modules are found.
@@ -79,7 +79,6 @@ impl ManifestParser for SchemeHauntParser {
                 ]),
                 cache_dirs: vec![],
                 artifacts: vec![("site".into(), "/app/site".into())],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

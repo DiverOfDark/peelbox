@@ -83,7 +83,6 @@ impl ManifestParser for ShellScriptParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

@@ -113,7 +113,6 @@ impl ManifestParser for ProjectCljParser {
                 ]),
                 cache_dirs: vec![".lein".into(), ".m2".into()],
                 artifacts: vec![(jar_path, format!("/app/{}", jar_name))],
-                            setup_commands: vec![],
                 build_image: None,
 },
             runtime_config: RuntimeSpec {

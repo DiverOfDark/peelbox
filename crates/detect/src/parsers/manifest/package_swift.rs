@@ -82,7 +82,6 @@ impl ManifestParser for PackageSwiftParser {
                         "/usr/lib/swift/linux/".into(),
                     ),
                 ],
-                setup_commands: vec![],
                 build_image: Some(swift_image.to_string()),
             },
             runtime_config: RuntimeSpec {
@@ -198,7 +197,6 @@ let package = Package(
             .commands
             .iter()
             .any(|c| c.contains("swift build -c release")));
-        assert!(manifest.build.setup_commands.is_empty());
         assert_eq!(
             manifest.build.build_image.as_deref(),
             Some("docker.io/library/swift:5.10-jammy")

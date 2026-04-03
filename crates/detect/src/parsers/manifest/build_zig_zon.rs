@@ -97,7 +97,6 @@ impl ManifestParser for BuildZigZonParser {
                     (format!("zig-out/bin/{}", name), format!("/app/{}", name)),
                     ("zig-out/lib/".into(), "/app/lib/".into()),
                 ],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

@@ -95,7 +95,6 @@ impl ManifestParser for PipfileParser {
                     (".".into(), "/app/".into()),
                     ("/root/.local/".into(), "/root/.local/".into()),
                 ],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime_config: RuntimeSpec {

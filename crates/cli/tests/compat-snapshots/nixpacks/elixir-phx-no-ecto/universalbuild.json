@@ -30,6 +30,8 @@
         "SECRET_KEY_BASE": ""
       },
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "mix local.hex --force && mix local.rebar --force",
         "rm -f mix.lock && mix deps.get",
         "mix deps.compile || { sed -i 's/\"~> [0-9][^\"]*\"/\">= 0.0.0\"/g' mix.exs && find deps _build -mindepth 1 -delete 2>/dev/null; rm -f mix.lock && mix deps.get && mix deps.compile; }",
@@ -39,10 +41,6 @@
       "cache": [
         "deps",
         "_build"
-      ],
-      "setup_commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp"
       ]
     },
     "runtime": {

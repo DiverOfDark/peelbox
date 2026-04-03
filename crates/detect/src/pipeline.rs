@@ -1534,7 +1534,6 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             env: m.build.env.clone(),
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
-            setup_commands: m.build.setup_commands.clone(),
             build_image: m.build.build_image.clone(),
         },
         runtime: RuntimeStage {
@@ -1867,7 +1866,6 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
-                    setup_commands: vec![],
                     build_image: None,
                 },
                 runtime_config: RuntimeSpec {
@@ -1923,7 +1921,6 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
-                    setup_commands: vec![],
                     build_image: None,
                 },
                 runtime_config: RuntimeSpec {
@@ -2001,7 +1998,6 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {
@@ -2047,7 +2043,6 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {
@@ -2100,7 +2095,6 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                setup_commands: vec![],
                 build_image: None,
             },
             runtime: RuntimeStage {

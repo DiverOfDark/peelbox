@@ -24,11 +24,9 @@ pub fn ensure_npm_node_gyp(build: &mut UniversalBuild) {
     let gyp_install = "npm install -g node-gyp".to_string();
     let gyp_symlink = "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp".to_string();
 
-    if !build.build.setup_commands.contains(&gyp_install)
-        && !build.build.commands.contains(&gyp_install)
-    {
-        build.build.setup_commands.push(gyp_install);
-        build.build.setup_commands.push(gyp_symlink);
+    if !build.build.commands.contains(&gyp_install) {
+        build.build.commands.insert(0, gyp_symlink);
+        build.build.commands.insert(0, gyp_install);
     }
 }
 
@@ -107,10 +105,8 @@ pub fn scan_node_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
 
     // Install node-gyp globally so native modules can be compiled.
     // node-gyp is not available as a Wolfi package so we install it via npm.
-    // Skip if already present in setup_commands (npm builds add it there by default).
     let gyp_cmd = "npm install -g node-gyp".to_string();
-    let gyp_in_setup = build.build.setup_commands.contains(&gyp_cmd);
-    if !build.build.commands.contains(&gyp_cmd) && !gyp_in_setup {
+    if !build.build.commands.contains(&gyp_cmd) {
         // Insert before the install command so node-gyp is available during npm ci / pnpm install
         build.build.commands.insert(0, gyp_cmd.clone());
     }
@@ -122,13 +118,7 @@ pub fn scan_node_native_deps(repo_root: &Path, build: &mut UniversalBuild) {
     let is_pnpm = build.metadata.build_system == "pnpm";
     if is_pnpm {
         let symlink_cmd = "mkdir -p /usr/lib/node_modules/pnpm/dist/node_modules && ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/pnpm/dist/node_modules/node-gyp".to_string();
-        if gyp_in_setup {
-            // node-gyp is in setup_commands, so the symlink must go there too
-            // (setup_commands run before build commands in the LLB graph)
-            if !build.build.setup_commands.contains(&symlink_cmd) {
-                build.build.setup_commands.push(symlink_cmd);
-            }
-        } else if !build.build.commands.contains(&symlink_cmd) {
+        if !build.build.commands.contains(&symlink_cmd) {
             // Insert after node-gyp install but before the package install command
             let gyp_idx = build
                 .build

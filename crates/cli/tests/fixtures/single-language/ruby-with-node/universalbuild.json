@@ -28,6 +28,8 @@
         "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }",
         "npm ci",
         "npm run build"
@@ -36,10 +38,6 @@
         ".bundle",
         "vendor",
         ".npm"
-      ],
-      "setup_commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp"
       ]
     },
     "runtime": {
