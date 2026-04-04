@@ -320,7 +320,7 @@ impl BuildKitConnection {
 }
 
 #[cfg(unix)]
-async fn connect_docker_native(path: &str) -> std::io::Result<tokio::io::DuplexStream> {
+async fn connect_docker_native(path: &str) -> std::io::Result<tokio::net::UnixStream> {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
     use tokio::net::UnixStream;
 
@@ -354,20 +354,11 @@ async fn connect_docker_native(path: &str) -> std::io::Result<tokio::io::DuplexS
     }
 
     if reader.buffer().is_empty() {
-        let stream = reader.into_inner();
-        let (client, server) = tokio::io::duplex(1024 * 1024);
-
-        tokio::spawn(async move {
-            let (mut r, mut w) = tokio::io::split(stream);
-            let (mut cr, mut cw) = tokio::io::split(server);
-
-            let _ = tokio::join!(
-                tokio::io::copy(&mut r, &mut cw),
-                tokio::io::copy(&mut cr, &mut w)
-            );
-        });
-
-        Ok(client)
+        // After the HTTP upgrade handshake, the Unix socket is a plain
+        // bidirectional stream.  Pass it directly to tonic — no duplex
+        // proxy needed.  A duplex proxy deadlocks because both copy
+        // directions share one buffer and can fill it simultaneously.
+        Ok(reader.into_inner())
     } else {
         Err(std::io::Error::other(
             "Buffered data remaining after handshake",
