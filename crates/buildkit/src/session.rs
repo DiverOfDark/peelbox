@@ -103,9 +103,8 @@ impl BuildSession {
             let canonical = context_path
                 .canonicalize()
                 .unwrap_or_else(|_| context_path.clone());
-            let context_hash =
-                crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
-                    .unwrap_or_default();
+            let context_hash = crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
+                .unwrap_or_default();
             let mut h = Sha256::new();
             h.update(canonical.to_string_lossy().as_bytes());
             h.update(context_hash.as_bytes());

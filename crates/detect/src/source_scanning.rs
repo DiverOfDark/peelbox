@@ -240,11 +240,10 @@ pub fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
 pub fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
     let language = &build.metadata.language;
 
-    let (extensions, compiled) =
-        match resolve_patterns(language.as_str(), |e| e.env_var_patterns) {
-            Some(v) => v,
-            None => return,
-        };
+    let (extensions, compiled) = match resolve_patterns(language.as_str(), |e| e.env_var_patterns) {
+        Some(v) => v,
+        None => return,
+    };
 
     let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
 
