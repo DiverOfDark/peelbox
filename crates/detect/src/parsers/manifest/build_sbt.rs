@@ -153,7 +153,10 @@ impl ManifestParser for BuildSbtParser {
                 ]),
                 cache_dirs: vec![".ivy2".into(), ".sbt".into(), "target".into()],
                 artifacts,
-                build_image: None,
+                build_image: Some(format!(
+                    "docker.io/library/eclipse-temurin:{}",
+                    effective_java_version
+                )),
             },
             runtime_config: RuntimeSpec {
                 packages: {
