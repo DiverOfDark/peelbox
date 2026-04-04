@@ -496,6 +496,12 @@ impl BuildSession {
 
         let mut server_builder = Server::builder()
             .trace_fn(|_| tracing::info_span!("grpc-server"))
+            // Increase HTTP/2 flow control windows to prevent stalls during large
+            // image exports.  The DiffCopy stream can push 100+ MB of image data
+            // through the multiplexed session connection; the default 1-16 MB
+            // windows cause BuildKit to block waiting for WINDOW_UPDATE frames.
+            .initial_connection_window_size(128 * 1024 * 1024) // 128 MB
+            .initial_stream_window_size(64 * 1024 * 1024) // 64 MB
             .add_service(FileSyncServerBuilder::new(filesync_service))
             .add_service(FileSendServerBuilder::new(filesend_service))
             .add_service(AuthServerBuilder::new(auth_service));
