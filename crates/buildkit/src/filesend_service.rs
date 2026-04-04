@@ -143,11 +143,33 @@ impl FileSendTrait for FileSendService {
                         .arg("load")
                         .stdin(Stdio::piped())
                         .stdout(Stdio::piped())
-                        .stderr(Stdio::inherit())
+                        .stderr(Stdio::piped())
                         .spawn()
                     {
                         Ok(mut child) => {
                             child_stdin = child.stdin.take();
+                            // Drain stdout/stderr concurrently to prevent pipe deadlock.
+                            // If docker load fills its stdout buffer while we're writing
+                            // to stdin, both sides block (classic pipe deadlock).
+                            let stdout = child.stdout.take();
+                            let stderr = child.stderr.take();
+                            let cid = call_id;
+                            tokio::spawn(async move {
+                                use tokio::io::AsyncReadExt;
+                                let mut out = String::new();
+                                if let Some(mut r) = stdout {
+                                    let _ = r.read_to_string(&mut out).await;
+                                }
+                                let mut err = String::new();
+                                if let Some(mut r) = stderr {
+                                    let _ = r.read_to_string(&mut err).await;
+                                }
+                                for line in out.lines().chain(err.lines()) {
+                                    if !line.trim().is_empty() {
+                                        info!("docker load (call_id={}): {}", cid, line.trim());
+                                    }
+                                }
+                            });
                             child_process = Some(child);
                         }
                         Err(e) => {
@@ -233,22 +255,15 @@ impl FileSendTrait for FileSendService {
                 }
             }
 
-            if let Some(child) = child_process {
+            if let Some(mut child) = child_process {
                 debug!(
                     "FileSend call_id={} waiting for docker load to finish...",
                     call_id
                 );
-                match child.wait_with_output().await {
-                    Ok(output) => {
-                        if output.status.success() {
-                            let msg = String::from_utf8_lossy(&output.stdout);
-                            for line in msg.lines() {
-                                if !line.trim().is_empty() {
-                                    info!("{}", line.trim());
-                                }
-                            }
-                        } else {
-                            error!("Docker load failed with status: {}", output.status);
+                match child.wait().await {
+                    Ok(status) => {
+                        if !status.success() {
+                            error!("Docker load failed with status: {}", status);
                             return;
                         }
                     }
