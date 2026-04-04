@@ -1795,8 +1795,13 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
         }
         "Python" => {
             if let Some(version) = read_python_version(&project_dir, repo_root) {
+                if build.build.build_image.is_some() {
+                    build.build.build_image = Some(format!("docker.io/library/python:{}", version));
+                } else {
+                    let versioned_pkg = format!("python-{}", version);
+                    replace_package(&mut build.build.packages, "python", &versioned_pkg);
+                }
                 let versioned_pkg = format!("python-{}", version);
-                replace_package(&mut build.build.packages, "python", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
             }
         }

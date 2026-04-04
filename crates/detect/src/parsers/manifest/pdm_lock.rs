@@ -69,6 +69,11 @@ impl ManifestParser for PdmLockParser {
             .unwrap_or_else(|| "python".into());
         let python_runtime_pkg = python_build_pkg.clone();
 
+        let python_build_image = python_version
+            .as_ref()
+            .map(|v| format!("docker.io/library/python:{}", v))
+            .unwrap_or_else(|| "docker.io/library/python:latest".into());
+
         let dependencies =
             crate::parsers::manifest::pyproject_toml::parse_pyproject_deps_public(&toml_val, false);
 
@@ -99,7 +104,7 @@ impl ManifestParser for PdmLockParser {
                 env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: None,
+                build_image: Some(python_build_image),
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

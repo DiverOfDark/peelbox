@@ -66,7 +66,7 @@ impl ManifestParser for RequirementsTxtParser {
                     (".".into(), "/app/".into()),
                     ("/root/.local/".into(), "/root/.local/".into()),
                 ],
-                build_image: None,
+                build_image: Some("docker.io/library/python:latest".into()),
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
