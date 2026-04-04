@@ -48,9 +48,13 @@ pub fn validate_wolfi_packages(
 ) -> Result<()> {
     let mut errors = Vec::new();
 
-    for package in &build.build.packages {
-        if let Some(error) = validate_package(package, wolfi_index) {
-            errors.push(format!("Build package: {}", error));
+    // Skip build package validation when a custom build image is set
+    // (detector owns the setup; packages are ignored by BuildKit).
+    if build.build.build_image.is_none() {
+        for package in &build.build.packages {
+            if let Some(error) = validate_package(package, wolfi_index) {
+                errors.push(format!("Build package: {}", error));
+            }
         }
     }
 

@@ -1,9 +1,8 @@
 ## After each phase / each language change
 1. `cargo fmt`
 2. `cargo clippy --workspace` — fix all warnings
-3. `cargo test --workspace --lib` — all unit tests must pass
-4. `cargo test --workspace` — all tests (including integration) must pass
-5. Git commit the changes
+3. `cargo nextest run -p peelbox-detect -p peelbox-pipeline` — affected crate tests must pass
+4. Git commit the changes
 
 # TODO: Migrate from Wolfi buildpackages to Docker Hub images
 

@@ -152,9 +152,12 @@ pub fn detect_with_registry_and_wolfi(
     }
 
     // Step 5: Resolve Wolfi package versions
+    // Skip build-side resolution when a custom build image is set (detector owns the setup).
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            resolve_wolfi_packages(&mut build.build.packages, wolfi);
+            if build.build.build_image.is_none() {
+                resolve_wolfi_packages(&mut build.build.packages, wolfi);
+            }
             resolve_wolfi_packages(&mut build.runtime.packages, wolfi);
         }
     }
@@ -165,17 +168,23 @@ pub fn detect_with_registry_and_wolfi(
     }
 
     // Step 6: Handle pinned versions not available in Wolfi (use alternative installers)
+    // Skip when a custom build image is set (Docker Hub has all versions).
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            resolve_rust_toolchain(build, wolfi);
-            resolve_node_version(build, wolfi);
+            if build.build.build_image.is_none() {
+                resolve_rust_toolchain(build, wolfi);
+                resolve_node_version(build, wolfi);
+            }
         }
     }
 
     // Step 7: Handle old Java versions not available in Wolfi (use Adoptium Temurin)
+    // Skip when a custom build image is set.
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            resolve_java_toolchain(build, wolfi);
+            if build.build.build_image.is_none() {
+                resolve_java_toolchain(build, wolfi);
+            }
         }
     }
 
