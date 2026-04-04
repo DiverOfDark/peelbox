@@ -1,4 +1,9 @@
-- Run `cargo fmt && cargo clippy --workspace` after each phase
+## After each phase / each language change
+1. `cargo fmt`
+2. `cargo clippy --workspace` — fix all warnings
+3. `cargo test --workspace --lib` — all unit tests must pass
+4. `cargo test --workspace` — all tests (including integration) must pass
+5. Git commit the changes
 
 # TODO: Migrate from Wolfi buildpackages to Docker Hub images
 
