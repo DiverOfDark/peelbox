@@ -1,8 +1,0 @@
-{
-  "name": "frontend",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "echo 'build complete'",
-    "start": "node src/index.js"
-  }
-}
