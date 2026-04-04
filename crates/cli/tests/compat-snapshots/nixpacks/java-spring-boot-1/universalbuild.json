@@ -25,7 +25,8 @@
       "cache": [
         ".gradle",
         "build"
-      ]
+      ],
+      "build_image": "docker.io/library/gradle:6-jdk8"
     },
     "runtime": {
       "packages": [

@@ -24,7 +24,8 @@
       "cache": [
         ".gradle",
         "build"
-      ]
+      ],
+      "build_image": "docker.io/library/gradle:latest-jdk21"
     },
     "runtime": {
       "packages": [

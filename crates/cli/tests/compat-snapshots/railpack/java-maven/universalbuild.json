@@ -10,7 +10,7 @@
     "build": {
       "packages": [
         "openjdk-17",
-        "maven-3.9",
+        "maven",
         "ca-certificates"
       ],
       "env": {
@@ -23,7 +23,8 @@
       ],
       "cache": [
         "/root/.m2/repository"
-      ]
+      ],
+      "build_image": "docker.io/library/maven:3-eclipse-temurin-17"
     },
     "runtime": {
       "packages": [

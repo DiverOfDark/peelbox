@@ -2,55 +2,6 @@
   {
     "version": "1.0",
     "metadata": {
-      "project_name": "admin-service",
-      "language": "Rust",
-      "build_system": "Cargo",
-      "reasoning": "Detected from Cargo.toml in cli"
-    },
-    "build": {
-      "packages": [
-        "rust-1.92",
-        "build-base",
-        "openssl-dev",
-        "pkgconf",
-        "ca-certificates"
-      ],
-      "env": {
-        "CARGO_HOME": ".cargo"
-      },
-      "commands": [
-        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
-      ],
-      "cache": [
-        ".cargo",
-        "target"
-      ]
-    },
-    "runtime": {
-      "packages": [
-        "glibc",
-        "libssl3",
-        "ca-certificates"
-      ],
-      "env": {},
-      "copy": [
-        {
-          "from": "target/release/admin-service",
-          "to": "/app/admin-service"
-        }
-      ],
-      "command": [
-        "/app/admin-service"
-      ],
-      "workdir": "/app",
-      "ports": [
-        8082
-      ]
-    }
-  },
-  {
-    "version": "1.0",
-    "metadata": {
       "project_name": "backend",
       "language": "Java",
       "build_system": "Maven",
@@ -59,7 +10,7 @@
     "build": {
       "packages": [
         "openjdk-17",
-        "maven-3.9",
+        "maven",
         "ca-certificates"
       ],
       "env": {
@@ -72,7 +23,8 @@
       ],
       "cache": [
         "/root/.m2/repository"
-      ]
+      ],
+      "build_image": "docker.io/library/maven:3-eclipse-temurin-17"
     },
     "runtime": {
       "packages": [
@@ -110,6 +62,51 @@
   {
     "version": "1.0",
     "metadata": {
+      "project_name": "admin-service",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml in cli"
+    },
+    "build": {
+      "packages": [],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cd cli && apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev pkg-config ca-certificates && rm -rf /var/lib/apt/lists/*",
+        "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
+      ],
+      "build_image": "docker.io/library/rust:latest"
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/release/admin-service",
+          "to": "/app/admin-service"
+        }
+      ],
+      "command": [
+        "/app/admin-service"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8082
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
       "project_name": "frontend",
       "language": "JavaScript",
       "build_system": "npm",
@@ -117,7 +114,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs",
         "npm",
         "ca-certificates"
       ],
@@ -130,7 +127,8 @@
       ],
       "cache": [
         ".npm"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [

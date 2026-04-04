@@ -11,7 +11,7 @@
     "build": {
       "packages": [
         "openjdk-11",
-        "maven-3.9",
+        "maven",
         "ca-certificates"
       ],
       "env": {
@@ -24,7 +24,8 @@
       ],
       "cache": [
         "/root/.m2/repository"
-      ]
+      ],
+      "build_image": "docker.io/library/maven:3-eclipse-temurin-11"
     },
     "runtime": {
       "packages": [
