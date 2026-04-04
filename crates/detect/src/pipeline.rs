@@ -1780,8 +1780,16 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
     match language.as_str() {
         "JavaScript" | "TypeScript" => {
             if let Some(version) = read_node_version(&project_dir, repo_root) {
+                if build.build.build_image.is_some() {
+                    // Update Docker image tag with the pinned version
+                    build.build.build_image = Some(format!("docker.io/library/node:{}", version));
+                } else {
+                    // Wolfi fallback (e.g., Bun): replace generic package
+                    let versioned_pkg = format!("nodejs-{}", version);
+                    replace_package(&mut build.build.packages, "nodejs", &versioned_pkg);
+                }
+                // Runtime always uses Wolfi packages
                 let versioned_pkg = format!("nodejs-{}", version);
-                replace_package(&mut build.build.packages, "nodejs", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "nodejs", &versioned_pkg);
             }
         }

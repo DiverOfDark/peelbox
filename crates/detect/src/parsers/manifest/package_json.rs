@@ -98,11 +98,23 @@ impl ManifestParser for PackageJsonParser {
                     .and_then(extract_node_major)
             });
 
-        let node_build_pkg = node_major
+        let node_runtime_pkg = node_major
             .as_ref()
             .map(|v| format!("nodejs-{}", v))
             .unwrap_or_else(|| "nodejs".into());
-        let node_runtime_pkg = node_build_pkg.clone();
+
+        let node_build_pkg = node_runtime_pkg.clone();
+        // Packages are kept for cross-language merges (e.g., PHP+Node).
+        // BuildKit ignores packages when build_image is set.
+        let build_packages = vec![node_build_pkg, pkg_manager.into(), "ca-certificates".into()];
+
+        // Use Docker Hub image for npm/yarn/pnpm; keep Wolfi for Bun (no official Docker image)
+        let build_image = if build_system == BUN {
+            None
+        } else {
+            let image_tag = node_major.as_deref().unwrap_or("lts");
+            Some(format!("docker.io/library/node:{}", image_tag))
+        };
 
         let workspace = json.get("workspaces").and_then(|ws| {
             let members = match ws {
@@ -275,7 +287,7 @@ impl ManifestParser for PackageJsonParser {
             workspace,
             dependencies,
             build: BuildSpec {
-                packages: vec![node_build_pkg, pkg_manager.into(), "ca-certificates".into()],
+                packages: build_packages,
                 commands: build_commands,
                 member_transform: Some(MemberBuildTransform {
                     member_commands,
@@ -284,7 +296,7 @@ impl ManifestParser for PackageJsonParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".npm".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: None,
+                build_image,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
