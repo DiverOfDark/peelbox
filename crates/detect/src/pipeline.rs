@@ -1809,10 +1809,15 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
             }
         }
         "Rust" => {
-            // Only build packages need the rust compiler; runtime uses the compiled binary
             if let Some(version) = read_rust_version(&project_dir, repo_root) {
-                let versioned_pkg = format!("rust-{}", version);
-                replace_package(&mut build.build.packages, "rust", &versioned_pkg);
+                if build.build.build_image.is_some() {
+                    // Update Docker image tag with the pinned version
+                    build.build.build_image = Some(format!("docker.io/library/rust:{}", version));
+                } else {
+                    // Wolfi fallback: replace generic package with versioned one
+                    let versioned_pkg = format!("rust-{}", version);
+                    replace_package(&mut build.build.packages, "rust", &versioned_pkg);
+                }
             }
         }
         "Swift" => {
