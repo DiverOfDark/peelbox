@@ -14,8 +14,9 @@
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
+        "JAVA_HOME": "/opt/java/openjdk",
+        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
         "mvn -f backend/pom.xml package -DskipTests",
@@ -70,14 +71,16 @@
     "build": {
       "packages": [],
       "env": {
-        "CARGO_HOME": ".cargo"
+        "CARGO_HOME": "/usr/local/cargo",
+        "RUSTUP_HOME": "/usr/local/rustup",
+        "PATH": "/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
         "cd cli && apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev pkg-config ca-certificates && rm -rf /var/lib/apt/lists/*",
         "cargo build --release --manifest-path cli/Cargo.toml --target-dir target"
       ],
       "cache": [
-        ".cargo",
+        "/usr/local/cargo",
         "target"
       ],
       "build_image": "docker.io/library/rust:latest"

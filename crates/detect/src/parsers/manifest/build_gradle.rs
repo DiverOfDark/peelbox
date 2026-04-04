@@ -353,7 +353,7 @@ fn gradle_build_image(project_dir: Option<&Path>, jdk_version: Option<&str>) -> 
     let gradle_major = project_dir.and_then(gradle_wrapper_major);
     match gradle_major {
         Some(major) => format!("docker.io/library/gradle:{}-jdk{}", major, jdk),
-        None => format!("docker.io/library/gradle:latest-jdk{}", jdk),
+        None => format!("docker.io/library/gradle:jdk{}", jdk),
     }
 }
 

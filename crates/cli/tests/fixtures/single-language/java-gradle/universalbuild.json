@@ -17,7 +17,8 @@
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
+        "JAVA_HOME": "/opt/java/openjdk",
+        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
         "gradle assemble -x test --no-daemon --console=plain"
@@ -26,7 +27,7 @@
         ".gradle",
         "build"
       ],
-      "build_image": "docker.io/library/gradle:latest-jdk17"
+      "build_image": "docker.io/library/gradle:jdk17"
     },
     "runtime": {
       "packages": [

@@ -14,8 +14,9 @@
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk",
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository"
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
+        "JAVA_HOME": "/opt/java/openjdk",
+        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
         "mvn package -DskipTests",

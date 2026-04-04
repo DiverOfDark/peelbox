@@ -165,9 +165,27 @@ pub fn detect_with_registry_and_wolfi(
         }
     }
 
-    // Step 5b: Sync JAVA_HOME with resolved openjdk package version
+    // Step 5b: Sync JAVA_HOME with resolved openjdk package version.
+    // When a Docker image is used, set the Eclipse Temurin JAVA_HOME instead of Wolfi's.
+    // BuildKit LLB doesn't inherit env from the base image, so we must set it explicitly.
     for build in &mut builds {
-        sync_java_home_with_packages(build);
+        if build.build.build_image.is_none() {
+            sync_java_home_with_packages(build);
+        } else {
+            let lang = &build.metadata.language;
+            if lang == "Java" || lang == "Kotlin" || lang == "Scala" || lang == "Clojure" {
+                let java_home = "/opt/java/openjdk";
+                let path = format!(
+                    "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    java_home
+                );
+                build
+                    .build
+                    .env
+                    .insert("JAVA_HOME".to_string(), java_home.to_string());
+                build.build.env.insert("PATH".to_string(), path);
+            }
+        }
     }
 
     // Step 6: Handle pinned versions not available in Wolfi (use alternative installers)
