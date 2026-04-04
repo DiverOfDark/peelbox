@@ -1,4 +1,4 @@
-use super::go_mod::go_wolfi_package;
+use super::go_mod::go_build_image;
 use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
@@ -35,8 +35,7 @@ impl ManifestParser for GoWorkParser {
                 }
             });
 
-        let go_pkg = go_wolfi_package(go_version.as_deref());
-        let build_packages = vec![go_pkg, "git".into(), "ca-certificates".into()];
+        let build_image = go_build_image(go_version.as_deref());
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -50,13 +49,13 @@ impl ManifestParser for GoWorkParser {
             }),
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: build_packages,
+                packages: vec![],
                 commands: Vec::new(),
                 member_transform: None,
                 env: BTreeMap::new(),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts: vec![],
-                build_image: None,
+                build_image: Some(build_image),
             },
             runtime_config: RuntimeSpec::default(),
         })
@@ -132,7 +131,11 @@ use (
         let ws = manifest.workspace.unwrap();
         assert_eq!(ws.members, vec!["cmd/api", "pkg/shared"]);
         assert!(manifest.package.is_none());
-        assert!(manifest.build.packages.contains(&"go-1.21".to_string()));
+        assert_eq!(
+            manifest.build.build_image,
+            Some("docker.io/library/golang:1.21".into())
+        );
+        assert!(manifest.build.packages.is_empty());
     }
 
     #[test]
@@ -149,7 +152,10 @@ use (
         let parser = GoWorkParser;
         let content = "use (\n    ./app\n)\n";
         let manifest = parser.parse(Path::new("go.work"), content).unwrap();
-        assert!(manifest.build.packages.contains(&"go".to_string()));
+        assert_eq!(
+            manifest.build.build_image,
+            Some("docker.io/library/golang:latest".into())
+        );
         let ws = manifest.workspace.unwrap();
         assert_eq!(ws.members, vec!["app"]);
     }
