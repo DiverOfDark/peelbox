@@ -157,6 +157,7 @@ impl ManifestParser for BuildSbtParser {
                     "docker.io/library/eclipse-temurin:{}",
                     effective_java_version
                 )),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: {

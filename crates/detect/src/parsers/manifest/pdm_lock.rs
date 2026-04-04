@@ -105,6 +105,7 @@ impl ManifestParser for PdmLockParser {
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                 artifacts: vec![(".".into(), "/app".into())],
                 build_image: Some(python_build_image),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

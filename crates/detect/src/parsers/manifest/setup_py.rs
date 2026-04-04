@@ -53,6 +53,7 @@ impl ManifestParser for SetupPyParser {
                 cache_dirs: vec![".cache/pip".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
                 build_image: Some("docker.io/library/python:latest".into()),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

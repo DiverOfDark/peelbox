@@ -142,6 +142,7 @@ fn build_wolfi_dotnet_specs(
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
             build_image: Some(build_image),
+            asset_build: None,
         },
         RuntimeSpec {
             packages: vec![runtime_pkg, "ca-certificates".into()],
@@ -170,6 +171,7 @@ fn build_fallback_dotnet_specs(
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
             build_image: Some("mcr.microsoft.com/dotnet/sdk:8.0".into()),
+            asset_build: None,
         },
         RuntimeSpec {
             packages: vec!["dotnet-runtime".into(), "ca-certificates".into()],

@@ -128,6 +128,7 @@ impl ManifestParser for CargoTomlParser {
                 cache_dirs: vec!["/usr/local/cargo".into(), "target".into()],
                 artifacts,
                 build_image: Some("docker.io/library/rust:latest".into()),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],
@@ -585,6 +586,7 @@ version = "0.1.0"
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
                 build_image: None,
+                asset_build: None,
             },
             runtime: Default::default(),
         };
@@ -615,6 +617,7 @@ version = "0.1.0"
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
                 build_image: None,
+                asset_build: None,
             },
             runtime: Default::default(),
         };
@@ -658,6 +661,7 @@ version = "0.1.0"
                 env: BTreeMap::new(),
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: Default::default(),
         };

@@ -129,6 +129,25 @@ pub struct BuildSpec {
     /// already contain all required build tools.
     #[serde(default)]
     pub build_image: Option<String>,
+    /// Optional pre-build asset compilation step (e.g., Node.js building
+    /// frontend assets for a PHP/Ruby project). Runs in a separate image
+    /// before the main build, with output available via shared /app mount.
+    #[serde(default)]
+    pub asset_build: Option<AssetBuild>,
+}
+
+/// A pre-build step that compiles assets in a separate image.
+/// Used for cross-language scenarios like PHP+Node.js (Laravel+Vite).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetBuild {
+    /// Docker image to run asset commands in (e.g., `docker.io/library/node:lts`).
+    pub build_image: String,
+    /// Commands to run (e.g., `npm install`, `npm run build`).
+    pub commands: Vec<String>,
+    /// Directories to cache between builds.
+    pub cache_dirs: Vec<String>,
+    /// Environment variables for the asset build.
+    pub env: BTreeMap<String, String>,
 }
 
 /// How to adjust build commands for a workspace member.

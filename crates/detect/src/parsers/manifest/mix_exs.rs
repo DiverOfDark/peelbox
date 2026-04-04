@@ -173,6 +173,7 @@ impl ManifestParser for MixExsParser {
                 cache_dirs: vec!["deps".into(), "_build".into()],
                 artifacts: vec![(".".into(), "/app".into())],
                 build_image: Some(build_image),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

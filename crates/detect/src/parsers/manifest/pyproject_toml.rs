@@ -165,6 +165,7 @@ impl ManifestParser for PyProjectTomlParser {
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pypoetry/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
                 build_image: Some(python_build_image.clone()),
+                asset_build: None,
 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -219,6 +220,7 @@ impl ManifestParser for PyProjectTomlParser {
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
                     build_image: Some(python_build_image.clone()),
+                    asset_build: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -271,6 +273,7 @@ impl ManifestParser for PyProjectTomlParser {
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
                 build_image: Some(python_build_image.clone()),
+                asset_build: None,
 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -318,6 +321,7 @@ impl ManifestParser for PyProjectTomlParser {
                         ("/root/.local/".into(), "/root/.local/".into()),
                     ],
                     build_image: Some(python_build_image.clone()),
+                    asset_build: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -1263,6 +1267,7 @@ python_version = '3.10'
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libgcc".into()],
@@ -1309,6 +1314,7 @@ python_version = '3.10'
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -1361,6 +1367,7 @@ dependencies = [
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into()],
@@ -1413,6 +1420,7 @@ dependencies = [
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libpq".into()],

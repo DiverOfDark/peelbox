@@ -77,6 +77,7 @@ impl ManifestParser for IndexPhpParser {
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app".into())],
                 build_image: Some("docker.io/library/php:latest".into()),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["php".into(), "ca-certificates".into()],

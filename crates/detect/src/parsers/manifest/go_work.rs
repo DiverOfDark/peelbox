@@ -56,6 +56,7 @@ impl ManifestParser for GoWorkParser {
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts: vec![],
                 build_image: Some(build_image),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec::default(),
         })

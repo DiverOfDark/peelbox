@@ -75,6 +75,7 @@ impl ManifestParser for ShardYmlParser {
                     (format!("bin/{}", target_name), format!("/app/bin/{}", target_name)),
                 ],
                 build_image: None,
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libevent".into(), "pcre".into(), "ca-certificates".into()],

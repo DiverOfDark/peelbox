@@ -144,6 +144,7 @@ impl ManifestParser for ComposerJsonParser {
                 cache_dirs: vec![".composer/cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
                 build_image: Some(build_image),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

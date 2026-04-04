@@ -132,6 +132,7 @@ impl ManifestParser for EnvironmentYmlParser {
                 cache_dirs: vec!["/root/.cache/pip/".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
                 build_image: Some(python_build_image),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

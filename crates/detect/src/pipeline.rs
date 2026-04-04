@@ -1565,6 +1565,7 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
             build_image: m.build.build_image.clone(),
+            asset_build: None,
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -1952,6 +1953,7 @@ mod tests {
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
                     build_image: None,
+                    asset_build: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
@@ -2007,6 +2009,7 @@ mod tests {
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
                     build_image: None,
+                    asset_build: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
@@ -2084,6 +2087,7 @@ app.listen(3000);
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2129,6 +2133,7 @@ app.listen(3000);
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2181,6 +2186,7 @@ const home = process.env.HOME;
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],

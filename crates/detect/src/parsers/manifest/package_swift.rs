@@ -83,6 +83,7 @@ impl ManifestParser for PackageSwiftParser {
                     ),
                 ],
                 build_image: Some(swift_image.to_string()),
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libstdc++".into(), "ca-certificates".into()],

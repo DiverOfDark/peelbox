@@ -297,6 +297,7 @@ impl ManifestParser for PackageJsonParser {
                 cache_dirs: vec![".npm".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
                 build_image,
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -1057,6 +1058,7 @@ mod tests {
                 env: BTreeMap::new(),
                 cache: vec![".npm".into()],
                 build_image: None,
+                asset_build: None,
             },
             runtime: peelbox_core::output::schema::RuntimeStage {
                 packages: runtime_packages,
@@ -1152,6 +1154,7 @@ mod tests {
                 env: BTreeMap::new(),
                 cache: vec![],
                 build_image: None,
+                asset_build: None,
             },
             runtime: Default::default(),
         };

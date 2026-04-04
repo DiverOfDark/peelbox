@@ -122,6 +122,7 @@ impl ManifestParser for PnpmLockParser {
                 cache_dirs: vec![".pnpm-store".into()],
                 artifacts: vec![(".".into(), "/app".into())],
                 build_image,
+                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
