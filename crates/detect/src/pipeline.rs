@@ -726,31 +726,28 @@ fn partition(
                 }
             }
 
-            // Merge build specs from secondary manifests of different languages
-            // (e.g., PHP + Node.js in a Laravel + Vite project)
+            // Cross-language merge: when Node.js is a secondary language (e.g.,
+            // Laravel+Vite, Rails+esbuild), extract it into an asset_build phase
+            // that runs in the Node Docker image before the primary build.
             for other in manifests_in_dir.iter() {
-                if other.manifest.language != primary.manifest.language {
-                    for pkg in &other.manifest.build.packages {
-                        if !primary.manifest.build.packages.contains(pkg) {
-                            primary.manifest.build.packages.push(pkg.clone());
-                        }
-                    }
-                    primary
-                        .manifest
-                        .build
-                        .commands
-                        .extend(other.manifest.build.commands.clone());
-                    for dir in &other.manifest.build.cache_dirs {
-                        if !primary.manifest.build.cache_dirs.contains(dir) {
-                            primary.manifest.build.cache_dirs.push(dir.clone());
-                        }
-                    }
-                    primary
-                        .manifest
-                        .build
-                        .env
-                        .extend(other.manifest.build.env.clone());
+                if other.manifest.language == primary.manifest.language {
+                    continue;
                 }
+                let is_node = matches!(other.manifest.language.slug(), "javascript" | "typescript");
+                if is_node && primary.manifest.build.asset_build.is_none() {
+                    primary.manifest.build.asset_build = Some(AssetBuild {
+                        build_image: other
+                            .manifest
+                            .build
+                            .build_image
+                            .clone()
+                            .unwrap_or_else(|| "docker.io/library/node:lts".into()),
+                        commands: other.manifest.build.commands.clone(),
+                        cache_dirs: other.manifest.build.cache_dirs.clone(),
+                        env: other.manifest.build.env.clone(),
+                    });
+                }
+                // Non-Node secondary languages are silently dropped.
             }
 
             // Merge framework from other manifests (unless primary is a lock file).
@@ -1565,7 +1562,14 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
             build_image: m.build.build_image.clone(),
-            asset_build: None,
+            asset_build: m.build.asset_build.as_ref().map(|ab| {
+                peelbox_core::output::schema::AssetBuild {
+                    build_image: ab.build_image.clone(),
+                    commands: ab.commands.clone(),
+                    cache: ab.cache_dirs.clone(),
+                    env: ab.env.clone(),
+                }
+            }),
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -2267,16 +2271,16 @@ const home = process.env.HOME;
 
         let results = detect_without_wolfi(root).unwrap();
 
-        // Should produce exactly one service (merged)
+        // Should produce exactly one service (PHP primary with Node.js asset_build)
         assert_eq!(results.len(), 1);
         let build = &results[0];
 
-        // Primary should be PHP/Composer (alphabetically first, server-side language)
+        // Primary should be PHP/Composer
         assert_eq!(build.metadata.language, "PHP");
         assert_eq!(build.metadata.build_system, "Composer");
         assert_eq!(build.metadata.framework.as_deref(), Some("Laravel"));
 
-        // Build commands should include both Composer and npm commands
+        // Primary build commands should be PHP-only (not merged with Node)
         assert!(
             build
                 .build
@@ -2286,43 +2290,27 @@ const home = process.env.HOME;
             "Should have composer command"
         );
         assert!(
-            build
-                .build
-                .commands
-                .iter()
-                .any(|c| c.contains("npm install") || c.contains("npm ci")),
-            "Should have npm install or npm ci command"
-        );
-        assert!(
-            build
-                .build
-                .commands
-                .iter()
-                .any(|c| c.contains("npm run build")),
-            "Should have npm run build command"
+            !build.build.commands.iter().any(|c| c.contains("npm")),
+            "Primary build should NOT have npm commands (they're in asset_build)"
         );
 
-        // Build packages should include both PHP and Node.js packages
+        // Node.js should be in asset_build, not in primary build
+        let asset = build
+            .build
+            .asset_build
+            .as_ref()
+            .expect("Should have asset_build");
         assert!(
-            build.build.packages.iter().any(|p| p.starts_with("php")),
-            "Should have PHP build packages"
+            asset.build_image.contains("node"),
+            "Asset build image should be Node: {}",
+            asset.build_image
         );
         assert!(
-            build.build.packages.iter().any(|p| p.starts_with("nodejs")),
-            "Should have Node.js build packages"
-        );
-
-        // Build cache should include both .composer/cache and .npm
-        assert!(
-            build.build.cache.contains(&".composer/cache".to_string()),
-            "Should have composer cache"
-        );
-        assert!(
-            build.build.cache.contains(&".npm".to_string()),
-            "Should have npm cache"
+            asset.commands.iter().any(|c| c.contains("npm")),
+            "Asset build should have npm commands"
         );
 
-        // Runtime should be PHP-only (no Node.js packages)
+        // Runtime should be PHP-only
         assert!(
             !build
                 .runtime

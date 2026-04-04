@@ -70,6 +70,69 @@ impl BuildStrategy for PeelboxStrategy {
         let base_idx = custom_build_image_idx
             .unwrap_or_else(|| with_build_packages_idx.unwrap_or(wolfi_base_idx));
 
+        // If asset_build is set (e.g., Node.js frontend for PHP/Ruby), run it
+        // first in its own image.  The output context (with built assets) is
+        // then used as the /app input for the main build.
+        let context_idx = if let Some(ref asset) = spec.build.asset_build {
+            let asset_image_idx = builder.create_image_source(&asset.build_image);
+            let mut last = asset_image_idx;
+
+            for (i, command) in asset.commands.iter().enumerate() {
+                let script = format!("cd /app && {}", command);
+                let mut env_vars: Vec<String> = asset
+                    .env
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", k, v))
+                    .collect();
+                env_vars.sort();
+
+                let meta = pb::Meta {
+                    args: vec!["sh".to_string(), "-c".to_string(), script],
+                    env: env_vars,
+                    cwd: "/".to_string(),
+                    user: String::new(),
+                    proxy_env: None,
+                    extra_hosts: vec![],
+                    hostname: String::new(),
+                    ulimit: vec![],
+                    cgroup_parent: String::new(),
+                    remove_mount_stubs_recursive: false,
+                };
+
+                let mut mounts = vec![
+                    builder.layer_mount(0, 0, "/"),
+                    builder.layer_mount(1, 1, "/app"),
+                    builder.scratch_mount("/tmp"),
+                ];
+
+                for cache_path in &asset.cache {
+                    let absolute = if cache_path.starts_with('/') {
+                        cache_path.clone()
+                    } else {
+                        format!("/app/{}", cache_path)
+                    };
+                    mounts.push(builder.cache_mount(&absolute, cache_path));
+                }
+
+                let inputs = if i == 0 {
+                    vec![(asset_image_idx, 0), (context_idx, 0)]
+                } else {
+                    vec![(last, 0), (last, 1)]
+                };
+
+                last = builder.create_exec(
+                    inputs,
+                    mounts,
+                    meta,
+                    Some(format!("Asset build command {}", i + 1)),
+                );
+            }
+            // Output index 1 = the /app mount with built assets
+            last
+        } else {
+            context_idx
+        };
+
         let build_result_idx = if !spec.build.commands.is_empty() {
             let mut last_idx = base_idx;
 
