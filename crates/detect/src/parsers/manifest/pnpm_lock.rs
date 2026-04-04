@@ -58,7 +58,7 @@ impl ManifestParser for PnpmLockParser {
         };
 
         // Extract Node.js version from engines.node or volta.node
-        let node_pkg = json
+        let node_major = json
             .get("engines")
             .and_then(|e| e.get("node"))
             .and_then(|v| v.as_str())
@@ -68,9 +68,15 @@ impl ManifestParser for PnpmLockParser {
                     .and_then(|v| v.get("node"))
                     .and_then(|v| v.as_str())
                     .and_then(super::package_json::extract_node_major)
-            })
+            });
+        let node_pkg = node_major
+            .as_ref()
             .map(|v| format!("nodejs-{}", v))
             .unwrap_or_else(|| "nodejs".into());
+        let build_image = {
+            let tag = node_major.as_deref().unwrap_or("lts");
+            Some(format!("docker.io/library/node:{}", tag))
+        };
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -115,7 +121,7 @@ impl ManifestParser for PnpmLockParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".pnpm-store".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: None,
+                build_image,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

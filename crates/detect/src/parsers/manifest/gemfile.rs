@@ -122,6 +122,13 @@ impl ManifestParser for GemfileParser {
             runtime_packages.push("libxslt".into());
         }
 
+        // Construct Docker Hub build image from Gemfile ruby directive (if present)
+        let ruby_version = parse_gemfile_ruby_version(content);
+        let build_image = ruby_version
+            .as_ref()
+            .map(|v| format!("docker.io/library/ruby:{}", v))
+            .unwrap_or_else(|| "docker.io/library/ruby:latest".into());
+
         Some(Manifest {
             path: path.to_path_buf(),
             language: RUBY,
@@ -151,7 +158,7 @@ impl ManifestParser for GemfileParser {
                 ]),
                 cache_dirs: vec![".bundle".into(), "vendor".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: None,
+                build_image: Some(build_image),
 },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

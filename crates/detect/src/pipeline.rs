@@ -16,7 +16,10 @@ use crate::parsers::manifest::package_json::{
     scan_node_puppeteer, wrap_yarn_corepack_entrypoint,
 };
 use crate::parsers::manifest::package_swift::read_swift_version;
-use crate::parsers::manifest::pom_xml::{resolve_java_toolchain, sync_java_home_with_packages};
+use crate::parsers::manifest::pom_xml::{
+    maven_build_image_for_version, read_java_version, resolve_java_toolchain,
+    sync_java_home_with_packages,
+};
 use crate::parsers::manifest::pyproject_toml::{
     fix_django_settings, fix_flask_app_path, read_python_version, scan_python_entrypoints,
     scan_python_native_deps,
@@ -1807,16 +1810,29 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
         }
         "PHP" => {
             if let Some(version) = read_php_version(&project_dir, repo_root) {
+                if build.build.build_image.is_some() {
+                    build.build.build_image =
+                        Some(format!("docker.io/library/php:{}-cli", version));
+                } else {
+                    let versioned_pkg = format!("php-{}", version);
+                    replace_package(&mut build.build.packages, "php", &versioned_pkg);
+                }
+                // Runtime always uses Wolfi packages
                 let versioned_pkg = format!("php-{}", version);
-                replace_package(&mut build.build.packages, "php", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "php", &versioned_pkg);
             }
         }
         "Ruby" => {
             if let Some(version) = read_ruby_version(&project_dir, repo_root) {
+                if build.build.build_image.is_some() {
+                    build.build.build_image = Some(format!("docker.io/library/ruby:{}", version));
+                } else {
+                    let versioned_pkg = format!("ruby-{}", version);
+                    replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
+                }
+                // Runtime always uses Wolfi packages
                 let versioned_pkg = format!("ruby-{}", version);
                 let versioned_dev = format!("ruby-{}-dev", version);
-                replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
                 replace_package(&mut build.build.packages, "ruby-dev", &versioned_dev);
                 replace_package(&mut build.runtime.packages, "ruby", &versioned_pkg);
             }
@@ -1849,6 +1865,31 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                     "docker.io/library/swift:{}-{}",
                     version, ubuntu_codename
                 ));
+            }
+        }
+        "Java" | "Kotlin" | "Scala" | "Clojure" => {
+            if let Some(version) = read_java_version(&project_dir, repo_root) {
+                if let Some(ref image) = build.build.build_image {
+                    // Update Docker image tag with the pinned JDK version.
+                    // Maven images: maven:3-eclipse-temurin-{jdk}
+                    // Gradle images: gradle:{ver}-jdk{jdk} or gradle:latest-jdk{jdk}
+                    if image.contains("/maven:") {
+                        build.build.build_image = Some(maven_build_image_for_version(&version));
+                    } else if image.contains("/gradle:") {
+                        // Preserve the Gradle version prefix, just replace the JDK suffix
+                        if let Some(jdk_pos) = image.find("-jdk") {
+                            let prefix = &image[..jdk_pos];
+                            build.build.build_image = Some(format!("{}-jdk{}", prefix, version));
+                        }
+                    }
+                } else {
+                    // Wolfi fallback: replace generic openjdk package with versioned one
+                    let versioned_pkg = format!("openjdk-{}", version);
+                    replace_package(&mut build.build.packages, "openjdk", &versioned_pkg);
+                }
+                // Runtime always uses Wolfi packages
+                let versioned_jre = format!("openjdk-{}-jre", version);
+                replace_package(&mut build.runtime.packages, "openjdk", &versioned_jre);
             }
         }
         _ => {}

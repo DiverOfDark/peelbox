@@ -215,6 +215,9 @@ impl ManifestParser for BuildGradleParser {
         }
         build_commands.push(build_command);
 
+        // Construct Docker Hub build image: gradle:{major}-jdk{jdk}
+        let build_image = gradle_build_image(path.parent(), java_version.as_deref());
+
         // installDist produces shell scripts (#!/bin/sh) that need a POSIX shell
         // and basic utilities (ls, uname, xargs, sed, etc.) at runtime.
         // busybox provides /bin/sh and all required utilities.
@@ -265,7 +268,7 @@ impl ManifestParser for BuildGradleParser {
                 ]),
                 cache_dirs: vec![".gradle".into(), "build".into()],
                 artifacts,
-                build_image: None,
+                build_image: Some(build_image),
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,
@@ -304,6 +307,15 @@ fn is_bare_application_plugin(content: &str) -> bool {
     false
 }
 
+/// Parse Gradle major version from `gradle/wrapper/gradle-wrapper.properties`.
+fn gradle_wrapper_major(project_dir: &Path) -> Option<u32> {
+    let props_path = project_dir.join("gradle/wrapper/gradle-wrapper.properties");
+    let content = std::fs::read_to_string(props_path).ok()?;
+    let re = regex::Regex::new(r"gradle-(\d+)\.(\d+)").ok()?;
+    let caps = re.captures(&content)?;
+    caps.get(1)?.as_str().parse().ok()
+}
+
 /// Parse the Gradle version from `gradle/wrapper/gradle-wrapper.properties`
 /// and return the maximum JDK version that Gradle version supports.
 fn max_jdk_for_gradle_wrapper(project_dir: &Path) -> Option<u32> {
@@ -330,6 +342,19 @@ fn max_jdk_for_gradle_wrapper(project_dir: &Path) -> Option<u32> {
         _ => return None,
     };
     Some(max_jdk)
+}
+
+/// Return the Docker Hub build image for a Gradle project.
+/// Format: `docker.io/library/gradle:{gradle_major}-jdk{jdk}`
+/// Falls back to `gradle:latest-jdk{jdk}` when Gradle version is unknown,
+/// and defaults JDK to 21 (current LTS) when unspecified.
+fn gradle_build_image(project_dir: Option<&Path>, jdk_version: Option<&str>) -> String {
+    let jdk = jdk_version.unwrap_or("21");
+    let gradle_major = project_dir.and_then(gradle_wrapper_major);
+    match gradle_major {
+        Some(major) => format!("docker.io/library/gradle:{}-jdk{}", major, jdk),
+        None => format!("docker.io/library/gradle:latest-jdk{}", jdk),
+    }
 }
 
 fn parse_gradle_deps(content: &str) -> Vec<Dependency> {
