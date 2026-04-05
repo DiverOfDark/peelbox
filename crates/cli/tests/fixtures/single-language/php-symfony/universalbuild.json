@@ -10,7 +10,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "composer config allow-plugins.symfony/runtime true",
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",

@@ -10,7 +10,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "pip install --user --no-cache-dir numpy==1.24 flask==3.0 gunicorn==21.2.0"
       ],

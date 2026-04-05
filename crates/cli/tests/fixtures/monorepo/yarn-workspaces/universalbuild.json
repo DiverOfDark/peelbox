@@ -10,7 +10,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
         "cd apps/web && yarn run build"

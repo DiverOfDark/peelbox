@@ -13,7 +13,8 @@
         "CGO_ENABLED": "0",
         "GOCACHE": "/app/.cache/go-build",
         "GOMODCACHE": "/app/.cache/go-mod",
-        "GOSUMDB": "off"
+        "GOSUMDB": "off",
+        "PATH": "/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
         "mkdir -p bin",

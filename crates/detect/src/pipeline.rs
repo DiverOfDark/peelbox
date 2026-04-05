@@ -129,24 +129,27 @@ pub fn detect_with_registry_and_wolfi(
         fix_django_settings(repo_path, build);
     }
 
-    // Step 4i: Detect Python native dependency system packages
+    // Steps 4i-4k: Wolfi-specific native dependency scanning.
+    // Skip when build_image is set — Docker images handle deps differently.
     for build in &mut builds {
-        scan_python_native_deps(repo_path, build);
+        if build.build.build_image.is_none() {
+            scan_python_native_deps(repo_path, build);
+        }
     }
-
-    // Step 4j: Ensure npm builds have node-gyp available (Wolfi npm doesn't bundle it)
     for build in &mut builds {
-        ensure_npm_node_gyp(build);
+        if build.build.build_image.is_none() {
+            ensure_npm_node_gyp(build);
+        }
     }
-
-    // Step 4k: Detect Node.js native dependency system packages
     for build in &mut builds {
-        scan_node_native_deps(repo_path, build);
+        if build.build.build_image.is_none() {
+            scan_node_native_deps(repo_path, build);
+        }
     }
-
-    // Step 4k: Detect Puppeteer and add Chromium dependencies
     for build in &mut builds {
-        scan_node_puppeteer(repo_path, build);
+        if build.build.build_image.is_none() {
+            scan_node_puppeteer(repo_path, build);
+        }
     }
 
     // Step 4l: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
@@ -172,19 +175,10 @@ pub fn detect_with_registry_and_wolfi(
         if build.build.build_image.is_none() {
             sync_java_home_with_packages(build);
         } else {
-            let lang = &build.metadata.language;
-            if lang == "Java" || lang == "Kotlin" || lang == "Scala" || lang == "Clojure" {
-                let java_home = "/opt/java/openjdk";
-                let path = format!(
-                    "{}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                    java_home
-                );
-                build
-                    .build
-                    .env
-                    .insert("JAVA_HOME".to_string(), java_home.to_string());
-                build.build.env.insert("PATH".to_string(), path);
-            }
+            // Docker images set their env internally, but BuildKit LLB doesn't
+            // inherit it.  Inject the standard PATH (and language-specific vars)
+            // so tools like cargo, go, mvn, etc. are found.
+            set_docker_image_env(build);
         }
     }
 
@@ -1799,6 +1793,73 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
                 if wolfi.has_package(&dev_pkg) {
                     *pkg = dev_pkg;
                 }
+            }
+        }
+    }
+}
+
+// ── Docker image environment ────────────────────────────────────────────
+
+/// Set standard environment variables for Docker Hub image builds.
+/// BuildKit LLB doesn't inherit env from the base image, so PATH and
+/// language-specific vars must be set explicitly.
+fn set_docker_image_env(build: &mut UniversalBuild) {
+    let default_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string();
+
+    match build.metadata.language.as_str() {
+        "Java" | "Kotlin" | "Scala" | "Clojure" => {
+            let java_home = "/opt/java/openjdk";
+            build
+                .build
+                .env
+                .insert("JAVA_HOME".to_string(), java_home.to_string());
+            build.build.env.insert(
+                "PATH".to_string(),
+                format!("{}/bin:{}", java_home, default_path),
+            );
+        }
+        "Rust" => {
+            build
+                .build
+                .env
+                .insert("CARGO_HOME".to_string(), "/usr/local/cargo".to_string());
+            build
+                .build
+                .env
+                .insert("RUSTUP_HOME".to_string(), "/usr/local/rustup".to_string());
+            build.build.env.insert(
+                "PATH".to_string(),
+                format!("/usr/local/cargo/bin:{}", default_path),
+            );
+            // Fix cache dir to match absolute CARGO_HOME in Docker image
+            for cache in build.build.cache.iter_mut() {
+                if cache == ".cargo" {
+                    *cache = "/usr/local/cargo".to_string();
+                }
+            }
+        }
+        "Go" => {
+            build.build.env.insert(
+                "PATH".to_string(),
+                format!("/usr/local/go/bin:{}", default_path),
+            );
+        }
+        "JavaScript" | "TypeScript" => {
+            // Node Docker images have node/npm in /usr/local/bin (already in default PATH)
+            if !build.build.env.contains_key("PATH") {
+                build.build.env.insert("PATH".to_string(), default_path);
+            }
+        }
+        "Python" => {
+            // Python Docker images have python/pip in /usr/local/bin
+            if !build.build.env.contains_key("PATH") {
+                build.build.env.insert("PATH".to_string(), default_path);
+            }
+        }
+        _ => {
+            // For other languages, ensure at least a default PATH
+            if !build.build.env.contains_key("PATH") {
+                build.build.env.insert("PATH".to_string(), default_path);
             }
         }
     }
