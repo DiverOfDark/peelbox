@@ -36,8 +36,6 @@ pub struct CsprojParser;
 struct DotnetVersion {
     /// Major version number (e.g., 6, 8, 9).
     major: u32,
-    /// Full channel string for Docker images (e.g., "8.0", "9.0").
-    channel: String,
 }
 
 impl ManifestParser for CsprojParser {
@@ -96,12 +94,10 @@ impl ManifestParser for CsprojParser {
 
 /// Parse the .NET version from a TargetFramework element.
 fn parse_dotnet_version(content: &str) -> Option<DotnetVersion> {
-    let re = regex::Regex::new(r"<TargetFramework>net(\d+)\.(\d+)</TargetFramework>").ok()?;
+    let re = regex::Regex::new(r"<TargetFramework>net(\d+)\.\d+</TargetFramework>").ok()?;
     let caps = re.captures(content)?;
     let major = caps.get(1)?.as_str().parse::<u32>().ok()?;
-    let minor = caps.get(2)?.as_str();
-    let channel = format!("{}.{}", major, minor);
-    Some(DotnetVersion { major, channel })
+    Some(DotnetVersion { major })
 }
 
 /// Build specs using Wolfi packages.
@@ -131,8 +127,6 @@ fn build_wolfi_dotnet_specs(
     // CLI apps (Microsoft.NET.Sdk) don't listen on a port.
     let ports = if is_web { vec![5000] } else { vec![] };
 
-    let build_image = format!("mcr.microsoft.com/dotnet/sdk:{}", ver.channel);
-
     (
         BuildSpec {
             packages: vec![sdk_pkg, "ca-certificates".into()],
@@ -141,8 +135,7 @@ fn build_wolfi_dotnet_specs(
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-            build_image: Some(build_image),
-            asset_build: None,
+            build_image: None,
         },
         RuntimeSpec {
             packages: vec![runtime_pkg, "ca-certificates".into()],
@@ -170,8 +163,7 @@ fn build_fallback_dotnet_specs(
             env: dotnet_build_env(),
             cache_dirs: dotnet_cache_dirs(),
             artifacts: vec![("out/".into(), "/app".into())],
-            build_image: Some("mcr.microsoft.com/dotnet/sdk:8.0".into()),
-            asset_build: None,
+            build_image: None,
         },
         RuntimeSpec {
             packages: vec!["dotnet-runtime".into(), "ca-certificates".into()],

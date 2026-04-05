@@ -8,15 +8,15 @@
       "reasoning": "Detected from index.php"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "php-8.5",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "echo 'No build step required'"
       ],
-      "cache": [],
-      "build_image": "docker.io/library/php:latest"
+      "cache": []
     },
     "runtime": {
       "packages": [

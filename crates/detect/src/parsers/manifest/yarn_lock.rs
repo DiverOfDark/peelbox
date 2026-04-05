@@ -178,7 +178,7 @@ impl ManifestParser for YarnLockParser {
         }
 
         // Extract Node.js version from engines.node or volta.node
-        let node_major = json
+        let node_pkg = json
             .get("engines")
             .and_then(|e| e.get("node"))
             .and_then(|v| v.as_str())
@@ -188,15 +188,9 @@ impl ManifestParser for YarnLockParser {
                     .and_then(|v| v.get("node"))
                     .and_then(|v| v.as_str())
                     .and_then(super::package_json::extract_node_major)
-            });
-        let node_pkg = node_major
-            .as_ref()
+            })
             .map(|v| format!("nodejs-{}", v))
             .unwrap_or_else(|| "nodejs".into());
-        let build_image = {
-            let tag = node_major.as_deref().unwrap_or("lts");
-            Some(format!("docker.io/library/node:{}", tag))
-        };
 
         let mut build_packages = vec![node_pkg.clone(), "yarn".into(), "ca-certificates".into()];
         if needs_corepack {
@@ -259,8 +253,7 @@ impl ManifestParser for YarnLockParser {
                 },
                 cache_dirs: vec![".yarn-cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image,
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: {

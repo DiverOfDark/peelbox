@@ -8,9 +8,16 @@
       "reasoning": "Detected from uv.lock"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates",
+        "poppler-utils",
+        "ffmpeg",
+        "python-3.12-dev"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -20,15 +27,16 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/uv/"
-      ],
-      "build_image": "docker.io/library/python:3.12"
+      ]
     },
     "runtime": {
       "packages": [
         "python-3.12",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "poppler-utils",
+        "ffmpeg"
       ],
       "env": {
         "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",

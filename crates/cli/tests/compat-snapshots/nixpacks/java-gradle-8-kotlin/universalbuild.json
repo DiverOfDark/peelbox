@@ -8,12 +8,15 @@
       "reasoning": "Detected from build.gradle.kts"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "openjdk-19",
+        "bash",
+        "ca-certificates"
+      ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/opt/java/openjdk",
-        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk"
       },
       "commands": [
         "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' build.gradle.kts",
@@ -23,8 +26,7 @@
       "cache": [
         ".gradle",
         "build"
-      ],
-      "build_image": "docker.io/library/gradle:8-jdk19"
+      ]
     },
     "runtime": {
       "packages": [

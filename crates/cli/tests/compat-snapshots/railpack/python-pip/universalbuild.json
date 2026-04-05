@@ -8,17 +8,19 @@
       "reasoning": "Detected from requirements.txt"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "pip install --user --no-cache-dir -r requirements.txt"
       ],
       "cache": [
         ".cache/pip"
-      ],
-      "build_image": "docker.io/library/python:3.11"
+      ]
     },
     "runtime": {
       "packages": [

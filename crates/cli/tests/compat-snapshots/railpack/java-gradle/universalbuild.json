@@ -8,12 +8,15 @@
       "reasoning": "Detected from build.gradle.kts in app"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "openjdk-21",
+        "gradle-8",
+        "ca-certificates"
+      ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/opt/java/openjdk",
-        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk"
       },
       "commands": [
         "gradle :app:installDist -x test --no-daemon --console=plain"
@@ -21,8 +24,7 @@
       "cache": [
         ".gradle",
         "build"
-      ],
-      "build_image": "docker.io/library/gradle:jdk21"
+      ]
     },
     "runtime": {
       "packages": [

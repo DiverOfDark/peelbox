@@ -9,17 +9,18 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "pnpm install"
       ],
       "cache": [
         ".npm"
-      ],
-      "build_image": "docker.io/library/node:lts"
+      ]
     },
     "runtime": {
       "packages": [

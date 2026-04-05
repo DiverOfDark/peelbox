@@ -120,8 +120,7 @@ impl ManifestParser for DepsEdnParser {
                 ]),
                 cache_dirs: vec![".m2".into(), ".gitlibs".into(), ".cpcache".into()],
                 artifacts,
-                build_image: Some("docker.io/library/eclipse-temurin:17".into()),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["openjdk-17-jre".into(), "ca-certificates".into()],

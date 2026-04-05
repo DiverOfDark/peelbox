@@ -9,12 +9,14 @@ const GO: LanguageId = LanguageId::new("go");
 const GOMOD: BuildSystemId = BuildSystemId::new("go-mod");
 const NATIVE: RuntimeId = RuntimeId::new("native");
 
-/// Return the Docker Hub image for a Go version string.
-pub(crate) fn go_build_image(version: Option<&str>) -> String {
-    match version {
-        Some(v) => format!("docker.io/library/golang:{}", v),
-        None => "docker.io/library/golang:latest".into(),
-    }
+/// Return the Wolfi package name for a Go version string.
+/// Old versions (below Wolfi availability) use the generic "go" package,
+/// which Wolfi resolution upgrades to the latest available version.
+/// Go is backward-compatible, so building old code with a newer compiler is safe.
+pub(crate) fn go_wolfi_package(version: Option<&str>) -> String {
+    version
+        .map(|v| format!("go-{}", v))
+        .unwrap_or_else(|| "go".into())
 }
 
 inventory::submit! {
@@ -107,7 +109,11 @@ impl ManifestParser for GoModParser {
                 }
             });
 
-        let build_image = go_build_image(go_version.as_deref());
+        // Always use Wolfi packages. Go is backward-compatible, so a newer
+        // compiler can build code written for an older version. For old versions
+        // not in Wolfi, the generic "go" name is resolved to the latest available.
+        let go_pkg = go_wolfi_package(go_version.as_deref());
+        let build_packages = vec![go_pkg, "git".into(), "ca-certificates".into()];
 
         let dependencies = parse_go_deps(content);
 
@@ -192,14 +198,13 @@ impl ManifestParser for GoModParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![],
+                packages: build_packages,
                 commands,
                 member_transform,
                 env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts,
-                build_image: Some(build_image),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],
@@ -279,20 +284,13 @@ mod tests {
     use crate::traits::ManifestParser;
 
     #[test]
-    fn test_go_build_image() {
-        assert_eq!(
-            go_build_image(Some("1.21")),
-            "docker.io/library/golang:1.21"
-        );
-        assert_eq!(
-            go_build_image(Some("1.23.4")),
-            "docker.io/library/golang:1.23.4"
-        );
-        assert_eq!(go_build_image(None), "docker.io/library/golang:latest");
-        assert_eq!(
-            go_build_image(Some("1.18")),
-            "docker.io/library/golang:1.18"
-        );
+    fn test_go_wolfi_package() {
+        assert_eq!(go_wolfi_package(Some("1.21")), "go-1.21");
+        assert_eq!(go_wolfi_package(Some("1.23.4")), "go-1.23.4");
+        assert_eq!(go_wolfi_package(None), "go");
+        // Old versions still get a versioned package name; Wolfi resolution
+        // upgrades them to the latest available version.
+        assert_eq!(go_wolfi_package(Some("1.18")), "go-1.18");
     }
 
     #[test]
@@ -301,12 +299,16 @@ mod tests {
         let content = "module example.com/app\n\ngo 1.21\n";
         let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
 
-        // Should use Docker Hub image
-        assert_eq!(
-            manifest.build.build_image,
-            Some("docker.io/library/golang:1.21".into())
-        );
-        assert!(manifest.build.packages.is_empty());
+        // Should use Wolfi package
+        assert!(manifest.build.packages.contains(&"go-1.21".to_string()));
+        assert!(!manifest.build.packages.contains(&"curl".to_string()));
+        assert!(!manifest.build.packages.contains(&"build-base".to_string()));
+        // Should NOT have SDK install command
+        assert!(!manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go.dev/dl")));
         // Should NOT have GOROOT env
         assert!(!manifest.build.env.contains_key("GOROOT"));
     }
@@ -317,12 +319,13 @@ mod tests {
         let content = "module example.com/app\n\ngo 1.18\n";
         let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
 
-        // Old versions use Docker image directly (Go is backward-compatible)
-        assert_eq!(
-            manifest.build.build_image,
-            Some("docker.io/library/golang:1.18".into())
-        );
-        assert!(manifest.build.packages.is_empty());
+        // Old versions now use Wolfi packages too (Go is backward-compatible).
+        // Wolfi resolution upgrades to latest available version.
+        assert!(manifest.build.packages.contains(&"go-1.18".to_string()));
+        assert!(!manifest.build.packages.contains(&"curl".to_string()));
+        assert!(!manifest.build.packages.contains(&"build-base".to_string()));
+        // Should NOT have GOROOT env
+        assert!(!manifest.build.env.contains_key("GOROOT"));
         // Standard Go env should still be present
         assert_eq!(manifest.build.env.get("CGO_ENABLED").unwrap(), "0");
     }
@@ -333,10 +336,12 @@ mod tests {
         let content = "module example.com/app\n\ngo 1.17.5\n";
         let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
 
-        assert_eq!(
-            manifest.build.build_image,
-            Some("docker.io/library/golang:1.17.5".into())
-        );
-        assert!(manifest.build.packages.is_empty());
+        // Should use Wolfi package (not legacy SDK download)
+        assert!(manifest.build.packages.contains(&"go-1.17.5".to_string()));
+        assert!(!manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go.dev/dl")));
     }
 }

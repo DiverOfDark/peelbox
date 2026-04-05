@@ -8,15 +8,15 @@
       "reasoning": "Detected from main.py"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "echo 'No build step required'"
       ],
-      "cache": [],
-      "build_image": "docker.io/library/python:2.7"
+      "cache": []
     },
     "runtime": {
       "packages": [

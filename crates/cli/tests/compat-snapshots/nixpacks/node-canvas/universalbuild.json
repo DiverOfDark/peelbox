@@ -8,17 +8,27 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-20",
+        "npm",
+        "ca-certificates",
+        "build-base",
+        "python-3.12",
+        "cairo-dev",
+        "pango-dev",
+        "libjpeg-turbo-dev",
+        "giflib-dev",
+        "pixman-dev"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm ci"
       ],
       "cache": [
         ".npm"
-      ],
-      "build_image": "docker.io/library/node:20"
+      ]
     },
     "runtime": {
       "packages": [
@@ -26,7 +36,13 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "cairo",
+        "pango",
+        "libjpeg-turbo",
+        "giflib",
+        "pixman",
+        "libuuid"
       ],
       "env": {},
       "copy": [

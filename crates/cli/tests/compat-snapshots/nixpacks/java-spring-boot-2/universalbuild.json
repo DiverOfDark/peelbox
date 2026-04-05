@@ -9,12 +9,15 @@
       "reasoning": "Detected from build.gradle"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "openjdk-11",
+        "bash",
+        "ca-certificates"
+      ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
-        "JAVA_HOME": "/opt/java/openjdk",
-        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "JAVA_HOME": "/usr/lib/jvm/java-11-openjdk"
       },
       "commands": [
         "./gradlew assemble -x test --no-daemon --console=plain"
@@ -22,8 +25,7 @@
       "cache": [
         ".gradle",
         "build"
-      ],
-      "build_image": "docker.io/library/gradle:7-jdk11"
+      ]
     },
     "runtime": {
       "packages": [

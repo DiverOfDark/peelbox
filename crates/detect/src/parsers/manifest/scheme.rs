@@ -80,7 +80,6 @@ impl ManifestParser for SchemeHauntParser {
                 cache_dirs: vec![],
                 artifacts: vec![("site".into(), "/app/site".into())],
                 build_image: None,
-                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["busybox".into(), "ca-certificates".into()],

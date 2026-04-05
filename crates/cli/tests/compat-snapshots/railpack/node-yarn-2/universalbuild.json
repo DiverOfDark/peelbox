@@ -8,9 +8,12 @@
       "reasoning": "Detected from yarn.lock"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "nodejs-18",
+        "yarn",
+        "ca-certificates"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "commands": [
@@ -18,8 +21,7 @@
       ],
       "cache": [
         ".yarn-cache"
-      ],
-      "build_image": "docker.io/library/node:18"
+      ]
     },
     "runtime": {
       "packages": [

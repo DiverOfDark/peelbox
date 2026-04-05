@@ -118,12 +118,6 @@ impl ManifestParser for ComposerJsonParser {
         runtime_packages.push("busybox".into());
         runtime_packages.push("ca-certificates".into());
 
-        // Construct Docker Hub build image from PHP version requirement
-        let build_image = php_version
-            .as_ref()
-            .map(|v| format!("docker.io/library/php:{}-cli", v))
-            .unwrap_or_else(|| "docker.io/library/php:latest".into());
-
         Some(Manifest {
             path: path.to_path_buf(),
             language: PHP,
@@ -143,8 +137,7 @@ impl ManifestParser for ComposerJsonParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".composer/cache".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: Some(build_image),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

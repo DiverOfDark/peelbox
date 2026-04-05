@@ -13,7 +13,8 @@
       ],
       "env": {},
       "commands": [
-        "chmod +x start.sh"
+        "chmod +x start.sh",
+        "true"
       ],
       "cache": []
     },

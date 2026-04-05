@@ -94,9 +94,6 @@ impl ManifestParser for MixExsParser {
             .map(|m| m.as_str().to_string())
             .unwrap_or_else(|| "app".to_string());
 
-        // Extract Elixir version from `elixir: "~> 1.14"` or similar
-        let elixir_version = parse_elixir_version(content);
-
         let dependencies = parse_mix_deps(content);
 
         let has_phoenix = dependencies.iter().any(|d| d.name == "phoenix");
@@ -139,12 +136,6 @@ impl ManifestParser for MixExsParser {
             build_packages.push("npm".into());
         }
 
-        // Construct Docker Hub build image from Elixir version (if present)
-        let build_image = elixir_version
-            .as_ref()
-            .map(|v| format!("docker.io/library/elixir:{}", v))
-            .unwrap_or_else(|| "docker.io/library/elixir:latest".into());
-
         Some(Manifest {
             path: path.to_path_buf(),
             language: ELIXIR,
@@ -172,8 +163,7 @@ impl ManifestParser for MixExsParser {
                 ]),
                 cache_dirs: vec!["deps".into(), "_build".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: Some(build_image),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -202,14 +192,6 @@ impl ManifestParser for MixExsParser {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(MixExsParser))
-}
-
-/// Extract Elixir version from `elixir: "~> 1.14"` or `elixir: ">= 1.12.0"` in the project block.
-/// Returns the major.minor version string (e.g., "1.14").
-fn parse_elixir_version(content: &str) -> Option<String> {
-    let re = regex::Regex::new(r#"elixir:\s*["'][~>=<\s]*(\d+\.\d+)"#).ok()?;
-    re.captures(content)
-        .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
 }
 
 inventory::submit! {

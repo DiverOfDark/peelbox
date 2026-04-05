@@ -9,9 +9,13 @@
       "reasoning": "Detected from pyproject.toml in packages/api"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -21,8 +25,7 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/uv/"
-      ],
-      "build_image": "docker.io/library/python:3.12"
+      ]
     },
     "runtime": {
       "packages": [
@@ -66,9 +69,13 @@
       "reasoning": "Detected from pyproject.toml in packages/shared"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -78,8 +85,7 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/uv/"
-      ],
-      "build_image": "docker.io/library/python:3.12"
+      ]
     },
     "runtime": {
       "packages": [
@@ -120,15 +126,15 @@
       "reasoning": "Detected from app.py in packages/api/src/api"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "cd packages/api/src/api && echo 'No build step required'"
       ],
-      "cache": [],
-      "build_image": "docker.io/library/python:3.12"
+      "cache": []
     },
     "runtime": {
       "packages": [

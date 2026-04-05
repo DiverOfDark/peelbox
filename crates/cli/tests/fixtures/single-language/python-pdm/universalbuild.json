@@ -9,9 +9,13 @@
       "reasoning": "Detected from pyproject.toml"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "PDM_PYTHON": "/usr/bin/python3"
       },
       "commands": [
@@ -22,8 +26,7 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/pdm/"
-      ],
-      "build_image": "docker.io/library/python:latest"
+      ]
     },
     "runtime": {
       "packages": [

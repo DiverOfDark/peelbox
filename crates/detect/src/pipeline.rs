@@ -16,10 +16,7 @@ use crate::parsers::manifest::package_json::{
     scan_node_puppeteer, wrap_yarn_corepack_entrypoint,
 };
 use crate::parsers::manifest::package_swift::read_swift_version;
-use crate::parsers::manifest::pom_xml::{
-    maven_build_image_for_version, read_java_version, resolve_java_toolchain,
-    sync_java_home_with_packages,
-};
+use crate::parsers::manifest::pom_xml::{resolve_java_toolchain, sync_java_home_with_packages};
 use crate::parsers::manifest::pyproject_toml::{
     fix_django_settings, fix_flask_app_path, read_python_version, scan_python_entrypoints,
     scan_python_native_deps,
@@ -129,27 +126,24 @@ pub fn detect_with_registry_and_wolfi(
         fix_django_settings(repo_path, build);
     }
 
-    // Steps 4i-4k: Wolfi-specific native dependency scanning.
-    // Skip when build_image is set — Docker images handle deps differently.
+    // Step 4i: Detect Python native dependency system packages
     for build in &mut builds {
-        if build.build.build_image.is_none() {
-            scan_python_native_deps(repo_path, build);
-        }
+        scan_python_native_deps(repo_path, build);
     }
+
+    // Step 4j: Ensure npm builds have node-gyp available (Wolfi npm doesn't bundle it)
     for build in &mut builds {
-        if build.build.build_image.is_none() {
-            ensure_npm_node_gyp(build);
-        }
+        ensure_npm_node_gyp(build);
     }
+
+    // Step 4k: Detect Node.js native dependency system packages
     for build in &mut builds {
-        if build.build.build_image.is_none() {
-            scan_node_native_deps(repo_path, build);
-        }
+        scan_node_native_deps(repo_path, build);
     }
+
+    // Step 4k: Detect Puppeteer and add Chromium dependencies
     for build in &mut builds {
-        if build.build.build_image.is_none() {
-            scan_node_puppeteer(repo_path, build);
-        }
+        scan_node_puppeteer(repo_path, build);
     }
 
     // Step 4l: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
@@ -158,61 +152,34 @@ pub fn detect_with_registry_and_wolfi(
     }
 
     // Step 5: Resolve Wolfi package versions
-    // Skip build-side resolution when a custom build image is set (detector owns the setup).
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            if build.build.build_image.is_none() {
-                resolve_wolfi_packages(&mut build.build.packages, wolfi);
-            }
+            resolve_wolfi_packages(&mut build.build.packages, wolfi);
             resolve_wolfi_packages(&mut build.runtime.packages, wolfi);
         }
     }
 
-    // Step 5b: Sync JAVA_HOME with resolved openjdk package version.
-    // When a Docker image is used, set the Eclipse Temurin JAVA_HOME instead of Wolfi's.
-    // BuildKit LLB doesn't inherit env from the base image, so we must set it explicitly.
+    // Step 5b: Sync JAVA_HOME with resolved openjdk package version
     for build in &mut builds {
-        if build.build.build_image.is_none() {
-            sync_java_home_with_packages(build);
-        } else {
-            // Docker images set their env internally, but BuildKit LLB doesn't
-            // inherit it.  Inject the standard PATH (and language-specific vars)
-            // so tools like cargo, go, mvn, etc. are found.
-            set_docker_image_env(build);
-        }
+        sync_java_home_with_packages(build);
     }
 
     // Step 6: Handle pinned versions not available in Wolfi (use alternative installers)
-    // Skip when a custom build image is set (Docker Hub has all versions).
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            if build.build.build_image.is_none() {
-                resolve_rust_toolchain(build, wolfi);
-                resolve_node_version(build, wolfi);
-            }
+            resolve_rust_toolchain(build, wolfi);
+            resolve_node_version(build, wolfi);
         }
     }
 
     // Step 7: Handle old Java versions not available in Wolfi (use Adoptium Temurin)
-    // Skip when a custom build image is set.
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            if build.build.build_image.is_none() {
-                resolve_java_toolchain(build, wolfi);
-            }
+            resolve_java_toolchain(build, wolfi);
         }
     }
 
-    // Step 7b: Clear build packages when a Docker build image is set.
-    // The Docker image already contains the language runtime; packages are
-    // only needed for Wolfi-based builds.
-    for build in &mut builds {
-        if build.build.build_image.is_some() {
-            build.build.packages.clear();
-        }
-    }
-
-    // Step 7c: Set PORT env var for JVM apps when runtime has ports.
+    // Step 7b: Set PORT env var for JVM apps when runtime has ports.
     // Many Spring/JVM apps use ${PORT:default} in config; PaaS convention is to set PORT.
     for build in &mut builds {
         let lang = build.metadata.language.as_str();
@@ -729,28 +696,31 @@ fn partition(
                 }
             }
 
-            // Cross-language merge: when Node.js is a secondary language (e.g.,
-            // Laravel+Vite, Rails+esbuild), extract it into an asset_build phase
-            // that runs in the Node Docker image before the primary build.
+            // Merge build specs from secondary manifests of different languages
+            // (e.g., PHP + Node.js in a Laravel + Vite project)
             for other in manifests_in_dir.iter() {
-                if other.manifest.language == primary.manifest.language {
-                    continue;
+                if other.manifest.language != primary.manifest.language {
+                    for pkg in &other.manifest.build.packages {
+                        if !primary.manifest.build.packages.contains(pkg) {
+                            primary.manifest.build.packages.push(pkg.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .commands
+                        .extend(other.manifest.build.commands.clone());
+                    for dir in &other.manifest.build.cache_dirs {
+                        if !primary.manifest.build.cache_dirs.contains(dir) {
+                            primary.manifest.build.cache_dirs.push(dir.clone());
+                        }
+                    }
+                    primary
+                        .manifest
+                        .build
+                        .env
+                        .extend(other.manifest.build.env.clone());
                 }
-                let is_node = matches!(other.manifest.language.slug(), "javascript" | "typescript");
-                if is_node && primary.manifest.build.asset_build.is_none() {
-                    primary.manifest.build.asset_build = Some(AssetBuild {
-                        build_image: other
-                            .manifest
-                            .build
-                            .build_image
-                            .clone()
-                            .unwrap_or_else(|| "docker.io/library/node:lts".into()),
-                        commands: other.manifest.build.commands.clone(),
-                        cache_dirs: other.manifest.build.cache_dirs.clone(),
-                        env: other.manifest.build.env.clone(),
-                    });
-                }
-                // Non-Node secondary languages are silently dropped.
             }
 
             // Merge framework from other manifests (unless primary is a lock file).
@@ -1565,14 +1535,6 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
             build_image: m.build.build_image.clone(),
-            asset_build: m.build.asset_build.as_ref().map(|ab| {
-                peelbox_core::output::schema::AssetBuild {
-                    build_image: ab.build_image.clone(),
-                    commands: ab.commands.clone(),
-                    cache: ab.cache_dirs.clone(),
-                    env: ab.env.clone(),
-                }
-            }),
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -1798,73 +1760,6 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
     }
 }
 
-// ── Docker image environment ────────────────────────────────────────────
-
-/// Set standard environment variables for Docker Hub image builds.
-/// BuildKit LLB doesn't inherit env from the base image, so PATH and
-/// language-specific vars must be set explicitly.
-fn set_docker_image_env(build: &mut UniversalBuild) {
-    let default_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string();
-
-    match build.metadata.language.as_str() {
-        "Java" | "Kotlin" | "Scala" | "Clojure" => {
-            let java_home = "/opt/java/openjdk";
-            build
-                .build
-                .env
-                .insert("JAVA_HOME".to_string(), java_home.to_string());
-            build.build.env.insert(
-                "PATH".to_string(),
-                format!("{}/bin:{}", java_home, default_path),
-            );
-        }
-        "Rust" => {
-            build
-                .build
-                .env
-                .insert("CARGO_HOME".to_string(), "/usr/local/cargo".to_string());
-            build
-                .build
-                .env
-                .insert("RUSTUP_HOME".to_string(), "/usr/local/rustup".to_string());
-            build.build.env.insert(
-                "PATH".to_string(),
-                format!("/usr/local/cargo/bin:{}", default_path),
-            );
-            // Fix cache dir to match absolute CARGO_HOME in Docker image
-            for cache in build.build.cache.iter_mut() {
-                if cache == ".cargo" {
-                    *cache = "/usr/local/cargo".to_string();
-                }
-            }
-        }
-        "Go" => {
-            build.build.env.insert(
-                "PATH".to_string(),
-                format!("/usr/local/go/bin:{}", default_path),
-            );
-        }
-        "JavaScript" | "TypeScript" => {
-            // Node Docker images have node/npm in /usr/local/bin (already in default PATH)
-            if !build.build.env.contains_key("PATH") {
-                build.build.env.insert("PATH".to_string(), default_path);
-            }
-        }
-        "Python" => {
-            // Python Docker images have python/pip in /usr/local/bin
-            if !build.build.env.contains_key("PATH") {
-                build.build.env.insert("PATH".to_string(), default_path);
-            }
-        }
-        _ => {
-            // For other languages, ensure at least a default PATH
-            if !build.build.env.contains_key("PATH") {
-                build.build.env.insert("PATH".to_string(), default_path);
-            }
-        }
-    }
-}
-
 // ── Version file scanning ────────────────────────────────────────────────
 
 /// Scan for language version files (.nvmrc, .node-version, .python-version)
@@ -1876,70 +1771,39 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
     match language.as_str() {
         "JavaScript" | "TypeScript" => {
             if let Some(version) = read_node_version(&project_dir, repo_root) {
-                if build.build.build_image.is_some() {
-                    // Update Docker image tag with the pinned version
-                    build.build.build_image = Some(format!("docker.io/library/node:{}", version));
-                } else {
-                    // Wolfi fallback (e.g., Bun): replace generic package
-                    let versioned_pkg = format!("nodejs-{}", version);
-                    replace_package(&mut build.build.packages, "nodejs", &versioned_pkg);
-                }
-                // Runtime always uses Wolfi packages
                 let versioned_pkg = format!("nodejs-{}", version);
+                replace_package(&mut build.build.packages, "nodejs", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "nodejs", &versioned_pkg);
             }
         }
         "Python" => {
             if let Some(version) = read_python_version(&project_dir, repo_root) {
-                if build.build.build_image.is_some() {
-                    build.build.build_image = Some(format!("docker.io/library/python:{}", version));
-                } else {
-                    let versioned_pkg = format!("python-{}", version);
-                    replace_package(&mut build.build.packages, "python", &versioned_pkg);
-                }
                 let versioned_pkg = format!("python-{}", version);
+                replace_package(&mut build.build.packages, "python", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "python", &versioned_pkg);
             }
         }
         "PHP" => {
             if let Some(version) = read_php_version(&project_dir, repo_root) {
-                if build.build.build_image.is_some() {
-                    build.build.build_image =
-                        Some(format!("docker.io/library/php:{}-cli", version));
-                } else {
-                    let versioned_pkg = format!("php-{}", version);
-                    replace_package(&mut build.build.packages, "php", &versioned_pkg);
-                }
-                // Runtime always uses Wolfi packages
                 let versioned_pkg = format!("php-{}", version);
+                replace_package(&mut build.build.packages, "php", &versioned_pkg);
                 replace_package(&mut build.runtime.packages, "php", &versioned_pkg);
             }
         }
         "Ruby" => {
             if let Some(version) = read_ruby_version(&project_dir, repo_root) {
-                if build.build.build_image.is_some() {
-                    build.build.build_image = Some(format!("docker.io/library/ruby:{}", version));
-                } else {
-                    let versioned_pkg = format!("ruby-{}", version);
-                    replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
-                }
-                // Runtime always uses Wolfi packages
                 let versioned_pkg = format!("ruby-{}", version);
                 let versioned_dev = format!("ruby-{}-dev", version);
+                replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
                 replace_package(&mut build.build.packages, "ruby-dev", &versioned_dev);
                 replace_package(&mut build.runtime.packages, "ruby", &versioned_pkg);
             }
         }
         "Rust" => {
+            // Only build packages need the rust compiler; runtime uses the compiled binary
             if let Some(version) = read_rust_version(&project_dir, repo_root) {
-                if build.build.build_image.is_some() {
-                    // Update Docker image tag with the pinned version
-                    build.build.build_image = Some(format!("docker.io/library/rust:{}", version));
-                } else {
-                    // Wolfi fallback: replace generic package with versioned one
-                    let versioned_pkg = format!("rust-{}", version);
-                    replace_package(&mut build.build.packages, "rust", &versioned_pkg);
-                }
+                let versioned_pkg = format!("rust-{}", version);
+                replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }
         }
         "Swift" => {
@@ -1958,31 +1822,6 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                     "docker.io/library/swift:{}-{}",
                     version, ubuntu_codename
                 ));
-            }
-        }
-        "Java" | "Kotlin" | "Scala" | "Clojure" => {
-            if let Some(version) = read_java_version(&project_dir, repo_root) {
-                if let Some(ref image) = build.build.build_image {
-                    // Update Docker image tag with the pinned JDK version.
-                    // Maven images: maven:3-eclipse-temurin-{jdk}
-                    // Gradle images: gradle:{ver}-jdk{jdk} or gradle:latest-jdk{jdk}
-                    if image.contains("/maven:") {
-                        build.build.build_image = Some(maven_build_image_for_version(&version));
-                    } else if image.contains("/gradle:") {
-                        // Preserve the Gradle version prefix, just replace the JDK suffix
-                        if let Some(jdk_pos) = image.find("-jdk") {
-                            let prefix = &image[..jdk_pos];
-                            build.build.build_image = Some(format!("{}-jdk{}", prefix, version));
-                        }
-                    }
-                } else {
-                    // Wolfi fallback: replace generic openjdk package with versioned one
-                    let versioned_pkg = format!("openjdk-{}", version);
-                    replace_package(&mut build.build.packages, "openjdk", &versioned_pkg);
-                }
-                // Runtime always uses Wolfi packages
-                let versioned_jre = format!("openjdk-{}-jre", version);
-                replace_package(&mut build.runtime.packages, "openjdk", &versioned_jre);
             }
         }
         _ => {}
@@ -2027,7 +1866,6 @@ mod tests {
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
                     build_image: None,
-                    asset_build: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
@@ -2083,7 +1921,6 @@ mod tests {
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
                     build_image: None,
-                    asset_build: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
@@ -2161,7 +1998,6 @@ app.listen(3000);
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2207,7 +2043,6 @@ app.listen(3000);
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2260,7 +2095,6 @@ const home = process.env.HOME;
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2341,16 +2175,16 @@ const home = process.env.HOME;
 
         let results = detect_without_wolfi(root).unwrap();
 
-        // Should produce exactly one service (PHP primary with Node.js asset_build)
+        // Should produce exactly one service (merged)
         assert_eq!(results.len(), 1);
         let build = &results[0];
 
-        // Primary should be PHP/Composer
+        // Primary should be PHP/Composer (alphabetically first, server-side language)
         assert_eq!(build.metadata.language, "PHP");
         assert_eq!(build.metadata.build_system, "Composer");
         assert_eq!(build.metadata.framework.as_deref(), Some("Laravel"));
 
-        // Primary build commands should be PHP-only (not merged with Node)
+        // Build commands should include both Composer and npm commands
         assert!(
             build
                 .build
@@ -2360,27 +2194,43 @@ const home = process.env.HOME;
             "Should have composer command"
         );
         assert!(
-            !build.build.commands.iter().any(|c| c.contains("npm")),
-            "Primary build should NOT have npm commands (they're in asset_build)"
-        );
-
-        // Node.js should be in asset_build, not in primary build
-        let asset = build
-            .build
-            .asset_build
-            .as_ref()
-            .expect("Should have asset_build");
-        assert!(
-            asset.build_image.contains("node"),
-            "Asset build image should be Node: {}",
-            asset.build_image
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("npm install") || c.contains("npm ci")),
+            "Should have npm install or npm ci command"
         );
         assert!(
-            asset.commands.iter().any(|c| c.contains("npm")),
-            "Asset build should have npm commands"
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("npm run build")),
+            "Should have npm run build command"
         );
 
-        // Runtime should be PHP-only
+        // Build packages should include both PHP and Node.js packages
+        assert!(
+            build.build.packages.iter().any(|p| p.starts_with("php")),
+            "Should have PHP build packages"
+        );
+        assert!(
+            build.build.packages.iter().any(|p| p.starts_with("nodejs")),
+            "Should have Node.js build packages"
+        );
+
+        // Build cache should include both .composer/cache and .npm
+        assert!(
+            build.build.cache.contains(&".composer/cache".to_string()),
+            "Should have composer cache"
+        );
+        assert!(
+            build.build.cache.contains(&".npm".to_string()),
+            "Should have npm cache"
+        );
+
+        // Runtime should be PHP-only (no Node.js packages)
         assert!(
             !build
                 .runtime

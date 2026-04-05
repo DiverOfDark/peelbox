@@ -9,21 +9,23 @@
       "reasoning": "Detected from Cargo.toml"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
       "env": {
-        "CARGO_HOME": "/usr/local/cargo",
-        "PATH": "/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-        "RUSTUP_HOME": "/usr/local/rustup"
+        "CARGO_HOME": ".cargo"
       },
       "commands": [
-        "apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev pkg-config ca-certificates && rm -rf /var/lib/apt/lists/*",
         "cargo build --release"
       ],
       "cache": [
-        "/usr/local/cargo",
+        ".cargo",
         "target"
-      ],
-      "build_image": "docker.io/library/rust:latest"
+      ]
     },
     "runtime": {
       "packages": [

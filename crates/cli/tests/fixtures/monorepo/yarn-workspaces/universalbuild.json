@@ -9,18 +9,19 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
         "cd apps/web && yarn run build"
       ],
       "cache": [
         ".yarn-cache"
-      ],
-      "build_image": "docker.io/library/node:lts"
+      ]
     },
     "runtime": {
       "packages": [

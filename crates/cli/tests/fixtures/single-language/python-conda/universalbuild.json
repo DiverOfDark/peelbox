@@ -9,17 +9,19 @@
       "reasoning": "Detected from environment.yml"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "pip install --user --no-cache-dir numpy==1.24 flask==3.0 gunicorn==21.2.0"
       ],
       "cache": [
         "/root/.cache/pip/"
-      ],
-      "build_image": "docker.io/library/python:3.11"
+      ]
     },
     "runtime": {
       "packages": [

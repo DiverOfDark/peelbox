@@ -8,15 +8,15 @@
       "reasoning": "Detected from bot.py"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "echo 'No build step required'"
       ],
-      "cache": [],
-      "build_image": "docker.io/library/python:latest"
+      "cache": []
     },
     "runtime": {
       "packages": [

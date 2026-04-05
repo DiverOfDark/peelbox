@@ -9,18 +9,19 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
         "pnpm install",
         "cd apps/web && pnpm run build"
       ],
       "cache": [
         ".npm"
-      ],
-      "build_image": "docker.io/library/node:lts"
+      ]
     },
     "runtime": {
       "packages": [

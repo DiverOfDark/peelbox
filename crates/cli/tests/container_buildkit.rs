@@ -200,19 +200,14 @@ async fn get_or_build_peelbox_image() -> Result<String> {
 
     let temp_cache_dir = support::get_test_temp_dir();
 
-    // Use a unique tag per run so we never accidentally validate a stale image.
-    let run_id = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis();
-    let image_name = format!("localhost/peelbox-test:{}", run_id);
+    let image_name = "localhost/peelbox-test:integration";
     let mut cmd = std::process::Command::new(&peelbox_binary);
     cmd.args([
         "build",
         "--spec",
         context_path.join("universalbuild.json").to_str().unwrap(),
         "--tag",
-        &image_name,
+        image_name,
         "--buildkit",
         &buildkit_addr,
         "--context",

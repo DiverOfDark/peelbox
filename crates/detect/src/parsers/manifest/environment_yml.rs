@@ -82,11 +82,6 @@ impl ManifestParser for EnvironmentYmlParser {
             .unwrap_or_else(|| "python".into());
         let python_runtime_pkg = python_build_pkg.clone();
 
-        let python_build_image = python_version
-            .as_ref()
-            .map(|v| format!("docker.io/library/python:{}", v))
-            .unwrap_or_else(|| "docker.io/library/python:latest".into());
-
         // Build pip install arguments from parsed dependencies.
         // Conda deps use single = (e.g., numpy=1.24), pip uses == (e.g., gunicorn==21.2.0).
         // For pip install, we convert conda-style single = to == for pinning.
@@ -131,8 +126,7 @@ impl ManifestParser for EnvironmentYmlParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec!["/root/.cache/pip/".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: Some(python_build_image),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

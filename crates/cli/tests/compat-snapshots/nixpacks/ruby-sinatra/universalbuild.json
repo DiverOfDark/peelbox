@@ -9,11 +9,21 @@
       "reasoning": "Detected from Gemfile"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "ruby-3.1",
+        "ruby-3.1-dev",
+        "ruby3.1-bundler",
+        "build-base",
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev",
+        "yaml-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",
-        "BUNDLE_PATH": "vendor/bundle",
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
         "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
@@ -21,8 +31,7 @@
       "cache": [
         ".bundle",
         "vendor"
-      ],
-      "build_image": "docker.io/library/ruby:3.1"
+      ]
     },
     "runtime": {
       "packages": [

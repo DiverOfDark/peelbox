@@ -9,17 +9,28 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "ca-certificates",
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
       },
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm ci"
       ],
       "cache": [
         ".npm"
-      ],
-      "build_image": "docker.io/library/node:22"
+      ]
     },
     "runtime": {
       "packages": [
@@ -27,9 +38,17 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation"
       ],
-      "env": {},
+      "env": {
+        "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/chromium-browser"
+      },
       "copy": [
         {
           "from": ".",

@@ -92,8 +92,7 @@ impl ManifestParser for PythonScriptParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: Some("docker.io/library/python:latest".into()),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["python".into(), "ca-certificates".into()],

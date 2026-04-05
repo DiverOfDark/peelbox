@@ -8,9 +8,13 @@
       "reasoning": "Detected from yarn.lock"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates",
+        "corepack"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "commands": [
@@ -20,8 +24,7 @@
       ],
       "cache": [
         ".yarn-cache"
-      ],
-      "build_image": "docker.io/library/node:lts"
+      ]
     },
     "runtime": {
       "packages": [

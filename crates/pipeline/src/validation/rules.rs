@@ -48,13 +48,9 @@ pub fn validate_wolfi_packages(
 ) -> Result<()> {
     let mut errors = Vec::new();
 
-    // Skip build package validation when a custom build image is set
-    // (detector owns the setup; packages are ignored by BuildKit).
-    if build.build.build_image.is_none() {
-        for package in &build.build.packages {
-            if let Some(error) = validate_package(package, wolfi_index) {
-                errors.push(format!("Build package: {}", error));
-            }
+    for package in &build.build.packages {
+        if let Some(error) = validate_package(package, wolfi_index) {
+            errors.push(format!("Build package: {}", error));
         }
     }
 
@@ -185,7 +181,6 @@ mod tests {
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],

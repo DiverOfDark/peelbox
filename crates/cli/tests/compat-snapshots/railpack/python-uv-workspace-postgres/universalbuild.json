@@ -8,9 +8,15 @@
       "reasoning": "Detected from pyproject.toml in db-package"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates",
+        "postgresql-18-dev",
+        "python-3.12-dev"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -20,8 +26,7 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/uv/"
-      ],
-      "build_image": "docker.io/library/python:latest"
+      ]
     },
     "runtime": {
       "packages": [
@@ -29,7 +34,8 @@
         "libgcc",
         "libstdc++",
         "ca-certificates",
-        "uv"
+        "uv",
+        "libpq-18"
       ],
       "env": {
         "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",

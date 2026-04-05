@@ -9,9 +9,13 @@
       "reasoning": "Detected from uv.lock"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -21,8 +25,7 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/uv/"
-      ],
-      "build_image": "docker.io/library/python:3.12"
+      ]
     },
     "runtime": {
       "packages": [

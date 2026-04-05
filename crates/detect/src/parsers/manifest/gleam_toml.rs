@@ -97,7 +97,6 @@ impl ManifestParser for GleamTomlParser {
                     "/app/build/erlang-shipment".into(),
                 )],
                 build_image: None,
-                asset_build: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["erlang".into(), "busybox".into(), "ca-certificates".into()],

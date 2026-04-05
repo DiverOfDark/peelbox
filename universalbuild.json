@@ -5,17 +5,16 @@
         "target",
         "/root/.cargo"
       ],
-      "build_image": "docker.io/library/rust:1.92",
       "commands": [
-        "apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev pkg-config protobuf-compiler ca-certificates && rm -rf /var/lib/apt/lists/*",
         "cargo build --release --no-default-features -p peelbox-cli"
       ],
-      "env": {
-        "CARGO_HOME": "/usr/local/cargo",
-        "RUSTUP_HOME": "/usr/local/rustup",
-        "PATH": "/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "packages": []
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "protoc"
+      ]
     },
     "metadata": {
       "build_system": "Cargo",

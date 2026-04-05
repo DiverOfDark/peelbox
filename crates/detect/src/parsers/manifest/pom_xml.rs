@@ -91,10 +91,6 @@ impl ManifestParser for PomXmlParser {
 
         let java_version = detect_java_version_from_pom(content);
 
-        // Construct Docker Hub build image: maven:3-eclipse-temurin-{jdk}
-        let jdk = java_version.as_deref().unwrap_or("21");
-        let build_image = format!("docker.io/library/maven:3-eclipse-temurin-{}", jdk);
-
         let has_spring_boot_plugin = content.contains("spring-boot-maven-plugin");
 
         // Detect Maven wrapper (mvnw) — walk up from pom.xml looking for mvnw
@@ -168,9 +164,8 @@ impl ManifestParser for PomXmlParser {
                     (format!("{}/*.jar", target_dir), "/app/".into()),
                     (format!("{}/lib/", target_dir), "/app/lib".into()),
                 ],
-                build_image: Some(build_image),
-                asset_build: None,
-            },
+                build_image: None,
+},
             runtime_config: RuntimeSpec {
                 packages: vec![
                     java_version
@@ -317,55 +312,6 @@ inventory::submit! {
         transform_subdirectory_command: maven_subdirectory_command,
         ..BuildSystemConfig::new(MAVEN)
     })
-}
-
-// ── Read Java version from version files ────────────────────────────────
-
-/// Read Java version from `.java-version` or `.sdkmanrc` files in the project
-/// directory or repo root. Returns the normalized major version (e.g., "17", "21").
-pub(crate) fn read_java_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
-    for dir in &[project_dir, repo_root] {
-        // 1. .java-version file (plain text version number)
-        let java_version_file = dir.join(".java-version");
-        if let Ok(content) = std::fs::read_to_string(&java_version_file) {
-            if let Some(version) = parse_java_version_file(&content) {
-                return Some(normalize_java_version(&version));
-            }
-        }
-
-        // 2. .sdkmanrc file (SDKMAN configuration)
-        let sdkmanrc = dir.join(".sdkmanrc");
-        if let Ok(content) = std::fs::read_to_string(&sdkmanrc) {
-            if let Some(version) = parse_sdkmanrc_java_version(&content) {
-                return Some(normalize_java_version(&version));
-            }
-        }
-    }
-
-    None
-}
-
-/// Parse Java version from .sdkmanrc file.
-/// Format: `java=17.0.9-tem` or `java=21.0.1-ms`
-fn parse_sdkmanrc_java_version(content: &str) -> Option<String> {
-    for line in content.lines() {
-        let line = line.trim();
-        if let Some(rest) = line.strip_prefix("java=") {
-            // Take the major version number (before first dot or dash)
-            let version: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
-            if !version.is_empty() {
-                return Some(version);
-            }
-        }
-    }
-    None
-}
-
-/// Construct a Maven Docker Hub image tag for a given JDK version.
-/// Used by `scan_version_files` to update the build image when a `.java-version`
-/// file overrides the JDK version detected from pom.xml.
-pub(crate) fn maven_build_image_for_version(jdk_version: &str) -> String {
-    format!("docker.io/library/maven:3-eclipse-temurin-{}", jdk_version)
 }
 
 // ── Shared Java/Kotlin version detection and Wolfi resolution ───────────

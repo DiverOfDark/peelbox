@@ -114,17 +114,19 @@ impl ManifestParser for CargoTomlParser {
             workspace,
             dependencies,
             build: BuildSpec {
-                packages: vec![],
-                commands: vec![
-                    "apt-get update && apt-get install -y --no-install-recommends build-essential libssl-dev pkg-config ca-certificates && rm -rf /var/lib/apt/lists/*".into(),
-                    "cargo build --release".into(),
+                packages: vec![
+                    "rust".into(),
+                    "build-base".into(),
+                    "openssl-dev".into(),
+                    "pkgconf".into(),
+                    "ca-certificates".into(),
                 ],
+                commands: vec!["cargo build --release".into()],
                 member_transform,
                 env: btree(&[("CARGO_HOME", ".cargo")]),
                 cache_dirs: vec![".cargo".into(), "target".into()],
                 artifacts,
-                build_image: Some("docker.io/library/rust:latest".into()),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],
@@ -582,7 +584,6 @@ version = "0.1.0"
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
                 build_image: None,
-                asset_build: None,
             },
             runtime: Default::default(),
         };
@@ -613,7 +614,6 @@ version = "0.1.0"
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
                 build_image: None,
-                asset_build: None,
             },
             runtime: Default::default(),
         };
@@ -657,7 +657,6 @@ version = "0.1.0"
                 env: BTreeMap::new(),
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: Default::default(),
         };

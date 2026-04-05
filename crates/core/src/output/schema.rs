@@ -68,23 +68,7 @@ pub struct BuildStage {
     pub cache: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build_image: Option<String>,
-    /// Pre-build asset compilation (e.g., Node.js frontend assets for PHP/Ruby).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub asset_build: Option<AssetBuild>,
 }
-
-/// A pre-build step that compiles assets in a separate Docker image.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AssetBuild {
-    pub build_image: String,
-    #[serde(default)]
-    pub commands: Vec<String>,
-    #[serde(default)]
-    pub cache: Vec<String>,
-    #[serde(default)]
-    pub env: BTreeMap<String, String>,
-}
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct RuntimeStage {
     #[serde(default, deserialize_with = "deserialize_null_default")]
@@ -146,7 +130,6 @@ mod tests {
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],
@@ -369,7 +352,6 @@ mod tests {
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],

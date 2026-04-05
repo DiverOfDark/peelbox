@@ -9,10 +9,21 @@
       "reasoning": "Detected from composer.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "php-8.1",
+        "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
+        "php-8.1-ctype",
+        "php-8.1-phar",
+        "php-8.1-openssl",
+        "php-8.1-mbstring",
+        "php-8.1-xml",
+        "php-8.1-dom",
+        "php-8.1-curl"
+      ],
+      "env": {},
       "commands": [
         "composer config allow-plugins.symfony/runtime true",
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
@@ -20,8 +31,7 @@
       ],
       "cache": [
         ".composer/cache"
-      ],
-      "build_image": "docker.io/library/php:8.1-cli"
+      ]
     },
     "runtime": {
       "packages": [

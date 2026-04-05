@@ -103,8 +103,9 @@ impl BuildSession {
             let canonical = context_path
                 .canonicalize()
                 .unwrap_or_else(|_| context_path.clone());
-            let context_hash = crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
-                .unwrap_or_default();
+            let context_hash =
+                crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
+                    .unwrap_or_default();
             let mut h = Sha256::new();
             h.update(canonical.to_string_lossy().as_bytes());
             h.update(context_hash.as_bytes());
@@ -496,12 +497,6 @@ impl BuildSession {
 
         let mut server_builder = Server::builder()
             .trace_fn(|_| tracing::info_span!("grpc-server"))
-            // Increase HTTP/2 flow control windows to prevent stalls during large
-            // image exports.  The DiffCopy stream can push 100+ MB of image data
-            // through the multiplexed session connection; the default 1-16 MB
-            // windows cause BuildKit to block waiting for WINDOW_UPDATE frames.
-            .initial_connection_window_size(128 * 1024 * 1024) // 128 MB
-            .initial_stream_window_size(64 * 1024 * 1024) // 64 MB
             .add_service(FileSyncServerBuilder::new(filesync_service))
             .add_service(FileSendServerBuilder::new(filesend_service))
             .add_service(AuthServerBuilder::new(auth_service));
@@ -672,10 +667,9 @@ impl BuildSession {
 
         frontend_inputs.insert("context".to_string(), local_source_def);
 
-        // When connected to Docker's native BuildKit (docker:// connection) and
-        // outputting to DockerLoad, the daemon writes the image directly into its
-        // store — we do NOT request tar=true (no FileSend/DiffCopy callback needed).
-        // For standalone BuildKit (TCP/Unix) we must stream the tar ourselves.
+        // When using Docker daemon's native BuildKit with `type=docker`, the daemon
+        // writes the image directly into its own store — no FileSend/DiffCopy callback.
+        // We only request `tar=true` when we need the image streamed back to us.
         let is_docker_native = matches!(
             self.connection.addr(),
             crate::connection::BuildKitAddr::DockerNative(_)
@@ -688,38 +682,23 @@ impl BuildSession {
         if needs_tar_stream {
             exporter_attrs.insert("tar".to_string(), "true".to_string());
         }
-        // Force Docker V2 media types so `docker load` can import the tar.
-        // Without this, BuildKit produces OCI Image Layout which many Docker
-        // versions (including 29.x) cannot load.
-        if matches!(self.output_dest, OutputDestination::DockerLoad) {
-            exporter_attrs.insert("oci-mediatypes".to_string(), "false".to_string());
-        }
         exporter_attrs.insert("containerimage.config".to_string(), config_json_str);
 
-        // Attestations (SBOM, provenance) force OCI Image Layout in the tar
-        // stream, but `docker load` on many Docker versions cannot import OCI
-        // layout tarballs.  Only attach attestations when the output goes to a
-        // file (where callers can use skopeo/crane) or when we are NOT streaming
-        // through `docker load`.
-        let skip_attestations = matches!(self.output_dest, OutputDestination::DockerLoad);
-
-        if !skip_attestations && self.attestation_config.sbom {
+        if self.attestation_config.sbom {
             exporter_attrs.insert("attest:sbom".to_string(), String::new());
             debug!("Enabled SBOM attestation (SPDX format)");
         }
 
-        if !skip_attestations {
-            if let Some(mode) = self.attestation_config.provenance {
-                let mode_str = match mode {
-                    ProvenanceMode::Min => "mode=min",
-                    ProvenanceMode::Max => "mode=max",
-                };
-                exporter_attrs.insert("attest:provenance".to_string(), mode_str.to_string());
-                debug!("Enabled SLSA provenance attestation ({})", mode_str);
-            }
+        if let Some(mode) = self.attestation_config.provenance {
+            let mode_str = match mode {
+                ProvenanceMode::Min => "mode=min",
+                ProvenanceMode::Max => "mode=max",
+            };
+            exporter_attrs.insert("attest:provenance".to_string(), mode_str.to_string());
+            debug!("Enabled SLSA provenance attestation ({})", mode_str);
         }
 
-        if !skip_attestations && self.attestation_config.scan_context {
+        if self.attestation_config.scan_context {
             exporter_attrs.insert(
                 "build-arg:BUILDKIT_SBOM_SCAN_CONTEXT".to_string(),
                 "true".to_string(),

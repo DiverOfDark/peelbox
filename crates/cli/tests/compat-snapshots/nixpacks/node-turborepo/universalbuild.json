@@ -9,19 +9,22 @@
       "reasoning": "Detected from package.json in apps/docs"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-18",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm install",
         "cd apps/docs && npm run build"
       ],
       "cache": [
         ".npm",
         ".turbo"
-      ],
-      "build_image": "docker.io/library/node:lts"
+      ]
     },
     "runtime": {
       "packages": [
@@ -58,19 +61,22 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-18",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm install",
         "cd apps/web && npm run build"
       ],
       "cache": [
         ".npm",
         ".turbo"
-      ],
-      "build_image": "docker.io/library/node:lts"
+      ]
     },
     "runtime": {
       "packages": [

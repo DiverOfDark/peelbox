@@ -9,13 +9,16 @@
       "reasoning": "Detected from go.mod"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "go-1.25",
+        "git",
+        "ca-certificates"
+      ],
       "env": {
         "CGO_ENABLED": "0",
         "GOCACHE": "/app/.cache/go-build",
         "GOMODCACHE": "/app/.cache/go-mod",
-        "GOSUMDB": "off",
-        "PATH": "/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "GOSUMDB": "off"
       },
       "commands": [
         "go mod download",
@@ -25,8 +28,7 @@
       "cache": [
         ".cache/go-build",
         ".cache/go-mod"
-      ],
-      "build_image": "docker.io/library/golang:1.18"
+      ]
     },
     "runtime": {
       "packages": [

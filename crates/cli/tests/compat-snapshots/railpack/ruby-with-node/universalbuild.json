@@ -8,17 +8,35 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates",
+        "ruby-3.4",
+        "ruby-3.4-dev",
+        "ruby3.4-bundler",
+        "build-base",
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev",
+        "yaml-dev",
+        "pkgconf"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
-        "npm ci"
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "npm ci",
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
       ],
       "cache": [
-        ".npm"
-      ],
-      "build_image": "docker.io/library/node:lts"
+        ".npm",
+        ".bundle",
+        "vendor"
+      ]
     },
     "runtime": {
       "packages": [
@@ -26,7 +44,9 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates"
+        "ca-certificates",
+        "ruby-3.4",
+        "ruby3.4-bundler"
       ],
       "env": {},
       "copy": [

@@ -65,11 +65,6 @@ impl ManifestParser for PipfileParser {
             .unwrap_or_else(|| "python".into());
         let python_runtime_pkg = python_build_pkg.clone();
 
-        let python_build_image = python_version
-            .as_ref()
-            .map(|v| format!("docker.io/library/python:{}", v))
-            .unwrap_or_else(|| "docker.io/library/python:latest".into());
-
         Some(Manifest {
             path: path.to_path_buf(),
             language: PYTHON,
@@ -100,8 +95,7 @@ impl ManifestParser for PipfileParser {
                     (".".into(), "/app/".into()),
                     ("/root/.local/".into(), "/root/.local/".into()),
                 ],
-                build_image: Some(python_build_image),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

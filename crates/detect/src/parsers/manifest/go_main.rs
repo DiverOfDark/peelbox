@@ -40,8 +40,7 @@ impl ManifestParser for GoMainParser {
             return None;
         }
 
-        // No version info available for standalone main.go files
-        let build_image = "docker.io/library/golang:latest".to_string();
+        let build_packages = vec!["go".into(), "git".into(), "ca-certificates".into()];
 
         let env_pairs: Vec<(&str, &str)> = vec![
             ("CGO_ENABLED", "0"),
@@ -63,7 +62,7 @@ impl ManifestParser for GoMainParser {
             workspace: None,
             dependencies: Vec::new(),
             build: BuildSpec {
-                packages: vec![],
+                packages: build_packages,
                 commands: vec![
                     "go mod init app".into(),
                     "mkdir -p bin".into(),
@@ -73,8 +72,7 @@ impl ManifestParser for GoMainParser {
                 env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts: vec![("bin/app".into(), "/app/app".into())],
-                build_image: Some(build_image),
-                asset_build: None,
+                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "ca-certificates".into()],

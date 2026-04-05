@@ -8,18 +8,28 @@
       "reasoning": "Detected from composer.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "php-8.2",
+        "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
+        "php-8.2-ctype",
+        "php-8.2-phar",
+        "php-8.2-openssl",
+        "php-8.2-mbstring",
+        "php-8.2-xml",
+        "php-8.2-dom",
+        "php-8.2-curl"
+      ],
+      "env": {},
       "commands": [
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
         "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true"
       ],
       "cache": [
         ".composer/cache"
-      ],
-      "build_image": "docker.io/library/php:8.2-cli"
+      ]
     },
     "runtime": {
       "packages": [

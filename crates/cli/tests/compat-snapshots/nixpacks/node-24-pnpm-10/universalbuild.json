@@ -8,17 +8,23 @@
       "reasoning": "Detected from pnpm-lock.yaml"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-24",
+        "pnpm",
+        "build-base",
+        "python-3.12",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "pnpm install"
       ],
       "cache": [
         ".pnpm-store"
-      ],
-      "build_image": "docker.io/library/node:24"
+      ]
     },
     "runtime": {
       "packages": [

@@ -9,9 +9,15 @@
       "reasoning": "Detected from uv.lock"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates",
+        "postgresql-18-dev",
+        "python-3.11-dev"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -21,15 +27,15 @@
       "cache": [
         "/root/.cache/pip/",
         "/root/.cache/uv/"
-      ],
-      "build_image": "docker.io/library/python:3.11"
+      ]
     },
     "runtime": {
       "packages": [
         "python-3.11",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "libpq-18"
       ],
       "env": {
         "DATABASE_URL": "",

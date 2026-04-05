@@ -9,29 +9,35 @@
       "reasoning": "Detected from composer.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "php-8.3",
+        "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
+        "php-8.3-ctype",
+        "php-8.3-phar",
+        "php-8.3-openssl",
+        "php-8.3-mbstring",
+        "php-8.3-xml",
+        "php-8.3-dom",
+        "php-8.3-curl",
+        "nodejs-25",
+        "npm"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
-        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true"
+        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true",
+        "npm ci",
+        "npm run build"
       ],
       "cache": [
-        ".composer/cache"
-      ],
-      "build_image": "docker.io/library/php:8.3-cli",
-      "asset_build": {
-        "build_image": "docker.io/library/node:lts",
-        "commands": [
-          "npm ci",
-          "npm run build"
-        ],
-        "cache": [
-          ".npm"
-        ],
-        "env": {}
-      }
+        ".composer/cache",
+        ".npm"
+      ]
     },
     "runtime": {
       "packages": [

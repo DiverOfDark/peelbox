@@ -8,17 +8,20 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-23",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm ci"
       ],
       "cache": [
         ".npm"
-      ],
-      "build_image": "docker.io/library/node:23"
+      ]
     },
     "runtime": {
       "packages": [

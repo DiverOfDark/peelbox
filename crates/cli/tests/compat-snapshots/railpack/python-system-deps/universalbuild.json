@@ -8,24 +8,35 @@
       "reasoning": "Detected from requirements.txt"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates",
+        "postgresql-18-dev",
+        "cairo-dev",
+        "poppler-utils",
+        "ffmpeg",
+        "python-3.11-dev"
+      ],
+      "env": {},
       "commands": [
         "pip install --user --no-cache-dir -r requirements.txt"
       ],
       "cache": [
         ".cache/pip"
-      ],
-      "build_image": "docker.io/library/python:3.11"
+      ]
     },
     "runtime": {
       "packages": [
         "python-3.11",
         "libgcc",
         "libstdc++",
-        "ca-certificates"
+        "ca-certificates",
+        "libpq-18",
+        "cairo",
+        "poppler-utils",
+        "ffmpeg"
       ],
       "env": {
         "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",

@@ -9,11 +9,16 @@
       "reasoning": "Detected from project.clj"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "openjdk-17",
+        "bash",
+        "curl",
+        "ca-certificates"
+      ],
       "env": {
-        "JAVA_HOME": "/opt/java/openjdk",
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
         "LEIN_HOME": "/app/.lein",
-        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
         "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/app/.lein lein version",
@@ -22,8 +27,7 @@
       "cache": [
         ".lein",
         ".m2"
-      ],
-      "build_image": "docker.io/library/eclipse-temurin:17"
+      ]
     },
     "runtime": {
       "packages": [

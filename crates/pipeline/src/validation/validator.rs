@@ -65,7 +65,6 @@ mod tests {
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],

@@ -8,20 +8,25 @@
       "reasoning": "Detected from yarn.lock"
     },
     "build": {
-      "packages": [],
+      "packages": [
+        "nodejs-16",
+        "yarn",
+        "ca-certificates",
+        "npm"
+      ],
       "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "mkdir -p /usr/local/bin && printf '#!/bin/sh\\nnode /app/.yarn/releases/yarn-3.2.4.cjs  \"$@\"\\n' > /usr/local/bin/yarn && chmod +x /usr/local/bin/yarn",
         "yarn install",
         "yarn run build"
       ],
       "cache": [
         ".yarn-cache"
-      ],
-      "build_image": "docker.io/library/node:16"
+      ]
     },
     "runtime": {
       "packages": [

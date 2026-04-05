@@ -65,11 +65,6 @@ impl ManifestParser for PyProjectTomlParser {
             .unwrap_or_else(|| "python".into());
         let python_runtime_pkg = python_build_pkg.clone();
 
-        let python_build_image = python_version
-            .as_ref()
-            .map(|v| format!("docker.io/library/python:{}", v))
-            .unwrap_or_else(|| "docker.io/library/python:latest".into());
-
         let (name, version) = if is_poetry {
             let poetry = toml_val.get("tool").and_then(|t| t.get("poetry"));
             let name = poetry
@@ -164,8 +159,7 @@ impl ManifestParser for PyProjectTomlParser {
                     ]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pypoetry/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
-                build_image: Some(python_build_image.clone()),
-                asset_build: None,
+                build_image: None,
 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -219,8 +213,7 @@ impl ManifestParser for PyProjectTomlParser {
                     env: btree(&[("UV_CACHE_DIR", "/root/.cache/uv")]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
-                    build_image: Some(python_build_image.clone()),
-                    asset_build: None,
+                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -272,8 +265,7 @@ impl ManifestParser for PyProjectTomlParser {
                     env: btree(&[("PDM_PYTHON", "/usr/bin/python3")]),
                     cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/pdm/".into()],
                     artifacts: vec![(".".into(), "/app".into())],
-                build_image: Some(python_build_image.clone()),
-                asset_build: None,
+                build_image: None,
 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -320,8 +312,7 @@ impl ManifestParser for PyProjectTomlParser {
                         (".".into(), "/app/".into()),
                         ("/root/.local/".into(), "/root/.local/".into()),
                     ],
-                    build_image: Some(python_build_image.clone()),
-                    asset_build: None,
+                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec![
@@ -1267,7 +1258,6 @@ python_version = '3.10'
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libgcc".into()],
@@ -1314,7 +1304,6 @@ python_version = '3.10'
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -1367,7 +1356,6 @@ dependencies = [
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into()],
@@ -1420,7 +1408,6 @@ dependencies = [
                 commands: vec![],
                 cache: vec![],
                 build_image: None,
-                asset_build: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["python-3.12".into(), "libpq".into()],

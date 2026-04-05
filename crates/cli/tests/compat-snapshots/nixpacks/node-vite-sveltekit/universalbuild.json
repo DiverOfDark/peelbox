@@ -9,18 +9,21 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [],
-      "env": {
-        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
       "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm ci",
         "npm run build"
       ],
       "cache": [
         ".npm"
-      ],
-      "build_image": "docker.io/library/node:22"
+      ]
     },
     "runtime": {
       "packages": [
