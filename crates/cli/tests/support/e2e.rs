@@ -438,12 +438,11 @@ pub async fn run_container_integration_test(
     let infos = match get_fixture_container_test_infos(category, fixture_name) {
         Some(infos) => infos,
         None => {
-            // No ports and no expected_output.txt — nothing to validate (e.g., background workers, Ecto-only apps)
-            eprintln!(
-                "Skipping container test for {} — no ports or expected output to validate",
+            return Err(format!(
+                "Container test for {} has no ports, expected_output.txt, or expected_log.txt — \
+                 add validation criteria or add fixture to skip_fixtures in container_e2e.rs",
                 fixture_name
-            );
-            return Ok(());
+            ));
         }
     };
 
