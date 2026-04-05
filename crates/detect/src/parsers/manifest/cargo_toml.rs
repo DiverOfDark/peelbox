@@ -126,7 +126,6 @@ impl ManifestParser for CargoTomlParser {
                 env: btree(&[("CARGO_HOME", ".cargo")]),
                 cache_dirs: vec![".cargo".into(), "target".into()],
                 artifacts,
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["glibc".into(), "libssl3".into(), "ca-certificates".into()],
@@ -583,7 +582,6 @@ version = "0.1.0"
                 commands: vec!["cargo build --release".into()],
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
-                build_image: None,
             },
             runtime: Default::default(),
         };
@@ -613,7 +611,6 @@ version = "0.1.0"
                 commands: vec!["cargo build --release".into()],
                 env: BTreeMap::from([("CARGO_HOME".into(), ".cargo".into())]),
                 cache: vec![".cargo".into(), "target".into()],
-                build_image: None,
             },
             runtime: Default::default(),
         };
@@ -656,7 +653,6 @@ version = "0.1.0"
                 commands: vec!["pip install .".into()],
                 env: BTreeMap::new(),
                 cache: vec![],
-                build_image: None,
             },
             runtime: Default::default(),
         };

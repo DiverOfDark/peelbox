@@ -64,7 +64,6 @@ mod tests {
                 env: BTreeMap::new(),
                 commands: vec!["cargo build --release".to_string()],
                 cache: vec![],
-                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec!["glibc".to_string(), "ca-certificates".to_string()],

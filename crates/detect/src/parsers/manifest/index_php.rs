@@ -76,7 +76,6 @@ impl ManifestParser for IndexPhpParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["php".into(), "ca-certificates".into()],

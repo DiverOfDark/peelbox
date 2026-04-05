@@ -15,7 +15,6 @@ use crate::parsers::manifest::package_json::{
     read_node_version, resolve_node_version, sanitize_node_build_commands, scan_node_native_deps,
     scan_node_puppeteer, wrap_yarn_corepack_entrypoint,
 };
-use crate::parsers::manifest::package_swift::read_swift_version;
 use crate::parsers::manifest::pom_xml::{resolve_java_toolchain, sync_java_home_with_packages};
 use crate::parsers::manifest::pyproject_toml::{
     fix_django_settings, fix_flask_app_path, read_python_version, scan_python_entrypoints,
@@ -1534,7 +1533,6 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
             env: m.build.env.clone(),
             commands: build_commands,
             cache: m.build.cache_dirs.clone(),
-            build_image: m.build.build_image.clone(),
         },
         runtime: RuntimeStage {
             packages: runtime_packages,
@@ -1806,24 +1804,6 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }
         }
-        "Swift" => {
-            // Override the Swift Docker image from .swift-version.
-            // Each Swift major.minor needs a specific Ubuntu codename:
-            // 5.4-5.6 → focal, 5.7-5.10 → jammy, 6.0+ → noble
-            if let Some(version) = read_swift_version(&project_dir, repo_root) {
-                let ubuntu_codename = match version.as_str() {
-                    v if v.starts_with("5.4") || v.starts_with("5.5") || v.starts_with("5.6") => {
-                        "focal"
-                    }
-                    v if v.starts_with("5.") => "jammy",
-                    _ => "noble",
-                };
-                build.build.build_image = Some(format!(
-                    "docker.io/library/swift:{}-{}",
-                    version, ubuntu_codename
-                ));
-            }
-        }
         _ => {}
     }
 }
@@ -1865,7 +1845,6 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["target".into()],
                     artifacts: vec![("target/release/my-app".into(), "/app/my-app".into())],
-                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["ca-certificates".into()],
@@ -1920,7 +1899,6 @@ mod tests {
                     env: BTreeMap::new(),
                     cache_dirs: vec!["/root/.m2/repository/".into()],
                     artifacts: vec![("target/*.jar".into(), "/app/".into())],
-                    build_image: None,
                 },
                 runtime_config: RuntimeSpec {
                     packages: vec!["openjdk-21".into()],
@@ -1997,7 +1975,6 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2042,7 +2019,6 @@ app.listen(3000);
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],
@@ -2094,7 +2070,6 @@ const home = process.env.HOME;
                 env: BTreeMap::new(),
                 commands: vec![],
                 cache: vec![],
-                build_image: None,
             },
             runtime: RuntimeStage {
                 packages: vec![],

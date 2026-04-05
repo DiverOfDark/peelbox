@@ -21,15 +21,6 @@ impl BuildStrategy for PeelboxStrategy {
         let exclude = builder.load_gitignore_patterns();
         let context_idx = builder.create_local_source(&exclude);
 
-        // If build_image is set, use that image directly as the build base
-        // (skipping Wolfi and apk add). Used for languages tightly coupled
-        // to specific C library versions (e.g., Swift).
-        let custom_build_image_idx = spec
-            .build
-            .build_image
-            .as_ref()
-            .map(|image| builder.create_image_source(image));
-
         let with_build_packages_idx = if !spec.build.packages.is_empty() {
             let mut packages_list = spec.build.packages.clone();
             packages_list.sort();
@@ -66,9 +57,7 @@ impl BuildStrategy for PeelboxStrategy {
             None
         };
 
-        // When a custom build image is used, skip Wolfi packages entirely.
-        let base_idx = custom_build_image_idx
-            .unwrap_or_else(|| with_build_packages_idx.unwrap_or(wolfi_base_idx));
+        let base_idx = with_build_packages_idx.unwrap_or(wolfi_base_idx);
 
         let build_result_idx = if !spec.build.commands.is_empty() {
             let mut last_idx = base_idx;

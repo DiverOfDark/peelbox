@@ -265,7 +265,6 @@ impl ManifestParser for BuildGradleParser {
                 ]),
                 cache_dirs: vec![".gradle".into(), "build".into()],
                 artifacts,
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

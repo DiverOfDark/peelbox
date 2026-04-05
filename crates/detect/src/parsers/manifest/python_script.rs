@@ -92,7 +92,6 @@ impl ManifestParser for PythonScriptParser {
                 env: btree(&[]),
                 cache_dirs: vec![],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec!["python".into(), "ca-certificates".into()],

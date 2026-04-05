@@ -284,7 +284,6 @@ impl ManifestParser for PackageJsonParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".npm".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -1044,7 +1043,6 @@ mod tests {
                 commands: vec!["npm install".into()],
                 env: BTreeMap::new(),
                 cache: vec![".npm".into()],
-                build_image: None,
             },
             runtime: peelbox_core::output::schema::RuntimeStage {
                 packages: runtime_packages,
@@ -1139,7 +1137,6 @@ mod tests {
                 commands: vec!["pip install .".into()],
                 env: BTreeMap::new(),
                 cache: vec![],
-                build_image: None,
             },
             runtime: Default::default(),
         };

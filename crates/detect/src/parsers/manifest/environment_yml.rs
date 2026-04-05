@@ -126,7 +126,6 @@ impl ManifestParser for EnvironmentYmlParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec!["/root/.cache/pip/".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

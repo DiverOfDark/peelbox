@@ -113,7 +113,6 @@ impl ManifestParser for ProjectCljParser {
                 ]),
                 cache_dirs: vec![".lein".into(), ".m2".into()],
                 artifacts: vec![(jar_path, format!("/app/{}", jar_name))],
-                build_image: None,
 },
             runtime_config: RuntimeSpec {
                 packages: vec!["openjdk-17-jre".into(), "ca-certificates".into()],

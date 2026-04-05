@@ -52,7 +52,6 @@ impl ManifestParser for SetupPyParser {
                 env: BTreeMap::new(),
                 cache_dirs: vec![".cache/pip".into()],
                 artifacts: vec![(".".into(), "/app/".into())],
-                build_image: None,
             },
             runtime_config: RuntimeSpec {
                 packages: vec![

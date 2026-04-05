@@ -151,7 +151,6 @@ impl ManifestParser for GemfileParser {
                 ]),
                 cache_dirs: vec![".bundle".into(), "vendor".into()],
                 artifacts: vec![(".".into(), "/app".into())],
-                build_image: None,
 },
             runtime_config: RuntimeSpec {
                 packages: runtime_packages,

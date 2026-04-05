@@ -124,11 +124,6 @@ pub struct BuildSpec {
     pub cache_dirs: Vec<String>,
     /// Artifacts to copy from build → runtime (from, to).
     pub artifacts: Vec<(String, String)>,
-    /// Optional Docker image to use as the build base INSTEAD of Wolfi.
-    /// When set, `packages` are ignored; the image must
-    /// already contain all required build tools.
-    #[serde(default)]
-    pub build_image: Option<String>,
 }
 
 /// How to adjust build commands for a workspace member.
