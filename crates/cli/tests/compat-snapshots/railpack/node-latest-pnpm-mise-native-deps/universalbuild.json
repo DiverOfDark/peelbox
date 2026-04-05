@@ -9,11 +9,10 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
-        "npm install -g node-gyp",
-        "mkdir -p /usr/lib/node_modules/pnpm/dist/node_modules && ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/pnpm/dist/node_modules/node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "pnpm install"
       ],
       "cache": [
@@ -27,8 +26,7 @@
         "pnpm",
         "busybox",
         "dumb-init",
-        "ca-certificates",
-        "sqlite-libs"
+        "ca-certificates"
       ],
       "env": {},
       "copy": [

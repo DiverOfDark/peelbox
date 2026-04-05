@@ -10,7 +10,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "pip install --user --no-cache-dir -r requirements.txt"
       ],
@@ -24,8 +26,7 @@
         "python-3.12",
         "libgcc",
         "libstdc++",
-        "ca-certificates",
-        "mariadb-connector-c"
+        "ca-certificates"
       ],
       "env": {
         "DB_HOST": "",

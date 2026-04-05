@@ -10,11 +10,9 @@
     "build": {
       "packages": [],
       "env": {
-        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "npm ci"
       ],
       "cache": [
@@ -28,17 +26,9 @@
         "npm",
         "busybox",
         "dumb-init",
-        "ca-certificates",
-        "chromium",
-        "nss",
-        "freetype",
-        "harfbuzz",
-        "font-freefont",
-        "font-liberation"
+        "ca-certificates"
       ],
-      "env": {
-        "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/chromium-browser"
-      },
+      "env": {},
       "copy": [
         {
           "from": ".",

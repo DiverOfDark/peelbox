@@ -10,7 +10,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "pnpm install",
         "cd apps/docs && pnpm run build"
@@ -56,7 +58,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "pnpm install",
         "cd apps/web && pnpm run build"

@@ -10,6 +10,7 @@
     "build": {
       "packages": [],
       "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -28,8 +29,7 @@
         "libgcc",
         "libstdc++",
         "ca-certificates",
-        "uv",
-        "libpq-18"
+        "uv"
       ],
       "env": {
         "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",

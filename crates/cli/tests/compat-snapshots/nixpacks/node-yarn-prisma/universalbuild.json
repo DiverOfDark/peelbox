@@ -9,7 +9,9 @@
     },
     "build": {
       "packages": [],
-      "env": {},
+      "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
         "node -e \"var p=require('./package.json');var f=require('fs');p.scripts.build='tsc';f.writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n')\"",

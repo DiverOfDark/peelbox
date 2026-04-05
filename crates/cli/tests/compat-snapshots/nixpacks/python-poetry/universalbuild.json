@@ -11,6 +11,7 @@
     "build": {
       "packages": [],
       "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
         "POETRY_VIRTUALENVS_IN_PROJECT": "true"
       },

@@ -10,6 +10,7 @@
     "build": {
       "packages": [],
       "env": {
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
       "commands": [
@@ -27,9 +28,7 @@
         "python-3.12",
         "libgcc",
         "libstdc++",
-        "ca-certificates",
-        "poppler-utils",
-        "ffmpeg"
+        "ca-certificates"
       ],
       "env": {
         "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
