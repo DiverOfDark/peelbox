@@ -8,11 +8,7 @@
       "reasoning": "Detected from build.gradle.kts in app"
     },
     "build": {
-      "packages": [
-        "openjdk-21",
-        "gradle-8",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",

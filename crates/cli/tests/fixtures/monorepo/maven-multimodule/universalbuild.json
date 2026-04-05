@@ -9,11 +9,7 @@
       "reasoning": "Detected from pom.xml in api-service"
     },
     "build": {
-      "packages": [
-        "openjdk-17",
-        "maven",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "JAVA_HOME": "/opt/java/openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
@@ -73,11 +69,7 @@
       "reasoning": "Detected from pom.xml in web-service"
     },
     "build": {
-      "packages": [
-        "openjdk-17",
-        "maven",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "JAVA_HOME": "/opt/java/openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",

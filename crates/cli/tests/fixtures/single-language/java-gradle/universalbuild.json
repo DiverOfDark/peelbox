@@ -9,11 +9,7 @@
       "reasoning": "Detected from build.gradle"
     },
     "build": {
-      "packages": [
-        "openjdk-17",
-        "gradle-8",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",

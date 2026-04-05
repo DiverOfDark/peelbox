@@ -9,14 +9,7 @@
       "reasoning": "Detected from requirements.txt"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates",
-        "postgresql-dev",
-        "python-dev"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pip install --user --no-cache-dir -r requirements.txt"

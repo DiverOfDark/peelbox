@@ -8,11 +8,7 @@
       "reasoning": "Detected from package.json in hello/sub"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "npm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "npm install -g node-gyp",

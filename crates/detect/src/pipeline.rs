@@ -209,7 +209,16 @@ pub fn detect_with_registry_and_wolfi(
         }
     }
 
-    // Step 7b: Set PORT env var for JVM apps when runtime has ports.
+    // Step 7b: Clear build packages when a Docker build image is set.
+    // The Docker image already contains the language runtime; packages are
+    // only needed for Wolfi-based builds.
+    for build in &mut builds {
+        if build.build.build_image.is_some() {
+            build.build.packages.clear();
+        }
+    }
+
+    // Step 7c: Set PORT env var for JVM apps when runtime has ports.
     // Many Spring/JVM apps use ${PORT:default} in config; PaaS convention is to set PORT.
     for build in &mut builds {
         let lang = build.metadata.language.as_str();

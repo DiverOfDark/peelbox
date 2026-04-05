@@ -9,20 +9,7 @@
       "reasoning": "Detected from composer.json"
     },
     "build": {
-      "packages": [
-        "php-8.4",
-        "composer",
-        "unzip",
-        "git",
-        "ca-certificates",
-        "php-8.4-ctype",
-        "php-8.4-phar",
-        "php-8.4-openssl",
-        "php-8.4-mbstring",
-        "php-8.4-xml",
-        "php-8.4-dom",
-        "php-8.4-curl"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",

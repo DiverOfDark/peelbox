@@ -8,11 +8,7 @@
       "reasoning": "Detected from yarn.lock in packages/client"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "yarn",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",
@@ -57,11 +53,7 @@
       "reasoning": "Detected from yarn.lock in packages/server"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "yarn",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",

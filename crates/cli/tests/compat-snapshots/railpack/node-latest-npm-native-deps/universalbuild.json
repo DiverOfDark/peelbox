@@ -8,14 +8,7 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "npm",
-        "ca-certificates",
-        "build-base",
-        "python",
-        "sqlite-dev"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "npm install -g node-gyp",

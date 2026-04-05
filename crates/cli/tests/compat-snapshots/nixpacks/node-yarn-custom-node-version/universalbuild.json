@@ -8,11 +8,7 @@
       "reasoning": "Detected from yarn.lock"
     },
     "build": {
-      "packages": [
-        "nodejs-16",
-        "yarn",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1"

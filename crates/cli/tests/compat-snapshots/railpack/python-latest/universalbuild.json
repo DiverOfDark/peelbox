@@ -8,12 +8,7 @@
       "reasoning": "Detected from pyproject.toml"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pip install --user --no-cache-dir ."

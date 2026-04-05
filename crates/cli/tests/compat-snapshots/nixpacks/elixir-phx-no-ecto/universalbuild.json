@@ -9,17 +9,7 @@
       "reasoning": "Detected from mix.exs"
     },
     "build": {
-      "packages": [
-        "elixir",
-        "erlang",
-        "erlang-dev",
-        "git",
-        "build-base",
-        "openssl",
-        "ca-certificates",
-        "nodejs",
-        "npm"
-      ],
+      "packages": [],
       "env": {
         "DATABASE_URL": "",
         "ELIXIR_ERL_OPTIONS": "+fnu",

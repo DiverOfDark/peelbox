@@ -8,12 +8,7 @@
       "reasoning": "Detected from yarn.lock"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "yarn",
-        "ca-certificates",
-        "corepack"
-      ],
+      "packages": [],
       "env": {
         "YARN_ENABLE_GLOBAL_CACHE": "false"
       },

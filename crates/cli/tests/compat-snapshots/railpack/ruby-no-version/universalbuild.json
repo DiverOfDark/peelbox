@@ -9,18 +9,7 @@
       "reasoning": "Detected from Gemfile"
     },
     "build": {
-      "packages": [
-        "ruby",
-        "ruby-dev",
-        "ruby-bundler",
-        "build-base",
-        "glibc-dev",
-        "linux-headers",
-        "libffi-dev",
-        "yaml-dev",
-        "pkgconf",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",
         "BUNDLE_PATH": "vendor/bundle"

@@ -9,12 +9,7 @@
       "reasoning": "Detected from pyproject.toml"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "PDM_PYTHON": "/usr/bin/python3"
       },

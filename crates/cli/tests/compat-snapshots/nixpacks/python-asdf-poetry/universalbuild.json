@@ -8,12 +8,7 @@
       "reasoning": "Detected from pyproject.toml"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
         "POETRY_VIRTUALENVS_IN_PROJECT": "true"

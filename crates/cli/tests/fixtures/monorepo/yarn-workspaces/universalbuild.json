@@ -9,11 +9,7 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "yarn",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "yarn install --network-timeout 100000 --network-concurrency 1",

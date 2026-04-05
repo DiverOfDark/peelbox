@@ -8,10 +8,7 @@
       "reasoning": "Detected from bot.py"
     },
     "build": {
-      "packages": [
-        "python",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "echo 'No build step required'"

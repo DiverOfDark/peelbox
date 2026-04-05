@@ -9,12 +9,7 @@
       "reasoning": "Detected from setup.py"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pip install --user --no-cache-dir ."

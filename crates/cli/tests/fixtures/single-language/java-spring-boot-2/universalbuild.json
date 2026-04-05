@@ -9,11 +9,7 @@
       "reasoning": "Detected from pom.xml"
     },
     "build": {
-      "packages": [
-        "openjdk-11",
-        "maven",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "JAVA_HOME": "/opt/java/openjdk",
         "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",

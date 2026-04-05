@@ -9,14 +9,7 @@
       "reasoning": "Detected from pnpm-lock.yaml"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "pnpm",
-        "build-base",
-        "python",
-        "npm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "npm install -g node-gyp",

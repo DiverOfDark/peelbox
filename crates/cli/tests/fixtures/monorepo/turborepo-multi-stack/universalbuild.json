@@ -9,11 +9,7 @@
       "reasoning": "Detected from package.json in apps/api"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "npm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "npm install -g node-gyp",
@@ -65,11 +61,7 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "npm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "npm install -g node-gyp",

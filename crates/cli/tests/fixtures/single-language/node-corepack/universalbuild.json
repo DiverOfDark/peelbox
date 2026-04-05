@@ -9,11 +9,7 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "pnpm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pnpm install"

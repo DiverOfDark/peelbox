@@ -9,15 +9,7 @@
       "reasoning": "Detected from requirements.txt"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates",
-        "mariadb-connector-c-dev",
-        "mariadb-connector-c",
-        "python-dev"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pip install --user --no-cache-dir -r requirements.txt"

@@ -9,12 +9,7 @@
       "reasoning": "Detected from uv.lock"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
       },

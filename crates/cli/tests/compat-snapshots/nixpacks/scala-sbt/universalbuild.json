@@ -8,12 +8,7 @@
       "reasoning": "Detected from build.sbt"
     },
     "build": {
-      "packages": [
-        "openjdk-19",
-        "bash",
-        "curl",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "JAVA_HOME": "/opt/java/openjdk",
         "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",

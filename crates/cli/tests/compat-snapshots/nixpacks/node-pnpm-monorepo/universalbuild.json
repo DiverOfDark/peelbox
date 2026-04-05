@@ -9,11 +9,7 @@
       "reasoning": "Detected from package.json in apps/docs"
     },
     "build": {
-      "packages": [
-        "nodejs-18",
-        "pnpm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pnpm install",
@@ -59,11 +55,7 @@
       "reasoning": "Detected from package.json in apps/web"
     },
     "build": {
-      "packages": [
-        "nodejs-18",
-        "pnpm",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pnpm install",

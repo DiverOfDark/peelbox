@@ -9,12 +9,7 @@
       "reasoning": "Detected from pyproject.toml in packages/api"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
@@ -70,12 +65,7 @@
       "reasoning": "Detected from pyproject.toml in packages/shared"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
       },
@@ -128,10 +118,7 @@
       "reasoning": "Detected from app.py in packages/api/src/api"
     },
     "build": {
-      "packages": [
-        "python",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "cd packages/api/src/api && echo 'No build step required'"

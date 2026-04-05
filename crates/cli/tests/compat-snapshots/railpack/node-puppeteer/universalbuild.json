@@ -8,17 +8,7 @@
       "reasoning": "Detected from package.json"
     },
     "build": {
-      "packages": [
-        "nodejs",
-        "npm",
-        "ca-certificates",
-        "chromium",
-        "nss",
-        "freetype",
-        "harfbuzz",
-        "font-freefont",
-        "font-liberation"
-      ],
+      "packages": [],
       "env": {
         "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
       },

@@ -8,14 +8,7 @@
       "reasoning": "Detected from pyproject.toml in db-package"
     },
     "build": {
-      "packages": [
-        "python",
-        "pip",
-        "build-base",
-        "ca-certificates",
-        "postgresql-dev",
-        "python-dev"
-      ],
+      "packages": [],
       "env": {
         "UV_CACHE_DIR": "/root/.cache/uv"
       },

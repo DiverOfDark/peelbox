@@ -8,12 +8,7 @@
       "reasoning": "Detected from Pipfile"
     },
     "build": {
-      "packages": [
-        "python-3.13",
-        "pip",
-        "build-base",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {},
       "commands": [
         "pip install --user pipenv",
