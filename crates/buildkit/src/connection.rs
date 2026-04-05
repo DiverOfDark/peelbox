@@ -299,7 +299,6 @@ impl BuildKitConnection {
         .map_err(|_| anyhow::anyhow!("BuildKit not ready after 10 health check attempts"))
     }
 
-
     pub fn channel(&self) -> Channel {
         self.channel.clone()
     }
