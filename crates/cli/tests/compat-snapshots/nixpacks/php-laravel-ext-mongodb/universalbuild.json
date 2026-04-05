@@ -21,22 +21,27 @@
         "php-8.1-mbstring",
         "php-8.1-xml",
         "php-8.1-dom",
-        "php-8.1-curl",
-        "nodejs-25",
-        "npm"
+        "php-8.1-curl"
       ],
       "env": {},
       "commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
         "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
-        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true",
-        "npm install"
+        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true"
       ],
       "cache": [
-        ".composer/cache",
-        ".npm"
-      ]
+        ".composer/cache"
+      ],
+      "build_image": "docker.io/library/php:8.1-cli",
+      "asset_build": {
+        "build_image": "docker.io/library/node:lts",
+        "commands": [
+          "npm install"
+        ],
+        "cache": [
+          ".npm"
+        ],
+        "env": {}
+      }
     },
     "runtime": {
       "packages": [

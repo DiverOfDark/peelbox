@@ -29,7 +29,8 @@
       ],
       "cache": [
         ".composer/cache"
-      ]
+      ],
+      "build_image": "docker.io/library/php:8.2-cli"
     },
     "runtime": {
       "packages": [

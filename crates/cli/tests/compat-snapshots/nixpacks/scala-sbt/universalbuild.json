@@ -15,8 +15,8 @@
         "ca-certificates"
       ],
       "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk",
-        "PATH": "/usr/lib/jvm/java-19-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME": "/opt/java/openjdk",
+        "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "SBT_OPTS": "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"
       },
       "commands": [
@@ -27,7 +27,8 @@
         ".ivy2",
         ".sbt",
         "target"
-      ]
+      ],
+      "build_image": "docker.io/library/eclipse-temurin:19"
     },
     "runtime": {
       "packages": [

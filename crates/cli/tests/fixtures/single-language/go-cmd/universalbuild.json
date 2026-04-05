@@ -8,11 +8,7 @@
       "reasoning": "Detected from go.mod"
     },
     "build": {
-      "packages": [
-        "go-1.22",
-        "git",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
         "CGO_ENABLED": "0",
         "GOCACHE": "/app/.cache/go-build",
@@ -27,7 +23,8 @@
       "cache": [
         ".cache/go-build",
         ".cache/go-mod"
-      ]
+      ],
+      "build_image": "docker.io/library/golang:1.22"
     },
     "runtime": {
       "packages": [

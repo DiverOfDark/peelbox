@@ -9,14 +9,15 @@
     },
     "build": {
       "packages": [
-        "python-3.12",
+        "python",
         "ca-certificates"
       ],
       "env": {},
       "commands": [
         "echo 'No build step required'"
       ],
-      "cache": []
+      "cache": [],
+      "build_image": "docker.io/library/python:2.7"
     },
     "runtime": {
       "packages": [

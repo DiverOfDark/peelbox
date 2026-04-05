@@ -9,8 +9,8 @@
     },
     "build": {
       "packages": [
-        "python-3.11",
-        "py3.11-pip",
+        "python",
+        "pip",
         "build-base",
         "ca-certificates"
       ],
@@ -20,7 +20,8 @@
       ],
       "cache": [
         ".cache/pip"
-      ]
+      ],
+      "build_image": "docker.io/library/python:3.11"
     },
     "runtime": {
       "packages": [

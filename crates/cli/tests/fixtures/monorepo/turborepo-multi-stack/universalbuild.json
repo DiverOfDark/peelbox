@@ -10,7 +10,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs",
         "npm",
         "ca-certificates"
       ],
@@ -24,7 +24,8 @@
       "cache": [
         ".npm",
         ".turbo"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [
@@ -65,7 +66,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs",
         "npm",
         "ca-certificates"
       ],
@@ -79,7 +80,8 @@
       "cache": [
         ".npm",
         ".turbo"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [

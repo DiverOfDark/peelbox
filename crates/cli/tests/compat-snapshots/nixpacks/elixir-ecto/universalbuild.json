@@ -9,9 +9,9 @@
     },
     "build": {
       "packages": [
-        "elixir-1.17",
-        "erlang-26",
-        "erlang-26-dev",
+        "elixir",
+        "erlang",
+        "erlang-dev",
         "git",
         "build-base",
         "openssl",
@@ -35,7 +35,8 @@
       "cache": [
         "deps",
         "_build"
-      ]
+      ],
+      "build_image": "docker.io/library/elixir:1.13"
     },
     "runtime": {
       "packages": [

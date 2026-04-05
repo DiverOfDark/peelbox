@@ -9,23 +9,20 @@
       "reasoning": "Detected from Cargo.toml in app"
     },
     "build": {
-      "packages": [
-        "rust-1.92",
-        "build-base",
-        "openssl-dev",
-        "pkgconf",
-        "ca-certificates"
-      ],
+      "packages": [],
       "env": {
-        "CARGO_HOME": ".cargo"
+        "CARGO_HOME": "/usr/local/cargo",
+        "PATH": "/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "RUSTUP_HOME": "/usr/local/rustup"
       },
       "commands": [
         "cargo build --release --manifest-path app/Cargo.toml --target-dir target"
       ],
       "cache": [
-        ".cargo",
+        "/usr/local/cargo",
         "target"
-      ]
+      ],
+      "build_image": "docker.io/library/rust:latest"
     },
     "runtime": {
       "packages": [

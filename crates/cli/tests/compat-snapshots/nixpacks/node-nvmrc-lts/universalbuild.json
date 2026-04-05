@@ -9,7 +9,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-20",
+        "nodejs",
         "npm",
         "ca-certificates"
       ],
@@ -21,7 +21,8 @@
       ],
       "cache": [
         ".npm"
-      ]
+      ],
+      "build_image": "docker.io/library/node:20"
     },
     "runtime": {
       "packages": [

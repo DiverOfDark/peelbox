@@ -9,10 +9,10 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs",
         "pnpm",
         "build-base",
-        "python-3.12",
+        "python",
         "npm",
         "ca-certificates",
         "sqlite-dev"
@@ -26,7 +26,8 @@
       ],
       "cache": [
         ".pnpm-store"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [

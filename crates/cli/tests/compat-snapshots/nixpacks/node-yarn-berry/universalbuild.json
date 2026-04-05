@@ -26,7 +26,8 @@
       ],
       "cache": [
         ".yarn-cache"
-      ]
+      ],
+      "build_image": "docker.io/library/node:16"
     },
     "runtime": {
       "packages": [

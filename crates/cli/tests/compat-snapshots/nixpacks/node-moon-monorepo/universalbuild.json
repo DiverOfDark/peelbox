@@ -23,7 +23,8 @@
       ],
       "cache": [
         ".npm"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [
@@ -75,7 +76,8 @@
       ],
       "cache": [
         ".npm"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [

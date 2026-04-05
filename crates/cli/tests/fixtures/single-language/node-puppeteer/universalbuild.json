@@ -10,7 +10,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-22",
+        "nodejs",
         "npm",
         "ca-certificates",
         "chromium",
@@ -30,7 +30,8 @@
       ],
       "cache": [
         ".npm"
-      ]
+      ],
+      "build_image": "docker.io/library/node:22"
     },
     "runtime": {
       "packages": [

@@ -15,8 +15,8 @@
         "ca-certificates"
       ],
       "env": {
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
         "JAVA_HOME": "/opt/java/openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
         "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [
@@ -35,8 +35,8 @@
       ],
       "env": {
         "CLASSPATH": "/app/*:/app/lib/*",
-        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk",
-        "PATH": "/usr/lib/jvm/java-1.8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk",
+        "PATH": "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "PORT": "8080"
       },
       "copy": [

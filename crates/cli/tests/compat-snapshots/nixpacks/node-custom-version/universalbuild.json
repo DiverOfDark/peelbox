@@ -9,20 +9,23 @@
     },
     "build": {
       "packages": [
-        "ca-certificates",
-        "nodejs-22",
-        "npm"
+        "ca-certificates"
       ],
       "env": {},
       "commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
-        "chmod +x start.sh",
-        "npm ci"
+        "chmod +x start.sh"
       ],
-      "cache": [
-        ".npm"
-      ]
+      "cache": [],
+      "asset_build": {
+        "build_image": "docker.io/library/node:22",
+        "commands": [
+          "npm ci"
+        ],
+        "cache": [
+          ".npm"
+        ],
+        "env": {}
+      }
     },
     "runtime": {
       "packages": [

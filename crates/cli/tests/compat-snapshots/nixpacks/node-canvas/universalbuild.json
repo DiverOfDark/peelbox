@@ -13,7 +13,7 @@
         "npm",
         "ca-certificates",
         "build-base",
-        "python-3.12",
+        "python",
         "cairo-dev",
         "pango-dev",
         "libjpeg-turbo-dev",
@@ -28,7 +28,8 @@
       ],
       "cache": [
         ".npm"
-      ]
+      ],
+      "build_image": "docker.io/library/node:20"
     },
     "runtime": {
       "packages": [

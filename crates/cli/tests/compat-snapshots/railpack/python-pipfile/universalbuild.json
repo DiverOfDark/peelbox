@@ -10,7 +10,7 @@
     "build": {
       "packages": [
         "python-3.13",
-        "py3.13-pip",
+        "pip",
         "build-base",
         "ca-certificates"
       ],
@@ -21,7 +21,8 @@
       ],
       "cache": [
         "/root/.cache/pip/"
-      ]
+      ],
+      "build_image": "docker.io/library/python:3.13"
     },
     "runtime": {
       "packages": [

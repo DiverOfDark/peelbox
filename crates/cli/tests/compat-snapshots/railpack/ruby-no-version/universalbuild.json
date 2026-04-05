@@ -10,9 +10,9 @@
     },
     "build": {
       "packages": [
-        "ruby-3.4",
-        "ruby-3.4-dev",
-        "ruby3.4-bundler",
+        "ruby",
+        "ruby-dev",
+        "ruby-bundler",
         "build-base",
         "glibc-dev",
         "linux-headers",
@@ -31,7 +31,8 @@
       "cache": [
         ".bundle",
         "vendor"
-      ]
+      ],
+      "build_image": "docker.io/library/ruby:latest"
     },
     "runtime": {
       "packages": [

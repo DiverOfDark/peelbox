@@ -10,9 +10,9 @@
     },
     "build": {
       "packages": [
-        "ruby-3.2",
+        "ruby",
         "ruby-3.2-dev",
-        "ruby3.2-bundler",
+        "ruby-bundler",
         "build-base",
         "glibc-dev",
         "linux-headers",
@@ -20,7 +20,7 @@
         "yaml-dev",
         "pkgconf",
         "ca-certificates",
-        "postgresql-18-dev",
+        "postgresql-dev",
         "mariadb-connector-c-dev",
         "mariadb-connector-c",
         "cmake",
@@ -37,7 +37,8 @@
       "cache": [
         ".bundle",
         "vendor"
-      ]
+      ],
+      "build_image": "docker.io/library/ruby:3.2"
     },
     "runtime": {
       "packages": [

@@ -9,7 +9,7 @@
     },
     "build": {
       "packages": [
-        "dotnet-10-sdk",
+        "dotnet-6-sdk",
         "ca-certificates"
       ],
       "env": {
@@ -27,7 +27,8 @@
         ".nuget/packages",
         "bin",
         "obj"
-      ]
+      ],
+      "build_image": "mcr.microsoft.com/dotnet/sdk:6.0"
     },
     "runtime": {
       "packages": [

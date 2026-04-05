@@ -9,9 +9,9 @@
     },
     "build": {
       "packages": [
-        "ruby-3.0",
-        "ruby-3.0-dev",
-        "ruby3.0-bundler",
+        "ruby",
+        "ruby-2.6-dev",
+        "ruby-bundler",
         "build-base",
         "glibc-dev",
         "linux-headers",
@@ -30,7 +30,8 @@
       "cache": [
         ".bundle",
         "vendor"
-      ]
+      ],
+      "build_image": "docker.io/library/ruby:2.6"
     },
     "runtime": {
       "packages": [

@@ -12,7 +12,7 @@
         "nodejs-20",
         "pnpm",
         "build-base",
-        "python-3.12",
+        "python",
         "npm",
         "ca-certificates"
       ],
@@ -25,7 +25,8 @@
       ],
       "cache": [
         ".pnpm-store"
-      ]
+      ],
+      "build_image": "docker.io/library/node:20"
     },
     "runtime": {
       "packages": [

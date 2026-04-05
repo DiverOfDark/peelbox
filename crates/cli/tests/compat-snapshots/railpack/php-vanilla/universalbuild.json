@@ -9,14 +9,15 @@
     },
     "build": {
       "packages": [
-        "php-8.5",
+        "php",
         "ca-certificates"
       ],
       "env": {},
       "commands": [
         "echo 'No build step required'"
       ],
-      "cache": []
+      "cache": [],
+      "build_image": "docker.io/library/php:latest"
     },
     "runtime": {
       "packages": [

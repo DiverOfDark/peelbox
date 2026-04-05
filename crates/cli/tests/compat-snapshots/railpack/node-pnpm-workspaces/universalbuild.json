@@ -9,10 +9,10 @@
     },
     "build": {
       "packages": [
-        "nodejs-22",
+        "nodejs",
         "pnpm",
         "build-base",
-        "python-3.12",
+        "python",
         "npm",
         "ca-certificates"
       ],
@@ -24,7 +24,8 @@
       ],
       "cache": [
         ".pnpm-store"
-      ]
+      ],
+      "build_image": "docker.io/library/node:22"
     },
     "runtime": {
       "packages": [

@@ -36,8 +36,8 @@
       ],
       "env": {
         "BUILD_PROFILE": "",
-        "JAVA_HOME": "/usr/lib/jvm/java-1.8-openjdk",
-        "PATH": "/usr/lib/jvm/java-1.8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "JAVA_HOME": "/usr/lib/jvm/java-8-openjdk",
+        "PATH": "/usr/lib/jvm/java-8-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "PORT": "3030"
       },
       "copy": [

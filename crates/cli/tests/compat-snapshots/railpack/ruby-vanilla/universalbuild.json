@@ -9,9 +9,9 @@
     },
     "build": {
       "packages": [
-        "ruby-3.1",
+        "ruby-3.3",
         "ruby-3.1-dev",
-        "ruby3.1-bundler",
+        "ruby-bundler",
         "build-base",
         "glibc-dev",
         "linux-headers",
@@ -30,7 +30,8 @@
       "cache": [
         ".bundle",
         "vendor"
-      ]
+      ],
+      "build_image": "docker.io/library/ruby:3.1"
     },
     "runtime": {
       "packages": [

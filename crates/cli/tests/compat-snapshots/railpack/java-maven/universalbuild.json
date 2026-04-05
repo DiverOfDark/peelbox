@@ -14,8 +14,8 @@
         "ca-certificates"
       ],
       "env": {
-        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
         "JAVA_HOME": "/opt/java/openjdk",
+        "MAVEN_OPTS": "-Dmaven.repo.local=/root/.m2/repository",
         "PATH": "/opt/java/openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
       },
       "commands": [

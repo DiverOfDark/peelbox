@@ -24,7 +24,8 @@
       "cache": [
         ".npm",
         ".turbo"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [
@@ -76,7 +77,8 @@
       "cache": [
         ".npm",
         ".turbo"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [

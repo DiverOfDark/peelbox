@@ -10,35 +10,40 @@
     },
     "build": {
       "packages": [
-        "ruby-3.4",
-        "ruby-3.4-dev",
-        "ruby3.4-bundler",
+        "ruby",
+        "ruby-dev",
+        "ruby-bundler",
         "build-base",
         "glibc-dev",
         "linux-headers",
         "libffi-dev",
         "yaml-dev",
         "pkgconf",
-        "ca-certificates",
-        "nodejs-25",
-        "npm"
+        "ca-certificates"
       ],
       "env": {
         "BUNDLE_DEPLOYMENT": "false",
         "BUNDLE_PATH": "vendor/bundle"
       },
       "commands": [
-        "npm install -g node-gyp",
-        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
-        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }",
-        "npm ci",
-        "npm run build"
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
       ],
       "cache": [
         ".bundle",
-        "vendor",
-        ".npm"
-      ]
+        "vendor"
+      ],
+      "build_image": "docker.io/library/ruby:latest",
+      "asset_build": {
+        "build_image": "docker.io/library/node:lts",
+        "commands": [
+          "npm ci",
+          "npm run build"
+        ],
+        "cache": [
+          ".npm"
+        ],
+        "env": {}
+      }
     },
     "runtime": {
       "packages": [

@@ -9,7 +9,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-25",
+        "nodejs",
         "yarn",
         "ca-certificates",
         "corepack"
@@ -24,7 +24,8 @@
       ],
       "cache": [
         ".yarn-cache"
-      ]
+      ],
+      "build_image": "docker.io/library/node:lts"
     },
     "runtime": {
       "packages": [
