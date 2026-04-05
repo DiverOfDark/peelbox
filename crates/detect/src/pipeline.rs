@@ -140,12 +140,12 @@ pub fn detect_with_registry_and_wolfi(
         scan_node_native_deps(repo_path, build);
     }
 
-    // Step 4k: Detect Puppeteer and add Chromium dependencies
+    // Step 4l: Detect Puppeteer and add Chromium dependencies
     for build in &mut builds {
         scan_node_puppeteer(repo_path, build);
     }
 
-    // Step 4l: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
+    // Step 4m: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
     for build in &mut builds {
         sanitize_node_build_commands(repo_path, build);
     }

@@ -91,11 +91,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: ./scripts/fetch-compat-fixtures.sh
 
-      - name: Extract BuildKit cache
-        if: matrix.os == 'ubuntu-latest' && steps.cache-buildkit.outputs.cache-hit == 'true'
-        run: |
-          mkdir -p /tmp/.test-cache/buildkit
-          sudo tar -xf .buildkit-cache.tar.zst -C /tmp/.test-cache/buildkit
 
       - name: Check formatting
         run: cargo fmt --all -- --check

@@ -8,8 +8,7 @@ use tracing::{debug, info};
 use crate::retry::retry_with_backoff;
 
 const DEFAULT_UNIX_SOCKET: &str = "/run/buildkit/buildkitd.sock";
-const DEFAULT_DOCKER_SOCKET: &str = "/var/run/docker.sock";
-const MIN_BUILDKIT_VERSION: &str = "0.11.0";
+pub(crate) const DEFAULT_DOCKER_SOCKET: &str = "/var/run/docker.sock";
 
 /// Consistent keep-alive timeout applied to all BuildKit connections.
 ///
@@ -120,7 +119,7 @@ impl BuildKitConnection {
                 match BuildKitAddr::from_str(&endpoint) {
                     Ok(addr) => {
                         let connect_result = retry_with_backoff(
-                            5,
+                            10,
                             std::time::Duration::from_secs(1),
                             "Docker BuildKit connect",
                             || {
@@ -207,7 +206,7 @@ impl BuildKitConnection {
                 debug!("Connecting to TCP: {}", uri_str);
                 configure_endpoint(Endpoint::try_from(uri_str.clone()).context("Invalid TCP URI")?)
                     .connect_timeout(std::time::Duration::from_secs(10))
-                    .timeout(std::time::Duration::from_secs(3600))
+                    .timeout(std::time::Duration::from_secs(900))
                     .connect()
                     .await
                     .context("Failed to connect to TCP endpoint")?
@@ -224,7 +223,7 @@ impl BuildKitConnection {
                         Endpoint::try_from("http://[::]:50051")
                             .context("Failed to create endpoint")?,
                     )
-                    .timeout(std::time::Duration::from_secs(3600))
+                    .timeout(std::time::Duration::from_secs(900))
                     .connect_with_connector(service_fn(move |_: Uri| {
                         let container_id = container_id.clone();
                         async move { connect_docker_container(&container_id).await }
@@ -270,8 +269,6 @@ impl BuildKitConnection {
 
         conn.health_check().await?;
 
-        conn.version_check().await?;
-
         Ok(conn)
     }
 
@@ -302,13 +299,6 @@ impl BuildKitConnection {
         .map_err(|_| anyhow::anyhow!("BuildKit not ready after 10 health check attempts"))
     }
 
-    async fn version_check(&mut self) -> Result<()> {
-        debug!(
-            "Version check: OK (placeholder - will require v{}+)",
-            MIN_BUILDKIT_VERSION
-        );
-        Ok(())
-    }
 
     pub fn channel(&self) -> Channel {
         self.channel.clone()
