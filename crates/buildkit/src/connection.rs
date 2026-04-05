@@ -206,7 +206,6 @@ impl BuildKitConnection {
                 debug!("Connecting to TCP: {}", uri_str);
                 configure_endpoint(Endpoint::try_from(uri_str.clone()).context("Invalid TCP URI")?)
                     .connect_timeout(std::time::Duration::from_secs(10))
-                    .timeout(std::time::Duration::from_secs(900))
                     .connect()
                     .await
                     .context("Failed to connect to TCP endpoint")?
@@ -223,7 +222,6 @@ impl BuildKitConnection {
                         Endpoint::try_from("http://[::]:50051")
                             .context("Failed to create endpoint")?,
                     )
-                    .timeout(std::time::Duration::from_secs(900))
                     .connect_with_connector(service_fn(move |_: Uri| {
                         let container_id = container_id.clone();
                         async move { connect_docker_container(&container_id).await }
