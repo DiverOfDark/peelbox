@@ -1,0 +1,51 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "script",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "node -e \"var p=require('./package.json');var f=require('fs');p.scripts.build='tsc';f.writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n')\"",
+        "yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

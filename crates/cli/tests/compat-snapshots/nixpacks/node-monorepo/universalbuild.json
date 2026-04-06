@@ -1,0 +1,101 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "client",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock in packages/client"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "cd packages/client && yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app/packages/client",
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "server",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock in packages/server"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "cd packages/server && yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": ""
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app/packages/server",
+      "ports": [
+        5555,
+        3000
+      ]
+    }
+  }
+]

@@ -1,53 +1,71 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "puppeteer-app",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Express",
+      "reasoning": "Detected from package.json"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "npm ci"
-      ],
-      "env": {},
       "packages": [
         "nodejs-22",
         "npm",
-        "ca-certificates"
+        "ca-certificates",
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation"
+      ],
+      "env": {
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true"
+      },
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "npm ci"
+      ],
+      "cache": [
+        ".npm"
       ]
     },
-    "metadata": {
-      "build_system": "npm",
-      "framework": "Express",
-      "language": "JavaScript",
-      "project_name": "puppeteer-app",
-      "reasoning": "Detected from package.json"
-    },
     "runtime": {
-      "command": [
-        "node",
-        "src/screenshot.js"
+      "packages": [
+        "nodejs-22",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "chromium",
+        "nss",
+        "freetype",
+        "harfbuzz",
+        "font-freefont",
+        "font-liberation"
       ],
+      "env": {
+        "PUPPETEER_EXECUTABLE_PATH": "/usr/bin/chromium-browser"
+      },
       "copy": [
         {
           "from": ".",
           "to": "/app/"
         }
       ],
-      "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "nodejs-22",
-        "npm",
-        "busybox",
-        "dumb-init",
-        "ca-certificates"
+      "command": [
+        "node",
+        "src/screenshot.js"
       ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

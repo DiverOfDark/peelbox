@@ -1,0 +1,41 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "COBOL",
+      "build_system": "GnuCOBOL",
+      "reasoning": "Detected from my-app.cbl"
+    },
+    "build": {
+      "packages": [
+        "gnucobol",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "cobc -x -o app index.cbl"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libgcc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "./app"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

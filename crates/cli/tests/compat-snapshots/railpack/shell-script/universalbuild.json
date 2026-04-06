@@ -1,0 +1,39 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Shell",
+      "build_system": "Shell",
+      "reasoning": "Detected from start.sh"
+    },
+    "build": {
+      "packages": [
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "chmod +x start.sh"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "./start.sh"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

@@ -1,65 +1,64 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "PDM",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml"
+    },
     "build": {
-      "cache": [
-        "/root/.cache/pip/",
-        "/root/.cache/pdm/"
-      ],
-      "commands": [
-        "pip install pdm",
-        "pdm export --no-hashes --prod -o requirements.txt",
-        "python3 -m venv .venv",
-        ".venv/bin/pip install -r requirements.txt"
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
       ],
       "env": {
         "PDM_PYTHON": "/usr/bin/python3"
       },
-      "packages": [
-        "python-3.14",
-        "py3.14-pip",
-        "build-base",
-        "ca-certificates"
+      "commands": [
+        "pip install pdm",
+        "pdm export --no-hashes --prod -o requirements.txt",
+        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/pdm/"
       ]
     },
-    "metadata": {
-      "build_system": "PDM",
-      "framework": "Flask",
-      "language": "Python",
-      "project_name": "app",
-      "reasoning": "Detected from pyproject.toml"
-    },
     "runtime": {
-      "command": [
-        "flask",
-        "run"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/build"
-        }
-      ],
-      "env": {
-        "FLASK_APP": "/build/app.py",
-        "FLASK_RUN_HOST": "0.0.0.0",
-        "FLASK_RUN_PORT": "5000",
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-        "VIRTUAL_ENV": "/build/.venv"
-      },
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
-        "python-3.14",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"
       ],
+      "env": {
+        "FLASK_APP": "/app/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "flask",
+        "run"
+      ],
+      "workdir": "/app",
       "ports": [
         5000
       ],
-      "workdir": "/build"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/"
+      }
+    }
   }
 ]

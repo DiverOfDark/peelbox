@@ -1,0 +1,71 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Ruby",
+      "build_system": "Bundler",
+      "framework": "Sinatra",
+      "reasoning": "Detected from Gemfile"
+    },
+    "build": {
+      "packages": [
+        "ruby-3.1",
+        "ruby-3.1-dev",
+        "ruby3.1-bundler",
+        "build-base",
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev",
+        "yaml-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
+      },
+      "commands": [
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
+      ],
+      "cache": [
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "ruby-3.1",
+        "ruby3.1-bundler",
+        "libgcc",
+        "libstdc++",
+        "busybox",
+        "tzdata",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUNDLE_GEMFILE": "/app/Gemfile",
+        "BUNDLE_PATH": "/app/vendor/bundle",
+        "RACK_ENV": "production"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "bundle",
+        "exec",
+        "puma"
+      ],
+      "workdir": "/app",
+      "ports": [
+        4567
+      ],
+      "health": {
+        "endpoint": "/"
+      }
+    }
+  }
+]

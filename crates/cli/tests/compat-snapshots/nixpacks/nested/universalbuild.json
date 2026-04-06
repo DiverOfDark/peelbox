@@ -1,0 +1,51 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "a",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json in hello/sub"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "cd hello/sub && npm install"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "node",
+        "index.js"
+      ],
+      "workdir": "/app/hello/sub",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

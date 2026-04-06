@@ -1,0 +1,46 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "None",
+      "reasoning": "Detected from index.php"
+    },
+    "build": {
+      "packages": [
+        "php-8.5",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "echo 'No build step required'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "php-8.5",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "php",
+        "-S",
+        "0.0.0.0:8080",
+        "-t",
+        "/app"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

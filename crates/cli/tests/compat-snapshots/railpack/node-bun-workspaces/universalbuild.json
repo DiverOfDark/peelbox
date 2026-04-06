@@ -1,0 +1,50 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-bun-workspaces",
+      "language": "JavaScript",
+      "build_system": "Bun",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "bun",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "bun install"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "bun",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "bun",
+        "run",
+        "index.ts"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

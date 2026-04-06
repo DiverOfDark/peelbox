@@ -1,54 +1,54 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "hello",
+      "language": "C++",
+      "build_system": "Bazel",
+      "reasoning": "Detected from BUILD"
+    },
     "build": {
-      "cache": [
-        ".cache/bazel"
-      ],
-      "commands": [
-        "bazel build //... && mkdir -p _output && cp -rL bazel-bin/hello _output/"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
       "packages": [
         "build-base",
         "bazel-7",
         "openjdk-21",
         "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "bazel build //... && mkdir -p _output && cp -rL bazel-bin/hello _output/"
+      ],
+      "cache": [
+        ".cache/bazel"
       ]
     },
-    "metadata": {
-      "build_system": "Bazel",
-      "language": "C++",
-      "project_name": "hello",
-      "reasoning": "Detected from BUILD"
-    },
     "runtime": {
-      "command": [
-        "/app/hello"
+      "packages": [
+        "glibc",
+        "ca-certificates"
       ],
+      "env": {
+        "PORT": ""
+      },
       "copy": [
         {
           "from": "_output/hello",
           "to": "/app/hello"
         }
       ],
-      "env": {
-        "PORT": ""
-      },
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "glibc",
-        "ca-certificates"
+      "command": [
+        "/app/hello"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

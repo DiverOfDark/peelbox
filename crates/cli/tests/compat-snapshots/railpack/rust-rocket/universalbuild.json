@@ -1,0 +1,57 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "rocket",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "framework": "Rocket",
+      "reasoning": "Detected from Cargo.toml"
+    },
+    "build": {
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cargo build --release"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
+      ],
+      "env": {
+        "ROCKET_ADDRESS": "0.0.0.0"
+      },
+      "copy": [
+        {
+          "from": "target/release/rocket",
+          "to": "/app/rocket"
+        }
+      ],
+      "command": [
+        "/app/rocket"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
+    }
+  }
+]

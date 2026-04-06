@@ -1,42 +1,29 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "@bun-monorepo/api",
+      "language": "JavaScript",
+      "build_system": "Bun",
+      "framework": "Express",
+      "reasoning": "Detected from package.json in packages/api"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "bun install",
-        "cd packages/api && bun run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "bun",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Bun",
-      "framework": "Express",
-      "language": "JavaScript",
-      "project_name": "@bun-monorepo/api",
-      "reasoning": "Detected from package.json in packages/api"
-    },
-    "runtime": {
-      "command": [
-        "bun",
-        "start"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
+      "commands": [
+        "bun install",
+        "cd packages/api && bun run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "bun",
@@ -44,11 +31,24 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "bun",
+        "start"
+      ],
+      "workdir": "/app/packages/api",
       "ports": [
         3000
       ],
-      "workdir": "/app/packages/api"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

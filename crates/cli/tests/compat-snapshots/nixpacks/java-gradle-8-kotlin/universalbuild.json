@@ -1,0 +1,58 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "Gradle",
+      "reasoning": "Detected from build.gradle.kts"
+    },
+    "build": {
+      "packages": [
+        "openjdk-19",
+        "bash",
+        "ca-certificates"
+      ],
+      "env": {
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/root/.gradle",
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk"
+      },
+      "commands": [
+        "sed -i 's/\"\\([^\"]*\\)\"[[:space:]]*=[[:space:]]*\"\\([^\"]*\\)\"/\"\\1\" to \"\\2\"/g' build.gradle.kts",
+        "sed -i 's/^jar {/tasks.jar {/' build.gradle.kts",
+        "./gradlew assemble -x test --no-daemon --console=plain"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-19-jre",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-19-openjdk",
+        "PATH": "/usr/lib/jvm/java-19-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
+      "copy": [
+        {
+          "from": "build/libs/*.jar",
+          "to": "/app/app.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

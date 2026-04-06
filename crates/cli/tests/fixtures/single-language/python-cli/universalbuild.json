@@ -1,47 +1,54 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "reasoning": "Detected from requirements.txt"
+    },
     "build": {
-      "cache": [
-        ".cache/pip"
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
       ],
+      "env": {},
       "commands": [
         "pip install --user --no-cache-dir -r requirements.txt"
       ],
-      "env": {},
-      "packages": [
-        "python-3.14",
-        "py3.14-pip",
-        "build-base",
-        "ca-certificates"
+      "cache": [
+        ".cache/pip"
       ]
     },
-    "metadata": {
-      "build_system": "pip",
-      "language": "Python",
-      "project_name": "app",
-      "reasoning": "Detected from requirements.txt"
-    },
     "runtime": {
-      "command": [
-        "python",
-        "/app/main.py"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
-      ],
-      "env": {},
       "packages": [
-        "python-3.14",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"
       ],
-      "ports": [],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local/"
+        }
+      ],
+      "command": [
+        "python",
+        "/app/main.py"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
   }
 ]

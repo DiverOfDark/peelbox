@@ -63,7 +63,7 @@ impl BuildStrategy for PeelboxStrategy {
             let mut last_idx = base_idx;
 
             for (i, command) in spec.build.commands.iter().enumerate() {
-                let script = format!("cd /build && {}", command);
+                let script = format!("cd /app && {}", command);
 
                 let mut env_vars: Vec<String> = spec
                     .build
@@ -88,7 +88,7 @@ impl BuildStrategy for PeelboxStrategy {
 
                 let mut mounts = vec![
                     builder.layer_mount(0, 0, "/"),
-                    builder.layer_mount(1, 1, "/build"),
+                    builder.layer_mount(1, 1, "/app"),
                     builder.scratch_mount("/tmp"),
                 ];
 
@@ -96,7 +96,7 @@ impl BuildStrategy for PeelboxStrategy {
                     let absolute: String = if cache_path.starts_with('/') {
                         cache_path.clone()
                     } else {
-                        format!("/build/{}", cache_path)
+                        format!("/app/{}", cache_path)
                     };
                     mounts.push(builder.cache_mount(&absolute, cache_path));
                 }
@@ -124,11 +124,22 @@ impl BuildStrategy for PeelboxStrategy {
             packages_list.sort();
             let packages = packages_list.join(" ");
 
+            // When busybox is in the runtime packages, create its applet symlinks
+            // after installation. The --no-scripts flag skips post-install scripts,
+            // so busybox symlinks (sh, env, ln, etc.) won't exist otherwise.
+            // We use chroot so symlinks get correct absolute paths (e.g., /usr/bin/busybox
+            // instead of /runtime-root/usr/bin/busybox).
+            let busybox_symlinks = if spec.runtime.packages.iter().any(|p| p == "busybox") {
+                " && chroot /runtime-root /usr/bin/busybox --install -s /usr/bin"
+            } else {
+                ""
+            };
+
             let install_meta = pb::Meta {
                 args: vec![
                     "/bin/sh".to_string(),
                     "-c".to_string(),
-                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk add --root /runtime-root --no-cache --initdb {} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages),
+                    format!("mkdir -p /runtime-root/etc/apk /runtime-root/var/lib/apk && cp -r /etc/apk/keys /runtime-root/etc/apk/ && echo \"https://packages.wolfi.dev/os\" > /runtime-root/etc/apk/repositories && apk add --root /runtime-root --no-cache --no-scripts --initdb {}{} && find /runtime-root -name \"*apk*\" -exec rm -rf {{}} +", packages, busybox_symlinks),
                 ],
                 env: vec![
                     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
@@ -179,11 +190,11 @@ impl BuildStrategy for PeelboxStrategy {
             let mut copy_commands = Vec::new();
             for copy in &spec.runtime.copy {
                 let mut src_path = if copy.from == "." {
-                    "/build/.".to_string()
+                    "/app/.".to_string()
                 } else if copy.from.starts_with('/') {
                     copy.from.clone()
                 } else {
-                    format!("/build/{}", copy.from)
+                    format!("/app/{}", copy.from)
                 };
 
                 // Ensure dest dir exists in /out
@@ -204,7 +215,7 @@ impl BuildStrategy for PeelboxStrategy {
                     copy_commands.push(format!("mkdir -p {}", parent.to_string_lossy()));
                 }
 
-                copy_commands.push(format!("cp -vr {} {}", src_path, dest_path));
+                copy_commands.push(format!("cp -vra {} {}", src_path, dest_path));
             }
             let script = copy_commands.join(" && ");
 
@@ -216,7 +227,7 @@ impl BuildStrategy for PeelboxStrategy {
             let mut mounts = vec![
                 builder.readonly_mount(0, "/temp"),
                 builder.readonly_mount(1, "/"),
-                builder.readonly_mount(2, "/build"),
+                builder.readonly_mount(2, "/app"),
                 builder.layer_mount(3, 0, "/out"), // Runtime Base -> Output 0 (The Result)
             ];
 
@@ -225,7 +236,7 @@ impl BuildStrategy for PeelboxStrategy {
                 let absolute: String = if cache_path.starts_with('/') {
                     cache_path.clone()
                 } else {
-                    format!("/build/{}", cache_path)
+                    format!("/app/{}", cache_path)
                 };
 
                 mounts.push(builder.cache_mount(&absolute, cache_path));
@@ -247,7 +258,7 @@ impl BuildStrategy for PeelboxStrategy {
             // Inputs mapping
             // 0: Wolfi Base (provides shell for running copy commands)
             // 1: Runtime Base rootfs at / (target for copying to /out)
-            // 2: Build source at /build (source for copying from)
+            // 2: Build source at /app (source for copying from)
             // 3: Runtime Base (cloned as output layer at /out)
             let inputs = vec![
                 (wolfi_base_idx, 0),
@@ -257,7 +268,7 @@ impl BuildStrategy for PeelboxStrategy {
                     (wolfi_base_idx, 0) // Wolfi base if no build commands
                 },
                 if !spec.build.commands.is_empty() {
-                    (build_result_idx, 1) // Build artifacts from /build output
+                    (build_result_idx, 1) // Build artifacts from /app output
                 } else {
                     (context_idx, 0) // Raw context if no build commands
                 },

@@ -5,6 +5,7 @@ mod docker_compose;
 mod dockerfile;
 mod env_file;
 mod kubernetes;
+pub(crate) mod mise;
 mod procfile;
 
 pub use app_config::AppConfigParser;

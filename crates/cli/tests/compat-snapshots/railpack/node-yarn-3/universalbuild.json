@@ -1,0 +1,56 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-yarn-3",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "ca-certificates",
+        "corepack"
+      ],
+      "env": {
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
+      "commands": [
+        "corepack enable",
+        "yarn install",
+        "yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "corepack"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "sh",
+        "-c",
+        "corepack enable && exec yarn start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

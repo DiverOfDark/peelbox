@@ -1,0 +1,52 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "basic_gleam",
+      "language": "Gleam",
+      "build_system": "Gleam",
+      "reasoning": "Detected from gleam.toml"
+    },
+    "build": {
+      "packages": [
+        "erlang-26",
+        "erlang-26-dev",
+        "rebar3",
+        "curl",
+        "ca-certificates"
+      ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://github.com/gleam-lang/gleam/releases/download/v0.30.0/gleam-v0.30.0-$(uname -m)-unknown-linux-musl.tar.gz | tar -xzC /usr/local/bin/",
+        "gleam export erlang-shipment"
+      ],
+      "cache": [
+        "build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "erlang-26",
+        "busybox",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "build/erlang-shipment",
+          "to": "/app/build/erlang-shipment"
+        }
+      ],
+      "command": [
+        "/app/build/erlang-shipment/entrypoint.sh",
+        "run"
+      ],
+      "workdir": "/app",
+      "ports": [
+        4000
+      ]
+    }
+  }
+]

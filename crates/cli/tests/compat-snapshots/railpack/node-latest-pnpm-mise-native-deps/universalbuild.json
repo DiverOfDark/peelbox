@@ -1,0 +1,57 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-latest-pnpm-mise-native-deps",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "reasoning": "Detected from pnpm-lock.yaml"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "build-base",
+        "python-3.12",
+        "npm",
+        "ca-certificates",
+        "sqlite-dev"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "mkdir -p /usr/lib/node_modules/pnpm/dist/node_modules && ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/pnpm/dist/node_modules/node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "pnpm install"
+      ],
+      "cache": [
+        ".pnpm-store"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "sqlite-libs"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "node",
+        "index.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

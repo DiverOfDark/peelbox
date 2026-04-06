@@ -1,0 +1,85 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "PHP",
+      "build_system": "Composer",
+      "framework": "Laravel",
+      "reasoning": "Detected from composer.json"
+    },
+    "build": {
+      "packages": [
+        "php-8.4",
+        "composer",
+        "unzip",
+        "git",
+        "ca-certificates",
+        "php-8.4-ctype",
+        "php-8.4-phar",
+        "php-8.4-openssl",
+        "php-8.4-mbstring",
+        "php-8.4-xml",
+        "php-8.4-dom",
+        "php-8.4-curl",
+        "nodejs-25",
+        "npm"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "composer install --no-dev --optimize-autoloader --ignore-platform-reqs",
+        "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true",
+        "npm install",
+        "npm run build"
+      ],
+      "cache": [
+        ".composer/cache",
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "php-8.4",
+        "php-8.4-ctype",
+        "php-8.4-phar",
+        "php-8.4-openssl",
+        "php-8.4-mbstring",
+        "php-8.4-xml",
+        "php-8.4-dom",
+        "php-8.4-curl",
+        "php-8.4-fileinfo",
+        "php-8.4-iconv",
+        "php-8.4-pdo_sqlite",
+        "busybox",
+        "ca-certificates"
+      ],
+      "env": {
+        "APP_ENV": "production",
+        "CACHE_STORE": "file",
+        "SESSION_DRIVER": "file"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "php",
+        "artisan",
+        "serve",
+        "--host=0.0.0.0",
+        "--port=8000"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
+    }
+  }
+]

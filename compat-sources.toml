@@ -1,0 +1,11 @@
+# Pinned external repositories for cross-validation fixtures.
+# The fetch script sparse-clones only the examples/ directory from each repo.
+# Update the commit SHA to pull in new fixtures.
+
+[railpack]
+repo = "https://github.com/railwayapp/railpack.git"
+commit = "8533e4c62bf0aad4f89aec5b7716cb7e8e1e5be1"
+
+[nixpacks]
+repo = "https://github.com/railwayapp/nixpacks.git"
+commit = "144b4f9ab1c3943af4dfe76d3c79d91263f5b465"

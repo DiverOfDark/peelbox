@@ -9,6 +9,16 @@ const GO: LanguageId = LanguageId::new("go");
 const GOMOD: BuildSystemId = BuildSystemId::new("go-mod");
 const NATIVE: RuntimeId = RuntimeId::new("native");
 
+/// Return the Wolfi package name for a Go version string.
+/// Old versions (below Wolfi availability) use the generic "go" package,
+/// which Wolfi resolution upgrades to the latest available version.
+/// Go is backward-compatible, so building old code with a newer compiler is safe.
+pub(crate) fn go_wolfi_package(version: Option<&str>) -> String {
+    version
+        .map(|v| format!("go-{}", v))
+        .unwrap_or_else(|| "go".into())
+}
+
 inventory::submit! {
     LanguageMeta { slug: "go", display_name: "Go", aliases: &[] }
 }
@@ -16,9 +26,36 @@ inventory::submit! {
     BuildSystemMeta { slug: "go-mod", display_name: "go mod", aliases: &["go-mod"] }
 }
 
-/// Check if any `.go` file in the given directory declares `package main`.
+/// Check if any `.go` file in the given directory (or its `cmd/` subdirectories)
+/// declares `package main`.
 /// This determines whether the Go module is an executable (application) or a library.
-fn has_go_main_package(dir: &Path) -> bool {
+///
+/// Returns `Some(cmd_subdir_name)` if found in `cmd/X/`, or `Some("")` if found
+/// in the root directory itself, or `None` if not found.
+fn find_go_main_package(dir: &Path) -> Option<String> {
+    // First check the root directory itself
+    if dir_has_package_main(dir) {
+        return Some(String::new());
+    }
+
+    // Then check cmd/ subdirectories (common Go project layout)
+    let cmd_dir = dir.join("cmd");
+    if let Ok(entries) = std::fs::read_dir(&cmd_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && dir_has_package_main(&path) {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    return Some(name.to_string());
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if any `.go` file in the given directory declares `package main`.
+fn dir_has_package_main(dir: &Path) -> bool {
     let entries = match std::fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(_) => return false,
@@ -72,34 +109,81 @@ impl ManifestParser for GoModParser {
                 }
             });
 
-        let go_pkg = go_version
-            .as_ref()
-            .map(|v| format!("go-{}", v))
-            .unwrap_or_else(|| "go".into());
+        // Always use Wolfi packages. Go is backward-compatible, so a newer
+        // compiler can build code written for an older version. For old versions
+        // not in Wolfi, the generic "go" name is resolved to the latest available.
+        let go_pkg = go_wolfi_package(go_version.as_deref());
+        let build_packages = vec![go_pkg, "git".into(), "ca-certificates".into()];
 
         let dependencies = parse_go_deps(content);
 
         // Determine if this module is an executable or a library
         let dir = path.parent().unwrap_or(Path::new("."));
-        let is_application = has_go_main_package(dir);
+        let main_location = find_go_main_package(dir);
+        let is_application = main_location.is_some();
 
-        let (commands, member_transform, artifacts, entrypoint, ports) = if is_application {
-            (
-                vec![
-                    "go mod download".into(),
-                    format!("go build -o {} .", short_name),
-                ],
-                Some(MemberBuildTransform {
-                    member_commands: vec![format!("go build -o {} ./{{module}}", short_name)],
-                    member_artifacts: None,
-                }),
-                vec![(short_name.to_string(), format!("/app/{}", short_name))],
-                Some(format!("/app/{}", short_name)),
-                vec![8080],
-            )
-        } else {
-            (vec![], None, vec![], None, vec![])
-        };
+        let (commands, member_transform, artifacts, entrypoint, ports) =
+            if let Some(ref cmd_subdir) = main_location {
+                if cmd_subdir.is_empty() {
+                    // main.go is in the root directory
+                    (
+                        vec![
+                            "go mod download".into(),
+                            "mkdir -p bin".into(),
+                            format!("go build -o bin/{} .", short_name),
+                        ],
+                        Some(MemberBuildTransform {
+                            member_commands: vec![
+                                "mkdir -p bin".into(),
+                                format!("go build -o bin/{} ./{{module}}", short_name),
+                            ],
+                            member_artifacts: None,
+                        }),
+                        vec![(
+                            format!("bin/{}", short_name),
+                            format!("/app/{}", short_name),
+                        )],
+                        Some(format!("/app/{}", short_name)),
+                        vec![8080],
+                    )
+                } else {
+                    // main.go is in cmd/<subdir>/
+                    let binary_name = cmd_subdir;
+                    (
+                        vec![
+                            "go mod download".into(),
+                            "mkdir -p bin".into(),
+                            format!("go build -o bin/{} ./cmd/{}", binary_name, binary_name),
+                        ],
+                        Some(MemberBuildTransform {
+                            member_commands: vec![
+                                "mkdir -p bin".into(),
+                                format!(
+                                    "go build -o bin/{} ./{{module}}/cmd/{}",
+                                    binary_name, binary_name
+                                ),
+                            ],
+                            member_artifacts: None,
+                        }),
+                        vec![(
+                            format!("bin/{}", binary_name),
+                            format!("/app/{}", binary_name),
+                        )],
+                        Some(format!("/app/{}", binary_name)),
+                        vec![8080],
+                    )
+                }
+            } else {
+                (vec![], None, vec![], None, vec![])
+            };
+
+        // Build environment
+        let env_pairs: Vec<(&str, &str)> = vec![
+            ("CGO_ENABLED", "0"),
+            ("GOCACHE", "/app/.cache/go-build"),
+            ("GOMODCACHE", "/app/.cache/go-mod"),
+            ("GOSUMDB", "off"),
+        ];
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -114,15 +198,10 @@ impl ManifestParser for GoModParser {
             workspace: None,
             dependencies,
             build: BuildSpec {
-                packages: vec![go_pkg, "git".into(), "ca-certificates".into()],
+                packages: build_packages,
                 commands,
                 member_transform,
-                env: btree(&[
-                    ("CGO_ENABLED", "0"),
-                    ("GOCACHE", "/build/.cache/go-build"),
-                    ("GOMODCACHE", "/build/.cache/go-mod"),
-                    ("GOSUMDB", "off"),
-                ]),
+                env: btree(&env_pairs),
                 cache_dirs: vec![".cache/go-build".into(), ".cache/go-mod".into()],
                 artifacts,
             },
@@ -183,4 +262,85 @@ fn parse_go_deps(content: &str) -> Vec<Dependency> {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(GoModParser))
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Go"],
+        extensions: &["go"],
+        port_patterns: &[
+            r"ListenAndServe\([^)]*:(\d{4,5})",
+            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
+        ],
+        health_patterns: &[r#"\.(?:GET|Handle(?:Func)?)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
+        env_var_patterns: &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::traits::ManifestParser;
+
+    #[test]
+    fn test_go_wolfi_package() {
+        assert_eq!(go_wolfi_package(Some("1.21")), "go-1.21");
+        assert_eq!(go_wolfi_package(Some("1.23.4")), "go-1.23.4");
+        assert_eq!(go_wolfi_package(None), "go");
+        // Old versions still get a versioned package name; Wolfi resolution
+        // upgrades them to the latest available version.
+        assert_eq!(go_wolfi_package(Some("1.18")), "go-1.18");
+    }
+
+    #[test]
+    fn test_go_mod_parser_modern_version() {
+        let parser = GoModParser;
+        let content = "module example.com/app\n\ngo 1.21\n";
+        let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
+
+        // Should use Wolfi package
+        assert!(manifest.build.packages.contains(&"go-1.21".to_string()));
+        assert!(!manifest.build.packages.contains(&"curl".to_string()));
+        assert!(!manifest.build.packages.contains(&"build-base".to_string()));
+        // Should NOT have SDK install command
+        assert!(!manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go.dev/dl")));
+        // Should NOT have GOROOT env
+        assert!(!manifest.build.env.contains_key("GOROOT"));
+    }
+
+    #[test]
+    fn test_go_mod_parser_old_version() {
+        let parser = GoModParser;
+        let content = "module example.com/app\n\ngo 1.18\n";
+        let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
+
+        // Old versions now use Wolfi packages too (Go is backward-compatible).
+        // Wolfi resolution upgrades to latest available version.
+        assert!(manifest.build.packages.contains(&"go-1.18".to_string()));
+        assert!(!manifest.build.packages.contains(&"curl".to_string()));
+        assert!(!manifest.build.packages.contains(&"build-base".to_string()));
+        // Should NOT have GOROOT env
+        assert!(!manifest.build.env.contains_key("GOROOT"));
+        // Standard Go env should still be present
+        assert_eq!(manifest.build.env.get("CGO_ENABLED").unwrap(), "0");
+    }
+
+    #[test]
+    fn test_go_mod_parser_old_version_with_patch() {
+        let parser = GoModParser;
+        let content = "module example.com/app\n\ngo 1.17.5\n";
+        let manifest = parser.parse(Path::new("go.mod"), content).unwrap();
+
+        // Should use Wolfi package (not legacy SDK download)
+        assert!(manifest.build.packages.contains(&"go-1.17.5".to_string()));
+        assert!(!manifest
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("go.dev/dl")));
+    }
 }

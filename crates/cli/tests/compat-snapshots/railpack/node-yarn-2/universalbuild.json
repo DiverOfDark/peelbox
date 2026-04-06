@@ -1,0 +1,51 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-yarn-2",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
+    "build": {
+      "packages": [
+        "nodejs-18",
+        "yarn",
+        "ca-certificates"
+      ],
+      "env": {
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
+      "commands": [
+        "yarn install"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-18",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

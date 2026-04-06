@@ -33,11 +33,37 @@ impl ManifestParser for ProjectCljParser {
 
         let java_home = "/usr/lib/jvm/java-17-openjdk";
 
-        // Build the uberjar filename based on project name and version
-        let jar_name = format!("{}-{}-standalone.jar", project_name, version);
-        let jar_path = format!("target/{}", jar_name);
+        // Check for a custom :uberjar-name in :profiles {:uberjar {...}}.
+        let custom_uberjar_name = parse_uberjar_name(content);
 
-        let entrypoint = Some(format!("java -jar /app/{}", jar_name));
+        // Build the uberjar filename based on project name and version.
+        // If :uberjar-name is set in the uberjar profile, use that instead.
+        // Check if :target-path has profile-based substitution (%s).
+        // When :target-path is "target/%s", `lein uberjar` outputs to target/uberjar/.
+        // Otherwise (default), the output goes to target/.
+        let has_profile_target = content.contains(":target-path") && content.contains("%s");
+        let jar_name = custom_uberjar_name
+            .unwrap_or_else(|| format!("{}-{}-standalone.jar", project_name, version));
+        let jar_path = if has_profile_target {
+            format!("target/uberjar/{}", jar_name)
+        } else {
+            format!("target/{}", jar_name)
+        };
+
+        // Determine the runtime command.
+        // When AOT compilation is configured (`:aot :all` in uberjar profile or top-level),
+        // the uberjar has a compiled main class and `java -jar` works.
+        // Without AOT, use `java -cp <jar> clojure.main -m <ns>` to invoke the namespace.
+        let has_aot = has_aot_compilation(content);
+        let entrypoint = if !has_aot {
+            if let Some(ref ns) = main_ns {
+                Some(format!("java -cp /app/{} clojure.main -m {}", jar_name, ns))
+            } else {
+                Some(format!("java -jar /app/{}", jar_name))
+            }
+        } else {
+            Some(format!("java -jar /app/{}", jar_name))
+        };
 
         let runtime_env = btree(&[
             ("JAVA_HOME", java_home),
@@ -70,13 +96,13 @@ impl ManifestParser for ProjectCljParser {
                     "ca-certificates".into(),
                 ],
                 commands: vec![
-                    "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version".into(),
+                    "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/app/.lein lein version".into(),
                     "lein uberjar".into(),
                 ],
                 member_transform: None,
                 env: btree(&[
                     ("JAVA_HOME", java_home),
-                    ("LEIN_HOME", "/build/.lein"),
+                    ("LEIN_HOME", "/app/.lein"),
                     (
                         "PATH",
                         &format!(
@@ -87,7 +113,7 @@ impl ManifestParser for ProjectCljParser {
                 ]),
                 cache_dirs: vec![".lein".into(), ".m2".into()],
                 artifacts: vec![(jar_path, format!("/app/{}", jar_name))],
-            },
+},
             runtime_config: RuntimeSpec {
                 packages: vec!["openjdk-17-jre".into(), "ca-certificates".into()],
                 env: runtime_env,
@@ -113,10 +139,31 @@ fn parse_defproject(content: &str) -> Option<(String, String)> {
 }
 
 /// Parse `:main` namespace from project.clj.
+/// Handles metadata annotations like `^:skip-aot` before the namespace name.
 fn parse_main_ns(content: &str) -> Option<String> {
-    let re = regex::Regex::new(r":main\s+([\w\-\.]+)").ok()?;
+    let re = regex::Regex::new(r":main\s+(?:\^:\S+\s+)?([\w\-\.]+)").ok()?;
     let caps = re.captures(content)?;
     Some(caps.get(1)?.as_str().to_string())
+}
+
+/// Parse `:uberjar-name` from project.clj (typically inside `:profiles {:uberjar {...}}`).
+fn parse_uberjar_name(content: &str) -> Option<String> {
+    let re = regex::Regex::new(r#":uberjar-name\s+"([^"]+)""#).ok()?;
+    let caps = re.captures(content)?;
+    Some(caps.get(1)?.as_str().to_string())
+}
+
+/// Detect whether AOT compilation is configured for uberjar builds.
+/// Returns true if `:aot :all` or `:aot [...]` appears in the uberjar profile
+/// or at the top level of the project.
+fn has_aot_compilation(content: &str) -> bool {
+    // Check for :aot anywhere in the content — this covers both top-level
+    // and profile-nested :aot declarations.
+    let re = regex::Regex::new(r":aot\s+(:all|\[)").ok();
+    match re {
+        Some(re) => re.is_match(content),
+        None => false,
+    }
 }
 
 /// Parse dependencies from `:dependencies [[group/artifact "version"] ...]`.
@@ -180,6 +227,20 @@ fn parse_lein_deps(content: &str) -> Vec<Dependency> {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(ProjectCljParser))
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Clojure"],
+        extensions: &["clj", "cljc", "cljs"],
+        port_patterns: &[
+            r#":port\s+(\d{4,5})"#,
+            r#"\{:port\s+(\d{4,5})\}"#,
+            r#"run-jetty\s+[^\{]*\{[^}]*:port\s+(\d{4,5})"#,
+        ],
+        health_patterns: &[],
+        env_var_patterns: &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
+    }
 }
 
 #[cfg(test)]
@@ -276,6 +337,30 @@ mod tests {
             .entrypoint
             .unwrap()
             .contains("my-app-0.1.0-standalone.jar"));
+        // Default: no :target-path with %s, so artifacts go to target/
+        assert_eq!(
+            manifest.build.artifacts[0].0,
+            "target/my-app-0.1.0-standalone.jar"
+        );
+    }
+
+    #[test]
+    fn test_project_clj_parser_with_target_path_profile() {
+        let parser = ProjectCljParser;
+        let content = r#"(defproject my-app "0.1.0"
+  :description "A web app with target-path"
+  :dependencies [[org.clojure/clojure "1.11.1"]
+                 [ring/ring-core "1.10.0"]]
+  :main my-app.core
+  :target-path "target/%s"
+  :profiles {:uberjar {:aot :all}})"#;
+
+        let manifest = parser.parse(Path::new("project.clj"), content).unwrap();
+        // When :target-path has %s, artifacts go to target/uberjar/
+        assert_eq!(
+            manifest.build.artifacts[0].0,
+            "target/uberjar/my-app-0.1.0-standalone.jar"
+        );
     }
 
     #[test]
@@ -296,5 +381,97 @@ mod tests {
         let manifest = parser.parse(Path::new("project.clj"), content).unwrap();
         let pkg = manifest.package.unwrap();
         assert!(!pkg.is_application);
+    }
+
+    #[test]
+    fn test_parse_main_ns_with_skip_aot() {
+        let content = r#"(defproject my-app "0.1.0"
+  :main ^:skip-aot my-app.core)"#;
+        assert_eq!(parse_main_ns(content), Some("my-app.core".to_string()));
+    }
+
+    #[test]
+    fn test_parse_uberjar_name() {
+        let content = r#"(defproject my-app "0.1.0"
+  :profiles {:uberjar {:uberjar-name "my-app.jar"}})"#;
+        assert_eq!(parse_uberjar_name(content), Some("my-app.jar".to_string()));
+    }
+
+    #[test]
+    fn test_parse_uberjar_name_missing() {
+        let content = r#"(defproject my-app "0.1.0"
+  :profiles {:uberjar {:aot :all}})"#;
+        assert_eq!(parse_uberjar_name(content), None);
+    }
+
+    #[test]
+    fn test_has_aot_compilation_all() {
+        let content = r#"(defproject my-app "0.1.0"
+  :profiles {:uberjar {:aot :all}})"#;
+        assert!(has_aot_compilation(content));
+    }
+
+    #[test]
+    fn test_has_aot_compilation_vector() {
+        let content = r#"(defproject my-app "0.1.0"
+  :profiles {:uberjar {:aot [my-app.core]}})"#;
+        assert!(has_aot_compilation(content));
+    }
+
+    #[test]
+    fn test_has_aot_compilation_missing() {
+        let content = r#"(defproject my-app "0.1.0"
+  :main my-app.core)"#;
+        assert!(!has_aot_compilation(content));
+    }
+
+    #[test]
+    fn test_no_aot_uses_clojure_main() {
+        let parser = ProjectCljParser;
+        let content = r#"(defproject hello-ring "0.1.0-SNAPSHOT"
+  :dependencies [[org.clojure/clojure "1.10.3"]
+                 [ring/ring-core "1.9.5"]
+                 [ring/ring-jetty-adapter "1.9.5"]]
+  :main hello-ring.core)"#;
+
+        let manifest = parser.parse(Path::new("project.clj"), content).unwrap();
+        assert_eq!(
+            manifest.runtime_config.entrypoint.unwrap(),
+            "java -cp /app/hello-ring-0.1.0-SNAPSHOT-standalone.jar clojure.main -m hello-ring.core"
+        );
+    }
+
+    #[test]
+    fn test_aot_uses_java_jar() {
+        let parser = ProjectCljParser;
+        let content = r#"(defproject my-app "0.1.0"
+  :dependencies [[org.clojure/clojure "1.11.1"]]
+  :main my-app.core
+  :profiles {:uberjar {:aot :all}})"#;
+
+        let manifest = parser.parse(Path::new("project.clj"), content).unwrap();
+        assert_eq!(
+            manifest.runtime_config.entrypoint.unwrap(),
+            "java -jar /app/my-app-0.1.0-standalone.jar"
+        );
+    }
+
+    #[test]
+    fn test_custom_uberjar_name_used_in_artifacts() {
+        let parser = ProjectCljParser;
+        let content = r#"(defproject my-app "0.1.0-SNAPSHOT"
+  :dependencies [[org.clojure/clojure "1.11.1"]]
+  :main ^:skip-aot my-app.core
+  :target-path "target/%s/"
+  :profiles {:uberjar {:aot :all
+                       :uberjar-name "my-app.jar"}})"#;
+
+        let manifest = parser.parse(Path::new("project.clj"), content).unwrap();
+        assert_eq!(manifest.build.artifacts[0].0, "target/uberjar/my-app.jar");
+        assert_eq!(manifest.build.artifacts[0].1, "/app/my-app.jar");
+        assert_eq!(
+            manifest.runtime_config.entrypoint.unwrap(),
+            "java -jar /app/my-app.jar"
+        );
     }
 }

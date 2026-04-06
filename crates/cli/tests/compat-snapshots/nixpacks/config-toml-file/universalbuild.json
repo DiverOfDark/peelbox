@@ -1,0 +1,41 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Config",
+      "build_system": "Config",
+      "reasoning": "Detected from nixpacks.toml"
+    },
+    "build": {
+      "packages": [
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "true"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "bash",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "cowsay",
+        "${HELLO}"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

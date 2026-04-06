@@ -1,0 +1,54 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-nx",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Next.js",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "npm ci",
+        "npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3333,
+        3000
+      ]
+    }
+  }
+]

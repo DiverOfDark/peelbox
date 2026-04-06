@@ -1,116 +1,118 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api-service",
+      "language": "Java",
+      "build_system": "Gradle",
+      "framework": "Spring Boot",
+      "reasoning": "Detected from build.gradle in api-service"
+    },
     "build": {
-      "cache": [
-        ".gradle",
-        "build"
-      ],
-      "commands": [
-        "gradle :api-service:assemble -x test --no-daemon --console=plain"
+      "packages": [
+        "openjdk-17",
+        "gradle-8",
+        "ca-certificates"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
       },
-      "packages": [
-        "openjdk-17",
-        "gradle-8",
-        "ca-certificates"
+      "commands": [
+        "gradle :api-service:assemble -x test --no-daemon --console=plain"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
       ]
     },
-    "metadata": {
-      "build_system": "Gradle",
-      "framework": "Spring Boot",
-      "language": "Java",
-      "project_name": "api-service",
-      "reasoning": "Detected from build.gradle in api-service"
-    },
     "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/app.jar"
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
       ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
       "copy": [
         {
           "from": "api-service/build/libs/*.jar",
           "to": "/app/app.jar"
         }
       ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "health": {
-        "endpoint": "/actuator/health"
-      },
-      "packages": [
-        "openjdk-17-jre",
-        "ca-certificates"
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/actuator/health"
+      }
+    }
   },
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web-service",
+      "language": "Java",
+      "build_system": "Gradle",
+      "framework": "Spring Boot",
+      "reasoning": "Detected from build.gradle in web-service"
+    },
     "build": {
-      "cache": [
-        ".gradle",
-        "build"
-      ],
-      "commands": [
-        "gradle :web-service:assemble -x test --no-daemon --console=plain"
+      "packages": [
+        "openjdk-17",
+        "gradle-8",
+        "ca-certificates"
       ],
       "env": {
         "GRADLE_OPTS": "-Dorg.gradle.native=false",
         "GRADLE_USER_HOME": "/root/.gradle",
         "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk"
       },
-      "packages": [
-        "openjdk-17",
-        "gradle-8",
-        "ca-certificates"
+      "commands": [
+        "gradle :web-service:assemble -x test --no-daemon --console=plain"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
       ]
     },
-    "metadata": {
-      "build_system": "Gradle",
-      "framework": "Spring Boot",
-      "language": "Java",
-      "project_name": "web-service",
-      "reasoning": "Detected from build.gradle in web-service"
-    },
     "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/app.jar"
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
       ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
       "copy": [
         {
           "from": "web-service/build/libs/*.jar",
           "to": "/app/app.jar"
         }
       ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "health": {
-        "endpoint": "/actuator/health"
-      },
-      "packages": [
-        "openjdk-17-jre",
-        "ca-certificates"
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/actuator/health"
+      }
+    }
   }
 ]

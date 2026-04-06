@@ -114,7 +114,7 @@ impl ManifestParser for StackYamlParser {
                     format!(".stack-bin/{}", project_name),
                     format!("/app/{}", project_name),
                 )],
-            },
+},
             runtime_config: RuntimeSpec {
                 packages: vec![
                     "glibc".into(),

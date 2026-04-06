@@ -1,0 +1,50 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node-bun",
+      "language": "JavaScript",
+      "build_system": "Bun",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-22",
+        "bun",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "bun install"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-22",
+        "bun",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "bun",
+        "start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5005,
+        3000
+      ]
+    }
+  }
+]

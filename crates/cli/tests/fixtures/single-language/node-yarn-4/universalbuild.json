@@ -1,54 +1,58 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "example-yarn4-app",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
     "build": {
-      "cache": [
-        ".yarn-cache"
-      ],
-      "commands": [
-        "corepack enable",
-        "yarn install"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "yarn",
         "ca-certificates",
         "corepack"
+      ],
+      "env": {
+        "YARN_ENABLE_GLOBAL_CACHE": "false"
+      },
+      "commands": [
+        "corepack enable",
+        "yarn install"
+      ],
+      "cache": [
+        ".yarn-cache"
       ]
     },
-    "metadata": {
-      "build_system": "Yarn",
-      "language": "JavaScript",
-      "project_name": "example-yarn4-app",
-      "reasoning": "Detected from yarn.lock"
-    },
     "runtime": {
-      "command": [
-        "node",
-        "src/index.js"
+      "packages": [
+        "nodejs-25",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "corepack"
       ],
+      "env": {},
       "copy": [
         {
           "from": ".",
           "to": "/app"
         }
       ],
-      "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "nodejs-25",
-        "npm",
-        "busybox",
-        "dumb-init",
-        "ca-certificates"
+      "command": [
+        "sh",
+        "-c",
+        "corepack enable && exec yarn start"
       ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

@@ -1,0 +1,55 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "npm",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "reasoning": "Detected from pnpm-lock.yaml"
+    },
+    "build": {
+      "packages": [
+        "nodejs-20",
+        "pnpm",
+        "build-base",
+        "python-3.12",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "pnpm install",
+        "pnpm build"
+      ],
+      "cache": [
+        ".pnpm-store"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-20",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "node",
+        "dist/index.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

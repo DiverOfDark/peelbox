@@ -1,0 +1,68 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "uv",
+      "framework": "Django",
+      "reasoning": "Detected from uv.lock"
+    },
+    "build": {
+      "packages": [
+        "python-3.11",
+        "py3.11-pip",
+        "build-base",
+        "ca-certificates",
+        "postgresql-18-dev",
+        "python-3.11-dev"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.11",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates",
+        "libpq-18"
+      ],
+      "env": {
+        "DATABASE_URL": "",
+        "DJANGO_SETTINGS_MODULE": "mysite.settings",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "REDIS_URL": "",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "python",
+        "manage.py",
+        "runserver",
+        "0.0.0.0:8000"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/health/"
+      }
+    }
+  }
+]

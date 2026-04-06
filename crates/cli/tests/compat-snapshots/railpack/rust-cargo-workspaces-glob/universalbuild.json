@@ -1,0 +1,49 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "binary",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "reasoning": "Detected from Cargo.toml in example/binary"
+    },
+    "build": {
+      "packages": [
+        "rust-1.92",
+        "build-base",
+        "openssl-dev",
+        "pkgconf",
+        "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cargo build --release --manifest-path example/binary/Cargo.toml --target-dir target"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "target/release/binary",
+          "to": "/app/binary"
+        }
+      ],
+      "command": [
+        "/app/binary"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

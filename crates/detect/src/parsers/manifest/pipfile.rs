@@ -1,7 +1,7 @@
+use crate::helpers::btree;
 use crate::ids::{BuildSystemId, BuildSystemMeta, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
-use std::collections::BTreeMap;
 use std::path::Path;
 
 const PYTHON: LanguageId = LanguageId::new("python");
@@ -86,12 +86,15 @@ impl ManifestParser for PipfileParser {
                 ],
                 commands: vec![
                     "pip install --user pipenv".into(),
-                    "/root/.local/bin/pipenv lock && /root/.local/bin/pipenv requirements > /tmp/requirements.txt && pip install --user --no-cache-dir -r /tmp/requirements.txt".into(),
+                    "/root/.local/bin/pipenv lock --python $(which python3) && /root/.local/bin/pipenv requirements > /tmp/requirements.txt && pip install --user --no-cache-dir -r /tmp/requirements.txt".into(),
                 ],
                 member_transform: None,
-                env: BTreeMap::new(),
+                env: btree(&[]),
                 cache_dirs: vec!["/root/.cache/pip/".into()],
-                artifacts: vec![(".".into(), "/app/".into())],
+                artifacts: vec![
+                    (".".into(), "/app/".into()),
+                    ("/root/.local/".into(), "/root/.local/".into()),
+                ],
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -100,7 +103,10 @@ impl ManifestParser for PipfileParser {
                     "libstdc++".into(),
                     "ca-certificates".into(),
                 ],
-                env: BTreeMap::new(),
+                env: btree(&[
+                    ("PATH", "/root/.local/bin:/usr/local/bin:/usr/bin:/bin"),
+                    ("PYTHONUSERBASE", "/root/.local"),
+                ]),
                 entrypoint: None,
                 workdir: Some("/app".into()),
                 ports: vec![8000],

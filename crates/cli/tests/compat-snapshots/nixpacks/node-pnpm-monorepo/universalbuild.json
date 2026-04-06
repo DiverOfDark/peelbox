@@ -1,0 +1,100 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "docs",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "framework": "Next.js",
+      "reasoning": "Detected from package.json in apps/docs"
+    },
+    "build": {
+      "packages": [
+        "nodejs-18",
+        "pnpm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pnpm install",
+        "cd apps/docs && pnpm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-18",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "pnpm",
+        "start"
+      ],
+      "workdir": "/app/apps/docs",
+      "ports": [
+        3000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "web",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "framework": "Next.js",
+      "reasoning": "Detected from package.json in apps/web"
+    },
+    "build": {
+      "packages": [
+        "nodejs-18",
+        "pnpm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pnpm install",
+        "cd apps/web && pnpm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-18",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "pnpm",
+        "start"
+      ],
+      "workdir": "/app/apps/web",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

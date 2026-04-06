@@ -94,19 +94,27 @@ impl BuildSession {
 
         let exclude_patterns = crate::llb::load_exclude_patterns(&context_path);
 
-        let shared_key = match crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
-        {
-            Ok(hash) => {
-                info!("Session shared_key derived from context hash: {}", hash);
+        // Derive a cache namespace from context path + file content hash.
+        // This ensures cache mount IDs (for target/, .cargo, etc.) change when
+        // source files change, preventing stale compiled artifacts from being
+        // reused across builds with incompatible code changes.
+        let shared_key = {
+            use sha2::{Digest, Sha256};
+            let canonical = context_path
+                .canonicalize()
+                .unwrap_or_else(|_| context_path.clone());
+            let context_hash = crate::llb::calculate_context_hash(&context_path, &exclude_patterns)
+                .unwrap_or_default();
+            let mut h = Sha256::new();
+            h.update(canonical.to_string_lossy().as_bytes());
+            h.update(context_hash.as_bytes());
+            let hash = hex::encode(h.finalize());
+            info!(
+                "Session shared_key derived from context path {} + content hash: {}",
+                canonical.display(),
                 hash
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to compute context hash for shared_key, falling back to session_id: {}",
-                    e
-                );
-                session_id.clone()
-            }
+            );
+            hash
         };
 
         Self {
@@ -568,6 +576,13 @@ impl BuildSession {
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
             .collect();
+        // Ensure PATH is always present -- without it, the container has no
+        // search path for executables (OCI spec treats empty Env as no env).
+        if !env_vars.iter().any(|e| e.starts_with("PATH=")) {
+            env_vars.push(
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_string(),
+            );
+        }
         env_vars.sort();
 
         #[derive(Debug, Clone, serde::Serialize)]
@@ -651,9 +666,21 @@ impl BuildSession {
 
         frontend_inputs.insert("context".to_string(), local_source_def);
 
+        // When using Docker daemon's native BuildKit with `type=docker`, the daemon
+        // writes the image directly into its own store — no FileSend/DiffCopy callback.
+        // We only request `tar=true` when we need the image streamed back to us.
+        let is_docker_native = matches!(
+            self.connection.addr(),
+            crate::connection::BuildKitAddr::DockerNative(_)
+        );
+        let needs_tar_stream =
+            !is_docker_native || !matches!(self.output_dest, OutputDestination::DockerLoad);
+
         let mut exporter_attrs = std::collections::HashMap::new();
         exporter_attrs.insert("name".to_string(), image_tag.to_string());
-        exporter_attrs.insert("tar".to_string(), "true".to_string());
+        if needs_tar_stream {
+            exporter_attrs.insert("tar".to_string(), "true".to_string());
+        }
         exporter_attrs.insert("containerimage.config".to_string(), config_json_str);
 
         if self.attestation_config.sbom {
@@ -850,20 +877,27 @@ impl BuildSession {
         debug!("Solve response: {:?}", solve_response);
 
         if let Some(export_done) = self.export_done.take() {
-            debug!("Waiting for tar export to complete...");
-            match tokio::time::timeout(Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS), export_done)
+            if needs_tar_stream {
+                debug!("Waiting for tar export to complete...");
+                match tokio::time::timeout(
+                    Duration::from_secs(TAR_EXPORT_TIMEOUT_SECS),
+                    export_done,
+                )
                 .await
-            {
-                Ok(Ok(())) => {
-                    debug!("Tar export completed successfully");
+                {
+                    Ok(Ok(())) => {
+                        debug!("Tar export completed successfully");
+                    }
+                    Ok(Err(_)) => {
+                        warn!("Export completion sender dropped - export may have failed");
+                    }
+                    Err(_) => {
+                        error!("Timeout waiting for tar export after 5 minutes");
+                        return Err(anyhow::anyhow!("Tar export timed out after 5 minutes"));
+                    }
                 }
-                Ok(Err(_)) => {
-                    warn!("Export completion sender dropped - export may have failed");
-                }
-                Err(_) => {
-                    error!("Timeout waiting for tar export after 5 minutes");
-                    return Err(anyhow::anyhow!("Tar export timed out after 5 minutes"));
-                }
+            } else {
+                debug!("Docker daemon handles export internally — skipping tar stream wait");
             }
         } else {
             debug!("No export completion signal configured");

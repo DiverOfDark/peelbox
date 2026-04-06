@@ -1,0 +1,62 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Java",
+      "build_system": "Gradle",
+      "framework": "Spring Boot",
+      "reasoning": "Detected from build.gradle"
+    },
+    "build": {
+      "packages": [
+        "openjdk-11",
+        "bash",
+        "ca-certificates"
+      ],
+      "env": {
+        "GRADLE_OPTS": "-Dorg.gradle.native=false",
+        "GRADLE_USER_HOME": "/root/.gradle",
+        "JAVA_HOME": "/usr/lib/jvm/java-11-openjdk"
+      },
+      "commands": [
+        "./gradlew assemble -x test --no-daemon --console=plain"
+      ],
+      "cache": [
+        ".gradle",
+        "build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-11-jre",
+        "ca-certificates"
+      ],
+      "env": {
+        "BUILD_PROFILE": "",
+        "JAVA_HOME": "/usr/lib/jvm/java-11-openjdk",
+        "PATH": "/usr/lib/jvm/java-11-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "3030"
+      },
+      "copy": [
+        {
+          "from": "build/libs/java-spring-example-0.0.1-SNAPSHOT.jar",
+          "to": "/app/app.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3030,
+        8080
+      ],
+      "health": {
+        "endpoint": "/actuator/health"
+      }
+    }
+  }
+]

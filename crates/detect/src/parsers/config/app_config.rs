@@ -20,13 +20,21 @@ impl ConfigParser for AppConfigParser {
         let mut ports = Vec::new();
 
         if filename.ends_with(".properties") {
-            // Java properties: server.port=8080
-            let re = regex::Regex::new(r"(?m)^server\.port\s*=\s*(\d+)").ok()?;
+            // Java properties: server.port=8080 or server.port=${PORT:5000}
+            let re = regex::Regex::new(r"(?m)^server\.port\s*=\s*(.+)$").ok()?;
             for cap in re.captures_iter(content) {
-                if let Some(port_match) = cap.get(1) {
-                    if let Ok(port) = port_match.as_str().parse::<u16>() {
+                if let Some(val) = cap.get(1) {
+                    let val = val.as_str().trim();
+                    // Try plain port number first
+                    if let Ok(port) = val.parse::<u16>() {
                         if !ports.contains(&port) {
                             ports.push(port);
+                        }
+                    } else if let Some(default) = extract_spring_placeholder_default(val) {
+                        if let Ok(port) = default.parse::<u16>() {
+                            if !ports.contains(&port) {
+                                ports.push(port);
+                            }
                         }
                     }
                 }
@@ -69,6 +77,12 @@ impl ConfigParser for AppConfigParser {
             runtime_command: None,
         })
     }
+}
+
+/// Extract the default value from a Spring placeholder like `${PORT:5000}`.
+fn extract_spring_placeholder_default(value: &str) -> Option<&str> {
+    let inner = value.strip_prefix("${")?.strip_suffix('}')?;
+    inner.split_once(':').map(|(_, default)| default.trim())
 }
 
 inventory::submit! {

@@ -1,0 +1,58 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "Poetry",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
+        "POETRY_VIRTUALENVS_IN_PROJECT": "true"
+      },
+      "commands": [
+        "pip install poetry poetry-plugin-export",
+        "poetry lock --no-update 2>/dev/null || poetry lock",
+        "poetry export --without-hashes -f requirements.txt -o requirements.txt --only main",
+        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/pypoetry/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "python",
+        "/app/main.py"
+      ],
+      "workdir": "/app",
+      "ports": []
+    }
+  }
+]

@@ -40,10 +40,37 @@ impl ManifestParser for PnpmLockParser {
 
         let language = JAVASCRIPT;
 
-        let entrypoint = json
-            .get("main")
+        let start_script = json
+            .get("scripts")
+            .and_then(|s| s.get("start"))
+            .and_then(|v| v.as_str());
+
+        let entrypoint = if let Some(script) = start_script {
+            if script.starts_with("node ") {
+                Some(script.to_string())
+            } else {
+                Some("pnpm start".to_string())
+            }
+        } else {
+            json.get("main")
+                .and_then(|v| v.as_str())
+                .map(|m| format!("node {}", m))
+        };
+
+        // Extract Node.js version from engines.node or volta.node
+        let node_pkg = json
+            .get("engines")
+            .and_then(|e| e.get("node"))
             .and_then(|v| v.as_str())
-            .map(|m| format!("node {}", m));
+            .and_then(super::package_json::extract_node_major)
+            .or_else(|| {
+                json.get("volta")
+                    .and_then(|v| v.get("node"))
+                    .and_then(|v| v.as_str())
+                    .and_then(super::package_json::extract_node_major)
+            })
+            .map(|v| format!("nodejs-{}", v))
+            .unwrap_or_else(|| "nodejs".into());
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -55,27 +82,44 @@ impl ManifestParser for PnpmLockParser {
                 version,
                 is_application: has_start,
             }),
-            workspace: None,
+            workspace: parse_pnpm_workspace_yaml(dir),
             dependencies,
             build: BuildSpec {
                 packages: vec![
-                    "nodejs".into(),
+                    node_pkg.clone(),
                     "pnpm".into(),
                     "build-base".into(),
                     "python".into(),
                     "npm".into(),
                     "ca-certificates".into(),
                 ],
-                commands: vec!["pnpm install".into(), "pnpm build".into()],
-                member_transform: None,
+                commands: {
+                    let has_build = json.get("scripts").and_then(|s| s.get("build")).is_some();
+                    let mut cmds = vec!["pnpm install".into()];
+                    if has_build {
+                        cmds.push("pnpm build".into());
+                    }
+                    cmds
+                },
+                member_transform: {
+                    let has_build = json.get("scripts").and_then(|s| s.get("build")).is_some();
+                    let mut member_cmds = vec!["pnpm install".to_string()];
+                    if has_build {
+                        member_cmds.push("cd {module} && pnpm run build".to_string());
+                    }
+                    Some(MemberBuildTransform {
+                        member_commands: member_cmds,
+                        member_artifacts: None,
+                    })
+                },
                 env: BTreeMap::new(),
                 cache_dirs: vec![".pnpm-store".into()],
                 artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
-                    "nodejs".into(),
-                    "npm".into(),
+                    node_pkg,
+                    "pnpm".into(),
                     "busybox".into(),
                     "dumb-init".into(),
                     "ca-certificates".into(),
@@ -88,6 +132,38 @@ impl ManifestParser for PnpmLockParser {
             },
         })
     }
+}
+
+/// Parse `pnpm-workspace.yaml` to extract workspace member globs.
+///
+/// pnpm uses a separate `pnpm-workspace.yaml` file (not the `workspaces` field
+/// in `package.json`) to define workspace members. The file format is:
+///
+/// ```yaml
+/// packages:
+///   - "packages/*"
+///   - "apps/*"
+/// ```
+fn parse_pnpm_workspace_yaml(dir: &Path) -> Option<Workspace> {
+    let ws_path = dir.join("pnpm-workspace.yaml");
+    let content = std::fs::read_to_string(&ws_path).ok()?;
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&content).ok()?;
+
+    let packages = yaml.get("packages")?;
+    let members: Vec<String> = packages
+        .as_sequence()?
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect();
+
+    if members.is_empty() {
+        return None;
+    }
+
+    Some(Workspace {
+        members,
+        orchestrator: None,
+    })
 }
 
 inventory::submit! {

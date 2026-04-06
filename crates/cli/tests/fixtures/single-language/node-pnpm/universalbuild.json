@@ -1,56 +1,58 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "example-node-app",
+      "language": "JavaScript",
+      "build_system": "pnpm",
+      "reasoning": "Detected from pnpm-lock.yaml"
+    },
     "build": {
-      "cache": [
-        ".pnpm-store"
-      ],
-      "commands": [
-        "pnpm install",
-        "pnpm build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-22",
         "pnpm",
         "build-base",
-        "python-3.14",
+        "python-3.12",
         "npm",
         "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "pnpm install",
+        "pnpm build"
+      ],
+      "cache": [
+        ".pnpm-store"
       ]
     },
-    "metadata": {
-      "build_system": "pnpm",
-      "language": "JavaScript",
-      "project_name": "example-node-app",
-      "reasoning": "Detected from pnpm-lock.yaml"
-    },
     "runtime": {
-      "command": [
-        "node",
-        "dist/index.js"
+      "packages": [
+        "nodejs-22",
+        "pnpm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": ".",
           "to": "/app"
         }
       ],
-      "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "nodejs-22",
-        "npm",
-        "busybox",
-        "dumb-init",
-        "ca-certificates"
+      "command": [
+        "node",
+        "dist/index.js"
       ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

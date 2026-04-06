@@ -1,0 +1,57 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Deno",
+      "build_system": "Deno",
+      "reasoning": "Detected from index.ts in src"
+    },
+    "build": {
+      "packages": [
+        "deno",
+        "ca-certificates"
+      ],
+      "env": {
+        "DENO_DIR": "/deno-dir"
+      },
+      "commands": [
+        "cd src && deno install"
+      ],
+      "cache": [
+        "/deno-dir"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "deno",
+        "ca-certificates"
+      ],
+      "env": {
+        "DENO_DIR": "/deno-dir"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        },
+        {
+          "from": "/deno-dir",
+          "to": "/deno-dir"
+        }
+      ],
+      "command": [
+        "deno",
+        "run",
+        "--allow-net",
+        "--allow-read",
+        "--allow-env",
+        "src/index.ts"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

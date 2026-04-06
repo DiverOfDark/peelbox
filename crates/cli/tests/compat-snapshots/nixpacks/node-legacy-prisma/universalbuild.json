@@ -1,0 +1,62 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "script",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "reasoning": "Detected from yarn.lock"
+    },
+    "build": {
+      "packages": [
+        "curl",
+        "yarn",
+        "ca-certificates",
+        "build-base",
+        "bash",
+        "libstdc++"
+      ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "node -e \"var p=require('./package.json');var f=require('fs');p.scripts.build='prisma generate && tsc';f.writeFileSync('./package.json',JSON.stringify(p,null,2)+'\\n')\"",
+        "yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "curl",
+        "yarn",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "bash",
+        "libstdc++"
+      ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "sh",
+        "-c",
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && yarn start"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

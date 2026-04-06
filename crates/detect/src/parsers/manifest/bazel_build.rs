@@ -55,7 +55,7 @@ impl ManifestParser for BazelBuildParser {
         // Language-specific build/runtime configuration
         // Note: Bazel creates `bazel-bin` as an absolute symlink to its cache directory
         // (e.g., /root/.cache/bazel/...); this symlink breaks during BuildKit's artifact
-        // copy step because the target isn't under the /build mount. We resolve this by
+        // copy step because the target isn't under the /app mount. We resolve this by
         // adding a post-build `cp -rL` step that dereferences symlinks into `_output/`.
         let (build_commands, artifacts, runtime_packages, entrypoint, extra_build_packages) =
             if language == JAVA {

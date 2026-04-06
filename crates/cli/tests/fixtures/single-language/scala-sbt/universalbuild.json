@@ -1,62 +1,63 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "my-scala-app",
+      "language": "Scala",
+      "build_system": "sbt",
+      "framework": "Akka HTTP",
+      "reasoning": "Detected from build.sbt"
+    },
     "build": {
-      "cache": [
-        ".ivy2",
-        ".sbt",
-        "target"
-      ],
-      "commands": [
-        "curl -fL \"https://github.com/sbt/sbt/releases/download/v1.9.7/sbt-1.9.7.tgz\" | tar xz -C /usr/local && mkdir -p /usr/local/bin && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt",
-        "sbt assembly"
+      "packages": [
+        "openjdk-21",
+        "bash",
+        "curl",
+        "ca-certificates"
       ],
       "env": {
         "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
         "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "SBT_OPTS": "-Dsbt.global.base=/root/.sbt -Dsbt.ivy.home=/root/.ivy2"
       },
-      "packages": [
-        "openjdk-21",
-        "bash",
-        "curl",
-        "ca-certificates"
+      "commands": [
+        "curl -fL \"https://github.com/sbt/sbt/releases/download/v1.9.7/sbt-1.9.7.tgz\" | tar xz -C /usr/local && mkdir -p /usr/local/bin && ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt",
+        "sbt assembly"
+      ],
+      "cache": [
+        ".ivy2",
+        ".sbt",
+        "target"
       ]
     },
-    "metadata": {
-      "build_system": "sbt",
-      "framework": "Akka HTTP",
-      "language": "Scala",
-      "project_name": "my-scala-app",
-      "reasoning": "Detected from build.sbt"
-    },
     "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/app.jar"
+      "packages": [
+        "openjdk-21-jre",
+        "ca-certificates"
       ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "8080"
+      },
       "copy": [
         {
           "from": "target/scala-*/my-scala-app*assembly*.jar",
           "to": "/app/app.jar"
         }
       ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "openjdk-21-jre",
-        "ca-certificates"
+      "command": [
+        "java",
+        "-jar",
+        "/app/app.jar"
       ],
+      "workdir": "/app",
       "ports": [
         8080
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

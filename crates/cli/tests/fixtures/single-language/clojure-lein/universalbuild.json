@@ -1,61 +1,62 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "my-app",
+      "language": "Clojure",
+      "build_system": "Leiningen",
+      "framework": "Ring",
+      "reasoning": "Detected from project.clj"
+    },
     "build": {
-      "cache": [
-        ".lein",
-        ".m2"
-      ],
-      "commands": [
-        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/build/.lein lein version",
-        "lein uberjar"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "LEIN_HOME": "/build/.lein",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
       "packages": [
         "openjdk-17",
         "bash",
         "curl",
         "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "LEIN_HOME": "/app/.lein",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein -o /usr/local/bin/lein && chmod +x /usr/local/bin/lein && LEIN_HOME=/app/.lein lein version",
+        "lein uberjar"
+      ],
+      "cache": [
+        ".lein",
+        ".m2"
       ]
     },
-    "metadata": {
-      "build_system": "Leiningen",
-      "framework": "Ring",
-      "language": "Clojure",
-      "project_name": "my-app",
-      "reasoning": "Detected from project.clj"
-    },
     "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/my-app-0.1.0-standalone.jar"
+      "packages": [
+        "openjdk-17-jre",
+        "ca-certificates"
       ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
+        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "PORT": "3000"
+      },
       "copy": [
         {
           "from": "target/my-app-0.1.0-standalone.jar",
           "to": "/app/my-app-0.1.0-standalone.jar"
         }
       ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk",
-        "PATH": "/usr/lib/jvm/java-17-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "health": {
-        "endpoint": "/health"
-      },
-      "packages": [
-        "openjdk-17-jre",
-        "ca-certificates"
+      "command": [
+        "java",
+        "-jar",
+        "/app/my-app-0.1.0-standalone.jar"
       ],
+      "workdir": "/app",
       "ports": [
         3000
       ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

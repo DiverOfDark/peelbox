@@ -1,0 +1,83 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Ruby",
+      "build_system": "Bundler",
+      "framework": "Rails",
+      "reasoning": "Detected from Gemfile"
+    },
+    "build": {
+      "packages": [
+        "ruby-3.2",
+        "ruby-3.2-dev",
+        "ruby3.2-bundler",
+        "build-base",
+        "glibc-dev",
+        "linux-headers",
+        "libffi-dev",
+        "yaml-dev",
+        "pkgconf",
+        "ca-certificates",
+        "postgresql-18-dev",
+        "mariadb-connector-c-dev",
+        "mariadb-connector-c",
+        "cmake",
+        "icu-dev",
+        "zlib-dev"
+      ],
+      "env": {
+        "BUNDLE_DEPLOYMENT": "false",
+        "BUNDLE_PATH": "vendor/bundle"
+      },
+      "commands": [
+        "sed -i '/^ruby /d' Gemfile && (grep -q \"gem.*'base64'\" Gemfile || echo \"gem 'base64'\" >> Gemfile) && bundle install || { FAILED_GEM=$(bundle install 2>&1 | sed -n 's/.*error occurred while installing \\([^ ]*\\).*/\\1/p'); [ -n \"$FAILED_GEM\" ] && bundle update $FAILED_GEM && bundle install || bundle update && bundle install; }"
+      ],
+      "cache": [
+        ".bundle",
+        "vendor"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "ruby-3.2",
+        "ruby3.2-bundler",
+        "libgcc",
+        "libstdc++",
+        "busybox",
+        "tzdata",
+        "ca-certificates",
+        "libpq-18",
+        "mariadb-connector-c",
+        "icu"
+      ],
+      "env": {
+        "BUNDLE_GEMFILE": "/app/Gemfile",
+        "BUNDLE_PATH": "/app/vendor/bundle",
+        "RAILS_ENV": "production",
+        "RAILS_LOG_TO_STDOUT": "true",
+        "RAILS_SERVE_STATIC_FILES": "true",
+        "SECRET_KEY_BASE": "please-change-me-in-production-this-is-a-placeholder-key-that-is-at-least-64-bytes-long"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "/bin/sh",
+        "-c",
+        "rake db:migrate && bundle exec bin/rails server -b 0.0.0.0 -p ${PORT:-3000}"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
+    }
+  }
+]

@@ -1,0 +1,58 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "curl",
+        "ca-certificates",
+        "build-base",
+        "bash",
+        "libstdc++"
+      ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14",
+        "npm ci"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "curl",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "bash",
+        "libstdc++"
+      ],
+      "env": {
+        "PATH": "/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "sh",
+        "-c",
+        "mkdir -p /usr/local/bin && curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n -o /usr/local/bin/n && chmod +x /usr/local/bin/n && n 14 > /dev/null 2>&1 && node index.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

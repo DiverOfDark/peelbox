@@ -17,18 +17,22 @@ src/
 ├── pipeline.rs         # Full detection pipeline (~1,725 lines) with Wolfi resolution + post-processing
 ├── ids.rs              # &'static str newtypes: LanguageId, BuildSystemId, FrameworkId, RuntimeId, OrchestratorId
 │                       # Constants defined in parser/detector files, metadata via inventory
-├── version/
-│   └── java.rs         # detect_java_version(), parse_pom_version(), parse_gradle_version()
 ├── parsers/
-│   ├── manifest/       # 21 parsers (one file each, self-register via inventory::submit!)
-│   │   ├── cargo_toml, package_json, pom_xml, build_gradle, settings_gradle,
-│   │   │   go_mod, pyproject_toml, requirements_txt, setup_py, csproj,
-│   │   │   gemfile, mix_exs, composer_json, deno_json, yarn_lock,
-│   │   │   pnpm_lock, cmake_lists, meson_build, bazel_build, makefile,
-│   │   │   build_zig_zon, zig_build
+│   ├── manifest/       # 40+ parsers (one file each, self-register via inventory::submit!)
+│   │   │               # Version detection & Wolfi resolution colocated in primary parser per language:
+│   │   ├── pom_xml     # Maven parser + shared Java version utils (detect/normalize/Wolfi resolution)
+│   │   ├── build_gradle # Gradle parser + parse_gradle_version()
+│   │   ├── package_json # npm/yarn/pnpm/bun parser + Node version/Wolfi + native deps + framework entrypoints
+│   │   ├── cargo_toml  # Cargo parser + Rust version detection + Wolfi resolution
+│   │   ├── pyproject_toml # Python parser + Python version + native deps + entrypoints + Django/Flask fixes
+│   │   ├── gemfile     # Ruby parser + Ruby version detection
+│   │   ├── composer_json # PHP parser + PHP version detection
+│   │   ├── package_swift # Swift parser + Swift version detection
+│   │   ├── ...         # Other parsers (go_mod, csproj, etc.)
 │   │   └── mod.rs      # Shared parse_npm_deps()
-│   └── config/         # 5 parsers
-│       ├── env_file, dockerfile, docker_compose, kubernetes, app_config
+│   └── config/         # 6 parsers
+│       ├── env_file, dockerfile, docker_compose, kubernetes, app_config, procfile
+│       ├── mise        # Mise/asdf tool version manager config scanning
 │       └── mod.rs
 └── framework_detectors/ # 10 files, 22+ detectors
     ├── mod.rs           # simple_detector! macro

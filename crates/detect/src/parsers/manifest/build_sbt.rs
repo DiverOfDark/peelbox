@@ -33,8 +33,12 @@ impl ManifestParser for BuildSbtParser {
         let project_version = extract_project_version(content);
         let dependencies = parse_sbt_deps(content);
 
-        let java_version = crate::version::java::detect_java_version(content);
-        let effective_java_version = java_version.as_deref().unwrap_or("21");
+        let java_version = super::pom_xml::detect_java_version(content);
+        let sbt_max_jdk = detect_sbt_version(path).and_then(|v| max_jdk_for_sbt(&v));
+        let effective_java_version = java_version
+            .as_deref()
+            .or(sbt_max_jdk.as_deref())
+            .unwrap_or("21");
         let java_pkg = format!("openjdk-{}", effective_java_version);
 
         let java_home = format!("/usr/lib/jvm/java-{}-openjdk", effective_java_version);
@@ -48,7 +52,18 @@ impl ManifestParser for BuildSbtParser {
             || content.contains("DockerPlugin");
         let is_application = has_main_class || has_assembly || has_native_packager;
 
-        let entrypoint = if is_application {
+        // Detect the executable script name (for sbt-native-packager)
+        let script_name = regex::Regex::new(r#"executableScriptName\s*:=\s*"([^"]+)""#)
+            .ok()
+            .and_then(|re| re.captures(content))
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
+
+        let entrypoint = if has_native_packager {
+            let script = script_name
+                .or_else(|| project_name.clone())
+                .unwrap_or_else(|| "app".to_string());
+            Some(format!("/app/bin/{}", script))
+        } else if is_application {
             Some("java -jar /app/app.jar".to_string())
         } else {
             None
@@ -62,6 +77,8 @@ impl ManifestParser for BuildSbtParser {
 
         let build_commands = if has_assembly {
             vec![install_sbt, "sbt assembly".into()]
+        } else if has_native_packager {
+            vec![install_sbt, "sbt stage".into()]
         } else {
             vec![install_sbt, "sbt compile".into()]
         };
@@ -74,6 +91,8 @@ impl ManifestParser for BuildSbtParser {
                 ),
                 "/app/app.jar".into(),
             )]
+        } else if has_native_packager {
+            vec![("target/universal/stage/".into(), "/app/".into())]
         } else {
             vec![("target/scala-*/*.jar".into(), "/app/app.jar".into())]
         };
@@ -136,10 +155,19 @@ impl ManifestParser for BuildSbtParser {
                 artifacts,
             },
             runtime_config: RuntimeSpec {
-                packages: vec![
-                    format!("openjdk-{}-jre", effective_java_version),
-                    "ca-certificates".into(),
-                ],
+                packages: {
+                    let mut pkgs = vec![
+                        format!("openjdk-{}-jre", effective_java_version),
+                        "ca-certificates".into(),
+                    ];
+                    // sbt-native-packager generates bash scripts as entry points
+                    // that use #!/usr/bin/env bash (requires busybox for env)
+                    if has_native_packager {
+                        pkgs.push("bash".into());
+                        pkgs.push("busybox".into());
+                    }
+                    pkgs
+                },
                 env: runtime_env,
                 entrypoint,
                 workdir: Some("/app".into()),
@@ -148,6 +176,25 @@ impl ManifestParser for BuildSbtParser {
             },
         })
     }
+}
+
+/// Map sbt version to maximum compatible JDK version.
+///
+/// sbt uses Scala 2.12.x internally; older Scala 2.12 versions don't support newer JDKs.
+/// - sbt < 1.9: Scala 2.12.17 → max JDK 19
+/// - sbt 1.9.x: Scala 2.12.18 → max JDK 21
+/// - sbt 1.10+: Scala 2.12.20 → max JDK 23
+fn max_jdk_for_sbt(sbt_version: &str) -> Option<String> {
+    let parts: Vec<&str> = sbt_version.splitn(3, '.').collect();
+    let major: u32 = parts.first()?.parse().ok()?;
+    let minor: u32 = parts.get(1)?.parse().ok()?;
+
+    let max_jdk = match (major, minor) {
+        (1, m) if m < 9 => 19,
+        (1, 9) => 21,
+        _ => return None, // 1.10+ supports recent JDKs, let Wolfi pick
+    };
+    Some(max_jdk.to_string())
 }
 
 /// Read sbt version from `project/build.properties` relative to the `build.sbt` path.
@@ -241,6 +288,26 @@ fn parse_sbt_deps(content: &str) -> Vec<Dependency> {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(BuildSbtParser))
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["Scala"],
+        extensions: &["scala", "java", "properties", "yml", "yaml"],
+        port_patterns: &[
+            r"\.setPort\(\s*(\d{4,5})\s*\)",
+            r#"server\.port\s*=\s*(\d{4,5})"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+        env_var_patterns: &[
+            r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
+            r#"sys\.env\.get(?:OrElse)?\(["']([A-Z_][A-Z0-9_]*)"#,
+        ],
+    }
 }
 
 // ── Build System Profile ────────────────────────────────────────────────────

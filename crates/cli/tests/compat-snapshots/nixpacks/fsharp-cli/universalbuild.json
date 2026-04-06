@@ -1,0 +1,56 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "F#",
+      "build_system": ".NET",
+      "reasoning": "Detected from fsharp-cli.fsproj"
+    },
+    "build": {
+      "packages": [
+        "dotnet-10-sdk",
+        "ca-certificates"
+      ],
+      "env": {
+        "DOTNET_CLI_HOME": "/root",
+        "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+        "DOTNET_NOLOGO": "1",
+        "DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1"
+      },
+      "commands": [
+        "rm -f global.json",
+        "dotnet restore",
+        "dotnet publish -c Release -o out"
+      ],
+      "cache": [
+        ".nuget/packages",
+        "bin",
+        "obj"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "aspnet-10-runtime",
+        "ca-certificates"
+      ],
+      "env": {
+        "DOTNET_ROLL_FORWARD": "LatestMajor"
+      },
+      "copy": [
+        {
+          "from": "out/",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "dotnet",
+        "/app/fsharp-cli.dll"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5000
+      ]
+    }
+  }
+]

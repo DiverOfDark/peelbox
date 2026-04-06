@@ -1,0 +1,47 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Static",
+      "build_system": "Static",
+      "reasoning": "Detected from index.html"
+    },
+    "build": {
+      "packages": [
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "echo 'No build step required'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "busybox",
+        "httpd",
+        "-f",
+        "-p",
+        "8080",
+        "-h",
+        "/app"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

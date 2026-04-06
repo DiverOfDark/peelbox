@@ -1,0 +1,49 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "cpp-cmake",
+      "language": "C++",
+      "build_system": "CMake",
+      "reasoning": "Detected from CMakeLists.txt"
+    },
+    "build": {
+      "packages": [
+        "build-base",
+        "cmake",
+        "gcc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "cmake -B build -DCMAKE_BUILD_TYPE=Release",
+        "cmake --build build --config Release"
+      ],
+      "cache": [
+        "CMakeCache.txt",
+        "build"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates",
+        "libstdc++"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "build/cpp-cmake",
+          "to": "/app/cpp-cmake"
+        }
+      ],
+      "command": [
+        "/app/cpp-cmake"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

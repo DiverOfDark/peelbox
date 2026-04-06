@@ -1,64 +1,66 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "Poetry",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml"
+    },
     "build": {
-      "cache": [
-        "/root/.cache/pip/",
-        "/root/.cache/pypoetry/"
-      ],
-      "commands": [
-        "pip install poetry",
-        "poetry install --no-root --only main"
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
       ],
       "env": {
         "POETRY_CACHE_DIR": "/root/.cache/pypoetry",
         "POETRY_VIRTUALENVS_IN_PROJECT": "true"
       },
-      "packages": [
-        "python-3.14",
-        "py3.14-pip",
-        "build-base",
-        "ca-certificates"
+      "commands": [
+        "pip install poetry poetry-plugin-export",
+        "poetry lock --no-update 2>/dev/null || poetry lock",
+        "poetry export --without-hashes -f requirements.txt -o requirements.txt --only main",
+        "python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && sed -i \"1s|/build/.venv|/app/.venv|\" .venv/bin/* 2>/dev/null; ln -sf /usr/bin/python3 .venv/bin/python3 && ln -sf python3 .venv/bin/python"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/pypoetry/"
       ]
     },
-    "metadata": {
-      "build_system": "Poetry",
-      "framework": "Flask",
-      "language": "Python",
-      "project_name": "app",
-      "reasoning": "Detected from pyproject.toml"
-    },
     "runtime": {
-      "command": [
-        "flask",
-        "run"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/build"
-        }
-      ],
-      "env": {
-        "FLASK_APP": "/build/app.py",
-        "FLASK_RUN_HOST": "0.0.0.0",
-        "FLASK_RUN_PORT": "5000",
-        "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-        "VIRTUAL_ENV": "/build/.venv"
-      },
-      "health": {
-        "endpoint": "/health"
-      },
       "packages": [
-        "python-3.14",
+        "python-3.12",
         "libgcc",
         "libstdc++",
         "ca-certificates"
       ],
+      "env": {
+        "FLASK_APP": "/app/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "flask",
+        "run"
+      ],
+      "workdir": "/app",
       "ports": [
         5000
       ],
-      "workdir": "/build"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/"
+      }
+    }
   }
 ]

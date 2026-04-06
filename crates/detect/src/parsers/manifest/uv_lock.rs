@@ -1,3 +1,4 @@
+use crate::helpers::btree;
 use crate::ids::{BuildSystemId, LanguageId, RuntimeId};
 use crate::traits::ManifestParser;
 use crate::types::*;
@@ -49,9 +50,11 @@ impl ManifestParser for UvLockParser {
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        // Lock file parsers don't carry dependencies — framework detection
-        // happens on the sibling pyproject.toml manifest instead.
-        let dependencies: Vec<Dependency> = Vec::new();
+        // Parse dependencies from the sibling pyproject.toml so that
+        // framework detection (e.g., FastAPI, Flask) works even when the
+        // pyproject has no [tool.uv] section.
+        let dependencies =
+            crate::parsers::manifest::pyproject_toml::parse_pyproject_deps_public(&toml_val, false);
 
         Some(Manifest {
             path: path.to_path_buf(),
@@ -79,7 +82,7 @@ impl ManifestParser for UvLockParser {
                 member_transform: None,
                 env: BTreeMap::from([("UV_CACHE_DIR".into(), "/root/.cache/uv".into())]),
                 cache_dirs: vec!["/root/.cache/pip/".into(), "/root/.cache/uv/".into()],
-                artifacts: vec![(".".into(), "/build".into())],
+                artifacts: vec![(".".into(), "/app".into())],
             },
             runtime_config: RuntimeSpec {
                 packages: vec![
@@ -88,11 +91,23 @@ impl ManifestParser for UvLockParser {
                     "libstdc++".into(),
                     "ca-certificates".into(),
                 ],
-                env: BTreeMap::new(),
-                entrypoint: name
-                    .as_ref()
-                    .map(|n| format!("python -m {}", n.replace('-', "_"))),
-                workdir: Some("/build".into()),
+                env: btree(&[
+                    ("PATH", "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin"),
+                    ("VIRTUAL_ENV", "/app/.venv"),
+                ]),
+                entrypoint: {
+                    // Prefer [project.scripts] entrypoint from the companion pyproject.toml
+                    let script_entrypoint = project
+                        .and_then(|p| p.get("scripts"))
+                        .and_then(|s| s.as_table())
+                        .and_then(|t| t.keys().next())
+                        .map(|k| k.to_string());
+                    script_entrypoint.or_else(|| {
+                        name.as_ref()
+                            .map(|n| format!("python -m {}", n.replace('-', "_")))
+                    })
+                },
+                workdir: Some("/app".into()),
                 ports: vec![8000],
                 health_endpoint: None,
             },

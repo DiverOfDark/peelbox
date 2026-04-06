@@ -1,84 +1,39 @@
 [
   {
-    "build": {
-      "cache": [
-        ".cache/bazel"
-      ],
-      "commands": [
-        "cd java && bazel build //:server_deploy.jar && mkdir -p _output && cp -rL bazel-bin/server_deploy.jar _output/"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
-      "packages": [
-        "build-base",
-        "bazel-7",
-        "openjdk-21",
-        "ca-certificates"
-      ]
-    },
+    "version": "1.0",
     "metadata": {
+      "project_name": "worker",
+      "language": "Python",
       "build_system": "Bazel",
-      "language": "Java",
-      "project_name": "server",
-      "reasoning": "Detected from BUILD in java"
+      "reasoning": "Detected from BUILD in python"
     },
-    "runtime": {
-      "command": [
-        "java",
-        "-jar",
-        "/app/server.jar"
-      ],
-      "copy": [
-        {
-          "from": "java/_output/server_deploy.jar",
-          "to": "/app/server.jar"
-        }
-      ],
-      "env": {},
-      "packages": [
-        "openjdk-21-default-jvm",
-        "openjdk-21-jre",
-        "ca-certificates"
-      ],
-      "ports": [
-        8080
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
-  },
-  {
     "build": {
-      "cache": [
-        ".cache/bazel"
-      ],
-      "commands": [
-        "cd python && bazel build //... && mkdir -p _output && cp -rL bazel-bin/worker _output/ && cp -rL bazel-bin/worker.runfiles _output/"
-      ],
-      "env": {
-        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
-        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-      },
       "packages": [
         "build-base",
         "bazel-7",
         "openjdk-21",
         "ca-certificates",
-        "python-3.14"
+        "python-3.12"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "cd python && bazel build //... && mkdir -p _output && cp -rL bazel-bin/worker _output/ && cp -rL bazel-bin/worker.runfiles _output/"
+      ],
+      "cache": [
+        ".cache/bazel"
       ]
     },
-    "metadata": {
-      "build_system": "Bazel",
-      "language": "Python",
-      "project_name": "worker",
-      "reasoning": "Detected from BUILD in python"
-    },
     "runtime": {
-      "command": [
-        "/app/worker"
+      "packages": [
+        "python-3.12",
+        "busybox",
+        "glibc",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "python/_output/worker",
@@ -89,18 +44,65 @@
           "to": "/app/worker.runfiles/"
         }
       ],
-      "env": {},
-      "packages": [
-        "python-3.14",
-        "busybox",
-        "glibc",
-        "ca-certificates"
+      "command": [
+        "/app/worker"
       ],
+      "workdir": "/app",
       "ports": [
         8080
-      ],
-      "workdir": "/app"
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "server",
+      "language": "Java",
+      "build_system": "Bazel",
+      "reasoning": "Detected from BUILD in java"
     },
-    "version": "1.0"
+    "build": {
+      "packages": [
+        "build-base",
+        "bazel-7",
+        "openjdk-21",
+        "ca-certificates"
+      ],
+      "env": {
+        "JAVA_HOME": "/usr/lib/jvm/java-21-openjdk",
+        "PATH": "/usr/lib/jvm/java-21-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+      },
+      "commands": [
+        "cd java && bazel build //:server_deploy.jar && mkdir -p _output && cp -rL bazel-bin/server_deploy.jar _output/"
+      ],
+      "cache": [
+        ".cache/bazel"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "openjdk-21-default-jvm",
+        "openjdk-21-jre",
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": "8080"
+      },
+      "copy": [
+        {
+          "from": "java/_output/server_deploy.jar",
+          "to": "/app/server.jar"
+        }
+      ],
+      "command": [
+        "java",
+        "-jar",
+        "/app/server.jar"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
   }
 ]

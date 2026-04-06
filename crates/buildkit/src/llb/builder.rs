@@ -94,7 +94,7 @@ impl LLBBuilder {
             });
             id
         });
-        let normalized = cache_path.trim_start_matches("/build/").replace('/', "-");
+        let normalized = cache_path.trim_start_matches("/app/").replace('/', "-");
         if let Some(ns) = &self.cache_namespace {
             let prefix = &ns[..ns.len().min(12)];
             format!("{}-{}-{}", project_name, prefix, normalized)
@@ -221,6 +221,15 @@ impl LLBBuilder {
         self.add_op(op)
     }
 
+    /// Create a cache mount for the given `dest` directory.
+    ///
+    /// The cache sharing mode is set to `Shared` (not `Private` or `Locked`)
+    /// because BuildKit may schedule multiple exec operations concurrently
+    /// within the same solve request. `Shared` allows all concurrent
+    /// operations to read and write to the same cache directory without
+    /// blocking. This is the correct choice for package-manager caches
+    /// (e.g. cargo registry, pip cache, npm cache) where concurrent access
+    /// is safe, and using `Locked` would serialize builds unnecessarily.
     pub(crate) fn cache_mount(&self, dest: &str, cache_path: &str) -> pb::Mount {
         pb::Mount {
             input: -1,
@@ -396,6 +405,10 @@ impl LLBBuilder {
 /// Calculate a stable content hash for the build context directory.
 /// Uses the same exclude-pattern logic as `FileSync::scan_files` so the hash
 /// covers exactly the files that BuildKit will receive via DiffCopy.
+///
+/// Only regular files contribute to the hash (directories are excluded to
+/// avoid mtime-induced drift). The hash is purely content-based: path +
+/// file size + file contents — no timestamps.
 pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Result<String> {
     let mut hasher = Sha256::new();
 
@@ -422,11 +435,15 @@ pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Resul
         .build()
         .filter_map(|e| match e {
             Ok(entry) => {
-                // Skip root directory
+                // Skip root directory and all directories — only hash regular files
                 if entry.path() == path {
-                    None
-                } else {
+                    return None;
+                }
+                let is_file = entry.file_type().map(|ft| ft.is_file()).unwrap_or(false);
+                if is_file {
                     Some(entry)
+                } else {
+                    None
                 }
             }
             Err(err) => {
@@ -443,25 +460,18 @@ pub fn calculate_context_hash(path: &Path, exclude_patterns: &[String]) -> Resul
         let rel_path = entry_path.strip_prefix(path).unwrap_or(entry_path);
         hasher.update(rel_path.to_string_lossy().as_bytes());
 
-        if let Some(file_type) = entry.file_type() {
-            if file_type.is_file() {
-                match entry.metadata() {
-                    Ok(metadata) => {
-                        hasher.update(metadata.len().to_le_bytes());
+        match entry.metadata() {
+            Ok(metadata) => {
+                hasher.update(metadata.len().to_le_bytes());
 
-                        if let Ok(content) = fs::read(entry_path) {
-                            hasher.update(&content);
-                        } else {
-                            tracing::warn!(
-                                "Failed to read file content for hashing: {:?}",
-                                entry_path
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
-                    }
+                if let Ok(content) = fs::read(entry_path) {
+                    hasher.update(&content);
+                } else {
+                    tracing::warn!("Failed to read file content for hashing: {:?}", entry_path);
                 }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to read metadata for {:?}: {}", entry_path, e);
             }
         }
     }
@@ -492,7 +502,6 @@ pub fn load_exclude_patterns(context_root: &Path) -> Vec<String> {
     patterns.extend(vec![
         ".git/".to_string(),
         ".gitignore".to_string(),
-        "*.md".to_string(),
         "LICENSE".to_string(),
         ".vscode/".to_string(),
         ".idea/".to_string(),
@@ -569,7 +578,6 @@ mod tests {
     fn test_load_exclude_patterns_includes_hardcoded() {
         let temp_dir = TempDir::new().unwrap();
         let patterns = load_exclude_patterns(temp_dir.path());
-        assert!(patterns.contains(&"*.md".to_string()));
         assert!(patterns.contains(&".vscode/".to_string()));
         assert!(patterns.contains(&".idea/".to_string()));
         assert!(patterns.contains(&"*.tar".to_string()));

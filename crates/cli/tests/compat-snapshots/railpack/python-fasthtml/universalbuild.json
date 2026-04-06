@@ -1,0 +1,64 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "framework": "FastHTML",
+      "reasoning": "Detected from requirements.txt"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "pip install --user --no-cache-dir -r requirements.txt"
+      ],
+      "cache": [
+        ".cache/pip"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "PATH": "/root/.local/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        },
+        {
+          "from": "/root/.local/",
+          "to": "/root/.local"
+        }
+      ],
+      "command": [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
+    }
+  }
+]

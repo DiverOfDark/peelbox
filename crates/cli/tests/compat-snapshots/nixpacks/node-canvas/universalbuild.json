@@ -1,0 +1,64 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "node",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "reasoning": "Detected from package.json"
+    },
+    "build": {
+      "packages": [
+        "nodejs-20",
+        "npm",
+        "ca-certificates",
+        "build-base",
+        "python-3.12",
+        "cairo-dev",
+        "pango-dev",
+        "libjpeg-turbo-dev",
+        "giflib-dev",
+        "pixman-dev"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "npm ci"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-20",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates",
+        "cairo",
+        "pango",
+        "libjpeg-turbo",
+        "giflib",
+        "pixman",
+        "libuuid"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "node",
+        "index.js"
+      ],
+      "workdir": "/app",
+      "ports": [
+        3000
+      ]
+    }
+  }
+]

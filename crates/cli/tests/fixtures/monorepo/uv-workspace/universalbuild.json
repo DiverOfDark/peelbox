@@ -1,116 +1,162 @@
 [
-    {
-        "build": {
-            "cache": [
-                "/root/.cache/pip/",
-                "/root/.cache/uv/"
-            ],
-            "commands": [
-                "pip install --user uv",
-                "/root/.local/bin/uv sync --frozen --no-dev --package api"
-            ],
-            "env": {
-                "UV_CACHE_DIR": "/root/.cache/uv"
-            },
-            "packages": [
-                "python-3.12",
-                "py3.12-pip",
-                "build-base",
-                "ca-certificates"
-            ]
-        },
-        "metadata": {
-            "build_system": "uv",
-            "framework": "Flask",
-            "language": "Python",
-            "project_name": "api",
-            "reasoning": "Detected from pyproject.toml in packages/api"
-        },
-        "runtime": {
-            "command": [
-                "flask",
-                "run"
-            ],
-            "copy": [
-                {
-                    "from": ".",
-                    "to": "/build"
-                }
-            ],
-            "env": {
-                "FLASK_APP": "/build/packages/api/src/api/app.py",
-                "FLASK_RUN_HOST": "0.0.0.0",
-                "FLASK_RUN_PORT": "5000",
-                "PATH": "/build/.venv/bin:/usr/local/bin:/usr/bin:/bin",
-                "VIRTUAL_ENV": "/build/.venv"
-            },
-            "health": {
-                "endpoint": "/health"
-            },
-            "packages": [
-                "python-3.12",
-                "libgcc",
-                "libstdc++",
-                "ca-certificates"
-            ],
-            "ports": [
-                5000
-            ],
-            "workdir": "/build"
-        },
-        "version": "1.0"
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api",
+      "language": "Python",
+      "build_system": "uv",
+      "framework": "Flask",
+      "reasoning": "Detected from pyproject.toml in packages/api"
     },
-    {
-        "build": {
-            "cache": [
-                "/root/.cache/pip/",
-                "/root/.cache/uv/"
-            ],
-            "commands": [
-                "pip install --user uv",
-                "/root/.local/bin/uv sync --frozen --no-dev --package shared"
-            ],
-            "env": {
-                "UV_CACHE_DIR": "/root/.cache/uv"
-            },
-            "packages": [
-                "python-3.12",
-                "py3.12-pip",
-                "build-base",
-                "ca-certificates"
-            ]
-        },
-        "metadata": {
-            "build_system": "uv",
-            "language": "Python",
-            "project_name": "shared",
-            "reasoning": "Detected from pyproject.toml in packages/shared"
-        },
-        "runtime": {
-            "command": [
-                "python",
-                "-m",
-                "shared"
-            ],
-            "copy": [
-                {
-                    "from": ".",
-                    "to": "/build"
-                }
-            ],
-            "env": {},
-            "packages": [
-                "python-3.12",
-                "libgcc",
-                "libstdc++",
-                "ca-certificates",
-                "uv"
-            ],
-            "ports": [
-                8000
-            ],
-            "workdir": "/build"
-        },
-        "version": "1.0"
+    "build": {
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev --package api"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates"
+      ],
+      "env": {
+        "FLASK_APP": "/app/packages/api/src/api/app.py",
+        "FLASK_RUN_HOST": "0.0.0.0",
+        "FLASK_RUN_PORT": "5000",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "flask",
+        "run"
+      ],
+      "workdir": "/app",
+      "ports": [
+        5000
+      ],
+      "health": {
+        "endpoint": "/"
+      }
     }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "shared",
+      "language": "Python",
+      "build_system": "uv",
+      "reasoning": "Detected from pyproject.toml in packages/shared"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "py3.12-pip",
+        "build-base",
+        "ca-certificates"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev --package shared"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates",
+        "uv"
+      ],
+      "env": {
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "PYTHONUSERBASE": "/root/.local",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "python",
+        "-m",
+        "shared"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "pip",
+      "reasoning": "Detected from app.py in packages/api/src/api"
+    },
+    "build": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "cd packages/api/src/api && echo 'No build step required'"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "python-3.12",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "python",
+        "app.py"
+      ],
+      "workdir": "/app",
+      "ports": [],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
 ]

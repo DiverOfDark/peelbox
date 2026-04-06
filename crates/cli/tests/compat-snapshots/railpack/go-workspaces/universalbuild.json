@@ -1,0 +1,102 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "api",
+      "language": "Go",
+      "build_system": "go mod",
+      "reasoning": "Detected from go.mod in api"
+    },
+    "build": {
+      "packages": [
+        "go-1.23",
+        "git",
+        "ca-certificates"
+      ],
+      "env": {
+        "CGO_ENABLED": "0",
+        "GOCACHE": "/app/.cache/go-build",
+        "GOMODCACHE": "/app/.cache/go-mod",
+        "GOSUMDB": "off"
+      },
+      "commands": [
+        "mkdir -p bin",
+        "go build -o bin/api ./api"
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "bin/api",
+          "to": "/app/api"
+        }
+      ],
+      "command": [
+        "/app/api"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  },
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "shared",
+      "language": "Go",
+      "build_system": "go mod",
+      "reasoning": "Detected from go.mod in shared"
+    },
+    "build": {
+      "packages": [
+        "go-1.23",
+        "git",
+        "ca-certificates"
+      ],
+      "env": {
+        "CGO_ENABLED": "0",
+        "GOCACHE": "/app/.cache/go-build",
+        "GOMODCACHE": "/app/.cache/go-mod",
+        "GOSUMDB": "off"
+      },
+      "commands": [
+        "mkdir -p bin",
+        "go build -o bin/shared ./shared"
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "bin/shared",
+          "to": "/app/shared"
+        }
+      ],
+      "command": [
+        "/app/shared"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

@@ -1,42 +1,29 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "@monorepo/web",
+      "language": "JavaScript",
+      "build_system": "Yarn",
+      "framework": "Express",
+      "reasoning": "Detected from package.json in apps/web"
+    },
     "build": {
-      "cache": [
-        ".yarn-cache"
-      ],
-      "commands": [
-        "yarn install --network-timeout 100000 --network-concurrency 1",
-        "cd apps/web && yarn run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "yarn",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "Yarn",
-      "framework": "Express",
-      "language": "JavaScript",
-      "project_name": "@monorepo/web",
-      "reasoning": "Detected from package.json in apps/web"
-    },
-    "runtime": {
-      "command": [
-        "yarn",
-        "start"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
+      "commands": [
+        "yarn install --network-timeout 100000 --network-concurrency 1",
+        "cd apps/web && yarn run build"
+      ],
+      "cache": [
+        ".yarn-cache"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "npm",
@@ -45,11 +32,24 @@
         "ca-certificates",
         "yarn"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "yarn",
+        "start"
+      ],
+      "workdir": "/app/apps/web",
       "ports": [
         3000
       ],
-      "workdir": "/app/apps/web"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

@@ -1,0 +1,45 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "console_simple",
+      "language": "Dart",
+      "build_system": "Pub",
+      "reasoning": "Detected from pubspec.yaml"
+    },
+    "build": {
+      "packages": [
+        "dart",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "dart pub get",
+        "dart compile exe bin/console_simple.dart -o bin/console_simple"
+      ],
+      "cache": [
+        ".dart_tool"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "bin/console_simple",
+          "to": "/app/bin/console_simple"
+        }
+      ],
+      "command": [
+        "./bin/console_simple"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

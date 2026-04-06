@@ -75,11 +75,22 @@ jobs:
         with:
           tool: nextest,cargo-llvm-cov
 
-      - name: Extract BuildKit cache
-        if: matrix.os == 'ubuntu-latest' && steps.cache-buildkit.outputs.cache-hit == 'true'
+      - name: Start BuildKit daemon
+        if: matrix.os == 'ubuntu-latest'
         run: |
-          mkdir -p /tmp/.test-cache/buildkit
-          sudo tar -xf .buildkit-cache.tar.zst -C /tmp/.test-cache/buildkit
+          docker run -d \
+            --name buildkitd \
+            --privileged \
+            -p 127.0.0.1:1234:1234 \
+            moby/buildkit:v0.20.2 \
+            --addr tcp://0.0.0.0:1234
+          timeout 30 sh -c 'until docker exec buildkitd buildctl --addr tcp://0.0.0.0:1234 debug workers >/dev/null 2>&1; do sleep 1; done'
+          echo "BuildKit daemon is ready"
+
+      - name: Fetch external compat fixtures
+        if: matrix.os == 'ubuntu-latest'
+        run: ./scripts/fetch-compat-fixtures.sh
+
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -95,6 +106,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           export PEELBOX_TEST_CACHE_DIR=/tmp/.test-cache
+          export PEELBOX_BUILDKIT_ADDR=tcp://127.0.0.1:1234
           cargo llvm-cov nextest --no-default-features --profile ci --no-report --verbose --no-fail-fast
 
       - name: Generate coverage report
@@ -148,6 +160,10 @@ jobs:
             target/release/peelbox.exe
           retention-days: 1
           if-no-files-found: ignore
+
+      - name: Stop BuildKit daemon
+        if: matrix.os == 'ubuntu-latest' && always()
+        run: docker stop buildkitd && docker rm buildkitd || true
 
       - name: Create BuildKit cache archive
         if: matrix.os == 'ubuntu-latest' && always()

@@ -5,7 +5,23 @@
 //! Build-system-specific behavior is delegated to `BuildSystemConfig` profiles
 //! registered via `inventory::submit!` in the parser files.
 
+use crate::helpers::{extract_project_dir, replace_package};
+use crate::parsers::config::mise::scan_mise_config;
+use crate::parsers::manifest::cargo_toml::{read_rust_version, resolve_rust_toolchain};
+use crate::parsers::manifest::composer_json::read_php_version;
+use crate::parsers::manifest::gemfile::read_ruby_version;
+use crate::parsers::manifest::package_json::{
+    detect_react_router_spa, ensure_npm_node_gyp, provide_framework_fallback_entrypoint,
+    read_node_version, resolve_node_version, sanitize_node_build_commands, scan_node_native_deps,
+    scan_node_puppeteer, wrap_yarn_corepack_entrypoint,
+};
+use crate::parsers::manifest::pom_xml::{resolve_java_toolchain, sync_java_home_with_packages};
+use crate::parsers::manifest::pyproject_toml::{
+    fix_django_settings, fix_flask_app_path, read_python_version, scan_python_entrypoints,
+    scan_python_native_deps,
+};
 use crate::registry::Registry;
+use crate::source_scanning::{scan_source_env_vars, scan_source_health, scan_source_ports};
 use crate::traits::{ConfigParser, ManifestParser};
 use crate::types::*;
 
@@ -89,6 +105,11 @@ pub fn detect_with_registry_and_wolfi(
         scan_version_files(repo_path, build);
     }
 
+    // Step 4e2: Scan mise.toml / .mise.toml / .tool-versions for tool version overrides
+    for build in &mut builds {
+        scan_mise_config(repo_path, build);
+    }
+
     // Step 4f: Scan Python entrypoints
     for build in &mut builds {
         scan_python_entrypoints(repo_path, build);
@@ -99,6 +120,36 @@ pub fn detect_with_registry_and_wolfi(
         fix_flask_app_path(repo_path, build);
     }
 
+    // Step 4h: Detect Django settings module from manage.py
+    for build in &mut builds {
+        fix_django_settings(repo_path, build);
+    }
+
+    // Step 4i: Detect Python native dependency system packages
+    for build in &mut builds {
+        scan_python_native_deps(repo_path, build);
+    }
+
+    // Step 4j: Ensure npm builds have node-gyp available (Wolfi npm doesn't bundle it)
+    for build in &mut builds {
+        ensure_npm_node_gyp(build);
+    }
+
+    // Step 4k: Detect Node.js native dependency system packages
+    for build in &mut builds {
+        scan_node_native_deps(repo_path, build);
+    }
+
+    // Step 4l: Detect Puppeteer and add Chromium dependencies
+    for build in &mut builds {
+        scan_node_puppeteer(repo_path, build);
+    }
+
+    // Step 4m: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
+    for build in &mut builds {
+        sanitize_node_build_commands(repo_path, build);
+    }
+
     // Step 5: Resolve Wolfi package versions
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
@@ -107,11 +158,54 @@ pub fn detect_with_registry_and_wolfi(
         }
     }
 
-    // Step 6: Handle pinned Rust versions not available in Wolfi (use rustup)
+    // Step 5b: Sync JAVA_HOME with resolved openjdk package version
+    for build in &mut builds {
+        sync_java_home_with_packages(build);
+    }
+
+    // Step 6: Handle pinned versions not available in Wolfi (use alternative installers)
     if let Some(wolfi) = wolfi_index {
         for build in &mut builds {
-            crate::version::rust::resolve_rust_toolchain(build, wolfi);
+            resolve_rust_toolchain(build, wolfi);
+            resolve_node_version(build, wolfi);
         }
+    }
+
+    // Step 7: Handle old Java versions not available in Wolfi (use Adoptium Temurin)
+    if let Some(wolfi) = wolfi_index {
+        for build in &mut builds {
+            resolve_java_toolchain(build, wolfi);
+        }
+    }
+
+    // Step 7b: Set PORT env var for JVM apps when runtime has ports.
+    // Many Spring/JVM apps use ${PORT:default} in config; PaaS convention is to set PORT.
+    for build in &mut builds {
+        let lang = build.metadata.language.as_str();
+        if matches!(lang, "Java" | "Kotlin" | "Scala" | "Clojure") {
+            if let Some(&port) = build.runtime.ports.first() {
+                build
+                    .runtime
+                    .env
+                    .entry("PORT".to_string())
+                    .or_insert_with(|| port.to_string());
+            }
+        }
+    }
+
+    // Step 8: Wrap Yarn Berry entrypoints with corepack enable
+    for build in &mut builds {
+        wrap_yarn_corepack_entrypoint(build);
+    }
+
+    // Step 9: Provide fallback entrypoints for detected frameworks without scripts.start
+    for build in &mut builds {
+        provide_framework_fallback_entrypoint(build);
+    }
+
+    // Step 9b: Detect React Router SPA mode and switch to vite preview
+    for build in &mut builds {
+        detect_react_router_spa(repo_path, build);
     }
 
     // Filter out non-application builds (e.g., library crates, utility packages)
@@ -230,6 +324,18 @@ fn classify_file(
         }
     }
 
+    // Try .cbl files (special case: extension-based matching for COBOL)
+    if filename.ends_with(".cbl") {
+        let cobol_parser = crate::parsers::manifest::CobolParser;
+        if let Ok(content) = std::fs::read_to_string(abs_path) {
+            if let Some(mut manifest) = ManifestParser::parse(&cobol_parser, abs_path, &content) {
+                manifest.path = rel_path.to_path_buf();
+                debug!(file = %rel_path.display(), "Parsed COBOL source file");
+                return FileKind::Manifest(Box::new(manifest));
+            }
+        }
+    }
+
     // Try .cabal files (special case: extension-based matching)
     if filename.ends_with(".cabal") {
         let cabal_parser = crate::parsers::manifest::CabalFileParser;
@@ -238,6 +344,46 @@ fn classify_file(
                 manifest.path = rel_path.to_path_buf();
                 debug!(file = %rel_path.display(), "Parsed Haskell .cabal file");
                 return FileKind::Manifest(Box::new(manifest));
+            }
+        }
+    }
+
+    // Try .ts files for Deno URL imports (e.g., https://deno.land/)
+    if filename.ends_with(".ts") && !filename.ends_with(".d.ts") {
+        if let Ok(content) = std::fs::read_to_string(abs_path) {
+            if content.contains("https://deno.land/") || content.contains("jsr:@") {
+                // Check no deno.json/deno.jsonc or package.json exists
+                let parent = abs_path.parent().unwrap_or(Path::new("."));
+                let has_manifest = parent.join("deno.json").exists()
+                    || parent.join("deno.jsonc").exists()
+                    || parent.join("package.json").exists();
+                // Also check repo root (one level up from src/)
+                let repo_has_manifest = parent
+                    .parent()
+                    .map(|p| {
+                        p.join("deno.json").exists()
+                            || p.join("deno.jsonc").exists()
+                            || p.join("package.json").exists()
+                    })
+                    .unwrap_or(false);
+                if !has_manifest && !repo_has_manifest {
+                    let deno_parser = crate::parsers::manifest::DenoJsonParser;
+                    // Provide a minimal deno.json-like content to the parser
+                    let synthetic = r#"{"tasks":{}}"#;
+                    if let Some(mut manifest) =
+                        ManifestParser::parse(&deno_parser, abs_path, synthetic)
+                    {
+                        // Override entrypoint to point to the actual .ts file
+                        let ts_path = rel_path.display().to_string();
+                        manifest.runtime_config.entrypoint = Some(format!(
+                            "deno run --allow-net --allow-read --allow-env {}",
+                            ts_path
+                        ));
+                        manifest.path = rel_path.to_path_buf();
+                        debug!(file = %rel_path.display(), "Detected Deno from URL imports in .ts file");
+                        return FileKind::Manifest(Box::new(manifest));
+                    }
+                }
             }
         }
     }
@@ -312,16 +458,34 @@ fn collect_manifests_with_frameworks(
 
     for file in &node.files {
         if let FileKind::Manifest(manifest) = &file.kind {
-            let mut framework = detectors.iter().find_map(|detector| {
+            // Collect all matching frameworks, then pick the best one.
+            // Prefer frameworks whose trigger dependency is a runtime (production)
+            // dependency over those that only match on devDependencies.
+            let mut candidates: Vec<(FrameworkContribution, bool)> = Vec::new();
+            for detector in detectors.iter() {
                 if !detector.compatible_languages().contains(&manifest.language) {
-                    return None;
+                    continue;
                 }
-                if detector.detect(&manifest.dependencies) {
-                    Some(detector.contribution(&manifest.dependencies))
-                } else {
-                    None
+                // Check detection against all deps
+                if !detector.detect(&manifest.dependencies) {
+                    continue;
                 }
-            });
+                let contrib = detector.contribution(&manifest.dependencies);
+                // Check if this framework also matches when restricted to runtime deps only
+                let runtime_deps: Vec<_> = manifest
+                    .dependencies
+                    .iter()
+                    .filter(|d| d.scope == DepScope::Runtime)
+                    .cloned()
+                    .collect();
+                let matches_runtime = detector.detect(&runtime_deps);
+                candidates.push((contrib, matches_runtime));
+            }
+
+            // Sort: runtime matches first, then by order (stable sort preserves insertion order)
+            candidates.sort_by_key(|&(_, matches_runtime)| if matches_runtime { 0 } else { 1 });
+
+            let mut framework = candidates.into_iter().next().map(|(contrib, _)| contrib);
 
             // If the build system profile prefers framework variants with specific env keys,
             // look for a matching variant (e.g., Poetry prefers FlaskPoetry with VIRTUAL_ENV)
@@ -329,19 +493,36 @@ fn collect_manifests_with_frameworks(
                 let env_keys = profile.preferred_framework_env_keys;
                 if !env_keys.is_empty() {
                     if let Some(ref fw) = framework {
-                        if let Some(variant) = detectors.iter().find_map(|d| {
-                            let contrib = d.contribution(&manifest.dependencies);
-                            if contrib.framework == fw.framework
-                                && env_keys
-                                    .iter()
-                                    .all(|k| contrib.runtime_env.contains_key(*k))
-                            {
-                                Some(contrib)
-                            } else {
-                                None
+                        // Collect all variants that match the required env keys
+                        let matching_variants: Vec<_> = detectors
+                            .iter()
+                            .filter_map(|d| {
+                                let contrib = d.contribution(&manifest.dependencies);
+                                if contrib.framework == fw.framework
+                                    && env_keys
+                                        .iter()
+                                        .all(|k| contrib.runtime_env.contains_key(*k))
+                                {
+                                    Some(contrib)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        if !matching_variants.is_empty() {
+                            // Prefer the variant whose workdir matches the manifest's
+                            // runtime workdir. This ensures UV projects (workdir /app)
+                            // pick FlaskUv, while Poetry/PDM (workdir /app) pick their
+                            // own variants.
+                            let manifest_workdir = manifest.runtime_config.workdir.as_deref();
+                            let best = matching_variants
+                                .iter()
+                                .find(|v| v.workdir.as_deref() == manifest_workdir)
+                                .or(matching_variants.first());
+                            if let Some(variant) = best {
+                                framework = Some(variant.clone());
                             }
-                        }) {
-                            framework = Some(variant);
                         }
                     }
                 }
@@ -541,12 +722,52 @@ fn partition(
                 }
             }
 
-            // Merge framework from other manifests (unless primary is a lock file)
+            // Merge framework from other manifests (unless primary is a lock file).
+            // Lock file primaries skip this because their dependency lists may differ
+            // from package.json, and merging could introduce incorrect framework
+            // contributions (e.g., health endpoints, runtime commands) that break
+            // the container runtime. Instead, lock file primaries merge devDependency-
+            // based frameworks separately (see below).
             if primary.framework.is_none() && lock_file_idx.is_none() {
                 for other in manifests_in_dir.iter() {
                     if other.framework.is_some() {
                         primary.framework = other.framework.clone();
                         break;
+                    }
+                }
+            }
+
+            // For lock file primaries: merge framework ONLY from devDependency-based
+            // detection. This covers cases like Vite, SvelteKit, Astro where the
+            // framework package is a devDependency not included in lock file manifests.
+            // We avoid merging production-dep frameworks (Fastify, Express) since
+            // the lock file's own detection should handle those.
+            if primary.framework.is_none() && lock_file_idx.is_some() {
+                for other in manifests_in_dir.iter() {
+                    if let Some(ref fw) = other.framework {
+                        // Only merge if the framework was detected via devDependencies
+                        let is_dev_framework = other
+                            .manifest
+                            .dependencies
+                            .iter()
+                            .filter(|d| d.scope == DepScope::Dev)
+                            .any(|d| {
+                                // Check if any dev dep name matches common build tool patterns
+                                let n = d.name.as_str();
+                                n == "vite"
+                                    || n.starts_with("@sveltejs/")
+                                    || n == "astro"
+                                    || n.starts_with("@react-router/")
+                                    || n.starts_with("@remix-run/")
+                                    || n.starts_with("@solidjs/")
+                                    || n.starts_with("@tanstack/")
+                                    || n == "nuxt"
+                                    || n == "nuxt3"
+                            });
+                        if is_dev_framework {
+                            primary.framework = Some(fw.clone());
+                            break;
+                        }
                     }
                 }
             }
@@ -736,6 +957,19 @@ fn partition(
                         }
                     }
 
+                    // For workspace members that are libraries (no start/build scripts,
+                    // no framework detected), clear any main-field-derived entrypoint
+                    // to prevent false-positive service detection.
+                    let is_app = mwf
+                        .manifest
+                        .package
+                        .as_ref()
+                        .map(|p| p.is_application)
+                        .unwrap_or(false);
+                    if !is_app && mwf.framework.is_none() {
+                        mwf.manifest.runtime_config.entrypoint = None;
+                    }
+
                     buckets.push(ServiceBucket {
                         path: member_dir,
                         manifest: mwf.manifest,
@@ -747,9 +981,46 @@ fn partition(
                 }
             }
 
-            // Remove workspace root from merged so it doesn't become a standalone project.
-            // Workspace roots coordinate member builds but are not deployable services themselves.
-            merged.remove(ws_root);
+            // Remove workspace root from merged so it doesn't become a standalone project,
+            // UNLESS the root itself is an application AND no workspace members are
+            // applications. This handles pnpm workspaces where the root has scripts.start
+            // and workspace packages are internal libraries (not deployable services).
+            let any_member_is_app = buckets
+                .iter()
+                .filter(|b| b.workspace_root.as_ref() == Some(ws_root))
+                .any(|b| {
+                    b.manifest
+                        .package
+                        .as_ref()
+                        .map(|p| p.is_application)
+                        .unwrap_or(false)
+                        || b.framework.is_some()
+                });
+
+            if !any_member_is_app {
+                if let Some(ws_mwf) = merged.get(ws_root) {
+                    let root_is_app = ws_mwf
+                        .manifest
+                        .package
+                        .as_ref()
+                        .map(|p| p.is_application)
+                        .unwrap_or(false);
+                    let root_has_framework = ws_mwf.framework.is_some();
+                    let root_has_entrypoint = ws_mwf.manifest.runtime_config.entrypoint.is_some();
+
+                    if root_is_app || root_has_framework || root_has_entrypoint {
+                        // Keep the workspace root as a standalone project — it's the only
+                        // deployable service (e.g., pnpm workspace with library packages)
+                    } else {
+                        merged.remove(ws_root);
+                    }
+                } else {
+                    merged.remove(ws_root);
+                }
+            } else {
+                // Workspace has application members — the root is just a coordinator
+                merged.remove(ws_root);
+            }
         }
     }
 
@@ -1109,14 +1380,54 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
     };
 
     // Build entrypoint command: config (Procfile) > framework override > manifest entrypoint
-    let entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
-        config_cmd.split_whitespace().map(String::from).collect()
+    let mut entrypoint_cmd = if let Some(config_cmd) = config_runtime_command {
+        // Extract leading KEY=VALUE tokens as environment variables so they don't
+        // end up as the executable in the command array.
+        let parts: Vec<&str> = config_cmd.split_whitespace().collect();
+        let env_prefix_end = parts
+            .iter()
+            .position(|p| !p.contains('=') || p.starts_with('/') || p.starts_with('.'))
+            .unwrap_or(parts.len());
+        for kv in &parts[..env_prefix_end] {
+            if let Some((k, v)) = kv.split_once('=') {
+                runtime_env
+                    .entry(k.to_string())
+                    .or_insert_with(|| v.to_string());
+            }
+        }
+        let remaining: &str = &config_cmd[config_cmd
+            .find(parts.get(env_prefix_end).copied().unwrap_or(""))
+            .unwrap_or(0)..];
+        let remaining = remaining.trim();
+        // If the command contains shell operators, wrap with sh -c to preserve semantics.
+        let has_shell_ops = remaining.contains("&&")
+            || remaining.contains("||")
+            || remaining.contains('|')
+            || remaining.contains(';')
+            || remaining.contains("$(")
+            || remaining.contains("${");
+        if has_shell_ops {
+            vec![
+                "/bin/sh".to_string(),
+                "-c".to_string(),
+                remaining.to_string(),
+            ]
+        } else {
+            remaining.split_whitespace().map(String::from).collect()
+        }
     } else if let Some(fw_cmd) = framework_runtime_command {
         fw_cmd
     } else if let Some(entrypoint) = &m.runtime_config.entrypoint {
         // For non-root projects, build system profile may override the entrypoint
-        // (e.g., Node.js uses `npm start` instead of direct command)
-        if !is_root_project {
+        // (e.g., Node.js uses `npm start` instead of direct command).
+        // Only apply the override when the package has a start script (is_application),
+        // not when the entrypoint was derived from the `main` field.
+        let has_start_script = m
+            .package
+            .as_ref()
+            .map(|p| p.is_application)
+            .unwrap_or(false);
+        if !is_root_project && has_start_script {
             if let Some(override_cmd) = profile.and_then(|p| p.non_root_entrypoint_override) {
                 override_cmd.iter().map(|s| s.to_string()).collect()
             } else {
@@ -1129,12 +1440,59 @@ fn reduce(bucket: ServiceBucket, registry: &Registry) -> Result<UniversalBuild> 
         vec![]
     };
 
-    // Workdir: framework override > manifest workdir
-    // For workspace members with adjusts_workspace_member_workdir, set workdir to the
-    // member's directory so that the entrypoint command runs in the correct context
-    let workdir = if bucket.is_workspace_member
-        && profile.is_some_and(|p| p.adjusts_workspace_member_workdir)
+    // For Gradle installDist projects, resolve the generic `/app/bin/app` entrypoint
+    // to `/app/bin/{project_name}` using the actual project name from settings.gradle.
+    // installDist creates scripts named after the project, not "app".
+    if m.build_system.slug() == "gradle" {
+        if let Some(pkg) = &m.package {
+            if !pkg.name.is_empty() && pkg.name != "app" {
+                for part in entrypoint_cmd.iter_mut() {
+                    if *part == "/app/bin/app" {
+                        *part = format!("/app/bin/{}", pkg.name);
+                    }
+                }
+            }
+        }
+    }
+
+    // For Ruby/Bundler projects, ensure `bundle exec` wraps the entrypoint
+    // so gems installed in vendor/bundle are on the load path.
+    if m.build_system.slug() == "bundler"
+        && !entrypoint_cmd.is_empty()
+        && entrypoint_cmd.first().map(|s| s.as_str()) != Some("bundle")
+        && entrypoint_cmd
+            .iter()
+            .any(|s| s == "ruby" || s.ends_with(".rb"))
     {
+        let mut wrapped = vec!["bundle".to_string(), "exec".to_string()];
+        wrapped.extend(entrypoint_cmd);
+        entrypoint_cmd = wrapped;
+    }
+
+    // For polyglot projects where the entrypoint uses a language not in the primary
+    // runtime packages: add the required runtime binaries (e.g., Node+Ruby project
+    // where Procfile runs `ruby app.rb` but primary language is JavaScript).
+    let cmd_uses_ruby = entrypoint_cmd
+        .iter()
+        .any(|s| s == "ruby" || s == "bundle" || s.ends_with(".rb"));
+    if cmd_uses_ruby && !runtime_packages.iter().any(|p| p.starts_with("ruby")) {
+        // Find ruby packages from build packages
+        for pkg in &m.build.packages {
+            if ((pkg.starts_with("ruby") && !pkg.contains("-dev")) || pkg == "bundler")
+                && !runtime_packages.contains(pkg)
+            {
+                runtime_packages.push(pkg.clone());
+            }
+        }
+    }
+
+    // Workdir: framework override > manifest workdir
+    // For workspace members with adjusts_workspace_member_workdir, or standalone
+    // subdirectory projects, set workdir to the member/subdir's directory so that
+    // the entrypoint command runs in the correct context.
+    let needs_subdir_workdir = (bucket.is_workspace_member || is_subdirectory)
+        && profile.is_some_and(|p| p.adjusts_workspace_member_workdir);
+    let workdir = if needs_subdir_workdir {
         let base = framework_workdir
             .or_else(|| m.runtime_config.workdir.clone())
             .unwrap_or_else(|| "/app".into());
@@ -1208,6 +1566,18 @@ const VERSIONABLE_PACKAGES: &[(&str, &str)] = &[
     ("gradle", "gradle"),
     ("zig", "zig"),
     ("bazel", "bazel"),
+    ("postgresql", "postgresql"),
+    ("libpq", "libpq"),
+];
+
+/// Packages where the very latest version often lacks broad ecosystem
+/// compatibility (many libraries don't publish wheels/packages for the
+/// bleeding-edge release). For these, prefer the second-latest minor version
+/// when no explicit version is pinned — matching PaaS defaults (Heroku, Railway).
+const PREFER_STABLE_PACKAGES: &[(&str, usize)] = &[
+    ("python", 2), // Many libraries publish wheels late; N-2 has broadest support
+    ("elixir", 1),
+    ("erlang", 2), // Erlang 27+ has escript compilation issues with popular packages (e.g. simplifile)
 ];
 
 /// Resolve generic package names to versioned Wolfi package names.
@@ -1230,7 +1600,14 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             .iter()
             .find(|(name, _)| *name == pkg.as_str())
         {
-            if let Some(resolved) = wolfi.get_latest_version(prefix) {
+            let resolved = if let Some((_, offset)) =
+                PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix)
+            {
+                wolfi.get_stable_version_at_offset(prefix, *offset)
+            } else {
+                wolfi.get_latest_version(prefix)
+            };
+            if let Some(resolved) = resolved {
                 debug!(from = %pkg, to = %resolved, "Resolved Wolfi package version");
                 *pkg = resolved;
             }
@@ -1238,12 +1615,27 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             // Handle e.g. erlang-dev → erlang-28-dev
             let base = pkg.strip_suffix("-dev").unwrap();
             if let Some((_, prefix)) = VERSIONABLE_PACKAGES.iter().find(|(name, _)| *name == base) {
-                if let Some(resolved) = wolfi.get_latest_version(prefix) {
+                let resolved = if let Some((_, offset)) =
+                    PREFER_STABLE_PACKAGES.iter().find(|(p, _)| *p == *prefix)
+                {
+                    wolfi.get_stable_version_at_offset(prefix, *offset)
+                } else {
+                    wolfi.get_latest_version(prefix)
+                };
+                if let Some(resolved) = resolved {
                     let dev_pkg = format!("{}-dev", resolved);
                     if wolfi.has_package(&dev_pkg) {
                         debug!(from = %pkg, to = %dev_pkg, "Resolved Wolfi dev package version");
                         *pkg = dev_pkg;
                     }
+                }
+            } else if base.starts_with("ruby-") {
+                // ruby-2.6-dev → ruby-3.0-dev (EOL version fallback)
+                let versions = wolfi.get_versions("ruby");
+                if let Some(oldest) = versions.last() {
+                    let resolved = format!("ruby-{}-dev", oldest);
+                    debug!(from = %pkg, to = %resolved, "Resolved unavailable Ruby -dev version to oldest Wolfi package");
+                    *pkg = resolved;
                 }
             }
         } else if pkg.starts_with("openjdk-") && !pkg.contains("-jre") {
@@ -1270,6 +1662,44 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
             if let Some(latest) = wolfi.get_latest_version("dotnet") {
                 let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
                 *pkg = format!("dotnet-{}-runtime", ver);
+            }
+        } else if pkg.starts_with("aspnet-") && pkg.ends_with("-runtime") && !wolfi.has_package(pkg)
+        {
+            // aspnet-6-runtime → aspnet-X-runtime (resolve to latest available)
+            if let Some(latest) = wolfi.get_latest_version("dotnet") {
+                let ver = latest.strip_prefix("dotnet-").unwrap_or("8");
+                *pkg = format!("aspnet-{}-runtime", ver);
+            }
+        } else if pkg.starts_with("go-") && !wolfi.has_package(pkg) {
+            // go-1.18 → resolve to latest available Go version
+            // Go is backward-compatible, so old code builds fine with newer compilers.
+            if let Some(latest) = wolfi.get_latest_version("go") {
+                debug!(from = %pkg, to = %latest, "Resolved old Go version to latest Wolfi package");
+                *pkg = latest;
+            }
+        } else if pkg.starts_with("python-")
+            && pkg[7..].chars().next().is_some_and(|c| c.is_ascii_digit())
+            && !wolfi.has_package(pkg)
+        {
+            // python-2.7 → resolve to preferred stable Python version
+            // Python 2 isn't in Wolfi; fall back to the stable Python 3.x
+            // (N-2 offset matching PREFER_STABLE_PACKAGES for broadest support).
+            if let Some(resolved) = wolfi.get_stable_version_at_offset("python", 2) {
+                debug!(from = %pkg, to = %resolved, "Resolved unavailable Python version to stable Wolfi package");
+                *pkg = resolved;
+            }
+        } else if pkg.starts_with("ruby-")
+            && !pkg.ends_with("-dev")
+            && pkg[5..].chars().next().is_some_and(|c| c.is_ascii_digit())
+            && !wolfi.has_package(pkg)
+        {
+            // ruby-2.6 → resolve to minimum available Ruby version
+            // EOL Ruby versions aren't in Wolfi; fall back to oldest available.
+            let versions = wolfi.get_versions("ruby");
+            if let Some(oldest) = versions.last() {
+                let resolved = format!("ruby-{}", oldest);
+                debug!(from = %pkg, to = %resolved, "Resolved unavailable Ruby version to oldest Wolfi package");
+                *pkg = resolved;
             }
         }
     }
@@ -1328,475 +1758,6 @@ fn resolve_wolfi_packages(packages: &mut [String], wolfi: &WolfiPackageIndex) {
     }
 }
 
-// ── Source code port scanning ────────────────────────────────────────────────
-
-/// Language-specific regex patterns for detecting ports in source code.
-/// Each entry is (language, extension_filter, patterns) where patterns are regex strings
-/// with a capture group for the port number.
-const PORT_PATTERNS: &[(&str, &[&str], &[&str])] = &[
-    (
-        "Rust",
-        &["rs"],
-        &[
-            r#"[.:]+bind\([^,)]*:(\d{4,5})"#,
-            r#"[.:]+bind\(\("[^"]*",\s*(\d{4,5})\)"#,
-            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
-        ],
-    ),
-    (
-        "JavaScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
-    ),
-    (
-        "TypeScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r"\.listen\(\s*(\d{4,5})", r#"port["\s:=]+(\d{4,5})"#],
-    ),
-    (
-        "Python",
-        &["py"],
-        &[
-            r"\.run\([^)]*port\s*=\s*(\d{4,5})",
-            r#"port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (
-        "Go",
-        &["go"],
-        &[
-            r"ListenAndServe\([^)]*:(\d{4,5})",
-            r#"addr\s*=\s*"[^:]*:(\d{4,5})""#,
-        ],
-    ),
-    (
-        "Java",
-        &["java", "kt", "kts"],
-        &[
-            r"\.setPort\(\s*(\d{4,5})\s*\)",
-            r#"server\.port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (
-        "Kotlin",
-        &["java", "kt", "kts"],
-        &[
-            r"\.setPort\(\s*(\d{4,5})\s*\)",
-            r#"server\.port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    (
-        "Scala",
-        &["scala", "java"],
-        &[
-            r"\.setPort\(\s*(\d{4,5})\s*\)",
-            r#"server\.port\s*=\s*(\d{4,5})"#,
-            r#"port\s*=\s*(\d{4,5})"#,
-        ],
-    ),
-    ("Elixir", &["ex", "exs"], &[r#"port:\s*(\d{4,5})"#]),
-    (
-        "Ruby",
-        &["rb"],
-        &[r#"set\s*:port\s*,\s*(\d{4,5})"#, r#"port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        "C#",
-        &["cs"],
-        &[
-            r#"UseUrls\([^)]*:(\d{4,5})"#,
-            r#"app\.Run\([^)]*:(\d{4,5})"#,
-            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
-        ],
-    ),
-    (
-        "F#",
-        &["fs"],
-        &[
-            r#"UseUrls\([^)]*:(\d{4,5})"#,
-            r#"\.UsePort\(\s*(\d{4,5})\s*\)"#,
-        ],
-    ),
-    (
-        "PHP",
-        &["php"],
-        &[r#"'PORT'\s*,\s*(\d{4,5})"#, r#"\$port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        "C",
-        &["c", "h"],
-        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        "C++",
-        &["cpp", "cxx", "cc", "hpp", "h"],
-        &[r#"htons\(\s*(\d{4,5})\s*\)"#, r#"port\s*=\s*(\d{4,5})"#],
-    ),
-    (
-        "Clojure",
-        &["clj", "cljc", "cljs"],
-        &[
-            r#":port\s+(\d{4,5})"#,
-            r#"\{:port\s+(\d{4,5})\}"#,
-            r#"run-jetty\s+[^\{]*\{[^}]*:port\s+(\d{4,5})"#,
-        ],
-    ),
-];
-
-/// Scan source files in a project directory for port patterns.
-/// When ports are found in source code, they replace the framework default ports.
-fn scan_source_ports(repo_root: &Path, build: &mut UniversalBuild) {
-    let language = &build.metadata.language;
-
-    let patterns_entry = PORT_PATTERNS.iter().find(|(lang, _, _)| *lang == language);
-
-    let (_, extensions, patterns) = match patterns_entry {
-        Some(entry) => entry,
-        None => return,
-    };
-
-    let compiled: Vec<regex::Regex> = patterns
-        .iter()
-        .filter_map(|p| regex::Regex::new(p).ok())
-        .collect();
-
-    if compiled.is_empty() {
-        return;
-    }
-
-    // Determine the project directory to scan
-    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
-
-    if !project_dir.is_dir() {
-        return;
-    }
-
-    let mut source_ports: Vec<u16> = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-
-    // Walk source files with matching extensions
-    let walker = WalkBuilder::new(&project_dir)
-        .hidden(true)
-        .git_ignore(true)
-        .git_global(false)
-        .git_exclude(true)
-        .build();
-
-    for entry in walker.flatten() {
-        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
-            continue;
-        }
-
-        let path = entry.path();
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-        if !extensions.contains(&ext) {
-            continue;
-        }
-
-        let content = match std::fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        for re in &compiled {
-            for cap in re.captures_iter(&content) {
-                if let Some(port_match) = cap.get(1) {
-                    if let Ok(port) = port_match.as_str().parse::<u16>() {
-                        if port >= 1024 && seen.insert(port) {
-                            debug!(port, file = %path.display(), "Found port in source code");
-                            source_ports.push(port);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Source-code ports override framework defaults when found
-    if !source_ports.is_empty() {
-        source_ports.sort();
-        source_ports.dedup();
-        build.runtime.ports = source_ports;
-    }
-}
-
-// ── Source code health endpoint scanning ──────────────────────────────────
-
-/// Language-specific regex patterns for detecting health endpoints in source code.
-const HEALTH_PATTERNS: &[(&str, &[&str], &[&str])] = &[
-    (
-        "JavaScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "TypeScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r#"app\.get\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Java",
-        &["java", "kt", "kts"],
-        &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Kotlin",
-        &["java", "kt", "kts"],
-        &[r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Scala",
-        &["scala", "java"],
-        &[
-            r#"path\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-            r#"@(?:Get|Request)Mapping\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-        ],
-    ),
-    (
-        "Python",
-        &["py"],
-        &[r#"@app\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Go",
-        &["go"],
-        &[r#"\.(?:GET|Handle(?:Func)?)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "Rust",
-        &["rs"],
-        &[r#"\.(?:get|route)\(['"]([/\w\-]*health[/\w\-]*)['"]"#],
-    ),
-    (
-        "C",
-        &["c", "h"],
-        &[
-            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
-            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
-        ],
-    ),
-    (
-        "C++",
-        &["cpp", "cxx", "cc", "hpp", "h"],
-        &[
-            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
-            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
-        ],
-    ),
-    (
-        "PHP",
-        &["php"],
-        &[
-            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-            r#"case\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
-            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
-        ],
-    ),
-];
-
-/// Scan source files for health endpoint patterns.
-/// Only sets health if not already set by config or framework.
-fn scan_source_health(repo_root: &Path, build: &mut UniversalBuild) {
-    if build.runtime.health.is_some() {
-        return;
-    }
-
-    let language = &build.metadata.language;
-    let patterns_entry = HEALTH_PATTERNS
-        .iter()
-        .find(|(lang, _, _)| *lang == language);
-    let (_, extensions, patterns) = match patterns_entry {
-        Some(entry) => entry,
-        None => return,
-    };
-
-    let compiled: Vec<regex::Regex> = patterns
-        .iter()
-        .filter_map(|p| regex::Regex::new(p).ok())
-        .collect();
-
-    if compiled.is_empty() {
-        return;
-    }
-
-    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
-    if !project_dir.is_dir() {
-        return;
-    }
-
-    let walker = WalkBuilder::new(&project_dir)
-        .hidden(true)
-        .git_ignore(true)
-        .git_global(false)
-        .git_exclude(true)
-        .build();
-
-    for entry in walker.flatten() {
-        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
-            continue;
-        }
-
-        let path = entry.path();
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !extensions.contains(&ext) {
-            continue;
-        }
-
-        let content = match std::fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        for re in &compiled {
-            if let Some(cap) = re.captures(&content) {
-                if let Some(endpoint) = cap.get(1) {
-                    let ep = endpoint.as_str().to_string();
-                    debug!(endpoint = %ep, file = %path.display(), "Found health endpoint in source code");
-                    build.runtime.health = Some(HealthCheck { endpoint: ep });
-                    return;
-                }
-            }
-        }
-    }
-}
-
-// ── Source code env var scanning ──────────────────────────────────────────
-
-/// Language-specific regex patterns for detecting environment variable access.
-const ENV_VAR_PATTERNS: &[(&str, &[&str], &[&str])] = &[
-    (
-        "JavaScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
-    ),
-    (
-        "TypeScript",
-        &["js", "ts", "mjs", "cjs"],
-        &[r"process\.env\.([A-Z_][A-Z0-9_]*)"],
-    ),
-    (
-        "Python",
-        &["py"],
-        &[
-            r#"os\.environ\.get\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
-            r#"os\.getenv\(['"]([A-Z_][A-Z0-9_]*)['"]"#,
-        ],
-    ),
-    ("Rust", &["rs"], &[r#"env::var\(["']([A-Z_][A-Z0-9_]*)"#]),
-    ("Go", &["go"], &[r#"os\.Getenv\(["']([A-Z_][A-Z0-9_]*)"#]),
-    (
-        "Java",
-        &["java", "kt", "kts"],
-        &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-    (
-        "Kotlin",
-        &["java", "kt", "kts"],
-        &[r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-    (
-        "Scala",
-        &["scala", "java"],
-        &[
-            r#"System\.getenv\(["']([A-Z_][A-Z0-9_]*)"#,
-            r#"sys\.env\.get(?:OrElse)?\(["']([A-Z_][A-Z0-9_]*)"#,
-        ],
-    ),
-    (
-        "Elixir",
-        &["ex", "exs"],
-        &[r#"System\.get_env\(["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-    (
-        "C",
-        &["c", "h"],
-        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
-    ),
-    (
-        "C++",
-        &["cpp", "cxx", "cc", "hpp", "h"],
-        &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
-    ),
-    (
-        "Clojure",
-        &["clj", "cljc", "cljs"],
-        &[r#"System/getenv\s+["']([A-Z_][A-Z0-9_]*)"#],
-    ),
-];
-
-/// Built-in environment variables to skip.
-const BUILTIN_ENV_VARS: &[&str] = &["PATH", "HOME", "USER", "SHELL", "LANG", "TERM"];
-
-/// Scan source files for environment variable references.
-/// Adds discovered vars to runtime env with empty values (only if not already present).
-fn scan_source_env_vars(repo_root: &Path, build: &mut UniversalBuild) {
-    let language = &build.metadata.language;
-    let patterns_entry = ENV_VAR_PATTERNS
-        .iter()
-        .find(|(lang, _, _)| *lang == language);
-    let (_, extensions, patterns) = match patterns_entry {
-        Some(entry) => entry,
-        None => return,
-    };
-
-    let compiled: Vec<regex::Regex> = patterns
-        .iter()
-        .filter_map(|p| regex::Regex::new(p).ok())
-        .collect();
-
-    if compiled.is_empty() {
-        return;
-    }
-
-    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
-    if !project_dir.is_dir() {
-        return;
-    }
-
-    let walker = WalkBuilder::new(&project_dir)
-        .hidden(true)
-        .git_ignore(true)
-        .git_global(false)
-        .git_exclude(true)
-        .build();
-
-    for entry in walker.flatten() {
-        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
-            continue;
-        }
-
-        let path = entry.path();
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !extensions.contains(&ext) {
-            continue;
-        }
-
-        let content = match std::fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        for re in &compiled {
-            for cap in re.captures_iter(&content) {
-                if let Some(var_match) = cap.get(1) {
-                    let var_name = var_match.as_str();
-                    if BUILTIN_ENV_VARS.contains(&var_name) {
-                        continue;
-                    }
-                    if !build.runtime.env.contains_key(var_name) {
-                        debug!(var = var_name, file = %path.display(), "Found env var in source code");
-                        build
-                            .runtime
-                            .env
-                            .insert(var_name.to_string(), String::new());
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ── Version file scanning ────────────────────────────────────────────────
 
 /// Scan for language version files (.nvmrc, .node-version, .python-version)
@@ -1827,224 +1788,23 @@ fn scan_version_files(repo_root: &Path, build: &mut UniversalBuild) {
                 replace_package(&mut build.runtime.packages, "php", &versioned_pkg);
             }
         }
+        "Ruby" => {
+            if let Some(version) = read_ruby_version(&project_dir, repo_root) {
+                let versioned_pkg = format!("ruby-{}", version);
+                let versioned_dev = format!("ruby-{}-dev", version);
+                replace_package(&mut build.build.packages, "ruby", &versioned_pkg);
+                replace_package(&mut build.build.packages, "ruby-dev", &versioned_dev);
+                replace_package(&mut build.runtime.packages, "ruby", &versioned_pkg);
+            }
+        }
         "Rust" => {
             // Only build packages need the rust compiler; runtime uses the compiled binary
-            if let Some(version) = crate::version::rust::read_rust_version(&project_dir, repo_root)
-            {
+            if let Some(version) = read_rust_version(&project_dir, repo_root) {
                 let versioned_pkg = format!("rust-{}", version);
                 replace_package(&mut build.build.packages, "rust", &versioned_pkg);
             }
         }
         _ => {}
-    }
-}
-
-/// Read Node.js version from .nvmrc or .node-version file.
-fn read_node_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
-    for dir in &[project_dir, repo_root] {
-        for filename in &[".nvmrc", ".node-version"] {
-            let path = dir.join(filename);
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                let trimmed = content.trim();
-                if let Some(version) = parse_node_version_string(trimmed) {
-                    return Some(version);
-                }
-            }
-        }
-    }
-    None
-}
-
-/// Parse a Node.js version string: strip 'v' prefix, map LTS codenames, extract major.
-fn parse_node_version_string(s: &str) -> Option<String> {
-    let s = s.trim().trim_start_matches('v');
-
-    // Map LTS codenames
-    let s = match s.to_lowercase().as_str() {
-        "lts/iron" => "20",
-        "lts/hydrogen" => "18",
-        "lts/gallium" => "16",
-        "lts/fermium" => "14",
-        "lts/*" => return None, // Can't resolve "latest LTS" statically
-        _ => s,
-    };
-
-    // Extract major version
-    let major = s.split('.').next()?;
-    if major.chars().all(|c| c.is_ascii_digit()) && !major.is_empty() {
-        Some(major.to_string())
-    } else {
-        None
-    }
-}
-
-/// Read Python version from .python-version file or Pipfile.
-fn read_python_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
-    // Check .python-version first (highest priority)
-    for dir in &[project_dir, repo_root] {
-        let path = dir.join(".python-version");
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            let trimmed = content.trim();
-            // Extract major.minor (e.g., "3.11.4" → "3.11")
-            let parts: Vec<&str> = trimmed.split('.').collect();
-            if parts.len() >= 2
-                && parts[0].chars().all(|c| c.is_ascii_digit())
-                && parts[1].chars().all(|c| c.is_ascii_digit())
-            {
-                return Some(format!("{}.{}", parts[0], parts[1]));
-            }
-        }
-    }
-
-    // Check Pipfile for python_version in [requires] section
-    for dir in &[project_dir, repo_root] {
-        let path = dir.join("Pipfile");
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            if let Some(version) = parse_pipfile_python_version(&content) {
-                return Some(version);
-            }
-        }
-    }
-
-    None
-}
-
-/// Extract python_version from Pipfile [requires] section.
-/// Matches `python_version = "3.11"` or `python_version = "3"`.
-fn parse_pipfile_python_version(content: &str) -> Option<String> {
-    let re = regex::Regex::new(r#"(?m)^\s*python_version\s*=\s*["'](\d+\.\d+)["']"#).ok()?;
-    re.captures(content)
-        .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
-}
-
-/// Read PHP version from .php-version file.
-fn read_php_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
-    for dir in &[project_dir, repo_root] {
-        let path = dir.join(".php-version");
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            let trimmed = content.trim();
-            // Extract major.minor (e.g., "8.2.15" → "8.2", "8.2" → "8.2")
-            let parts: Vec<&str> = trimmed.split('.').collect();
-            if parts.len() >= 2
-                && parts[0].chars().all(|c| c.is_ascii_digit())
-                && parts[1].chars().all(|c| c.is_ascii_digit())
-            {
-                return Some(format!("{}.{}", parts[0], parts[1]));
-            }
-        }
-    }
-    None
-}
-
-/// Replace an unversioned package with a versioned one.
-/// Only replaces exact matches (not already-versioned packages).
-fn replace_package(packages: &mut [String], unversioned: &str, versioned: &str) {
-    for pkg in packages.iter_mut() {
-        if pkg == unversioned {
-            *pkg = versioned.to_string();
-        }
-    }
-}
-
-// ── Python entrypoint scanning ───────────────────────────────────────────
-
-/// Common Python entrypoint filenames, ordered by priority.
-const PYTHON_ENTRYPOINTS: &[&str] = &["app.py", "main.py", "server.py", "wsgi.py", "manage.py"];
-
-/// Scan project directory for common Python entrypoint files.
-/// Only overrides if current entrypoint is the fallback "python -m {name}".
-fn scan_python_entrypoints(repo_root: &Path, build: &mut UniversalBuild) {
-    if build.metadata.language != "Python" {
-        return;
-    }
-
-    // Only override fallback entrypoints
-    let is_fallback = build.runtime.command.is_empty()
-        || (build.runtime.command.len() == 3
-            && build.runtime.command[0] == "python"
-            && build.runtime.command[1] == "-m");
-
-    if !is_fallback {
-        return;
-    }
-
-    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
-    if !project_dir.is_dir() {
-        return;
-    }
-
-    for filename in PYTHON_ENTRYPOINTS {
-        if project_dir.join(filename).exists() {
-            let workdir = &build.runtime.workdir;
-            let entrypoint_path = format!("{}/{}", workdir, filename);
-            debug!(entrypoint = %entrypoint_path, "Found Python entrypoint");
-            build.runtime.command = vec!["python".into(), entrypoint_path];
-            return;
-        }
-    }
-}
-
-// ── Flask app path fix ────────────────────────────────────────────────────
-
-/// Fix FLASK_APP for workspace members where the hardcoded `/build/app.py` doesn't exist.
-/// Searches the project directory for `app.py` and updates FLASK_APP to the correct path.
-fn fix_flask_app_path(repo_root: &Path, build: &mut UniversalBuild) {
-    if build.metadata.language != "Python" {
-        return;
-    }
-
-    // Only fix if FLASK_APP is set to the default hardcoded value
-    let flask_app = match build.runtime.env.get("FLASK_APP") {
-        Some(v) if v == "/build/app.py" => v.clone(),
-        _ => return,
-    };
-
-    let project_dir = extract_project_dir(repo_root, &build.metadata.reasoning);
-
-    // If app.py exists at project root, the default FLASK_APP is correct
-    if project_dir.join("app.py").exists() && project_dir == repo_root {
-        return;
-    }
-
-    // For workspace members in subdirectories, search for app.py in the project dir
-    if project_dir != repo_root {
-        // Check for app.py directly in the project directory
-        if project_dir.join("app.py").exists() {
-            let rel_path = project_dir
-                .strip_prefix(repo_root)
-                .unwrap_or(project_dir.as_path());
-            let new_flask_app = format!("/build/{}/app.py", rel_path.display());
-            debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
-            build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
-            return;
-        }
-
-        // Search recursively for app.py in the project directory (e.g., src/api/app.py)
-        for entry in WalkBuilder::new(&project_dir)
-            .max_depth(Some(4))
-            .build()
-            .filter_map(|e| e.ok())
-        {
-            if entry.file_name() == "app.py" && entry.file_type().is_some_and(|t| t.is_file()) {
-                let rel_path = entry.path().strip_prefix(repo_root).unwrap_or(entry.path());
-                let new_flask_app = format!("/build/{}", rel_path.display());
-                debug!(old = %flask_app, new = %new_flask_app, "Fixed FLASK_APP for workspace member");
-                build.runtime.env.insert("FLASK_APP".into(), new_flask_app);
-                return;
-            }
-        }
-    }
-}
-
-// ── Helper ───────────────────────────────────────────────────────────────
-
-/// Extract the project directory from the build metadata reasoning string.
-fn extract_project_dir(repo_root: &Path, reasoning: &str) -> PathBuf {
-    if let Some(in_pos) = reasoning.rfind(" in ") {
-        let dir = &reasoning[in_pos + 4..];
-        repo_root.join(dir)
-    } else {
-        repo_root.to_path_buf()
     }
 }
 
@@ -2330,25 +2090,6 @@ const home = process.env.HOME;
     }
 
     #[test]
-    fn test_parse_node_version_string() {
-        assert_eq!(
-            parse_node_version_string("v18.12.0"),
-            Some("18".to_string())
-        );
-        assert_eq!(parse_node_version_string("20"), Some("20".to_string()));
-        assert_eq!(parse_node_version_string("18.12.0"), Some("18".to_string()));
-        assert_eq!(
-            parse_node_version_string("lts/iron"),
-            Some("20".to_string())
-        );
-        assert_eq!(
-            parse_node_version_string("lts/hydrogen"),
-            Some("18".to_string())
-        );
-        assert_eq!(parse_node_version_string("lts/*"), None);
-    }
-
-    #[test]
     fn test_extract_project_dir() {
         let root = Path::new("/repo");
         assert_eq!(
@@ -2428,8 +2169,12 @@ const home = process.env.HOME;
             "Should have composer command"
         );
         assert!(
-            build.build.commands.iter().any(|c| c.contains("npm ci")),
-            "Should have npm ci command"
+            build
+                .build
+                .commands
+                .iter()
+                .any(|c| c.contains("npm install") || c.contains("npm ci")),
+            "Should have npm install or npm ci command"
         );
         assert!(
             build

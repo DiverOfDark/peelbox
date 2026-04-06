@@ -1,0 +1,60 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Python",
+      "build_system": "uv",
+      "reasoning": "Detected from uv.lock"
+    },
+    "build": {
+      "packages": [
+        "python-3.13",
+        "py3.13-pip",
+        "build-base",
+        "ca-certificates",
+        "postgresql-18-dev",
+        "python-3.13-dev"
+      ],
+      "env": {
+        "UV_CACHE_DIR": "/root/.cache/uv"
+      },
+      "commands": [
+        "pip install --user uv",
+        "/root/.local/bin/uv sync --frozen --no-dev"
+      ],
+      "cache": [
+        "/root/.cache/pip/",
+        "/root/.cache/uv/"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "python-3.13",
+        "libgcc",
+        "libstdc++",
+        "ca-certificates",
+        "libpq-18"
+      ],
+      "env": {
+        "DATABASE_URL": "",
+        "PATH": "/app/.venv/bin:/usr/local/bin:/usr/bin:/bin",
+        "VIRTUAL_ENV": "/app/.venv"
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app"
+        }
+      ],
+      "command": [
+        "python",
+        "/app/main.py"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8000
+      ]
+    }
+  }
+]

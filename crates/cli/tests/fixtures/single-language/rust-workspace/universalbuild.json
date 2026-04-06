@@ -1,55 +1,56 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Rust",
+      "build_system": "Cargo",
+      "framework": "Actix Web",
+      "reasoning": "Detected from Cargo.toml in app"
+    },
     "build": {
-      "cache": [
-        ".cargo",
-        "target"
-      ],
-      "commands": [
-        "cargo build --release --manifest-path app/Cargo.toml --target-dir target"
-      ],
-      "env": {
-        "CARGO_HOME": ".cargo"
-      },
       "packages": [
         "rust-1.92",
         "build-base",
         "openssl-dev",
         "pkgconf",
         "ca-certificates"
+      ],
+      "env": {
+        "CARGO_HOME": ".cargo"
+      },
+      "commands": [
+        "cargo build --release --manifest-path app/Cargo.toml --target-dir target"
+      ],
+      "cache": [
+        ".cargo",
+        "target"
       ]
     },
-    "metadata": {
-      "build_system": "Cargo",
-      "framework": "Actix Web",
-      "language": "Rust",
-      "project_name": "app",
-      "reasoning": "Detected from Cargo.toml in app"
-    },
     "runtime": {
-      "command": [
-        "/app/app"
+      "packages": [
+        "glibc",
+        "libssl3",
+        "ca-certificates"
       ],
+      "env": {},
       "copy": [
         {
           "from": "target/release/app",
           "to": "/app/app"
         }
       ],
-      "env": {},
+      "command": [
+        "/app/app"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8081,
+        8080
+      ],
       "health": {
         "endpoint": "/health"
-      },
-      "packages": [
-        "glibc",
-        "libssl3",
-        "ca-certificates"
-      ],
-      "ports": [
-        8081
-      ],
-      "workdir": "/app"
-    },
-    "version": "1.0"
+      }
+    }
   }
 ]

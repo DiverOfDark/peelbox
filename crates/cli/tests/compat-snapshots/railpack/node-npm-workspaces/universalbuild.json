@@ -1,0 +1,57 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "@monorepo/api",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Express",
+      "reasoning": "Detected from package.json in packages/api"
+    },
+    "build": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "ca-certificates"
+      ],
+      "env": {},
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "npm install"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "nodejs-25",
+        "npm",
+        "busybox",
+        "dumb-init",
+        "ca-certificates"
+      ],
+      "env": {
+        "PORT": ""
+      },
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "node",
+        "index.js"
+      ],
+      "workdir": "/app/packages/api",
+      "ports": [
+        3000
+      ],
+      "health": {
+        "endpoint": "/health"
+      }
+    }
+  }
+]

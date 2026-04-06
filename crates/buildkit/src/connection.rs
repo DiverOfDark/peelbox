@@ -3,11 +3,33 @@ use std::path::Path;
 #[cfg(not(windows))]
 use tonic::transport::Uri;
 use tonic::transport::{Channel, Endpoint};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
+
+use crate::retry::retry_with_backoff;
 
 const DEFAULT_UNIX_SOCKET: &str = "/run/buildkit/buildkitd.sock";
-const DEFAULT_DOCKER_SOCKET: &str = "/var/run/docker.sock";
-const MIN_BUILDKIT_VERSION: &str = "0.11.0";
+pub(crate) const DEFAULT_DOCKER_SOCKET: &str = "/var/run/docker.sock";
+
+/// Consistent keep-alive timeout applied to all BuildKit connections.
+///
+/// Set to 600 seconds (10 minutes). This is long enough to survive typical
+/// build pauses (e.g. waiting for a large image pull), but short enough to
+/// detect genuinely dead connections before the OS TCP timeout kicks in.
+const KEEP_ALIVE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
+
+/// Configure a tonic `Endpoint` with the standard HTTP/2 settings used by
+/// all BuildKit connection variants.
+///
+/// This ensures consistent window sizes, keep-alive intervals, and timeouts
+/// across Unix, TCP, Docker-container, and Docker-native connections.
+fn configure_endpoint(ep: Endpoint) -> Endpoint {
+    ep.http2_adaptive_window(true)
+        .initial_connection_window_size(Some(2 * 1024 * 1024))
+        .initial_stream_window_size(Some(2 * 1024 * 1024))
+        .http2_keep_alive_interval(std::time::Duration::from_secs(30))
+        .keep_alive_timeout(KEEP_ALIVE_TIMEOUT)
+        .keep_alive_while_idle(true)
+}
 
 #[derive(Debug, Clone)]
 pub enum BuildKitAddr {
@@ -95,15 +117,28 @@ impl BuildKitConnection {
             Ok(Some(endpoint)) => {
                 debug!("Found Docker BuildKit endpoint: {}", endpoint);
                 match BuildKitAddr::from_str(&endpoint) {
-                    Ok(addr) => match Self::connect_to_addr(addr).await {
-                        Ok(conn) => {
-                            info!("Connected to Docker daemon BuildKit");
-                            return Ok(conn);
+                    Ok(addr) => {
+                        let connect_result = retry_with_backoff(
+                            10,
+                            std::time::Duration::from_secs(1),
+                            "Docker BuildKit connect",
+                            || {
+                                let addr = addr.clone();
+                                async move { Self::connect_to_addr(addr).await }
+                            },
+                        )
+                        .await;
+
+                        match connect_result {
+                            Ok(conn) => {
+                                info!("Connected to Docker daemon BuildKit");
+                                return Ok(conn);
+                            }
+                            Err(e) => {
+                                debug!("All Docker BuildKit connect attempts failed: {}", e);
+                            }
                         }
-                        Err(e) => {
-                            debug!("Failed to connect to Docker daemon BuildKit: {}", e);
-                        }
-                    },
+                    }
                     Err(e) => {
                         debug!("Failed to parse Docker endpoint: {}", e);
                     }
@@ -146,24 +181,20 @@ impl BuildKitConnection {
                     use tower::service_fn;
 
                     let path = path.clone();
-                    Endpoint::try_from("http://[::]:50051")
-                        .context("Failed to create endpoint")?
-                        .http2_adaptive_window(true)
-                        .initial_connection_window_size(Some(2 * 1024 * 1024))
-                        .initial_stream_window_size(Some(2 * 1024 * 1024))
-                        .http2_keep_alive_interval(std::time::Duration::from_secs(30))
-                        .keep_alive_timeout(std::time::Duration::from_secs(3600))
-                        .keep_alive_while_idle(true)
-                        .connect_with_connector(service_fn(move |_: Uri| {
-                            let path = path.clone();
-                            async move {
-                                tokio::net::UnixStream::connect(path)
-                                    .await
-                                    .map(TokioIo::new)
-                            }
-                        }))
-                        .await
-                        .context("Failed to connect to Unix socket")?
+                    configure_endpoint(
+                        Endpoint::try_from("http://[::]:50051")
+                            .context("Failed to create endpoint")?,
+                    )
+                    .connect_with_connector(service_fn(move |_: Uri| {
+                        let path = path.clone();
+                        async move {
+                            tokio::net::UnixStream::connect(path)
+                                .await
+                                .map(TokioIo::new)
+                        }
+                    }))
+                    .await
+                    .context("Failed to connect to Unix socket")?
                 }
 
                 #[cfg(not(unix))]
@@ -173,14 +204,8 @@ impl BuildKitConnection {
             }
             BuildKitAddr::Tcp(uri_str) => {
                 debug!("Connecting to TCP: {}", uri_str);
-                Endpoint::try_from(uri_str.clone())
-                    .context("Invalid TCP URI")?
+                configure_endpoint(Endpoint::try_from(uri_str.clone()).context("Invalid TCP URI")?)
                     .connect_timeout(std::time::Duration::from_secs(10))
-                    .timeout(std::time::Duration::from_secs(3600))
-                    .http2_adaptive_window(true)
-                    .initial_connection_window_size(Some(2 * 1024 * 1024))
-                    .initial_stream_window_size(Some(2 * 1024 * 1024))
-                    .http2_keep_alive_interval(std::time::Duration::from_secs(30))
                     .connect()
                     .await
                     .context("Failed to connect to TCP endpoint")?
@@ -193,19 +218,16 @@ impl BuildKitConnection {
                     use tower::service_fn;
 
                     let container_id = container_id.clone();
-                    Endpoint::try_from("http://[::]:50051")
-                        .context("Failed to create endpoint")?
-                        .timeout(std::time::Duration::from_secs(3600))
-                        .http2_adaptive_window(true)
-                        .initial_connection_window_size(Some(2 * 1024 * 1024))
-                        .initial_stream_window_size(Some(2 * 1024 * 1024))
-                        .http2_keep_alive_interval(std::time::Duration::from_secs(30))
-                        .connect_with_connector(service_fn(move |_: Uri| {
-                            let container_id = container_id.clone();
-                            async move { connect_docker_container(&container_id).await }
-                        }))
-                        .await
-                        .context("Failed to connect to BuildKit via docker-container")?
+                    configure_endpoint(
+                        Endpoint::try_from("http://[::]:50051")
+                            .context("Failed to create endpoint")?,
+                    )
+                    .connect_with_connector(service_fn(move |_: Uri| {
+                        let container_id = container_id.clone();
+                        async move { connect_docker_container(&container_id).await }
+                    }))
+                    .await
+                    .context("Failed to connect to BuildKit via docker-container")?
                 }
 
                 #[cfg(not(unix))]
@@ -222,20 +244,16 @@ impl BuildKitConnection {
                     use tower::service_fn;
 
                     let path = path.clone();
-                    Endpoint::try_from("http://[::]:50051")
-                        .context("Failed to create endpoint")?
-                        .http2_adaptive_window(true)
-                        .initial_connection_window_size(Some(2 * 1024 * 1024))
-                        .initial_stream_window_size(Some(2 * 1024 * 1024))
-                        .http2_keep_alive_interval(std::time::Duration::from_secs(30))
-                        .keep_alive_timeout(std::time::Duration::from_secs(600))
-                        .keep_alive_while_idle(true)
-                        .connect_with_connector(service_fn(move |_: Uri| {
-                            let path = path.clone();
-                            async move { connect_docker_native(&path).await.map(TokioIo::new) }
-                        }))
-                        .await
-                        .context("Failed to connect to Docker native socket")?
+                    configure_endpoint(
+                        Endpoint::try_from("http://[::]:50051")
+                            .context("Failed to create endpoint")?,
+                    )
+                    .connect_with_connector(service_fn(move |_: Uri| {
+                        let path = path.clone();
+                        async move { connect_docker_native(&path).await.map(TokioIo::new) }
+                    }))
+                    .await
+                    .context("Failed to connect to Docker native socket")?
                 }
 
                 #[cfg(not(unix))]
@@ -249,46 +267,34 @@ impl BuildKitConnection {
 
         conn.health_check().await?;
 
-        conn.version_check().await?;
-
         Ok(conn)
     }
 
     async fn health_check(&mut self) -> Result<()> {
         use crate::proto::ControlClient;
 
-        let mut client = ControlClient::new(self.channel.clone());
-        let request = crate::proto::moby::buildkit::v1::ListWorkersRequest { filter: vec![] };
-
-        for attempt in 1..=10 {
-            match client.list_workers(request.clone()).await {
-                Ok(resp) => {
+        let channel = self.channel.clone();
+        retry_with_backoff(
+            10,
+            std::time::Duration::from_secs(1),
+            "BuildKit health check",
+            || {
+                let mut client = ControlClient::new(channel.clone());
+                async move {
+                    let request =
+                        crate::proto::moby::buildkit::v1::ListWorkersRequest { filter: vec![] };
+                    let resp = client
+                        .list_workers(request)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("{}", e.message()))?;
                     let workers = resp.into_inner().record.len();
                     info!("BuildKit health check passed ({} workers)", workers);
-                    return Ok(());
+                    Ok::<_, anyhow::Error>(())
                 }
-                Err(e) => {
-                    warn!(
-                        "BuildKit health check attempt {}/10 failed: {}",
-                        attempt,
-                        e.message()
-                    );
-                    if attempt < 10 {
-                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                    }
-                }
-            }
-        }
-
-        anyhow::bail!("BuildKit not ready after 10 health check attempts")
-    }
-
-    async fn version_check(&mut self) -> Result<()> {
-        debug!(
-            "Version check: OK (placeholder - will require v{}+)",
-            MIN_BUILDKIT_VERSION
-        );
-        Ok(())
+            },
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("BuildKit not ready after 10 health check attempts"))
     }
 
     pub fn channel(&self) -> Channel {

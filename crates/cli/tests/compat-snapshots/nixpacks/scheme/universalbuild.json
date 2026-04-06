@@ -1,0 +1,53 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Scheme",
+      "build_system": "Haunt",
+      "reasoning": "Detected from haunt.scm"
+    },
+    "build": {
+      "packages": [
+        "guile",
+        "curl",
+        "ca-certificates"
+      ],
+      "env": {
+        "GUILE_AUTO_COMPILE": "0",
+        "GUILE_LOAD_PATH": "/app/haunt-0.3.0:/app/guile-commonmark-0.1.2"
+      },
+      "commands": [
+        "mkdir -p /usr/local/bin && curl -fsSL https://files.dthompson.us/haunt/haunt-0.3.0.tar.gz | tar -xz && curl -fsSL https://github.com/OrangeShark/guile-commonmark/archive/refs/tags/v0.1.2.tar.gz | tar -xz && sed 's|@GUILE@|/usr/bin/guile|g; s|@guilemoduledir@|/app/haunt-0.3.0|g; s|@guileobjectdir@|/app/haunt-0.3.0|g' haunt-0.3.0/scripts/haunt.in > /usr/local/bin/haunt && chmod +x /usr/local/bin/haunt && printf '(define-module (haunt config)\\n  #:export (%%haunt-version %%rsync %%hut %%tar))\\n(define %%haunt-version \"0.3.0\")\\n(define %%rsync \"rsync\")\\n(define %%hut \"hut\")\\n(define %%tar \"tar\")\\n' > haunt-0.3.0/haunt/config.scm",
+        "haunt build && mkdir -p site"
+      ],
+      "cache": []
+    },
+    "runtime": {
+      "packages": [
+        "busybox",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "site",
+          "to": "/app/site"
+        }
+      ],
+      "command": [
+        "busybox",
+        "httpd",
+        "-f",
+        "-p",
+        "8080",
+        "-h",
+        "/app/site"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

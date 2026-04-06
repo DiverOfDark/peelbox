@@ -1,0 +1,53 @@
+[
+  {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "app",
+      "language": "Go",
+      "build_system": "Go (no module)",
+      "reasoning": "Detected from main.go"
+    },
+    "build": {
+      "packages": [
+        "go-1.25",
+        "git",
+        "ca-certificates"
+      ],
+      "env": {
+        "CGO_ENABLED": "0",
+        "GOCACHE": "/app/.cache/go-build",
+        "GOMODCACHE": "/app/.cache/go-mod",
+        "GOSUMDB": "off"
+      },
+      "commands": [
+        "go mod init app",
+        "mkdir -p bin",
+        "go build -o bin/app ."
+      ],
+      "cache": [
+        ".cache/go-build",
+        ".cache/go-mod"
+      ]
+    },
+    "runtime": {
+      "packages": [
+        "glibc",
+        "ca-certificates"
+      ],
+      "env": {},
+      "copy": [
+        {
+          "from": "bin/app",
+          "to": "/app/app"
+        }
+      ],
+      "command": [
+        "/app/app"
+      ],
+      "workdir": "/app",
+      "ports": [
+        8080
+      ]
+    }
+  }
+]

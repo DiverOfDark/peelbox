@@ -1,42 +1,31 @@
 [
   {
+    "version": "1.0",
+    "metadata": {
+      "project_name": "@nx-workspace/api",
+      "language": "JavaScript",
+      "build_system": "npm",
+      "framework": "Express",
+      "reasoning": "Detected from package.json in apps/api"
+    },
     "build": {
-      "cache": [
-        ".npm"
-      ],
-      "commands": [
-        "npm ci",
-        "cd apps/api && npm run build"
-      ],
-      "env": {},
       "packages": [
         "nodejs-25",
         "npm",
         "ca-certificates"
-      ]
-    },
-    "metadata": {
-      "build_system": "npm",
-      "framework": "Express",
-      "language": "JavaScript",
-      "project_name": "@nx-workspace/api",
-      "reasoning": "Detected from package.json in apps/api"
-    },
-    "runtime": {
-      "command": [
-        "npm",
-        "start"
-      ],
-      "copy": [
-        {
-          "from": ".",
-          "to": "/app/"
-        }
       ],
       "env": {},
-      "health": {
-        "endpoint": "/health"
-      },
+      "commands": [
+        "npm install -g node-gyp",
+        "ln -sf /usr/local/lib/node_modules/node-gyp /usr/lib/node_modules/npm/node_modules/node-gyp",
+        "npm install",
+        "cd apps/api && npm run build"
+      ],
+      "cache": [
+        ".npm"
+      ]
+    },
+    "runtime": {
       "packages": [
         "nodejs-25",
         "npm",
@@ -44,11 +33,24 @@
         "dumb-init",
         "ca-certificates"
       ],
+      "env": {},
+      "copy": [
+        {
+          "from": ".",
+          "to": "/app/"
+        }
+      ],
+      "command": [
+        "npm",
+        "start"
+      ],
+      "workdir": "/app/apps/api",
       "ports": [
         3000
       ],
-      "workdir": "/app/apps/api"
-    },
-    "version": "1.0"
+      "health": {
+        "endpoint": "/health"
+      }
+    }
   }
 ]

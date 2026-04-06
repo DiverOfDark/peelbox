@@ -28,7 +28,7 @@ impl ManifestParser for CMakeListsParser {
             return None;
         }
 
-        let name_re = regex::Regex::new(r"project\s*\(\s*(\w+)").ok()?;
+        let name_re = regex::Regex::new(r"project\s*\(\s*([\w-]+)").ok()?;
         let name = name_re
             .captures(content)
             .and_then(|c| c.get(1))
@@ -131,6 +131,38 @@ fn detect_c_only_project(content: &str) -> bool {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(CMakeListsParser))
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["C"],
+        extensions: &["c", "h"],
+        port_patterns: &[
+            r#"htons\(\s*(\d{4,5})\s*\)"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+        env_var_patterns: &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    }
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["C++"],
+        extensions: &["cpp", "cxx", "cc", "hpp", "h"],
+        port_patterns: &[
+            r#"htons\(\s*(\d{4,5})\s*\)"#,
+            r#"port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"==\s*"([/\w\-]*health[/\w\-]*)""#,
+            r#"strcmp\([^,]*,\s*"([/\w\-]*health[/\w\-]*)""#,
+        ],
+        env_var_patterns: &[r#"getenv\(\s*["']([A-Z_][A-Z0-9_]*)["']"#],
+    }
 }
 
 #[cfg(test)]

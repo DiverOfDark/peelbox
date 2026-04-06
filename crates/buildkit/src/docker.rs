@@ -5,11 +5,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;
 
-const DOCKER_SOCKET_PATH: &str = "/var/run/docker.sock";
+use crate::connection::DEFAULT_DOCKER_SOCKET;
+use crate::retry::retry_with_backoff;
 
 pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
-    if !Path::new(DOCKER_SOCKET_PATH).exists() {
-        debug!("Docker socket not found at {}", DOCKER_SOCKET_PATH);
+    if !Path::new(DEFAULT_DOCKER_SOCKET).exists() {
+        debug!("Docker socket not found at {}", DEFAULT_DOCKER_SOCKET);
         return Ok(None);
     }
 
@@ -21,7 +22,18 @@ pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
         }
     };
 
-    match docker.version().await {
+    let version_result = retry_with_backoff(
+        10,
+        std::time::Duration::from_secs(1),
+        "Docker version check",
+        || {
+            let docker = docker.clone();
+            async move { docker.version().await }
+        },
+    )
+    .await;
+
+    match version_result {
         Ok(v) => {
             let api_version = v.api_version.unwrap_or_else(|| "0.0".to_string());
             if let Ok(version_float) = api_version.parse::<f32>() {
@@ -30,14 +42,14 @@ pub async fn detect_docker_buildkit_endpoint() -> Result<Option<String>> {
                         "Docker API version {} supports native BuildKit via POST /grpc",
                         api_version
                     );
-                    return Ok(Some(format!("docker://{}", DOCKER_SOCKET_PATH)));
+                    return Ok(Some(format!("docker://{}", DEFAULT_DOCKER_SOCKET)));
                 } else {
                     debug!("Docker API version {} is too old for native BuildKit. Requires 1.41+ (Docker 23.0+)", api_version);
                 }
             }
         }
         Err(e) => {
-            debug!("Failed to get Docker version: {}", e);
+            debug!("All Docker version check attempts failed: {}", e);
             return Ok(None);
         }
     }
@@ -86,7 +98,7 @@ pub async fn check_docker_buildkit() -> Result<bool> {
 }
 
 pub fn get_docker_buildkit_endpoint() -> String {
-    format!("unix://{}", DOCKER_SOCKET_PATH)
+    format!("unix://{}", DEFAULT_DOCKER_SOCKET)
 }
 
 #[cfg(test)]

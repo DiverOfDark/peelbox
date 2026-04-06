@@ -98,6 +98,10 @@ impl ManifestParser for ComposerJsonParser {
         }
         build_commands
             .push("composer install --no-dev --optimize-autoloader --ignore-platform-reqs".into());
+        // Create .env from .env.example if missing (or minimal fallback), then generate APP_KEY
+        build_commands.push(
+            "[ -f .env ] || cp .env.example .env 2>/dev/null || echo 'APP_KEY=' > .env; php artisan key:generate --force 2>/dev/null || true".into(),
+        );
 
         // Runtime PHP extensions (base + extras)
         let mut runtime_packages = vec![php_pkg.clone()];
@@ -105,11 +109,13 @@ impl ManifestParser for ComposerJsonParser {
         if let Some(v) = &php_version {
             runtime_packages.push(format!("php-{}-fileinfo", v));
             runtime_packages.push(format!("php-{}-iconv", v));
+            runtime_packages.push(format!("php-{}-pdo_sqlite", v));
             if is_symfony {
                 runtime_packages.push(format!("php-{}-intl", v));
                 runtime_packages.push(format!("php-{}-pdo", v));
             }
         }
+        runtime_packages.push("busybox".into());
         runtime_packages.push("ca-certificates".into());
 
         Some(Manifest {
@@ -146,4 +152,74 @@ impl ManifestParser for ComposerJsonParser {
 
 inventory::submit! {
     crate::registry::ManifestParserEntry(|| Box::new(ComposerJsonParser))
+}
+
+inventory::submit! {
+    crate::source_scanning::SourceScanEntry {
+        languages: &["PHP"],
+        extensions: &["php"],
+        port_patterns: &[
+            r#"'PORT'\s*,\s*(\d{4,5})"#,
+            r#"\$port\s*=\s*(\d{4,5})"#,
+        ],
+        health_patterns: &[
+            r#"\$app->get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"case\s+['"]([/\w\-]*health[/\w\-]*)['"]"#,
+            r#"Route::get\(['"]([/\w\-]*health[/\w\-]*)['"]"#,
+        ],
+        env_var_patterns: &[],
+    }
+}
+
+// ── PHP version detection ───────────────────────────────────────────────
+
+/// Read PHP version from `.php-version` file.
+/// Returns the major.minor version string (e.g., "8.2").
+pub(crate) fn read_php_version(project_dir: &Path, repo_root: &Path) -> Option<String> {
+    for dir in &[project_dir, repo_root] {
+        let path = dir.join(".php-version");
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let trimmed = content.trim();
+            // Extract major.minor (e.g., "8.2.15" -> "8.2", "8.2" -> "8.2")
+            let parts: Vec<&str> = trimmed.split('.').collect();
+            if parts.len() >= 2
+                && parts[0].chars().all(|c| c.is_ascii_digit())
+                && parts[1].chars().all(|c| c.is_ascii_digit())
+            {
+                return Some(format!("{}.{}", parts[0], parts[1]));
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_php_version() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".php-version"), "8.2.15\n").unwrap();
+        assert_eq!(
+            read_php_version(dir.path(), dir.path()),
+            Some("8.2".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_php_version_major_minor_only() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".php-version"), "8.3\n").unwrap();
+        assert_eq!(
+            read_php_version(dir.path(), dir.path()),
+            Some("8.3".to_string())
+        );
+    }
+
+    #[test]
+    fn test_read_php_version_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(read_php_version(dir.path(), dir.path()), None);
+    }
 }
