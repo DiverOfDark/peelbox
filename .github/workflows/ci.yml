@@ -88,7 +88,7 @@ jobs:
           echo "BuildKit daemon is ready"
 
       - name: Fetch external compat fixtures
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && github.ref != 'refs/heads/master'
         run: ./scripts/fetch-compat-fixtures.sh
 
 
