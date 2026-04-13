@@ -312,7 +312,7 @@ jobs:
 
       - name: Publish Latest Build (Rolling)
         if: github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "Latest Build (master)"
           tag_name: latest
@@ -329,7 +329,7 @@ jobs:
 
       - name: Publish Versioned Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             assets/peelbox-linux-amd64
