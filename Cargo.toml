@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
     "crates/core",
-    "crates/llm",
     "crates/buildkit",
     "crates/wolfi",
     "crates/detect",
@@ -18,7 +17,6 @@ repository = "https://github.com/diverofdark/peelbox"
 
 [workspace.dependencies]
 peelbox-core = { path = "crates/core" }
-peelbox-llm = { path = "crates/llm" }
 peelbox-buildkit = { path = "crates/buildkit" }
 peelbox-wolfi = { path = "crates/wolfi" }
 peelbox-detect = { path = "crates/detect" }

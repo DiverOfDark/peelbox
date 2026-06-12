@@ -1,28 +1,26 @@
 # peelbox-cli
 
-CLI binary crate that wires together all other crates. Provides three commands: `detect`, `health`, and `build`.
+CLI binary crate that wires together the other crates. Provides two commands:
+`detect` and `build`.
 
 ## Module Structure
 
 ```
 src/
-├── main.rs              # Binary entry point + command handlers (handle_detect, handle_health, handle_build)
+├── main.rs              # Binary entry point + command handlers (handle_detect, handle_build)
 ├── lib.rs               # Library root (re-exports cli module)
 └── cli/
     ├── mod.rs           # Public API re-exports
-    ├── commands.rs      # Clap argument definitions (CliArgs, DetectArgs, HealthArgs, BuildArgs)
-    └── output.rs        # OutputFormatter, HealthStatus, EnvVarInfo
+    ├── commands.rs      # Clap argument definitions (CliArgs, DetectArgs, BuildArgs)
+    └── output.rs        # OutputFormatter (JSON/YAML)
 
 tests/
-├── static_cli.rs        # CLI integration tests (help, version)
+├── static_cli.rs        # CLI surface tests (help, version, error paths)
 ├── static_e2e.rs        # Static detection E2E tests (libtest-mimic, fixture discovery)
 ├── container_e2e.rs     # Container build tests (requires BuildKit daemon)
-├── llm_e2e.rs           # LLM recording-based tests
-├── llm_embedded.rs      # Embedded inference tests
-├── backend_health_test.rs # Health check & config validation
+├── container_buildkit.rs # BuildKit daemon integration tests
 ├── support/             # Test utilities (e2e harness, fixture discovery, container harness)
 ├── fixtures/            # 100+ test fixtures (single-language, monorepo, edge-cases)
-├── recordings/          # LLM request/response JSON recordings
 └── data/                # Test data (APKINDEX.tar.gz)
 ```
 
@@ -30,29 +28,15 @@ tests/
 
 ### `peelbox detect [REPOSITORY_PATH]`
 
-Analyzes a repository and outputs `UniversalBuild` specs.
+Statically analyzes a repository and outputs `UniversalBuild` specs. Detection
+is deterministic — no backend, no API key, no network LLM calls.
 
 | Flag | Purpose |
 |------|---------|
 | `-f, --format` | json or yaml (default: json) |
-| `-b, --backend` | ollama, openai, anthropic, gemini, xai, groq |
-| `-m, --model` | Provider-specific model name |
-| `--timeout` | Request timeout in seconds (default: 60) |
-| `--no-cache` | Disable result caching |
 | `-o, --output` | Write to file instead of stdout |
 | `-v, --verbose` | DEBUG-level logging |
 | `-q, --quiet` | Suppress non-error output |
-
-Wraps client with `RecordingLLMClient` when `PEELBOX_ENABLE_RECORDING` is set.
-
-### `peelbox health`
-
-Checks backend availability for all 6 providers or a specific one.
-
-- Ollama: HTTP GET to `/api/tags` (2s timeout)
-- Others: Checks for environment variable (e.g., `OPENAI_API_KEY`)
-- API keys displayed masked (`****...****`)
-- Exit code 1 if any provider unavailable
 
 ### `peelbox build --spec <FILE> --tag <TAG>`
 
@@ -82,15 +66,10 @@ Cache handling:
 Uses `libtest-mimic` custom harness for dynamic fixture discovery:
 - Discovers fixtures from `tests/fixtures/`
 - Compares detection output against `universalbuild.json` snapshots
-- Skips: multiple-manifests, nested-projects, vendor-heavy
 
 ### Container E2E Tests
 
-Require running BuildKit daemon and Docker socket access.
-
-### LLM E2E Tests
-
-Use recording/replay infrastructure for deterministic CI testing. Recordings stored in `tests/recordings/*.json`.
+Require a running BuildKit daemon and Docker socket access.
 
 ### Fixture Structure
 
@@ -103,8 +82,8 @@ tests/fixtures/
 
 ## Dependencies
 
-Internal: all 5 other crates (core, llm, buildkit, wolfi -- via pipeline, detect, pipeline)
-Key external: `clap` (CLI), `tokio` (async), `tracing`/`tracing-subscriber` (logging), `reqwest` (health), `atty` (terminal detection)
+Internal: `peelbox-core`, `peelbox-pipeline`, `peelbox-buildkit`
+Key external: `clap` (CLI), `tokio` (async), `tracing`/`tracing-subscriber` (logging)
 
 ## Tests
 

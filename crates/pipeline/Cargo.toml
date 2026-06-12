@@ -5,7 +5,6 @@ edition.workspace = true
 
 [dependencies]
 peelbox-core = { path = "../core" }
-peelbox-llm = { path = "../llm" }
 peelbox-wolfi = { path = "../wolfi" }
 peelbox-detect = { path = "../detect" }
 anyhow = "1.0"
@@ -15,5 +14,3 @@ strsim = "0.11"
 
 [dev-dependencies]
 tempfile = "3.24"
-tokio = { version = "1.35", features = ["full"] }
-genai = "0.4"

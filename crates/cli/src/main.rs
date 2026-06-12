@@ -1,15 +1,12 @@
-use genai::adapter::AdapterKind;
 use peelbox_buildkit::filesend_service::OutputDestination;
 use peelbox_buildkit::{
     progress::ProgressTracker, AttestationConfig, BuildKitConnection, BuildSession, CacheExport,
     CacheImport, ProvenanceMode,
 };
-use peelbox_cli::cli::commands::{BuildArgs, CliArgs, Commands, DetectArgs, HealthArgs};
-use peelbox_cli::cli::output::{EnvVarInfo, HealthStatus, OutputFormat, OutputFormatter};
+use peelbox_cli::cli::commands::{BuildArgs, CliArgs, Commands, DetectArgs};
+use peelbox_cli::cli::output::{OutputFormat, OutputFormatter};
 use peelbox_cli::{NAME, VERSION};
-use peelbox_core::config::PeelboxConfig;
 use peelbox_core::output::schema::UniversalBuild;
-use peelbox_llm::{RecordingLLMClient, RecordingMode};
 use peelbox_pipeline::detection::service::DetectionService;
 
 use clap::Parser;
@@ -18,7 +15,6 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
-use std::sync::Arc;
 use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -31,8 +27,7 @@ async fn main() {
     debug!("Arguments: {:?}", args);
 
     let exit_code = match &args.command {
-        Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet, args.verbose).await,
-        Commands::Health(health_args) => handle_health(health_args).await,
+        Commands::Detect(detect_args) => handle_detect(detect_args, args.quiet),
         Commands::Build(build_args) => handle_build(build_args, args.quiet, args.verbose).await,
     };
 
@@ -89,7 +84,7 @@ fn parse_level(level_str: &str) -> Level {
     }
 }
 
-async fn handle_detect(args: &DetectArgs, quiet: bool, _verbose: bool) -> i32 {
+fn handle_detect(args: &DetectArgs, quiet: bool) -> i32 {
     info!("Starting build system detection");
 
     let repo_path = args
@@ -121,131 +116,10 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, _verbose: bool) -> i32 {
     };
     debug!("Canonicalized repository path: {}", repo_path.display());
 
-    let default_config = PeelboxConfig::default();
-    let config = PeelboxConfig {
-        provider: args.backend.unwrap_or(default_config.provider),
-        model: args.model.clone().unwrap_or(default_config.model),
-        request_timeout_secs: args.timeout,
-        cache_enabled: !args.no_cache && default_config.cache_enabled,
-        ..default_config
-    };
-    if args.backend.is_some() {
-        debug!("Provider explicitly set to: {:?}", config.provider);
-    }
-    if args.model.is_some() {
-        debug!("Model overridden to: {}", config.model);
-    }
-    if args.no_cache {
-        debug!("Caching disabled");
-    }
-
-    if let Err(e) = config.validate() {
-        error!("Configuration error: {}", e);
-        eprintln!("\nPlease check your environment variables and command-line arguments.");
-        return 1;
-    }
-
-    let wrap_with_recording =
-        |client: Arc<dyn peelbox_llm::LLMClient>| -> Arc<dyn peelbox_llm::LLMClient> {
-            if std::env::var("PEELBOX_ENABLE_RECORDING").is_ok() {
-                let recordings_dir = std::path::PathBuf::from("tests/recordings");
-                let mode = RecordingMode::from_env(RecordingMode::Auto);
-                match RecordingLLMClient::new(client.clone(), mode, recordings_dir) {
-                    Ok(recording_client) => {
-                        debug!(
-                            "Recording enabled, using tests/recordings/ directory (mode: {:?})",
-                            mode
-                        );
-                        return Arc::new(recording_client) as Arc<dyn peelbox_llm::LLMClient>;
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Failed to enable recording: {}. Continuing without recording.",
-                            e
-                        );
-                    }
-                }
-            }
-            client
-        };
-
-    info!("Initializing detection service");
-    let service = if args.backend.is_some() {
-        debug!("Using explicitly specified backend: {:?}", config.provider);
-
-        use peelbox_llm::GenAIClient;
-        use std::time::Duration;
-
-        let client = match GenAIClient::new(
-            config.provider,
-            config.model.clone(),
-            Duration::from_secs(config.request_timeout_secs),
-        )
-        .await
-        {
-            Ok(c) => wrap_with_recording(Arc::new(c) as Arc<dyn peelbox_llm::LLMClient>),
-            Err(e) => {
-                error!("Failed to initialize backend: {}", e);
-                eprintln!("\nPossible solutions:");
-                match config.provider {
-                    AdapterKind::Ollama => {
-                        eprintln!("  - Ensure Ollama is running: ollama serve");
-                        eprintln!("  - Check OLLAMA_HOST environment variable (default: http://localhost:11434)");
-                        eprintln!(
-                            "  - Try a different provider: --backend openai, --backend claude, etc."
-                        );
-                    }
-                    AdapterKind::OpenAI => {
-                        eprintln!("  - Set OPENAI_API_KEY environment variable");
-                        eprintln!("  - Optionally set OPENAI_API_BASE for custom endpoints (e.g., Azure OpenAI)");
-                    }
-                    AdapterKind::Anthropic => {
-                        eprintln!("  - Set ANTHROPIC_API_KEY environment variable");
-                    }
-                    AdapterKind::Gemini => {
-                        eprintln!("  - Set GOOGLE_API_KEY environment variable");
-                    }
-                    AdapterKind::Xai => {
-                        eprintln!("  - Set XAI_API_KEY environment variable");
-                    }
-                    AdapterKind::Groq => {
-                        eprintln!("  - Set GROQ_API_KEY environment variable");
-                    }
-                    _ => {
-                        eprintln!("  - Check provider-specific environment variables");
-                        eprintln!("  - Refer to provider documentation for setup instructions");
-                    }
-                }
-                eprintln!("  - Run 'peelbox health' to check backend availability");
-                eprintln!("  - Or omit --backend to automatically select an available backend");
-                return 1;
-            }
-        };
-
-        DetectionService::new(client)
-    } else {
-        info!("Using lazy LLM client initialization - backend will be selected on first use");
-        let interactive = atty::is(atty::Stream::Stdout);
-
-        // Create lazy client that defers initialization until first chat() call
-        let lazy_client = peelbox_llm::LazyLLMClient::new(config.clone(), interactive);
-        let client = Arc::new(lazy_client) as Arc<dyn peelbox_llm::LLMClient>;
-        let client = wrap_with_recording(client);
-
-        DetectionService::new(client)
-    };
-
-    info!(
-        "Using backend: {} ({})",
-        service.backend_name(),
-        service
-            .backend_model_info()
-            .unwrap_or_else(|| "default".to_string())
-    );
-
     info!("Analyzing repository: {}", repo_path.display());
 
-    let results: Vec<UniversalBuild> = match service.detect(repo_path.clone()).await {
+    let service = DetectionService::new();
+    let results: Vec<UniversalBuild> = match service.detect(repo_path.clone()) {
         Ok(r) => r,
         Err(e) => {
             error!("Detection failed: {}", e);
@@ -284,243 +158,6 @@ async fn handle_detect(args: &DetectArgs, quiet: bool, _verbose: bool) -> i32 {
     }
 
     0
-}
-
-fn mask_api_key(value: &str) -> String {
-    if value.len() <= 8 {
-        "*".repeat(value.len())
-    } else {
-        format!("{}...{}", &value[..4], &value[value.len() - 4..])
-    }
-}
-
-fn collect_env_var_info() -> HashMap<String, Vec<EnvVarInfo>> {
-    let mut env_vars = HashMap::new();
-
-    let ollama_host = env::var("OLLAMA_HOST");
-    env_vars.insert(
-        "Ollama".to_string(),
-        vec![EnvVarInfo {
-            name: "OLLAMA_HOST".to_string(),
-            value: Some(
-                ollama_host
-                    .clone()
-                    .unwrap_or_else(|_| "http://localhost:11434 (default)".to_string()),
-            ),
-            default: Some("http://localhost:11434".to_string()),
-            required: false,
-            description: "Ollama server endpoint".to_string(),
-        }],
-    );
-
-    let openai_key = env::var("OPENAI_API_KEY");
-    let openai_base = env::var("OPENAI_API_BASE");
-    env_vars.insert(
-        "OpenAI".to_string(),
-        vec![
-            EnvVarInfo {
-                name: "OPENAI_API_KEY".to_string(),
-                value: openai_key.ok().map(|k| mask_api_key(&k)),
-                default: None,
-                required: true,
-                description: "OpenAI API key for authentication".to_string(),
-            },
-            EnvVarInfo {
-                name: "OPENAI_API_BASE".to_string(),
-                value: Some(
-                    openai_base
-                        .clone()
-                        .unwrap_or_else(|_| "https://api.openai.com/v1 (default)".to_string()),
-                ),
-                default: Some("https://api.openai.com/v1".to_string()),
-                required: false,
-                description: "Custom API endpoint (e.g., for Azure OpenAI)".to_string(),
-            },
-        ],
-    );
-
-    let anthropic_key = env::var("ANTHROPIC_API_KEY");
-    env_vars.insert(
-        "Claude".to_string(),
-        vec![EnvVarInfo {
-            name: "ANTHROPIC_API_KEY".to_string(),
-            value: anthropic_key.ok().map(|k| mask_api_key(&k)),
-            default: None,
-            required: true,
-            description: "Anthropic API key for Claude access".to_string(),
-        }],
-    );
-
-    let google_key = env::var("GOOGLE_API_KEY");
-    env_vars.insert(
-        "Gemini".to_string(),
-        vec![EnvVarInfo {
-            name: "GOOGLE_API_KEY".to_string(),
-            value: google_key.ok().map(|k| mask_api_key(&k)),
-            default: None,
-            required: true,
-            description: "Google AI API key for Gemini access".to_string(),
-        }],
-    );
-
-    let xai_key = env::var("XAI_API_KEY");
-    env_vars.insert(
-        "Grok".to_string(),
-        vec![EnvVarInfo {
-            name: "XAI_API_KEY".to_string(),
-            value: xai_key.ok().map(|k| mask_api_key(&k)),
-            default: None,
-            required: true,
-            description: "xAI API key for Grok access".to_string(),
-        }],
-    );
-
-    let groq_key = env::var("GROQ_API_KEY");
-    env_vars.insert(
-        "Groq".to_string(),
-        vec![EnvVarInfo {
-            name: "GROQ_API_KEY".to_string(),
-            value: groq_key.ok().map(|k| mask_api_key(&k)),
-            default: None,
-            required: true,
-            description: "Groq API key for fast inference".to_string(),
-        }],
-    );
-
-    env_vars
-}
-
-async fn handle_health(args: &HealthArgs) -> i32 {
-    info!("Checking backend health");
-
-    let config = PeelboxConfig::default();
-    let mut health_results = HashMap::new();
-
-    let providers_to_check: Vec<AdapterKind> = if let Some(provider) = args.backend {
-        vec![provider]
-    } else {
-        vec![
-            AdapterKind::Ollama,
-            AdapterKind::OpenAI,
-            AdapterKind::Anthropic,
-            AdapterKind::Gemini,
-            AdapterKind::Xai,
-            AdapterKind::Groq,
-        ]
-    };
-
-    for provider in providers_to_check {
-        let provider_name = format!("{:?}", provider);
-        debug!("Checking {} provider", provider_name);
-
-        let status = match provider {
-            AdapterKind::Ollama => {
-                let ollama_host = env::var("OLLAMA_HOST")
-                    .unwrap_or_else(|_| "http://localhost:11434".to_string());
-                let url = format!("{}/api/tags", ollama_host);
-                let client = reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(2))
-                    .build()
-                    .unwrap_or_else(|_| reqwest::Client::new());
-
-                match client.get(&url).send().await {
-                    Ok(response) if response.status().is_success() => {
-                        info!("Ollama is available at {}", ollama_host);
-                        HealthStatus::available(format!("Connected to {}", ollama_host))
-                            .with_details(format!("Model: {}", config.model))
-                    }
-                    _ => {
-                        warn!("Ollama is not available at {}", ollama_host);
-                        HealthStatus::unavailable(format!("Cannot connect to {}", ollama_host))
-                            .with_details("Ensure Ollama is running: ollama serve".to_string())
-                    }
-                }
-            }
-            AdapterKind::OpenAI => match env::var("OPENAI_API_KEY") {
-                Ok(_) => {
-                    info!("OpenAI API key is configured");
-                    HealthStatus::available("API key is configured".to_string())
-                }
-                Err(_) => {
-                    warn!("OpenAI API key is not configured");
-                    HealthStatus::unavailable("API key not configured".to_string())
-                        .with_details("Set OPENAI_API_KEY environment variable".to_string())
-                }
-            },
-            AdapterKind::Anthropic => match env::var("ANTHROPIC_API_KEY") {
-                Ok(_) => {
-                    info!("Anthropic API key is configured");
-                    HealthStatus::available("API key is configured".to_string())
-                }
-                Err(_) => {
-                    warn!("Anthropic API key is not configured");
-                    HealthStatus::unavailable("API key not configured".to_string())
-                        .with_details("Set ANTHROPIC_API_KEY environment variable".to_string())
-                }
-            },
-            AdapterKind::Gemini => match env::var("GOOGLE_API_KEY") {
-                Ok(_) => {
-                    info!("Google API key is configured");
-                    HealthStatus::available("API key is configured".to_string())
-                }
-                Err(_) => {
-                    warn!("Google API key is not configured");
-                    HealthStatus::unavailable("API key not configured".to_string())
-                        .with_details("Set GOOGLE_API_KEY environment variable".to_string())
-                }
-            },
-            AdapterKind::Xai => match env::var("XAI_API_KEY") {
-                Ok(_) => {
-                    info!("xAI API key is configured");
-                    HealthStatus::available("API key is configured".to_string())
-                }
-                Err(_) => {
-                    warn!("xAI API key is not configured");
-                    HealthStatus::unavailable("API key not configured".to_string())
-                        .with_details("Set XAI_API_KEY environment variable".to_string())
-                }
-            },
-            AdapterKind::Groq => match env::var("GROQ_API_KEY") {
-                Ok(_) => {
-                    info!("Groq API key is configured");
-                    HealthStatus::available("API key is configured".to_string())
-                }
-                Err(_) => {
-                    warn!("Groq API key is not configured");
-                    HealthStatus::unavailable("API key not configured".to_string())
-                        .with_details("Set GROQ_API_KEY environment variable".to_string())
-                }
-            },
-            _ => HealthStatus::unavailable(format!(
-                "Provider {:?} is not supported by peelbox",
-                provider
-            )),
-        };
-
-        health_results.insert(provider_name, status);
-    }
-
-    let env_vars = collect_env_var_info();
-
-    let format: OutputFormat = args.format.into();
-    let formatter = OutputFormatter::new(format);
-
-    let output = match formatter.format_health_with_env_vars(&health_results, &env_vars) {
-        Ok(out) => out,
-        Err(e) => {
-            error!("Failed to format health output: {}", e);
-            return 1;
-        }
-    };
-
-    println!("{}", output);
-
-    let all_available = health_results.values().all(|status| status.available);
-    if all_available {
-        0
-    } else {
-        1
-    }
 }
 
 async fn handle_build(args: &BuildArgs, quiet: bool, verbose: bool) -> i32 {

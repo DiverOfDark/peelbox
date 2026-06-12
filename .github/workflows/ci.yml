@@ -10,10 +10,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  # Use replay mode for deterministic, fast LLM tests
-  PEELBOX_RECORDING_MODE: replay
-  # Use static detection mode for fastest tests
-  PEELBOX_DETECTION_MODE: static
 
 jobs:
   build-and-test:
@@ -172,26 +168,6 @@ jobs:
             sudo tar -cf .buildkit-cache.tar.zst --zstd -C /tmp/.test-cache/buildkit . || true
             sudo chown $USER:$USER .buildkit-cache.tar.zst || true
           fi
-
-      - name: Upload new recording files
-        if: matrix.os == 'ubuntu-latest' && always()
-        run: |
-          git status --porcelain tests/recordings/ > /tmp/new_recordings.txt
-          if [ -s /tmp/new_recordings.txt ]; then
-            echo "New recording files created during tests:"
-            cat /tmp/new_recordings.txt
-          else
-            echo "No new recording files created"
-          fi
-
-      - name: Upload recording artifacts
-        if: matrix.os == 'ubuntu-latest' && always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-recordings
-          path: tests/recordings/
-          retention-days: 7
-          if-no-files-found: ignore
 
   docker:
     name: Build and Push Docker Image
