@@ -565,19 +565,12 @@ pub(crate) fn ensure_node_tooling_floor(build: &mut UniversalBuild) {
     let min_major: u32 = match build.metadata.build_system.to_ascii_lowercase().as_str() {
         "pnpm" => 22,
         "npm" => 18,
-        "yarn" => {
-            // Classic yarn (1.x) strictly enforces `engines.node` and runs fine on
-            // old Node, so bumping it would make `yarn install` reject the build.
-            // Only bump when the build also pulls in the Wolfi `npm` package (e.g.
-            // Yarn Berry via corepack, or a node-gyp step), which is what actually
-            // rejects Node < 18.
-            if build.build.packages.iter().any(|p| p == "npm") {
-                18
-            } else {
-                return;
-            }
-        }
-        _ => return, // bun bundles its own runtime
+        // Classic yarn (1.x) strictly enforces `engines.node` and runs fine on old
+        // Node, so bumping it would make `yarn install` reject the build. Only bump
+        // when the build also pulls in the Wolfi `npm` package (e.g. Yarn Berry via
+        // corepack, or a node-gyp step), which is what actually rejects Node < 18.
+        "yarn" if build.build.packages.iter().any(|p| p == "npm") => 18,
+        _ => return, // classic yarn without npm, bun (bundles its own runtime), etc.
     };
 
     fn floor_node(pkgs: &mut [String], min_major: u32) {
