@@ -9,7 +9,7 @@
     },
     "build": {
       "packages": [
-        "nodejs-16",
+        "nodejs-18",
         "npm",
         "ca-certificates",
         "chromium",
@@ -33,7 +33,7 @@
     },
     "runtime": {
       "packages": [
-        "nodejs-16",
+        "nodejs-18",
         "npm",
         "busybox",
         "dumb-init",

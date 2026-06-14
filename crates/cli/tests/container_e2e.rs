@@ -61,6 +61,11 @@ fn main() {
         "cobol-src",
         // Zig source scanner doesn't detect ports — app listens on 8080 but snapshot has []
         "zig-plain",
+        // Upstream example pins no fasthtml version; current python-fasthtml
+        // removed the `picolink`/`gridlink` exports the app imports, so it crashes
+        // at runtime (NameError: name 'picolink' is not defined). Not a detection
+        // issue — the example app is incompatible with the released library.
+        "python-fasthtml",
     ]
     .into_iter()
     .collect();

@@ -539,6 +539,96 @@ pub(crate) fn resolve_node_version(build: &mut UniversalBuild, wolfi: &WolfiPack
     }
 }
 
+/// Wolfi ships only the latest `pnpm` / `npm` / `yarn` packages, and those track
+/// upstream: pnpm 11 requires Node >= 22.13, npm 11 requires Node >= 20.17. When
+/// a project pins an older Node major (via `engines.node`, `.nvmrc`, mise, etc.)
+/// the latest package manager crashes before it can even run (e.g. pnpm using the
+/// `node:sqlite` builtin, or npm refusing the Node version).
+///
+/// A project's declared Node version is a *minimum* it supports, not a ceiling —
+/// running on a newer Node is compatible. So when the pinned major is below what
+/// the package-manager tooling needs, floor it up to that minimum. pnpm's own
+/// version self-management (the `packageManager` field) still installs the exact
+/// pinned pnpm once a compatible Node is in place.
+pub(crate) fn ensure_node_tooling_floor(build: &mut UniversalBuild) {
+    if !matches!(
+        build.metadata.language.as_str(),
+        "JavaScript" | "TypeScript"
+    ) {
+        return;
+    }
+
+    // pnpm 11 needs Node >= 22.13 (it uses the `node:sqlite` builtin). npm 11
+    // only hard-rejects Node 16 and older (Node 18 still works with a warning),
+    // so a floor of 18 is enough to keep npm/yarn builds running without churning
+    // fixtures that already pin a supported version.
+    let min_major: u32 = match build.metadata.build_system.to_ascii_lowercase().as_str() {
+        "pnpm" => 22,
+        "npm" => 18,
+        "yarn" => {
+            // Classic yarn (1.x) strictly enforces `engines.node` and runs fine on
+            // old Node, so bumping it would make `yarn install` reject the build.
+            // Only bump when the build also pulls in the Wolfi `npm` package (e.g.
+            // Yarn Berry via corepack, or a node-gyp step), which is what actually
+            // rejects Node < 18.
+            if build.build.packages.iter().any(|p| p == "npm") {
+                18
+            } else {
+                return;
+            }
+        }
+        _ => return, // bun bundles its own runtime
+    };
+
+    fn floor_node(pkgs: &mut [String], min_major: u32) {
+        for pkg in pkgs.iter_mut() {
+            if let Some(version_str) = pkg.strip_prefix("nodejs-") {
+                if let Ok(major) = version_str.parse::<u32>() {
+                    // Only adjust versions that Wolfi actually ships (and that
+                    // therefore use the Wolfi pnpm/npm packages). Older pins go
+                    // through the `n` installer with Node's own bundled npm, which
+                    // doesn't have the latest-tooling compatibility problem.
+                    if major >= MIN_WOLFI_NODE_MAJOR && major < min_major {
+                        *pkg = format!("nodejs-{}", min_major);
+                    }
+                }
+            }
+        }
+    }
+
+    floor_node(&mut build.build.packages, min_major);
+    floor_node(&mut build.runtime.packages, min_major);
+}
+
+/// pnpm 10.16+/11 refuses to run dependency lifecycle scripts (esbuild's
+/// `postinstall`, sharp's `install`, native `node-gyp` builds, etc.) unless they
+/// are explicitly approved, and `pnpm install` then exits non-zero
+/// (`ERR_PNPM_IGNORED_BUILDS`). Prepend a global config command that approves all
+/// builds so those steps run during the image build.
+///
+/// Applied as a post-processing pass (not in the parser) because most pnpm
+/// projects are detected from `pnpm-lock.yaml`, whose parser produces the build
+/// commands.
+pub(crate) fn ensure_pnpm_allow_builds(build: &mut UniversalBuild) {
+    if build.metadata.build_system.as_str() != "pnpm" {
+        return;
+    }
+
+    const ALLOW_BUILDS: &str = "pnpm config set dangerously-allow-all-builds true";
+
+    let prepend_if_needed = |commands: &mut Vec<String>| {
+        let uses_pnpm = commands.iter().any(|c| c.contains("pnpm "));
+        let already = commands
+            .iter()
+            .any(|c| c.contains("dangerously-allow-all-builds"));
+        if uses_pnpm && !already {
+            commands.insert(0, ALLOW_BUILDS.to_string());
+        }
+    };
+
+    prepend_if_needed(&mut build.build.commands);
+}
+
 // ── Node.js native dependency detection ──────────────────────────────────
 
 /// Wolfi's `npm` package (11.x) does not bundle `node-gyp`. npm internally
@@ -1222,5 +1312,126 @@ mod tests {
     fn test_read_node_version_missing() {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(read_node_version(dir.path(), dir.path()), None);
+    }
+
+    #[test]
+    fn test_node_tooling_floor_pnpm_bumps_to_22() {
+        let mut build = make_node_build(
+            vec!["nodejs-20".into(), "pnpm".into()],
+            vec!["nodejs-20".into(), "pnpm".into()],
+            "JavaScript",
+        );
+        build.metadata.build_system = "pnpm".into();
+
+        ensure_node_tooling_floor(&mut build);
+
+        assert!(build.build.packages.contains(&"nodejs-22".to_string()));
+        assert!(build.runtime.packages.contains(&"nodejs-22".to_string()));
+        assert!(!build.build.packages.contains(&"nodejs-20".to_string()));
+    }
+
+    #[test]
+    fn test_node_tooling_floor_npm_bumps_16_to_18() {
+        let mut build = make_node_build(
+            vec!["nodejs-16".into(), "npm".into()],
+            vec!["nodejs-16".into()],
+            "JavaScript",
+        );
+        // build_system defaults to "npm" in make_node_build
+
+        ensure_node_tooling_floor(&mut build);
+
+        assert!(build.build.packages.contains(&"nodejs-18".to_string()));
+    }
+
+    #[test]
+    fn test_node_tooling_floor_handles_capitalized_yarn_with_npm() {
+        // Yarn Berry pulls in npm (corepack/node-gyp); the serialized build system
+        // is capitalized ("Yarn"), so the match must be case-insensitive.
+        let mut build =
+            make_node_build(vec!["nodejs-16".into(), "npm".into()], vec![], "JavaScript");
+        build.metadata.build_system = "Yarn".into();
+
+        ensure_node_tooling_floor(&mut build);
+
+        assert!(build.build.packages.contains(&"nodejs-18".to_string()));
+    }
+
+    #[test]
+    fn test_node_tooling_floor_classic_yarn_not_bumped() {
+        // Classic yarn (no npm package) strictly enforces engines.node, so its
+        // pinned Node version must be left alone.
+        let mut build = make_node_build(vec!["nodejs-16".into()], vec![], "JavaScript");
+        build.metadata.build_system = "Yarn".into();
+
+        ensure_node_tooling_floor(&mut build);
+
+        assert!(build.build.packages.contains(&"nodejs-16".to_string()));
+    }
+
+    #[test]
+    fn test_node_tooling_floor_leaves_n_installer_versions() {
+        // Versions below the minimum Wolfi major use the `n` installer with the
+        // Node-bundled npm and must not be floored.
+        let mut build = make_node_build(vec!["nodejs-14".into()], vec![], "JavaScript");
+        build.metadata.build_system = "pnpm".into();
+
+        ensure_node_tooling_floor(&mut build);
+
+        assert!(build.build.packages.contains(&"nodejs-14".to_string()));
+    }
+
+    #[test]
+    fn test_node_tooling_floor_no_downgrade() {
+        let mut build = make_node_build(vec!["nodejs-24".into()], vec![], "JavaScript");
+        build.metadata.build_system = "pnpm".into();
+
+        ensure_node_tooling_floor(&mut build);
+
+        assert!(build.build.packages.contains(&"nodejs-24".to_string()));
+    }
+
+    #[test]
+    fn test_pnpm_allow_builds_prepended() {
+        let mut build = make_node_build(
+            vec!["nodejs-22".into(), "pnpm".into()],
+            vec![],
+            "JavaScript",
+        );
+        build.metadata.build_system = "pnpm".into();
+        build.build.commands = vec!["pnpm install".into(), "pnpm run build".into()];
+
+        ensure_pnpm_allow_builds(&mut build);
+
+        assert_eq!(
+            build.build.commands[0],
+            "pnpm config set dangerously-allow-all-builds true"
+        );
+        // Idempotent — running again does not add a second config command.
+        ensure_pnpm_allow_builds(&mut build);
+        assert_eq!(
+            build
+                .build
+                .commands
+                .iter()
+                .filter(|c| c.contains("dangerously-allow-all-builds"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_pnpm_allow_builds_skips_npm() {
+        let mut build =
+            make_node_build(vec!["nodejs-22".into(), "npm".into()], vec![], "JavaScript");
+        build.build.commands = vec!["npm ci".into()];
+
+        ensure_pnpm_allow_builds(&mut build);
+
+        assert!(!build
+            .build
+            .commands
+            .iter()
+            .any(|c| c.contains("dangerously-allow-all-builds")));
     }
 }

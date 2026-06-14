@@ -16,6 +16,7 @@
       ],
       "env": {},
       "commands": [
+        "pnpm config set dangerously-allow-all-builds true",
         "pnpm install",
         "cd apps/web && pnpm run build"
       ],

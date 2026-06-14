@@ -11,9 +11,10 @@ use crate::parsers::manifest::cargo_toml::{read_rust_version, resolve_rust_toolc
 use crate::parsers::manifest::composer_json::read_php_version;
 use crate::parsers::manifest::gemfile::read_ruby_version;
 use crate::parsers::manifest::package_json::{
-    detect_react_router_spa, ensure_npm_node_gyp, provide_framework_fallback_entrypoint,
-    read_node_version, resolve_node_version, sanitize_node_build_commands, scan_node_native_deps,
-    scan_node_puppeteer, wrap_yarn_corepack_entrypoint,
+    detect_react_router_spa, ensure_node_tooling_floor, ensure_npm_node_gyp,
+    ensure_pnpm_allow_builds, provide_framework_fallback_entrypoint, read_node_version,
+    resolve_node_version, sanitize_node_build_commands, scan_node_native_deps, scan_node_puppeteer,
+    wrap_yarn_corepack_entrypoint,
 };
 use crate::parsers::manifest::pom_xml::{resolve_java_toolchain, sync_java_home_with_packages};
 use crate::parsers::manifest::pyproject_toml::{
@@ -110,6 +111,12 @@ pub fn detect_with_registry_and_wolfi(
         scan_mise_config(repo_path, build);
     }
 
+    // Step 4e3: Floor the Node.js version to what the latest pnpm/npm/yarn
+    // packages (the only versions Wolfi ships) actually support.
+    for build in &mut builds {
+        ensure_node_tooling_floor(build);
+    }
+
     // Step 4f: Scan Python entrypoints
     for build in &mut builds {
         scan_python_entrypoints(repo_path, build);
@@ -148,6 +155,12 @@ pub fn detect_with_registry_and_wolfi(
     // Step 4m: Sanitize Node.js build commands (remove DB-dependent steps, etc.)
     for build in &mut builds {
         sanitize_node_build_commands(repo_path, build);
+    }
+
+    // Step 4n: Approve pnpm dependency build scripts (pnpm 10.16+/11 otherwise
+    // fails `pnpm install` with ERR_PNPM_IGNORED_BUILDS).
+    for build in &mut builds {
+        ensure_pnpm_allow_builds(build);
     }
 
     // Step 5: Resolve Wolfi package versions
