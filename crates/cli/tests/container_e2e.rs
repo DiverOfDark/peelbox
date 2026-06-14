@@ -61,6 +61,10 @@ fn main() {
         "cobol-src",
         // Zig source scanner doesn't detect ports — app listens on 8080 but snapshot has []
         "zig-plain",
+        // Pinned zap dependency calls std.process.getEnvVarOwned, removed from
+        // current Zig's std; Wolfi only ships the latest Zig, so the dependency no
+        // longer compiles. Upstream library/toolchain drift, not a detection issue.
+        "zig-build",
         // Upstream example pins no fasthtml version; current python-fasthtml
         // removed the `picolink`/`gridlink` exports the app imports, so it crashes
         // at runtime (NameError: name 'picolink' is not defined). Not a detection
