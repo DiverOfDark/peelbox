@@ -1,6 +1,4 @@
 use peelbox_core::output::schema::UniversalBuild;
-use peelbox_core::BackendError;
-use peelbox_llm::LLMClient;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -9,9 +7,6 @@ use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
-    #[error("Backend error: {0}")]
-    BackendError(#[from] BackendError),
-
     #[error("Configuration error: {0}")]
     ConfigError(String),
 
@@ -20,9 +15,6 @@ pub enum ServiceError {
 
     #[error("Repository path is not a directory: {0}")]
     NotADirectory(PathBuf),
-
-    #[error("Failed to initialize backend: {0}")]
-    BackendInitError(String),
 
     #[error("Detection failed: {0}")]
     DetectionFailed(String),
@@ -49,135 +41,23 @@ impl ServiceError {
                     path.display()
                 )
             }
-            ServiceError::BackendInitError(msg) => {
-                if msg.contains("Ollama") {
-                    format!(
-                        "Error: Ollama backend unavailable\n\n\
-                        Help: Cannot connect to Ollama. Try:\n\
-                        1. Install Ollama: https://ollama.ai/\n\
-                        2. Start Ollama: ollama serve\n\
-                        3. Pull a model: ollama pull qwen2.5-coder:7b\n\n\
-                        Configuration:\n\
-                        - PEELBOX_OLLAMA_ENDPOINT (default: http://localhost:11434)\n\
-                        - PEELBOX_OLLAMA_MODEL (default: qwen2.5-coder:7b)\n\n\
-                        Details: {}",
-                        msg
-                    )
-                } else if msg.contains("Mistral") {
-                    format!(
-                        "Error: Mistral API key not configured\n\n\
-                        Help: To use Mistral backend, set API key:\n\
-                        export MISTRAL_API_KEY=your-key-here\n\n\
-                        Get your key: https://console.mistral.ai/\n\n\
-                        Details: {}",
-                        msg
-                    )
-                } else if msg.contains("Claude") || msg.contains("OpenAI") {
-                    format!(
-                        "Error: Backend not yet implemented\n\n\
-                        Help: This backend is not yet implemented. Try:\n\
-                        - Use Ollama backend: --backend ollama\n\
-                        - Use Mistral backend: --backend mistral\n\n\
-                        Details: {}",
-                        msg
-                    )
-                } else {
-                    format!(
-                        "Error: Failed to initialize backend\n\n\
-                        Help: Try:\n\
-                        - Check backend availability: peelbox health\n\
-                        - Use different backend: --backend <ollama|mistral>\n\n\
-                        Details: {}",
-                        msg
-                    )
-                }
-            }
             ServiceError::ConfigError(msg) => {
                 format!(
                     "Error: Configuration error\n\n\
                     Help: Configuration validation failed. Try:\n\
-                    - Check environment variables\n\
+                    - Check the repository structure\n\
                     - Check the documentation\n\n\
                     Details: {}",
                     msg
                 )
             }
-            ServiceError::BackendError(backend_err) => match backend_err {
-                BackendError::TimeoutError { seconds } => {
-                    format!(
-                        "Error: Request timeout after {} seconds\n\n\
-                            Help: The LLM request took too long. Try:\n\
-                            - Increase timeout: --timeout {}\n\
-                            - Check network connectivity\n\
-                            - Verify backend availability: peelbox health\n\
-                            - Try a smaller model",
-                        seconds,
-                        seconds * 2
-                    )
-                }
-                BackendError::NetworkError { message } => {
-                    format!(
-                        "Error: Network error\n\n\
-                            Help: Cannot connect to backend. Try:\n\
-                            - Check network connectivity\n\
-                            - Verify backend is running: peelbox health\n\
-                            - Check firewall settings\n\n\
-                            Details: {}",
-                        message
-                    )
-                }
-                BackendError::AuthenticationError { message } => {
-                    format!(
-                        "Error: Authentication failed\n\n\
-                            Help: Invalid or missing credentials. Try:\n\
-                            - Check API key is correct\n\
-                            - Verify key has not expired\n\
-                            - Check key has necessary permissions\n\n\
-                            Details: {}",
-                        message
-                    )
-                }
-                BackendError::InvalidResponse { message, .. } => {
-                    format!(
-                        "Error: Invalid response from LLM\n\n\
-                            Help: The LLM returned an unexpected response. Try:\n\
-                            - Retry the operation\n\
-                            - Try a different model\n\
-                            - Check backend status: peelbox health\n\n\
-                            Details: {}",
-                        message
-                    )
-                }
-                BackendError::ParseError { message, context } => {
-                    format!(
-                        "Error: Failed to parse LLM response\n\n\
-                            Help: The response could not be parsed. Try:\n\
-                            - Retry the operation\n\
-                            - Try a different model\n\
-                            - Report this issue if it persists\n\n\
-                            Details: {}\nContext: {}",
-                        message, context
-                    )
-                }
-                _ => {
-                    format!(
-                        "Error: Backend error\n\n\
-                            Help: Try:\n\
-                            - Check backend status: peelbox health\n\
-                            - Retry the operation\n\
-                            - Try a different backend\n\n\
-                            Details: {}",
-                        backend_err
-                    )
-                }
-            },
             ServiceError::DetectionFailed(msg) => {
                 format!(
                     "Error: Detection failed\n\n\
                     Help: The detection process failed. Try:\n\
                     - Retry the operation\n\
                     - Check the repository is valid\n\
-                    - Try a different backend\n\n\
+                    - Report this issue if it persists\n\n\
                     Details: {}",
                     msg
                 )
@@ -186,80 +66,48 @@ impl ServiceError {
     }
 }
 
-pub struct DetectionService {
-    client: Arc<dyn LLMClient>,
-}
-
-impl std::fmt::Debug for DetectionService {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DetectionService")
-            .field("client", &self.client.name())
-            .finish()
-    }
-}
+/// Deterministic, static repository detection.
+///
+/// Walks the repository, parses manifests and configuration files, resolves
+/// Wolfi packages, and reduces each detected service into a [`UniversalBuild`].
+/// Detection is fully deterministic: no network LLM calls, no API keys, and
+/// byte-identical output across runs for the same input.
+#[derive(Debug, Default)]
+pub struct DetectionService;
 
 impl DetectionService {
-    pub fn new(client: Arc<dyn LLMClient>) -> Self {
-        info!(
-            "Detection service initialized with client: {}",
-            client.name()
-        );
-
-        Self { client }
+    pub fn new() -> Self {
+        Self
     }
 
-    pub async fn detect(&self, repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError> {
-        let mode = peelbox_core::config::DetectionMode::from_env();
-        self.detect_with_mode(repo_path, mode).await
-    }
-
-    pub async fn detect_with_mode(
-        &self,
-        repo_path: PathBuf,
-        mode: peelbox_core::config::DetectionMode,
-    ) -> Result<Vec<UniversalBuild>, ServiceError> {
+    pub fn detect(&self, repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError> {
         let start = Instant::now();
 
         self.validate_repo_path(&repo_path)?;
 
-        info!(
-            repo = %repo_path.display(),
-            mode = ?mode,
-            "Starting repository detection"
-        );
+        info!(repo = %repo_path.display(), "Starting repository detection");
 
         let wolfi_index = peelbox_wolfi::WolfiPackageIndex::fetch().map_err(|e| {
-            use peelbox_core::BackendError;
-            ServiceError::BackendError(BackendError::Other {
-                message: format!("Failed to fetch Wolfi package index: {}", e),
-            })
+            ServiceError::DetectionFailed(format!("Failed to fetch Wolfi package index: {}", e))
         })?;
 
-        // Use new map-reduce detection pipeline with Wolfi resolution
         let registry = peelbox_detect::Registry::with_defaults();
         let results = peelbox_detect::detect_with_registry_and_wolfi(
             &repo_path,
             &registry,
             Some(&wolfi_index),
         )
-        .map_err(|e| {
-            use peelbox_core::BackendError;
-            ServiceError::BackendError(BackendError::Other {
-                message: e.to_string(),
-            })
-        })?;
+        .map_err(|e| ServiceError::DetectionFailed(e.to_string()))?;
 
-        // Ensure unique service names
         Self::ensure_unique_service_names(&results)?;
 
-        // Validate all builds with Wolfi package index
         let validator = crate::validation::Validator::with_wolfi_index(Arc::new(wolfi_index));
         for build in &results {
             if let Err(e) = validator.validate(build) {
-                use peelbox_core::BackendError;
-                return Err(ServiceError::BackendError(BackendError::Other {
-                    message: format!("Package validation failed: {}", e),
-                }));
+                return Err(ServiceError::DetectionFailed(format!(
+                    "Package validation failed: {}",
+                    e
+                )));
             }
         }
 
@@ -310,22 +158,11 @@ impl DetectionService {
 
         Ok(())
     }
-
-    pub fn backend_name(&self) -> &str {
-        self.client.name()
-    }
-
-    pub fn backend_model_info(&self) -> Option<String> {
-        self.client.model_info()
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use genai::adapter::AdapterKind;
-    use peelbox_llm::GenAIClient;
-    use std::time::Duration;
     use tempfile::TempDir;
 
     #[test]
@@ -343,65 +180,28 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_validate_repo_path_not_exists() {
-        let client = Arc::new(
-            GenAIClient::new(
-                AdapterKind::Ollama,
-                "qwen2.5-coder:7b".to_string(),
-                Duration::from_secs(30),
-            )
-            .await
-            .unwrap(),
-        ) as Arc<dyn LLMClient>;
-
-        let service = DetectionService::new(client);
-
+    #[test]
+    fn test_validate_repo_path_not_exists() {
+        let service = DetectionService::new();
         let result = service.validate_repo_path(&PathBuf::from("/nonexistent/path"));
-        assert!(result.is_err());
         assert!(matches!(result, Err(ServiceError::PathNotFound(_))));
     }
 
-    #[tokio::test]
-    async fn test_validate_repo_path_is_file() {
+    #[test]
+    fn test_validate_repo_path_is_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("file.txt");
         std::fs::write(&file_path, "content").unwrap();
 
-        let client = Arc::new(
-            GenAIClient::new(
-                AdapterKind::Ollama,
-                "qwen2.5-coder:7b".to_string(),
-                Duration::from_secs(30),
-            )
-            .await
-            .unwrap(),
-        ) as Arc<dyn LLMClient>;
-
-        let service = DetectionService::new(client);
-
+        let service = DetectionService::new();
         let result = service.validate_repo_path(&file_path);
-        assert!(result.is_err());
         assert!(matches!(result, Err(ServiceError::NotADirectory(_))));
     }
 
-    #[tokio::test]
-    async fn test_validate_repo_path_success() {
+    #[test]
+    fn test_validate_repo_path_success() {
         let temp_dir = TempDir::new().unwrap();
-
-        let client = Arc::new(
-            GenAIClient::new(
-                AdapterKind::Ollama,
-                "qwen2.5-coder:7b".to_string(),
-                Duration::from_secs(30),
-            )
-            .await
-            .unwrap(),
-        ) as Arc<dyn LLMClient>;
-
-        let service = DetectionService::new(client);
-
-        let result = service.validate_repo_path(temp_dir.path());
-        assert!(result.is_ok());
+        let service = DetectionService::new();
+        assert!(service.validate_repo_path(temp_dir.path()).is_ok());
     }
 }

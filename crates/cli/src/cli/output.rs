@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
 use serde_json::{self, Map, Value};
-use serde_yaml;
-use std::collections::HashMap;
 
 use peelbox_core::output::schema::UniversalBuild;
 
@@ -63,91 +61,6 @@ impl OutputFormatter {
             Value::Array(arr) => Value::Array(arr.into_iter().map(Self::sort_json_keys).collect()),
             _ => value,
         }
-    }
-
-    pub fn format_health(&self, health_results: &HashMap<String, HealthStatus>) -> Result<String> {
-        match self.format {
-            OutputFormat::Json => serde_json::to_string_pretty(health_results)
-                .context("Failed to serialize health status to JSON"),
-            OutputFormat::Yaml => serde_yaml::to_string(health_results)
-                .context("Failed to serialize health status to YAML"),
-        }
-    }
-
-    pub fn format_health_with_env_vars(
-        &self,
-        health_results: &HashMap<String, HealthStatus>,
-        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
-    ) -> Result<String> {
-        match self.format {
-            OutputFormat::Json => self.format_health_with_env_vars_json(health_results, env_vars),
-            OutputFormat::Yaml => self.format_health_with_env_vars_yaml(health_results, env_vars),
-        }
-    }
-
-    fn format_health_with_env_vars_json(
-        &self,
-        health_results: &HashMap<String, HealthStatus>,
-        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
-    ) -> Result<String> {
-        let output = serde_json::json!({
-            "health_status": health_results,
-            "environment_variables": env_vars,
-        });
-        serde_json::to_string_pretty(&output)
-            .context("Failed to serialize health status with env vars to JSON")
-    }
-
-    fn format_health_with_env_vars_yaml(
-        &self,
-        health_results: &HashMap<String, HealthStatus>,
-        env_vars: &HashMap<String, Vec<EnvVarInfo>>,
-    ) -> Result<String> {
-        let output = serde_json::json!({
-            "health_status": health_results,
-            "environment_variables": env_vars,
-        });
-        serde_yaml::to_string(&output)
-            .context("Failed to serialize health status with env vars to YAML")
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HealthStatus {
-    pub available: bool,
-    pub message: String,
-    pub details: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct EnvVarInfo {
-    pub name: String,
-    pub value: Option<String>,
-    pub default: Option<String>,
-    pub required: bool,
-    pub description: String,
-}
-
-impl HealthStatus {
-    pub fn available(message: String) -> Self {
-        Self {
-            available: true,
-            message,
-            details: None,
-        }
-    }
-
-    pub fn unavailable(message: String) -> Self {
-        Self {
-            available: false,
-            message,
-            details: None,
-        }
-    }
-
-    pub fn with_details(mut self, details: String) -> Self {
-        self.details = Some(details);
-        self
     }
 }
 
@@ -214,17 +127,5 @@ mod tests {
 
         // Verify it's valid YAML
         let _parsed: UniversalBuild = serde_yaml::from_str(&output).unwrap();
-    }
-
-    #[test]
-    fn test_health_status_creation() {
-        let status = HealthStatus::available("Ollama is running".to_string());
-        assert!(status.available);
-        assert_eq!(status.message, "Ollama is running");
-
-        let status = HealthStatus::unavailable("Cannot connect".to_string())
-            .with_details("Connection refused on localhost:11434".to_string());
-        assert!(!status.available);
-        assert!(status.details.is_some());
     }
 }

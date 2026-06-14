@@ -96,6 +96,11 @@ impl ManifestParser for ComposerJsonParser {
         if is_symfony && has_runtime_plugin {
             build_commands.push("composer config allow-plugins.symfony/runtime true".into());
         }
+        // Composer 2.10+ blocks installing packages that have published security
+        // advisories by default, which breaks reproducible builds of pinned apps
+        // (e.g. Laravel 11.x) as new advisories land upstream. Disable the block so
+        // detection produces a build that resolves the dependencies it declares.
+        build_commands.push("composer config --no-plugins policy.advisories.block false".into());
         build_commands
             .push("composer install --no-dev --optimize-autoloader --ignore-platform-reqs".into());
         // Create .env from .env.example if missing (or minimal fallback), then generate APP_KEY

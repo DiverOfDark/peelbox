@@ -1,17 +1,16 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use genai::adapter::AdapterKind;
 use std::path::PathBuf;
 
-/// AI-powered buildkit frontend for intelligent build command detection
+/// Deterministic BuildKit frontend for intelligent build detection
 #[derive(Parser, Debug)]
 #[command(
     name = "peelbox",
-    about = "AI-powered buildkit frontend for intelligent build command detection",
+    about = "Deterministic BuildKit frontend for intelligent build detection",
     version,
     author,
-    long_about = "peelbox analyzes repository structure using LLMs to detect build systems \
-                  and generate appropriate build commands. It supports multiple AI backends \
-                  (Ollama, OpenAI, Claude, Gemini, Grok, Groq) and output formats."
+    long_about = "peelbox analyzes repository structure to detect build systems and generate \
+                  Wolfi-based, distroless container build specifications. Detection is fully \
+                  static and deterministic: no API keys, no network LLM calls, reproducible output."
 )]
 pub struct CliArgs {
     #[command(subcommand)]
@@ -47,19 +46,9 @@ pub enum Commands {
                       Examples:\n  \
                       peelbox detect\n  \
                       peelbox detect /path/to/repo\n  \
-                      peelbox detect --format json\n  \
-                      peelbox detect --backend ollama --model qwen:14b"
+                      peelbox detect --format json"
     )]
     Detect(DetectArgs),
-
-    #[command(
-        about = "Check backend availability",
-        long_about = "Checks the availability and health of configured AI backends.\n\n\
-                      Examples:\n  \
-                      peelbox health\n  \
-                      peelbox health --backend ollama"
-    )]
-    Health(HealthArgs),
 
     #[command(
         about = "Build image from UniversalBuild spec",
@@ -92,62 +81,12 @@ pub struct DetectArgs {
     pub format: OutputFormatArg,
 
     #[arg(
-        short = 'b',
-        long,
-        value_parser = parse_adapter_kind,
-        help = "Force a specific AI backend provider (by default, the best available is auto-selected)"
-    )]
-    pub backend: Option<AdapterKind>,
-
-    #[arg(
-        short = 'm',
-        long,
-        value_name = "MODEL",
-        help = "Model name to use (provider-specific, e.g., 'qwen:14b' for Ollama)"
-    )]
-    pub model: Option<String>,
-
-    #[arg(
-        long,
-        value_name = "SECONDS",
-        default_value = "60",
-        help = "Request timeout in seconds"
-    )]
-    pub timeout: u64,
-
-    #[arg(long, help = "Include raw file contents in verbose output")]
-    pub verbose_output: bool,
-
-    #[arg(long, help = "Disable result caching")]
-    pub no_cache: bool,
-
-    #[arg(
         short = 'o',
         long,
         value_name = "FILE",
         help = "Write output to file instead of stdout"
     )]
     pub output: Option<PathBuf>,
-}
-
-#[derive(Parser, Debug, Clone)]
-pub struct HealthArgs {
-    #[arg(
-        short = 'b',
-        long,
-        value_parser = parse_adapter_kind,
-        help = "Specific backend to check (omit to check all)"
-    )]
-    pub backend: Option<AdapterKind>,
-
-    #[arg(
-        short = 'f',
-        long,
-        value_enum,
-        default_value = "json",
-        help = "Output format"
-    )]
-    pub format: OutputFormatArg,
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -260,15 +199,6 @@ impl From<OutputFormatArg> for super::output::OutputFormat {
     }
 }
 
-fn parse_adapter_kind(s: &str) -> Result<AdapterKind, String> {
-    AdapterKind::from_lower_str(&s.to_lowercase()).ok_or_else(|| {
-        format!(
-            "Invalid provider: {}. Valid options: ollama, openai, anthropic, gemini, xai, groq",
-            s
-        )
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,11 +216,8 @@ mod tests {
         match args.command {
             Commands::Detect(detect_args) => {
                 assert_eq!(detect_args.format, OutputFormatArg::Json);
-                assert!(detect_args.backend.is_none()); // Auto-selection by default
-                assert_eq!(detect_args.timeout, 60);
-                assert!(!detect_args.verbose_output);
-                assert!(!detect_args.no_cache);
                 assert!(detect_args.repository_path.is_none());
+                assert!(detect_args.output.is_none());
             }
             _ => panic!("Expected Detect command"),
         }
@@ -313,53 +240,15 @@ mod tests {
     #[test]
     fn test_detect_with_options() {
         let args = CliArgs::parse_from([
-            "peelbox",
-            "detect",
-            "--format",
-            "json",
-            "--backend",
-            "ollama",
-            "--model",
-            "qwen:14b",
-            "--timeout",
-            "120",
-            "--verbose-output",
-            "--no-cache",
+            "peelbox", "detect", "--format", "yaml", "--output", "out.json",
         ]);
 
         match args.command {
             Commands::Detect(detect_args) => {
-                assert_eq!(detect_args.format, OutputFormatArg::Json);
-                assert_eq!(detect_args.backend, Some(AdapterKind::Ollama));
-                assert_eq!(detect_args.model, Some("qwen:14b".to_string()));
-                assert_eq!(detect_args.timeout, 120);
-                assert!(detect_args.verbose_output);
-                assert!(detect_args.no_cache);
+                assert_eq!(detect_args.format, OutputFormatArg::Yaml);
+                assert_eq!(detect_args.output, Some(PathBuf::from("out.json")));
             }
             _ => panic!("Expected Detect command"),
-        }
-    }
-
-    #[test]
-    fn test_health_command() {
-        let args = CliArgs::parse_from(["peelbox", "health"]);
-        match args.command {
-            Commands::Health(health_args) => {
-                assert!(health_args.backend.is_none());
-                assert_eq!(health_args.format, OutputFormatArg::Json);
-            }
-            _ => panic!("Expected Health command"),
-        }
-    }
-
-    #[test]
-    fn test_health_with_backend() {
-        let args = CliArgs::parse_from(["peelbox", "health", "--backend", "ollama"]);
-        match args.command {
-            Commands::Health(health_args) => {
-                assert_eq!(health_args.backend, Some(AdapterKind::Ollama));
-            }
-            _ => panic!("Expected Health command"),
         }
     }
 
@@ -381,16 +270,5 @@ mod tests {
     fn test_log_level_flag() {
         let args = CliArgs::parse_from(["peelbox", "--log-level", "debug", "detect"]);
         assert_eq!(args.log_level, Some("debug".to_string()));
-    }
-
-    #[test]
-    fn test_adapter_kind_parsing() {
-        assert!(parse_adapter_kind("ollama").is_ok());
-        assert!(parse_adapter_kind("openai").is_ok());
-        assert!(parse_adapter_kind("anthropic").is_ok());
-        assert!(parse_adapter_kind("gemini").is_ok());
-        assert!(parse_adapter_kind("xai").is_ok());
-        assert!(parse_adapter_kind("groq").is_ok());
-        assert!(parse_adapter_kind("invalid").is_err());
     }
 }

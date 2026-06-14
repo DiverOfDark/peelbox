@@ -479,7 +479,7 @@ pub fn find_latest_manifest(cache_dir: &Path) -> Result<Option<(String, i64)>> {
         return Ok(None);
     }
 
-    manifests.sort_by(|a, b| b.2.cmp(&a.2));
+    manifests.sort_by_key(|b| std::cmp::Reverse(b.2));
 
     let (digest, size, _) = &manifests[0];
     info!("Selected latest manifest: {} (size={})", digest, size);

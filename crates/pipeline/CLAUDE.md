@@ -1,6 +1,10 @@
 # peelbox-pipeline
 
-Thin orchestration crate that wires together detection (peelbox-detect) and validation. Provides `DetectionService` as the main entry point and `Validator` for checking `UniversalBuild` specs against Wolfi package availability and structural rules.
+Thin orchestration crate that wires together detection (peelbox-detect) and
+validation. Provides `DetectionService` as the main entry point and `Validator`
+for checking `UniversalBuild` specs against Wolfi package availability and
+structural rules. Detection is fully deterministic — no LLM, no network beyond
+the cached Wolfi APKINDEX.
 
 ## Module Structure
 
@@ -18,29 +22,27 @@ src/
 
 ### DetectionService
 
-Main entry point for repository detection.
+Main entry point for repository detection. Stateless and deterministic.
 
 ```rust
-DetectionService::new(client: Arc<dyn LLMClient>) -> Self
-  .detect(repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError>       // Uses mode from env
-  .detect_with_mode(repo_path, mode) -> Result<Vec<UniversalBuild>, ServiceError> // Explicit mode
+DetectionService::new() -> Self
+  .detect(repo_path: PathBuf) -> Result<Vec<UniversalBuild>, ServiceError>
 ```
 
 Internally:
 1. Validates repo path exists and is a directory
-2. Fetches `WolfiPackageIndex` (fresh on every call, internally cached 24h)
+2. Fetches `WolfiPackageIndex` (internally cached 24h on disk)
 3. Calls `peelbox_detect::detect_with_registry_and_wolfi()`
-4. Validates all results with `Validator::with_wolfi_index()`
-5. Enforces unique `metadata.project_name` across monorepo results
+4. Enforces unique `metadata.project_name` across monorepo results
+5. Validates all results with `Validator::with_wolfi_index()`
 6. Logs timing via `tracing` (duration_ms, projects_found)
 
 ### ServiceError
 
 Rich error type with `help_message()` providing user-friendly guidance:
-- `BackendError` -- wraps LLM failures with Ollama/Mistral setup instructions
-- `ConfigError` -- configuration validation failures
 - `PathNotFound` / `NotADirectory` -- repo path issues
-- `BackendInitError` / `DetectionFailed` -- initialization and detection failures
+- `ConfigError` -- e.g. duplicate service names across a monorepo
+- `DetectionFailed` -- detection, Wolfi fetch, or package validation failures
 
 ### Validator
 
@@ -61,14 +63,14 @@ Each rule error is prefixed with `[RuleName]` for debugging.
 
 ## Dependencies
 
-Internal: `peelbox-core`, `peelbox-llm` (LLMClient trait), `peelbox-wolfi`, `peelbox-detect`
+Internal: `peelbox-core`, `peelbox-wolfi`, `peelbox-detect`
 External: `anyhow`, `thiserror`, `tracing`, `strsim` (fuzzy matching)
 
 ## Tests
 
-19 tests. Run with: `cargo test -p peelbox-pipeline`
+Run with: `cargo test -p peelbox-pipeline`
 
-- `detection/service.rs`: Path validation tests (3)
-- `validation/validator.rs`: Valid/invalid build validation (3)
-- `validation/rules.rs`: Individual rule tests including Wolfi fuzzy matching (13)
+- `detection/service.rs`: Path validation tests
+- `validation/validator.rs`: Valid/invalid build validation
+- `validation/rules.rs`: Individual rule tests including Wolfi fuzzy matching
 - Tests use `WolfiPackageIndex::for_tests()` and `tempfile::TempDir`

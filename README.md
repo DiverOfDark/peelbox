@@ -1,8 +1,8 @@
 # peelbox
 
-AI-powered BuildKit frontend for intelligent build detection with Wolfi-first containerization.
+Deterministic BuildKit frontend for intelligent build detection with Wolfi-first containerization.
 
-Automatically analyzes repositories and generates secure, minimal container images using Wolfi packages and BuildKit.
+Automatically analyzes repositories and generates secure, minimal container images using Wolfi packages and BuildKit. Detection is fully static and reproducible — no API keys, no network LLM calls, byte-identical output across runs.
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 
@@ -40,7 +40,7 @@ Automatically analyzes repositories and generates secure, minimal container imag
 - **BuildKit Native**: Direct LLB generation for optimal performance
 - **Supply Chain Security**: Built-in SBOM and SLSA provenance support
 - **Language Agnostic**: Works with any programming language or build system
-- **Fast & Deterministic**: Static analysis first, LLM fallback only when needed
+- **Fast & Deterministic**: Pure static analysis — reproducible, offline, no API keys or model downloads
 
 ## Features
 
@@ -48,7 +48,7 @@ Automatically analyzes repositories and generates secure, minimal container imag
 - **Distroless Final Images**: 2-layer optimized images (~10-30MB) without package managers or shells
 - **BuildKit Frontend**: Native LLB generation for optimal build performance
 - **Context Transfer Optimization**: 99.995% reduction (1.5GB → ~100KB) via gitignore-based filtering
-- **Multi-Backend LLM Support**: Ollama, Claude, OpenAI, Gemini, Groq, or embedded inference
+- **Deterministic Detection**: Pure static manifest/config analysis — no LLM, no network, reproducible output
 - **Dynamic Version Discovery**: Automatically detects available Wolfi package versions
 - **Package Validation**: Fuzzy matching and version-aware validation against Wolfi APKINDEX
 - **13 Languages**: Rust, Java, Kotlin, JavaScript, TypeScript, Python, Go, C#, Ruby, PHP, C++, Elixir, F#
@@ -164,7 +164,7 @@ docker run --rm -v $(pwd):/workspace \
 - No local installation required
 - Always up-to-date with latest release
 - Works on any platform with Docker
-- Embedded LLM included (zero-config)
+- Zero-config: no API keys, no model downloads, no network for detection
 
 ### Option 2: Install from Source
 
@@ -172,7 +172,6 @@ docker run --rm -v $(pwd):/workspace \
 
 - **Rust 1.70+**: [rustup.rs](https://rustup.rs/)
 - **BuildKit v0.11.0+**: Docker Desktop 4.17+, Docker Engine 23.0+, or standalone buildkit
-- **Ollama** (optional, for local LLM): [ollama.ai](https://ollama.ai/)
 
 #### Build and Install
 
@@ -180,11 +179,8 @@ docker run --rm -v $(pwd):/workspace \
 git clone https://github.com/diverofdark/peelbox.git
 cd peelbox
 
-# Build with embedded LLM (default, zero-config)
+# Build
 cargo build --release
-
-# Or build with minimal features (Ollama/API only, smaller binary)
-cargo build --release --no-default-features
 
 # Install
 sudo install -m 755 target/release/peelbox /usr/local/bin/
@@ -398,61 +394,16 @@ docker history myapp:latest --format "table {{.Size}}\t{{.CreatedBy}}"
 
 ## Configuration
 
-### Environment Variables
+Detection is fully deterministic and requires no configuration — no API keys,
+no providers, no models. The few supported environment variables tune logging
+and caching:
 
 ```bash
-# LLM Provider Selection
-export PEELBOX_PROVIDER=ollama       # "ollama", "claude", "openai", "gemini", "grok", "groq", "embedded"
-
-# Model Configuration
-export PEELBOX_MODEL=qwen2.5-coder:7b
-
-# Request Configuration
-export PEELBOX_REQUEST_TIMEOUT=60    # seconds
-export PEELBOX_MAX_TOKENS=8192       # max response tokens
-
-# Detection Mode
-export PEELBOX_DETECTION_MODE=full   # "full", "static", or "llm"
-
-# Embedded Model Size (auto-selected by default)
-export PEELBOX_MODEL_SIZE=7B         # "0.5B", "1.5B", "3B", "7B"
-
 # Logging
 export RUST_LOG=peelbox=info         # debug, info, warn, error
 
-# Provider-Specific
-export OLLAMA_HOST=http://localhost:11434
-export ANTHROPIC_API_KEY=sk-ant-...
-export OPENAI_API_KEY=sk-...
-export GOOGLE_API_KEY=AIza...
-export XAI_API_KEY=xai-...
-export GROQ_API_KEY=gsk_...
-```
-
-### Detection Modes
-
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `full` | Static analysis + LLM fallback (default) | Normal operation, best accuracy |
-| `static` | Static analysis only, no LLM | Fast CI tests, deterministic detection |
-| `llm` | LLM-only detection | Test LLM prompts specifically |
-
-### LLM Provider Selection
-
-peelbox auto-selects the best available LLM:
-
-1. Check `PEELBOX_PROVIDER` environment variable
-2. Try connecting to Ollama (localhost:11434)
-3. Fall back to embedded local inference (zero-config)
-
-```bash
-# Auto-select (tries Ollama, falls back to embedded)
-peelbox detect .
-
-# Force specific provider
-PEELBOX_PROVIDER=ollama peelbox detect .
-PEELBOX_PROVIDER=claude ANTHROPIC_API_KEY=sk-... peelbox detect .
-PEELBOX_PROVIDER=embedded peelbox detect .
+# Wolfi APKINDEX + build cache location (defaults to a temp dir)
+export PEELBOX_CACHE_DIR=/path/to/cache
 ```
 
 ## Examples
@@ -472,14 +423,13 @@ docker run -d --rm --name buildkitd --privileged \
   -p 127.0.0.1:1234:1234 \
   moby/buildkit:latest --addr tcp://0.0.0.0:1234
 
-# 3. Generate LLB and build
+# 3. Build the image
 docker run --rm -v $(pwd):/workspace \
   ghcr.io/diverofdark/peelbox:latest \
-  frontend --spec /workspace/universalbuild.json | \
-  buildctl --addr tcp://127.0.0.1:1234 build \
-    --local context=$(pwd) \
-    --output type=docker,name=myapp:latest | \
-  docker load
+  build --spec /workspace/universalbuild.json \
+    --tag myapp:latest \
+    --context /workspace \
+    --buildkit tcp://127.0.0.1:1234
 
 # 4. Run your distroless image
 docker run -p 8080:8080 myapp:latest
@@ -495,11 +445,8 @@ docker run --rm myapp:latest test -f /sbin/apk && echo "FAIL" || echo "PASS"
 cd myproject
 peelbox detect . > universalbuild.json
 
-# 2. Generate LLB and build
-peelbox frontend --spec universalbuild.json | \
-  buildctl build \
-    --local context=. \
-    --output type=docker,name=myapp:latest
+# 2. Build the image
+peelbox build --spec universalbuild.json --tag myapp:latest
 
 # 3. Run the image
 docker run -p 8080:8080 myapp:latest
@@ -507,13 +454,11 @@ docker run -p 8080:8080 myapp:latest
 
 ### With SBOM and Provenance
 
+SBOM and SLSA provenance attestations are generated by default:
+
 ```bash
-peelbox frontend | buildctl build \
-  --local context=. \
-  --output type=docker,name=myapp:latest \
-  --opt attest:sbom= \
-  --opt attest:provenance=mode=max \
-  --opt build-arg:BUILDKIT_SBOM_SCAN_CONTEXT=true
+peelbox build --spec universalbuild.json --tag myapp:latest \
+  --provenance max
 
 # View SBOM
 docker buildx imagetools inspect myapp:latest \
@@ -543,12 +488,9 @@ jobs:
       - name: Detect and build
         run: |
           ./peelbox detect . > universalbuild.json
-          ./peelbox frontend --spec universalbuild.json | \
-            buildctl build \
-              --local context=. \
-              --output type=docker,name=ghcr.io/${{ github.repository }}:${{ github.sha }},push=true \
-              --opt attest:sbom= \
-              --opt attest:provenance=mode=max
+          ./peelbox build \
+            --spec universalbuild.json \
+            --tag ghcr.io/${{ github.repository }}:${{ github.sha }}
 ```
 
 ### Context Transfer Optimization
@@ -569,9 +511,7 @@ peelbox automatically reduces context transfer by 99.995%:
 ```
 
 For more examples:
-- [docs/EXAMPLES.md](docs/EXAMPLES.md) - Comprehensive usage examples
 - [docs/SBOM_AND_PROVENANCE.md](docs/SBOM_AND_PROVENANCE.md) - SBOM/provenance guide
-- [examples/](examples/) - Runnable code examples
 
 ## Supported Languages
 
@@ -593,10 +533,8 @@ For more examples:
 ## Documentation
 
 - **[SBOM_AND_PROVENANCE.md](docs/SBOM_AND_PROVENANCE.md)** - Supply chain security guide
-- **[CLAUDE.md](CLAUDE.md)** - Development guide for AI assistants
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and design
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history
-- **[PRD.md](PRD.md)** - Product requirements and vision
+- **[BUILDKIT_GRPC_LLB_TAR_EXPORT_FLOW.md](docs/BUILDKIT_GRPC_LLB_TAR_EXPORT_FLOW.md)** - BuildKit gRPC/LLB internals
+- **[AGENTS.md](AGENTS.md)** - Development guide and repository conventions
 
 ## Development
 
@@ -615,8 +553,8 @@ cargo build --release
 # Run tests
 cargo test
 
-# Run e2e tests (static mode, no LLM needed)
-cargo test --test e2e static
+# Run e2e tests (deterministic, fixture-driven)
+cargo test --test static_e2e
 
 # Run integration tests (requires Docker/Podman)
 cargo test --test buildkit_integration -- --ignored --nocapture
@@ -632,14 +570,11 @@ cargo fmt
 # Unit tests (fast)
 cargo test --lib
 
-# E2E tests in static mode (deterministic, no LLM)
-PEELBOX_DETECTION_MODE=static cargo test --test e2e
+# Static detection E2E tests (deterministic, fixture-driven)
+cargo test --test static_e2e
 
-# E2E tests with LLM (requires Ollama or embedded model)
-cargo test --test e2e
-
-# Integration tests (requires Docker/Podman + BuildKit)
-cargo test --test buildkit_integration -- --ignored --nocapture
+# Container build tests (requires Docker/Podman + BuildKit)
+cargo test --test container_e2e
 ```
 
 ## Troubleshooting
@@ -666,20 +601,6 @@ echo "target/" >> .gitignore
 echo "node_modules/" >> .gitignore
 ```
 
-### LLM Issues
-
-**Ollama connection refused:**
-```bash
-ollama serve  # Start Ollama
-ollama pull qwen2.5-coder:7b  # Pull model
-```
-
-**Use embedded model (zero-config):**
-```bash
-PEELBOX_PROVIDER=embedded peelbox detect .
-# Auto-selects model based on available RAM
-```
-
 ### Package Validation Errors
 
 **Package not found:**
@@ -696,7 +617,6 @@ build.packages = ["nodejs-22"]
 - Built with [Rust](https://www.rust-lang.org/)
 - Container images powered by [Wolfi](https://github.com/wolfi-dev) and [Chainguard](https://www.chainguard.dev/)
 - BuildKit integration via [buildkit-llb](https://crates.io/crates/buildkit-llb)
-- Local LLM inference with [Qwen2.5-Coder](https://github.com/QwenLM/Qwen2.5-Coder) (GGUF format)
 
 ## Support
 
