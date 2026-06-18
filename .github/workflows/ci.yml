@@ -112,7 +112,7 @@ jobs:
 
       - name: Upload to Codecov coverage
         if: matrix.os == 'ubuntu-latest' && (success() || failure())
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: false
           files: cobertura.xml
@@ -120,7 +120,7 @@ jobs:
 
       - name: Upload to Codecov tests
         if: matrix.os == 'ubuntu-latest' && (success() || failure())
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: false
           report_type: test_results
